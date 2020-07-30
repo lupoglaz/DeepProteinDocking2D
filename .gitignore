@@ -1,3 +1,10 @@
+#Pytorch
+*.th
+*.pkl
+*.mp4
+*.png
+*.txt
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
