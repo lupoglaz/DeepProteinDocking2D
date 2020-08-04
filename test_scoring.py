@@ -16,36 +16,32 @@ def run_docking_model(data, docker):
 	ligand = ligand.to(device='cuda', dtype=torch.float)
 	docker.eval()
 	angle, x, y, score = docker(receptor, ligand)
-	print(rotation, angle)
-	print(translation, x, y)
-	print(score)
-	sys.exit()
+
+
+	# box_size = int(ligand.size(1))
+	# field_size = box_size*3
+	# field = np.zeros( (field_size, field_size) )
 	
+	# rligand = ligand.numpy()
+	# this_field = field[:, i*field_size: (i+1)*field_size]
+	# this_field[ int(field_size/2 - box_size/2): int(field_size/2 + box_size/2),
+	# 			int(field_size/2 - box_size/2): int(field_size/2 + box_size/2)] += all_receptors[i,:,:].numpy()
 	
-	box_size = int(ligand.size(1))
-	field_size = box_size*3
-	field = np.zeros( (field_size, field_size) )
+	# this_field[ int(field_size/2 - box_size/2 + dx): int(field_size/2 + dx + box_size/2),
+	# 			int(field_size/2 - box_size/2 + dy): int(field_size/2 + dy + box_size/2) ] += 2*rligand
 	
-	rligand = ligand[0,:,:].numpy()
-	this_field = field[:, i*field_size: (i+1)*field_size]
-	this_field[ int(field_size/2 - box_size/2): int(field_size/2 + box_size/2),
-				int(field_size/2 - box_size/2): int(field_size/2 + box_size/2)] += all_receptors[i,:,:].numpy()
+	# receptors[:,i*box_size:(i+1)*box_size] = all_receptors[i,:,:]
+	# ligands[:,i*box_size:(i+1)*box_size] = all_ligands[i,:,:]
 	
-	this_field[ int(field_size/2 - box_size/2 + dx): int(field_size/2 + dx + box_size/2),
-				int(field_size/2 - box_size/2 + dy): int(field_size/2 + dy + box_size/2) ] += 2*rligand
-	
-	receptors[:,i*box_size:(i+1)*box_size] = all_receptors[i,:,:]
-	ligands[:,i*box_size:(i+1)*box_size] = all_ligands[i,:,:]
-	
-	f = plt.figure(figsize=(12,6))
-	plt.subplot(3,1,1)
-	plt.imshow(field)
-	plt.subplot(3,1,2)
-	plt.imshow(receptors)
-	plt.subplot(3,1,3)
-	plt.imshow(ligands)
-	plt.tight_layout()
-	plt.show()
+	# f = plt.figure(figsize=(12,6))
+	# plt.subplot(3,1,1)
+	# plt.imshow(field)
+	# plt.subplot(3,1,2)
+	# plt.imshow(receptors)
+	# plt.subplot(3,1,3)
+	# plt.imshow(ligands)
+	# plt.tight_layout()
+	# plt.show()
 	
 	return
 

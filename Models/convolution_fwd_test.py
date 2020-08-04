@@ -1,6 +1,7 @@
 import torch
 from torch import nn
-from convolution import ProteinConv2D, convolve
+from convolution import ProteinConv2D
+from multiplication import ImageCrossMultiply
 
 import seaborn
 from matplotlib import pylab as plt
@@ -15,25 +16,32 @@ def gaussian(tensor, center=(0,0), sigma=1.0):
             tensor[x,y] = torch.exp(arg)
 
 if __name__=='__main__':
-    pc = ProteinConv2D()
+    convolve = ProteinConv2D()
+    mult = ImageCrossMultiply()
+    
     a = torch.zeros(50, 50, dtype=torch.float, device='cpu')
     b = torch.zeros(50, 50, dtype=torch.float, device='cpu')
     gaussian(a, (0,0), 1.0)
-    gaussian(b, (10,0), 1.0)
-    c = convolve(a.unsqueeze(dim=0), b.unsqueeze(dim=0), True).squeeze()
-    d = pc(a.unsqueeze(dim=0).unsqueeze(dim=1), b.unsqueeze(dim=0).unsqueeze(dim=1)).squeeze()
+    gaussian(b, (10,0), 1.0)    
+    a = a.unsqueeze(dim=0).unsqueeze(dim=1)
+    b = b.unsqueeze(dim=0).unsqueeze(dim=1)
+
+    d = pc(a, b).squeeze()
+
+    T = torch.tensor([[-10, 0]], dtype=torch.float, device='cpu')
+    m = mult(a, b, T)
+    print(m, d[40, 50])
+    
     
     f = plt.figure(figsize=(20,5))
-    plt.subplot(1,4,1)
-    plt.imshow(a)
+    plt.subplot(1,3,1)
+    plt.imshow(a.squeeze())
     plt.colorbar()
-    plt.subplot(1,4,2)
-    plt.imshow(b)
+    plt.subplot(1,3,2)
+    plt.imshow(b.squeeze())
     plt.colorbar()
-    plt.subplot(1,4,3)
-    plt.imshow(c)
-    plt.colorbar()
-    plt.subplot(1,4,4)
+    
+    plt.subplot(1,3,3)
     plt.imshow(d)
     plt.colorbar()
     plt.tight_layout()

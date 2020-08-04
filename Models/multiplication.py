@@ -3,6 +3,7 @@ from torch import nn
 from torch.autograd import Function
 import torch.nn.functional as F
 import numpy as np
+
 class ImageMultiply(nn.Module):
 	def __init__(self):
 		super(ImageMultiply, self).__init__()
@@ -37,8 +38,8 @@ class ImageMultiply(nn.Module):
 		L = receptor.size(2)
 		mults = []
 		for i in range(batch_size):
-			v1 = receptor[i,:,:,:].squeeze()
-			v2 = ligand[i,:,:,:].squeeze()
+			v1 = receptor[i,:,:,:]
+			v2 = ligand[i,:,:,:]
 			dx = int(T[i,0])
 			dy = int(T[i,1])
 			mults.append(self.multiply(v1,v2,dx,dy,L))
@@ -63,9 +64,10 @@ class ImageCrossMultiply(ImageMultiply):
 		volume2 = torch.cat(volume2_unpacked, dim=1)
 
 		for i in range(batch_size):
-			v1 = volume1[i,:,:,:].squeeze()
-			v2 = volume2[i,:,:,:].squeeze()
+			v1 = volume1[i,:,:,:]
+			v2 = volume2[i,:,:,:]
 			dx = int(T[i,0].item())
 			dy = int(T[i,1].item())
 			mults.append(self.multiply(v1,v2,dx,dy,volume_size))
 		return torch.stack(mults, dim=0)
+
