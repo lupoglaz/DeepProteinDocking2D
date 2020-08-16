@@ -4,6 +4,7 @@ from torch.autograd import Function
 import numpy as np
 
 from .multiplication import ImageCrossMultiply
+from .multiplication_v2 import ImageCrossMultiplyV2
 from .convolution import ProteinConv2D
 from .eq_spatial_model import EQRepresentation
 from e2cnn import gspaces
@@ -34,6 +35,32 @@ class EQScoringModel(nn.Module):
 		lig_feat = self.repr(ligand.unsqueeze(dim=1)).tensor
 			
 		pos_repr = self.mult(rec_feat, lig_feat, T)
+				
+		score = self.scorer(pos_repr)
+		# norm = torch.sqrt((pos_repr*pos_repr).sum(dim=-1) + 1E-5)
+		# pos_repr = pos_repr/norm
+		return pos_repr
+
+class EQScoringModelV2(nn.Module):
+	def __init__(self, num_features=1, prot_field_size=50):
+		super(EQScoringModelV2, self).__init__()
+		self.prot_field_size = prot_field_size
+				
+		self.mult = ImageCrossMultiplyV2()
+		self.repr = EQRepresentation()		
+
+		self.scorer = nn.Sequential(
+			nn.ReLU(),
+			nn.Linear(36,16),
+			nn.ReLU(),
+			nn.Linear(16,1)
+		)
+
+	def forward(self, receptor, ligand, alpha, dr):
+		rec_feat = self.repr(receptor.unsqueeze(dim=1)).tensor
+		lig_feat = self.repr(ligand.unsqueeze(dim=1)).tensor
+			
+		pos_repr, _, A = self.mult(rec_feat, lig_feat, alpha, dr)
 				
 		score = self.scorer(pos_repr)
 		# norm = torch.sqrt((pos_repr*pos_repr).sum(dim=-1) + 1E-5)

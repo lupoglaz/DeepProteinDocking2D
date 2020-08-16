@@ -5,9 +5,9 @@ import torch.nn.functional as F
 import numpy as np
 from torch import optim
 
-class ImageCrossMultiply(nn.Module):
+class ImageCrossMultiplyV2(nn.Module):
 	def __init__(self):
-		super(ImageCrossMultiply, self).__init__()
+		super(ImageCrossMultiplyV2, self).__init__()
 	
 	def multiply(self, v1, v2, dx, dy, L):
 		def mabs(self, dx, dy):
@@ -33,12 +33,18 @@ class ImageCrossMultiply(nn.Module):
 
 		return result.sum(dim=2).sum(dim=1).squeeze()
 
-	def forward(self, volume1, volume2, A):
+	def forward(self, volume1, volume2, alpha, dr):
 		batch_size = volume1.size(0)
 		num_features = volume1.size(1)
 		volume_size = volume1.size(2)
 		mults = []
-
+		
+		T0 = torch.cat([torch.cos(alpha), -torch.sin(alpha)], dim=1)
+		T1 = torch.cat([torch.sin(alpha), torch.cos(alpha)], dim=1)
+		t = torch.stack([(T0*dr).sum(dim=1), (T1*dr).sum(dim=1)], dim=1)
+		T01 = torch.stack([T0, T1], dim=1)
+		A = torch.cat([T01, t.unsqueeze(dim=2)], dim=2)
+		
 		grid = nn.functional.affine_grid(A, size=volume2.size())
 		volume2 = nn.functional.grid_sample(volume2, grid)
 		volume1_unpacked = []
@@ -51,8 +57,52 @@ class ImageCrossMultiply(nn.Module):
 
 		mults = (volume1 * volume2).sum(dim=3).sum(dim=2)
 		
-		return mults, volume2
+		return mults, volume2, grid
 
+def test_optimization(a,b):
+	mult = ImageCrossMultiplyV2()
+	alpha = torch.tensor([[-0.6]], dtype=torch.float, device='cpu').requires_grad_()
+	dr = torch.tensor([[0.0, 0.0]], dtype=torch.float, device='cpu').requires_grad_()
+	
+	fig = plt.figure(figsize=(20,5))
+	camera = Camera(fig)
+
+	optimizer = optim.Adam([alpha, dr], lr = 0.1)
+	for i in range(100):
+		optimizer.zero_grad()		
+		m, v2 = mult(a, b, alpha, dr)
+		loss = -m.sum()
+		loss.backward()
+		optimizer.step()
+		plt.subplot(1,3,1)
+		plt.imshow(a.squeeze())
+		plt.subplot(1,3,2)
+		plt.imshow(b.squeeze())
+		plt.subplot(1,3,3)
+		plt.imshow(v2.detach().squeeze(), label=f'step {i}')
+		camera.snap()
+
+	animation = camera.animate()
+	plt.show()
+
+def test_translation(a,b):
+	fig = plt.figure(figsize=(20,5))
+	camera = Camera(fig)
+	mult = ImageCrossMultiplyV2()
+	for i in range(100):
+		alpha = torch.tensor([[2*np.pi*float(i)/100.0]], dtype=torch.float, device='cpu')
+		dr = torch.tensor([[float(i)/100.0, 0.0]], dtype=torch.float, device='cpu')
+		m, v2 = mult(b, a, alpha, dr)
+
+		plt.subplot(1,3,1)
+		plt.imshow(a.squeeze())
+		plt.subplot(1,3,2)
+		plt.imshow(b.squeeze())
+		plt.subplot(1,3,3)
+		plt.imshow(v2.detach().squeeze())
+		camera.snap()
+	animation = camera.animate()
+	plt.show()
 
 if __name__=='__main__':
 	import seaborn
@@ -66,7 +116,7 @@ if __name__=='__main__':
 				arg = torch.tensor([-r2/sigma])
 				tensor[x,y] = torch.exp(arg)
 	
-	mult = ImageCrossMultiply()
+	
 	a = torch.zeros(50, 50, dtype=torch.float, device='cpu')
 	b = torch.zeros(50, 50, dtype=torch.float, device='cpu')
 	t = torch.zeros(50, 50, dtype=torch.float, device='cpu')
@@ -79,36 +129,6 @@ if __name__=='__main__':
 	a = a.unsqueeze(dim=0).unsqueeze(dim=1)
 	b = b.unsqueeze(dim=0).unsqueeze(dim=1)
 
+	test_optimization(a,b)
 	
-	alpha = torch.tensor([-0.6], dtype=torch.float, device='cpu').requires_grad_()
-	dr = torch.tensor([0.0, 0.0], dtype=torch.float, device='cpu').requires_grad_()
-	
-	T = torch.tensor(	[[[1.0, 0.0, 0.0],
-						 [0.0, 1.0, 0.0]]], dtype=torch.float, device='cpu').requires_grad_()
-	
-	fig = plt.figure(figsize=(20,5))
-	camera = Camera(fig)
-
-	optimizer = optim.Adam([alpha, dr], lr = 0.1)
-	for i in range(100):
-		optimizer.zero_grad()		
-		T0 = torch.cat([torch.cos(alpha), -torch.sin(alpha)], dim=0)
-		T1 = torch.cat([torch.sin(alpha), torch.cos(alpha)], dim=0)
-		T01 = torch.stack([T0, T1], dim=0)
-		T = torch.cat([T01, dr.unsqueeze(dim=1)], dim=1).unsqueeze(dim=0)
-		m, v2 = mult(a, b, T)
-		loss = -m.sum()
-		loss.backward()
-		optimizer.step()
-
-		plt.subplot(1,3,1)
-		plt.imshow(a.squeeze())
-		plt.subplot(1,3,2)
-		plt.imshow(b.squeeze())
-		plt.subplot(1,3,3)
-		plt.imshow(v2.detach().squeeze(), label=f'step {i}')
-		camera.snap()
-
-	animation = camera.animate()
-	plt.show()
 	
