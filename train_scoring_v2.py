@@ -103,7 +103,7 @@ def plot(rec, lig, rot, trans):
 	plt.imshow(field)
 	
 
-def step(data, model, optimizer, buffer, device='cuda', alpha=1, step_size=10.0, sample_step=100, animate=False):
+def step_stoch(data, model, optimizer, buffer, device='cuda', alpha=1, step_size=10.0, sample_step=100, animate=False):
 	receptor, ligand, translation, rotation = data
 	batch_size = receptor.size(0)
 
@@ -180,21 +180,53 @@ def step(data, model, optimizer, buffer, device='cuda', alpha=1, step_size=10.0,
 	
 	return (pos_out - neg_out).mean().item(),
 
+def step_determ(data, model, optimizer, device='cuda', alpha=0.1):
+	receptor, ligand, translation, rotation = data
+	batch_size = receptor.size(0)
+
+	pos_rec = receptor.to(device=device, dtype=torch.float32).unsqueeze(dim=1)
+	pos_lig = ligand.to(device=device, dtype=torch.float32).unsqueeze(dim=1)
+	pos_alpha = rotation.to(device, dtype=torch.float32).unsqueeze(dim=1)*(np.pi/180.0)
+	pos_dr = translation.to(device, dtype=torch.float32)
+	
+	model.eval()
+	
+	docker = EQDockModel(model, num_angles=20)
+	neg_alpha, neg_dr = docker(pos_rec, pos_lig)
+	
+	model.train()
+	model.zero_grad()
+		
+	pos_out = model(pos_rec, pos_lig, pos_alpha, pos_dr)
+	neg_out = model(pos_rec, pos_lig, neg_alpha, neg_dr)
+
+	loss = alpha * (pos_out ** 2 + neg_out ** 2)
+	loss = loss + (pos_out - neg_out)
+	loss = loss.mean()
+	loss.backward()
+
+	# clip_grad(parameters, optimizer)
+
+	optimizer.step()
+	
+	return (pos_out - neg_out).mean().item(),
+
 def run_docking_model(data, docker):
 	receptor, ligand, translation, rotation = data
-	
-	receptor = receptor.to(device='cuda', dtype=torch.float)
-	ligand = ligand.to(device='cuda', dtype=torch.float)
+	batch_size = rotation.size(0)
+	receptor = receptor.to(device='cuda', dtype=torch.float).unsqueeze(dim=1)
+	ligand = ligand.to(device='cuda', dtype=torch.float).unsqueeze(dim=1)
+	translation = translation.to(device='cuda', dtype=torch.float)
+	rotation = rotation.to(device='cuda', dtype=torch.float).unsqueeze(dim=1)
 	docker.eval()
-	angle, x, y, score = docker(receptor, ligand)
-
-	rotation = rotation * (np.pi/180.0)
-	loss_angle = (torch.cos(rotation) - np.cos(angle))*(torch.cos(rotation) - np.cos(angle))
-	loss_angle += (torch.sin(rotation) - np.sin(angle))*(torch.sin(rotation) - np.sin(angle))
-	loss_angle = torch.sqrt(loss_angle)
-	loss_tr = torch.sqrt((x - translation[0,0])*(x - translation[0,0]) + (y - translation[0,1])*(y - translation[0,1]))/50.0
+	pred_angles, pred_translations = docker(receptor, ligand)
 	
-	return loss_angle.item(), loss_tr.item()
+	rotation = rotation * (np.pi/180.0)
+	pred_angle_vec = torch.cat([torch.cos(pred_angles), torch.sin(pred_angles)], dim=1)
+	answ_angle_vec = torch.cat([torch.cos(rotation), torch.sin(rotation)], dim=1)
+	La = torch.sqrt((pred_angle_vec - answ_angle_vec).pow(2).sum(dim=1)).mean().item()
+	Lr = torch.sqrt((pred_translations - translation).pow(2).sum(dim=1)).mean().item()/50.0
+	return La, Lr
 
 
 if __name__=='__main__':
@@ -204,8 +236,8 @@ if __name__=='__main__':
 			print(i, torch.cuda.get_device_name(i), torch.cuda.get_device_capability(i))	
 		torch.cuda.set_device(1)
 
-	train_stream = get_dataset_stream('DatasetGeneration/toy_dataset_1000.pkl', batch_size=128)
-	valid_stream = get_dataset_stream('DatasetGeneration/toy_dataset.pkl', batch_size=1)
+	train_stream = get_dataset_stream('DatasetGeneration/toy_dataset_1000.pkl', batch_size=16)
+	valid_stream = get_dataset_stream('DatasetGeneration/toy_dataset.pkl', batch_size=10)
 	
 	model = EQScoringModelV2().to(device='cuda')
 	optimizer = optim.Adam(model.parameters(), lr=1e-3, betas=(0.0, 0.999))
@@ -218,10 +250,8 @@ if __name__=='__main__':
 	
 	for epoch in range(300):
 		loss = []
-		first = True
 		for data in tqdm(train_stream):
-			loss.append([step(data, model, optimizer, buffer, animate=first)])
-			first = False
+			loss.append([step_determ(data, model, optimizer)])
 		
 		av_loss = np.average(loss, axis=0)[0,:]
 		print('Epoch', epoch, 'Train Loss:', av_loss)

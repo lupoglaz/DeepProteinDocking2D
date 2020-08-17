@@ -38,7 +38,8 @@ class ImageCrossMultiplyV2(nn.Module):
 		num_features = volume1.size(1)
 		volume_size = volume1.size(2)
 		mults = []
-		
+		perm = torch.tensor([1,0], dtype=torch.long, device=volume1.device)
+		dr = -2.0*dr[:, perm]/volume_size
 		T0 = torch.cat([torch.cos(alpha), -torch.sin(alpha)], dim=1)
 		T1 = torch.cat([torch.sin(alpha), torch.cos(alpha)], dim=1)
 		t = torch.stack([(T0*dr).sum(dim=1), (T1*dr).sum(dim=1)], dim=1)
@@ -70,7 +71,7 @@ def test_optimization(a,b):
 	optimizer = optim.Adam([alpha, dr], lr = 0.1)
 	for i in range(100):
 		optimizer.zero_grad()		
-		m, v2 = mult(a, b, alpha, dr)
+		m, v2, _ = mult(a, b, alpha, dr)
 		loss = -m.sum()
 		loss.backward()
 		optimizer.step()
@@ -89,10 +90,10 @@ def test_translation(a,b):
 	fig = plt.figure(figsize=(20,5))
 	camera = Camera(fig)
 	mult = ImageCrossMultiplyV2()
-	for i in range(100):
+	for i in range(50):
 		alpha = torch.tensor([[2*np.pi*float(i)/100.0]], dtype=torch.float, device='cpu')
-		dr = torch.tensor([[float(i)/100.0, 0.0]], dtype=torch.float, device='cpu')
-		m, v2 = mult(b, a, alpha, dr)
+		dr = torch.tensor([[0.0, float(i)-25.0]], dtype=torch.float, device='cpu')
+		m, v2, _ = mult(b, a, alpha, dr)
 
 		plt.subplot(1,3,1)
 		plt.imshow(a.squeeze())
@@ -129,6 +130,7 @@ if __name__=='__main__':
 	a = a.unsqueeze(dim=0).unsqueeze(dim=1)
 	b = b.unsqueeze(dim=0).unsqueeze(dim=1)
 
-	test_optimization(a,b)
+	# test_optimization(a,b)
+	test_translation(a,b)
 	
 	
