@@ -65,7 +65,7 @@ class EQScoringModelV2(nn.Module):
 		score = self.scorer(pos_repr)
 		# norm = torch.sqrt((pos_repr*pos_repr).sum(dim=-1) + 1E-5)
 		# pos_repr = pos_repr/norm
-		return pos_repr
+		return score
 
 class EQDockModel(nn.Module):
 	def __init__(self, scoring_model, prot_field_size=50, num_angles=120, max_conf=100):
@@ -82,12 +82,14 @@ class EQDockModel(nn.Module):
 		self.angles = []
 		self.rotations = []
 		self.generate_rotations(num_angles)
+		self.top_translations = None
+		self.top_rotations = torch.zeros(num_angles, dtype=torch.float32)
 	
 	def generate_rotations(self, num_angles):
 		for i in range(num_angles):
 			angle = float(i*np.pi)/float(num_angles)
-			self.rotations.append(torch.tensor([[cos(angle), sin(angle), 0],
-											[-sin(angle), cos(angle), 0]],
+			self.rotations.append(torch.tensor([[cos(angle), -sin(angle), 0],
+											[sin(angle), cos(angle), 0]],
 											dtype=torch.float, device='cuda'))
 			self.angles.append(angle)
 
@@ -98,11 +100,12 @@ class EQDockModel(nn.Module):
 			curr_grid = nn.functional.affine_grid(rotation, size=repr.size(), align_corners=True)
 			return nn.functional.grid_sample(repr, curr_grid, align_corners=True)
 
-	def update_top(self, scores, angle):
+	def update_top(self, scores, angle, angle_idx):
 		assert scores.ndimension() == 3
 		L = scores.size(1)/2
 		batch_size = scores.size(0)
-		
+		if self.top_translations is None:
+			self.top_translations = torch.zeros_like(scores).fill_(np.float32('+Inf'))
 		#Getting top scoring translations
 		for batch_idx in range(batch_size):
 			if not (batch_idx in self.top_list.keys()):
@@ -112,8 +115,15 @@ class EQDockModel(nn.Module):
 				maxval_x, ind_x = torch.max(maxval_y, dim=0)
 				x = ind_x.item()
 				y = ind_y[x].item()
-				self.top_list[batch_idx].append((angle, x-L, y-L, scores[batch_idx, x, y].item()))
+				score = scores[batch_idx, x, y].item()
+				self.top_list[batch_idx].append((angle, x-L, y-L, score))
 				scores[batch_idx, x, y] = 0.0
+				
+				if score < self.top_list[batch_idx][0][3] and batch_idx==0:
+					self.top_translations.copy_(scores)
+
+				if score < self.top_rotations[angle_idx] and batch_idx==0:
+					self.top_rotations[angle_idx] = score
 		
 			#Resorting the top conformations and cutting the max number
 			self.top_list[batch_idx].sort(key = lambda t: -t[3])
@@ -139,22 +149,16 @@ class EQDockModel(nn.Module):
 		with torch.no_grad():
 			rec_feat = self.scoring_model.repr(receptor).tensor
 			lig_feat = self.scoring_model.repr(ligand).tensor
-			self.top_list = {}	
+			self.top_list = {}
+			
+			self.top_rotations.fill_(np.float32('+Inf'))
 			for i in range(self.num_angles):
 				lig_rot = self.rotate(lig_feat, self.rotations[i])
 				res = self.conv(rec_feat, lig_rot)
 				scores = self.score(res)
-				self.update_top(scores, self.angles[i])
+				self.update_top(scores, self.angles[i], i)
 
-				# plt.subplot(1,3,1)
-				# plt.imshow(receptor[0,:,:].cpu().numpy())
-				# plt.subplot(1,3,2)
-				# plt.imshow(lig_rot[0,0,:,:].cpu().numpy())
-				# plt.subplot(1,3,3)
-				# plt.imshow(scores.cpu().numpy())
-				# plt.colorbar()
-				# plt.show()
-			angles = torch.zeros(batch_size,1, dtype=receptor.dtype, device=receptor.device)
+			angles = torch.zeros(batch_size, 1, dtype=receptor.dtype, device=receptor.device)
 			translations = torch.zeros(batch_size, 2, dtype=receptor.dtype, device=receptor.device)
 			for batch_idx in range(batch_size):
 				angles[batch_idx], translations[batch_idx,0], translations[batch_idx,1], _ = self.top_list[batch_idx][0]

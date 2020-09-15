@@ -87,12 +87,12 @@ def clip_grad(parameters, optimizer):
 
 def plot(rec, lig, rot, trans):
 	box_size = int(rec.size(1))
-	field_size = box_size*2
+	field_size = box_size*3
 	field = np.zeros( (field_size, field_size) )
-
 	rot_lig = rotate_ligand(lig[:,:].numpy(), rot[0].item()*180.0/np.pi)
-	dx = int(trans[0].item()*50.0-25.0)
-	dy = int(trans[1].item()*50.0-25.0)
+	dx = int(trans[0].item())
+	dy = int(trans[1].item())
+	print(dx, dy, rot[0].item()*180.0/np.pi)
 
 	field[ 	int(field_size/2 - box_size/2): int(field_size/2 + box_size/2),
 				int(field_size/2 - box_size/2): int(field_size/2 + box_size/2)] += rec.numpy()
@@ -122,10 +122,6 @@ def step_stoch(data, model, optimizer, buffer, device='cuda', alpha=1, step_size
 	requires_grad(model.parameters(), False)
 	model.eval()
 	
-	if animate:
-		fig = plt.figure(figsize=(12,6))
-		camera = Camera(fig)
-
 	for k in range(sample_step):
 		if batch_size != neg_dr.shape[0]:
 			noise_dr = torch.randn(neg_dr.shape[0], 2, device=device)
@@ -138,9 +134,6 @@ def step_stoch(data, model, optimizer, buffer, device='cuda', alpha=1, step_size
 
 		neg_out = model(neg_rec, neg_lig, neg_alpha, neg_dr)
 		neg_out.sum().backward()
-		if animate:
-			plot(neg_rec[0,:,:].detach().cpu(), neg_lig[0,:,:].detach().cpu(), neg_alpha[0,:].detach().cpu(), neg_dr[0,:].detach().cpu())
-			camera.snap()
 		
 		# neg_dr.grad.data.clamp_(-0.05, 0.05)
 		# neg_alpha.grad.data.clamp_(-0.05, 0.05)
@@ -156,10 +149,6 @@ def step_stoch(data, model, optimizer, buffer, device='cuda', alpha=1, step_size
 		neg_dr.data.clamp_(0, 1)
 		neg_alpha.data.clamp_(-np.pi, np.pi)
 	
-	if animate:
-		animation = camera.animate()
-		animation.save('animation.mp4')
-
 	requires_grad(model.parameters(), True)
 	model.train()
 	model.zero_grad()
@@ -191,9 +180,19 @@ def step_determ(data, model, optimizer, device='cuda', alpha=0.1):
 	
 	model.eval()
 	
-	docker = EQDockModel(model, num_angles=20)
+	docker = EQDockModel(model, num_angles=180)
 	neg_alpha, neg_dr = docker(pos_rec, pos_lig)
+
+	plt.subplot(3,2,1)
+	plt.imshow(docker.top_translations[0,:,:].cpu())
+	plt.subplot(3,2,2)
+	plt.plot(docker.angles, docker.top_rotations)
+	plt.subplot(3,2,3)
+	plot(receptor.squeeze(), ligand.squeeze(), pos_alpha[0,:].cpu(), pos_dr.squeeze().cpu())
+	plt.subplot(3,2,4)
+	plot(receptor.squeeze(), ligand.squeeze(), neg_alpha[0,:].cpu(), neg_dr.squeeze().cpu())
 	
+	# plt.show()	
 	model.train()
 	model.zero_grad()
 		
@@ -201,7 +200,7 @@ def step_determ(data, model, optimizer, device='cuda', alpha=0.1):
 	neg_out = model(pos_rec, pos_lig, neg_alpha, neg_dr)
 
 	loss = alpha * (pos_out ** 2 + neg_out ** 2)
-	loss = loss + (pos_out - neg_out)
+	loss = (pos_out - neg_out) + loss
 	loss = loss.mean()
 	loss.backward()
 
@@ -236,8 +235,8 @@ if __name__=='__main__':
 			print(i, torch.cuda.get_device_name(i), torch.cuda.get_device_capability(i))	
 		torch.cuda.set_device(1)
 
-	train_stream = get_dataset_stream('DatasetGeneration/toy_dataset_1000.pkl', batch_size=16)
-	valid_stream = get_dataset_stream('DatasetGeneration/toy_dataset.pkl', batch_size=10)
+	train_stream = get_dataset_stream('DatasetGeneration/toy_dataset.pkl', batch_size=1)
+	valid_stream = get_dataset_stream('DatasetGeneration/toy_dataset.pkl', batch_size=1)
 	
 	model = EQScoringModelV2().to(device='cuda')
 	optimizer = optim.Adam(model.parameters(), lr=1e-3, betas=(0.0, 0.999))
@@ -248,26 +247,36 @@ if __name__=='__main__':
 	with open('Log/log_valid_scoring_v2.txt', 'w') as fout:
 		fout.write('Epoch\tLossAngle\tLossR\n')
 	
-	for epoch in range(300):
+	fig = plt.figure(figsize=(12,6))
+	camera = Camera(fig)
+	losses = []
+	for epoch in range(100):
 		loss = []
 		for data in tqdm(train_stream):
 			loss.append([step_determ(data, model, optimizer)])
+			break
 		
 		av_loss = np.average(loss, axis=0)[0,:]
+		losses.append(av_loss)
 		print('Epoch', epoch, 'Train Loss:', av_loss)
 		with open('Log/log_train_scoring_v2.txt', 'a') as fout:
 			fout.write('%d\t%f\n'%(epoch,av_loss[0]))
-
-		loss = []
-		docker = EQDockModel(model, num_angles=60)
-		for data in tqdm(valid_stream):
-			loss.append(run_docking_model(data, docker))
+		plt.subplot(3,2,5)
+		plt.plot(losses)
+		camera.snap()
+		# loss = []
+		# docker = EQDockModel(model, num_angles=60)
+		# for data in tqdm(valid_stream):
+		# 	loss.append(run_docking_model(data, docker))
+		# 	break
 		
-		av_loss = np.average(loss, axis=0)
-		print('Epoch', epoch, 'Valid Loss:', av_loss)
-		with open('Log/log_train_scoring_v2.txt', 'a') as fout:
-			fout.write('%d\t%f\t%f\n'%(epoch,av_loss[0], av_loss[1]))
-
+		# av_loss = np.average(loss, axis=0)
+		# print('Epoch', epoch, 'Valid Loss:', av_loss)
+		# with open('Log/log_train_scoring_v2.txt', 'a') as fout:
+		# 	fout.write('%d\t%f\t%f\n'%(epoch,av_loss[0], av_loss[1]))
+	
+	animation = camera.animate()
+	animation.save('animation.mp4')
 	torch.save(model.state_dict(), 'Log/dock_scoring_v2.th') 
 		
 

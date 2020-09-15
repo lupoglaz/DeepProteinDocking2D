@@ -16,7 +16,8 @@ def crop_collate(batch):
 	ligands = torch.stack(list(map(lambda x: x[1], batch)), dim=0)
 	translations = torch.stack(list(map(lambda x: x[2], batch)), dim=0)
 	rotations = torch.cat(list(map(lambda x: x[3], batch)), dim=0)
-	return receptors, ligands, translations, rotations
+	index = torch.tensor(list(map(lambda x: x[4], batch)), dtype=torch.long)
+	return receptors, ligands, translations, rotations, index
 
 class ToyDataset2D(Dataset):
 	r"""
@@ -37,7 +38,7 @@ class ToyDataset2D(Dataset):
 		r"""
 		"""
 		receptor, ligand, translation, rotation = self.data[index]
-		return torch.from_numpy(receptor), torch.from_numpy(ligand), torch.from_numpy(translation), torch.tensor([rotation])
+		return torch.from_numpy(receptor), torch.from_numpy(ligand), torch.from_numpy(translation), torch.tensor([rotation]), index
 
 		
 	def __len__(self):
@@ -60,9 +61,9 @@ if __name__=='__main__':
 
 	stream = get_dataset_stream(data_path='DatasetGeneration/toy_dataset_1000.pkl')
 	for data in stream:
-		receptor, ligand, translation, rotation = data
+		receptor, ligand, translation, rotation, index = data
 		break
-	
+	print(index)
 	batch_size = int(receptor.size(0))
 	box_size = int(receptor.size(1))
 	field_size = box_size*3

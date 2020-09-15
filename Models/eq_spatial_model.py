@@ -7,6 +7,12 @@ from .convolution import ProteinConv2D
 from e2cnn import gspaces
 from e2cnn import nn as e2nn
 
+def init_weights(module):
+	if isinstance(module, e2nn.R2Conv):
+		e2nn.init.deltaorthonormal_init(module.weights, module.basisexpansion)
+	elif isinstance(module, torch.nn.Linear):
+		module.bias.data.zero_()
+
 class EQRepresentation(nn.Module):
 	def __init__(self):
 		super(EQRepresentation, self).__init__()
@@ -17,14 +23,19 @@ class EQRepresentation(nn.Module):
 		self.feat_type_out = e2nn.FieldType(r2_act, 8*[r2_act.trivial_repr])
 		
 		self.repr = nn.Sequential(
-			e2nn.R2Conv(self.feat_type_in, self.feat_type_hid, kernel_size=3, padding=1),
+			e2nn.R2Conv(self.feat_type_in, self.feat_type_hid, kernel_size=5, padding=1, bias=False),
 			e2nn.ReLU(self.feat_type_hid),
 
-			e2nn.R2Conv(self.feat_type_hid, self.feat_type_hid, kernel_size=3, padding=1),
-			e2nn.ReLU(self.feat_type_hid),
+			# e2nn.R2Conv(self.feat_type_hid, self.feat_type_hid, kernel_size=3, padding=1, bias=False),
+			# e2nn.ReLU(self.feat_type_hid),
+
+			# e2nn.R2Conv(self.feat_type_hid, self.feat_type_hid, kernel_size=3, padding=1, bias=False),
+			# e2nn.ReLU(self.feat_type_hid),
 			
-			e2nn.R2Conv(self.feat_type_hid, self.feat_type_out, kernel_size=3, padding=1),
+			e2nn.R2Conv(self.feat_type_hid, self.feat_type_out, kernel_size=3, padding=1, bias=False),
 		)
+		with torch.no_grad():
+			self.repr.apply(init_weights)
 
 	def forward(self, protein):
 		x = e2nn.GeometricTensor(protein, self.feat_type_in)
