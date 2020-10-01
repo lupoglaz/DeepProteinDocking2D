@@ -9,7 +9,7 @@ from tqdm import tqdm
 import random
 
 class StochTrainer:
-	def __init__(self, model, optimizer, buffer, device='cuda', num_samples=10, weight=1.0, step_size=10.0, sample_steps=10):
+	def __init__(self, model, optimizer, buffer, device='cuda', num_samples=40, weight=1.0, step_size=10.0, sample_steps=100):
 		self.model = model
 		self.optimizer = optimizer
 		self.buffer = buffer

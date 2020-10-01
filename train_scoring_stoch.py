@@ -9,6 +9,7 @@ from tqdm import tqdm
 import random
 
 from StochTrainer import StochTrainer
+from DockTrainer import DockTrainer
 
 class SampleBuffer:
 	def __init__(self, num_samples, max_pos=100):
@@ -90,8 +91,8 @@ if __name__=='__main__':
 			print(i, torch.cuda.get_device_name(i), torch.cuda.get_device_capability(i))	
 		torch.cuda.set_device(1)
 
-	train_stream = get_dataset_stream('DatasetGeneration/toy_dataset_1000.pkl', batch_size=1)
-	valid_stream = get_dataset_stream('DatasetGeneration/toy_dataset_1000.pkl', batch_size=1)
+	train_stream = get_dataset_stream('DatasetGeneration/toy_dataset_1000.pkl', batch_size=10)
+	valid_stream = get_dataset_stream('DatasetGeneration/toy_dataset.pkl', batch_size=10)
 	
 	model = EQScoringModelV2().to(device='cuda')
 	# model.eval()
@@ -101,6 +102,7 @@ if __name__=='__main__':
 	buffer = SampleBuffer(num_samples=len(train_stream)*64)
 
 	trainer = StochTrainer(model, optimizer, buffer)
+	# trainer = DockTrainer(model, optimizer, buffer)
 
 	with open('Log/log_train_scoring_v2.txt', 'w') as fout:
 		fout.write('Epoch\tLoss\n')
@@ -113,30 +115,30 @@ if __name__=='__main__':
 		loss = []
 		for data in tqdm(train_stream):
 			loss.append([trainer.step_stoch(data, epoch=epoch)])
-			break
-				
+			# break
+		
 		av_loss = np.average(loss, axis=0)[0,:]
 		
 		print('Epoch', epoch, 'Train Loss:', av_loss)
 		with open('Log/log_train_scoring_v2.txt', 'a') as fout:
 			fout.write('%d\t%f\n'%(epoch,av_loss[0]))
 		
+		
 		if (epoch+1)%10 == 0:
 			model.eval()
 			torch.save(model.state_dict(), 'Log/dock_ebm.th')
 
-		losses_train.append(av_loss)
 		loss = []
 		docker = EQDockModel(model, num_angles=120)
 		for data in tqdm(valid_stream):
 			loss.append(run_docking_model(data, docker, epoch=epoch))
-			break
+			# break
 		
 		av_loss = np.average(loss, axis=0)
-		losses_valid.append(av_loss)
 		print('Epoch', epoch, 'Valid Loss:', av_loss)
 		with open('Log/log_valid_scoring_v2.txt', 'a') as fout:
 			fout.write('%d\t%f\n'%(epoch, av_loss))		
+		
 
 	
 

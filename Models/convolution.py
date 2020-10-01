@@ -5,6 +5,7 @@ import torch.nn.functional as F
 
 from e2cnn import gspaces
 from e2cnn import nn as e2nn
+import math as m
 
 def convolve(volume1, volume2, conj):
 	batch_size = volume1.size(0)

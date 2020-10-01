@@ -10,7 +10,7 @@ import seaborn as sea
 sea.set_style("whitegrid")
 
 from random import uniform
-from .prot_generator import generate_protein
+from prot_generator import generate_protein
 
 from scipy import ndimage
 
@@ -171,8 +171,7 @@ def test_complex_generation():
 
 
 if __name__=='__main__':
-	# test_superpos()
-	# test_rotations()
-	# test_translation_picking()
-	test_complex_generation()
-	
+	test_superpos()
+	#test_rotations()
+	#test_translation_picking()
+	#test_complex_generation()

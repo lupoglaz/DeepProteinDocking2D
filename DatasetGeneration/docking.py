@@ -154,7 +154,6 @@ def test_dock_global():
 	plt.show()
 
 if __name__=='__main__':
-	# test_representation()
-	# test_dock_translations()
+	#test_representation()
+	#test_dock_translations()
 	test_dock_global()
-	

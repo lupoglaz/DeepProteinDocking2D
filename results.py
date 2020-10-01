@@ -63,7 +63,7 @@ def plot_dock(output_name, max_epoch=40):
 		angles, angle_scores = dict["rotations"]
 			
 		plt.subplot(1, 2, 1)
-		plt.imshow(dict["translations"])
+		plt.imshow(dict["translations"], cmap='plasma')
 		plt.subplot(1, 2, 2)
 		plt.plot(angles, angle_scores)
 		plt.tight_layout()	
@@ -80,15 +80,19 @@ def plot_traces(output_name, max_epoch=40):
 		with open(f"Log/traces_{epoch}.th", "rb") as fin:
 			traces, correct = torch.load( fin)
 		ca, cx, cy = correct
+		
 		ax = fig.gca(projection='3d')
 		for trace in traces:
 			angles, x, y = zip(*trace)
 			ax.plot(x, y, angles, label='parametric curve')
 		ax.scatter([cx], [cy], [ca], s=20, c="r")
+		# print(correct)
+		# sys.exit()
 		camera.snap()
 		# plt.show()
 
 	animation = camera.animate()
+	# plt.show()
 	animation.save(f'{output_name}.mp4')
 
 def plot_losses(output_name):
