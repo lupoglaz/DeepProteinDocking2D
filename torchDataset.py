@@ -55,11 +55,12 @@ def get_dataset_stream(data_path, batch_size = 10, shuffle = False):
 
 if __name__=='__main__':
 	from DatasetGeneration import rotate_ligand
+	from DatasetGeneration import Protein, Complex
 	import matplotlib.pylab as plt
 	import seaborn as sea
 	sea.set_style("whitegrid")
 
-	stream = get_dataset_stream(data_path='DatasetGeneration/toy_dataset_1000.pkl')
+	stream = get_dataset_stream(data_path='DatasetGeneration/dataset_valid.pkl')
 	for data in stream:
 		receptor, ligand, translation, rotation, index = data
 		break
@@ -72,7 +73,7 @@ if __name__=='__main__':
 	ligands = np.zeros( (box_size, batch_size*box_size) )
 	print(batch_size, box_size, field_size)
 	for i in range(batch_size):
-		rligand = rotate_ligand(ligand[i,:,:].numpy(), rotation[i].item())
+		rligand = rotate_ligand(ligand[i,:,:].numpy(), 180.0*rotation[i].item()/np.pi)
 		dx, dy = int(translation[i,0].item()), int(translation[i,1].item())
 		this_field = field[:, i*field_size: (i+1)*field_size]
 		this_field[ int(field_size/2 - box_size/2): int(field_size/2 + box_size/2),
@@ -92,4 +93,8 @@ if __name__=='__main__':
 	plt.subplot(3,1,3)
 	plt.imshow(ligands)
 	plt.tight_layout()
+	plt.show()
+
+	cplx = Complex(Protein(receptor[0,:,:].numpy()), Protein(ligand[0,:,:].numpy()), rotation[0].item(), translation[0,:].numpy())
+	cplx.plot()
 	plt.show()

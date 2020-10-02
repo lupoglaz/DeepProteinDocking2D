@@ -23,13 +23,13 @@ class EQVecRepresentation(nn.Module):
 		self.feat_type_out = e2nn.FieldType(r2_act, 8*[r2_act.trivial_repr])
 		
 		self.repr = nn.Sequential(
-			e2nn.R2Conv(self.feat_type_in, self.feat_type_hid, kernel_size=5, padding=1, bias=False),
+			e2nn.R2Conv(self.feat_type_in, self.feat_type_hid, kernel_size=5, padding=2, bias=False),
 			e2nn.NormNonLinearity(self.feat_type_hid, bias=False),
 
-			e2nn.R2Conv(self.feat_type_hid, self.feat_type_hid, kernel_size=5, padding=1, bias=False),
+			e2nn.R2Conv(self.feat_type_hid, self.feat_type_hid, kernel_size=5, padding=2, bias=False),
 			e2nn.NormNonLinearity(self.feat_type_hid, bias=False),
 
-			e2nn.R2Conv(self.feat_type_hid, self.feat_type_hid, kernel_size=5, padding=1, bias=False),
+			e2nn.R2Conv(self.feat_type_hid, self.feat_type_hid, kernel_size=5, padding=2, bias=False),
 			e2nn.NormNonLinearity(self.feat_type_hid, bias=False),
 			
 			e2nn.R2Conv(self.feat_type_hid, self.feat_type_out, kernel_size=3, padding=1, bias=True),

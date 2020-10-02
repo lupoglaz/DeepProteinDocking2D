@@ -10,7 +10,7 @@ import seaborn as sea
 sea.set_style("whitegrid")
 
 from random import uniform
-from Protein import Protein
+from .Protein import Protein
 
 
 def _pick_translation(receptor, ligand, threshold):

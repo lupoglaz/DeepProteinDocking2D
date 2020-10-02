@@ -117,14 +117,28 @@ def generate_dataset(num_examples=1000):
 			
 			if np.linalg.norm(cplx_docked.translation - cplx.translation)<5.0 and np.abs(cplx_docked.rotation-cplx.rotation)<(np.pi*10.0/180.0):
 				return cplx_docked.receptor, cplx_docked.ligand, cplx_docked.translation, cplx_docked.rotation
-
+	
 	dataset = [generate_example() for i in tqdm(range(num_examples))]
 	return dataset
-		
-if __name__=='__main__':
-	# test_dock_global()
 
-	with open('corr_toy_dataset_1000.pkl', 'wb') as fout:
-		dataset = generate_dataset(num_examples=1000)
+def reformat(dataset_name):
+	with open(dataset_name, 'rb') as fin:
+		dataset = pkl.load(fin)
+	
+	reformatted_data = []
+	for receptor, ligand, translation, rotation in dataset:
+		reformatted_data.append((receptor.bulk, ligand.bulk, translation, rotation))
+
+	with open(dataset_name, 'wb') as fout:
+		pkl.dump(reformatted_data, fout)
+
+def generate(dataset_name, num_examples):
+	dataset = generate_dataset(num_examples=num_examples)
+	with open(dataset_name, 'wb') as fout:
 		pkl.dump(dataset, fout)
+
+if __name__=='__main__':
+	test_dock_global()
+	# reformat('corr_toy_dataset_valid.pkl')
+	# reformat('corr_toy_dataset_1000.pkl')
 	

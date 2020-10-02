@@ -11,6 +11,9 @@ import random
 from StochTrainer import StochTrainer
 from DockTrainer import DockTrainer
 
+from DatasetGeneration import Protein, Complex
+
+
 class SampleBuffer:
 	def __init__(self, num_samples, max_pos=100):
 		self.num_samples = num_samples
@@ -60,7 +63,7 @@ def run_docking_model(data, docker, epoch=None):
 	receptor = receptor.to(device='cuda', dtype=torch.float).unsqueeze(dim=1)
 	ligand = ligand.to(device='cuda', dtype=torch.float).unsqueeze(dim=1)
 	translation = translation.to(device='cuda', dtype=torch.float)
-	rotation = rotation.to(device='cuda', dtype=torch.float).unsqueeze(dim=1)* (np.pi/180.0)
+	rotation = rotation.to(device='cuda', dtype=torch.float).unsqueeze(dim=1)
 	docker.eval()
 	pred_angles, pred_translations = docker(receptor, ligand)
 	
@@ -76,12 +79,27 @@ def run_docking_model(data, docker, epoch=None):
 				}
 		with open(f"Log/valid_{epoch}.th", "wb") as fout:
 			torch.save( dict, fout)
-	
-	pred_angle_vec = torch.cat([torch.cos(pred_angles), torch.sin(pred_angles)], dim=1)
-	answ_angle_vec = torch.cat([torch.cos(rotation), torch.sin(rotation)], dim=1)
-	La = torch.sqrt((pred_angle_vec - answ_angle_vec).pow(2).sum(dim=1)).mean().item()
-	Lr = torch.sqrt((pred_translations - translation).pow(2).sum(dim=1)).mean().item()/50.0
-	return La + Lr
+
+	score_diff = 0.0
+	for i in range(batch_size):
+		rec = Protein(receptor[i,0,:,:].cpu().numpy())
+		lig = Protein(ligand[i,0,:,:].cpu().numpy())
+		angle = rotation[i].item()
+		pos = translation[i,:].cpu().numpy()
+		cplx_correct = Complex(rec, lig, angle, pos)
+		score_correct = cplx_correct.score(boundary_size=3, weight_bulk=-1.0)
+		angle_pred = pred_angles[i].item()
+		pos_pred = pred_translations[i,:].cpu().numpy()
+		cplx_pred = Complex(rec, lig, angle_pred, pos_pred)
+		score_pred = cplx_pred.score(boundary_size=3, weight_bulk=-1.0)
+		score_diff = (score_correct - score_pred)/score_correct
+
+	# pred_angle_vec = torch.cat([torch.cos(pred_angles), torch.sin(pred_angles)], dim=1)
+	# answ_angle_vec = torch.cat([torch.cos(rotation), torch.sin(rotation)], dim=1)
+	# La = torch.sqrt((pred_angle_vec - answ_angle_vec).pow(2).sum(dim=1)).mean().item()
+	# Lr = torch.sqrt((pred_translations - translation).pow(2).sum(dim=1)).mean().item()/50.0
+	# return La + Lr
+	return float(score_diff)/float(batch_size)
 
 
 if __name__=='__main__':
@@ -91,8 +109,8 @@ if __name__=='__main__':
 			print(i, torch.cuda.get_device_name(i), torch.cuda.get_device_capability(i))	
 		torch.cuda.set_device(1)
 
-	train_stream = get_dataset_stream('DatasetGeneration/toy_dataset_1000.pkl', batch_size=10)
-	valid_stream = get_dataset_stream('DatasetGeneration/toy_dataset.pkl', batch_size=10)
+	train_stream = get_dataset_stream('DatasetGeneration/dataset_train.pkl', batch_size=10)
+	valid_stream = get_dataset_stream('DatasetGeneration/dataset_valid.pkl', batch_size=10)
 	
 	model = EQScoringModelV2().to(device='cuda')
 	# model.eval()

@@ -1,12 +1,16 @@
 import torch
 from torch import optim
-
+import torch.nn as nn
 import numpy as np
 
 from Models import EQScoringModelV2, EQDockModel
+from Models import ProteinConv2D
 from torchDataset import get_dataset_stream
 from tqdm import tqdm
 import random
+from math import cos, sin
+
+from matplotlib import pylab as plt
 
 class StochTrainer:
 	def __init__(self, model, optimizer, buffer, device='cuda', num_samples=40, weight=1.0, step_size=10.0, sample_steps=100):
@@ -21,11 +25,43 @@ class StochTrainer:
 		self.device = device
 
 		self.plot_idx = 0
+		self.conv = ProteinConv2D()
 
 	def requires_grad(self, flag=True):
 		parameters = self.model.parameters()
 		for p in parameters:
 			p.requires_grad = flag
+
+	def dock_spatial(self, rec_repr, lig_repr):
+		translations = self.conv(rec_repr, lig_repr)
+		
+		batch_size = translations.size(0)
+		num_features = translations.size(1)
+		L = translations.size(2)
+
+		translations = translations.view(batch_size, num_features, L*L)
+		translations = translations.transpose(1,2).contiguous().view(batch_size*L*L, num_features)
+		scores = self.model.scorer(translations).squeeze()
+		scores = scores.view(batch_size, L, L)
+		
+		maxval_y, ind_y = torch.max(scores, dim=2, keepdim=False)
+		maxval_x, ind_x = torch.max(maxval_y, dim=1)
+		x = ind_x
+		y = ind_y[torch.arange(batch_size), ind_x]
+		
+		# plt.imshow(scores[0,:,:].detach().cpu(), cmap='magma')
+		# plt.plot([y[0].item()], [x[0].item()], 'xb')
+		# plt.show()
+		# sys.exit()
+		return torch.stack([x,y], dim=1).to(dtype=lig_repr.dtype, device=lig_repr.device)
+				
+	def rotate(self, repr, angle):
+		alpha = angle.detach()
+		T0 = torch.cat([torch.cos(alpha), -torch.sin(alpha), torch.zeros_like(alpha)], dim=1)
+		T1 = torch.cat([torch.sin(alpha), torch.cos(alpha), torch.zeros_like(alpha)], dim=1)
+		R = torch.stack([T0, T1], dim=1)
+		curr_grid = nn.functional.affine_grid(R, size=repr.size(), align_corners=True)
+		return nn.functional.grid_sample(repr, curr_grid, align_corners=True)
 
 	def langevin(self, neg_alpha, neg_dr, neg_rec, neg_lig, neg_idx, traces):
 		noise_alpha = torch.zeros_like(neg_alpha)
@@ -33,12 +69,18 @@ class StochTrainer:
 
 		self.requires_grad(False)
 		self.model.eval()
+		
+		rec_feat = self.model.repr(neg_rec).tensor.detach()
+		lig_feat = self.model.repr(neg_lig).tensor.detach()
+		
+		with torch.no_grad():
+			rlig_feat = self.rotate(lig_feat, neg_alpha)
+			neg_dr = self.dock_spatial(rec_feat, rlig_feat)
+		
 		neg_alpha.requires_grad_()
 		neg_dr.requires_grad_()
 		langevin_opt = optim.SGD([neg_alpha, neg_dr], lr=self.step_size, momentum=0.0)
 
-		rec_feat = self.model.repr(neg_rec).tensor.detach()
-		lig_feat = self.model.repr(neg_lig).tensor.detach()
 		for k in range(self.sample_steps):
 			langevin_opt.zero_grad()
 

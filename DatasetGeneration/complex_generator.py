@@ -10,7 +10,7 @@ import seaborn as sea
 sea.set_style("whitegrid")
 
 from random import uniform
-from prot_generator import generate_protein
+from .prot_generator import generate_protein
 
 from scipy import ndimage
 

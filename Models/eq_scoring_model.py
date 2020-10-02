@@ -88,7 +88,7 @@ class EQDockModel(nn.Module):
 	
 	def generate_rotations(self, num_angles):
 		for i in range(num_angles):
-			angle = float(i*np.pi)/float(num_angles)
+			angle = float(i*2*np.pi)/float(num_angles)
 			self.rotations.append(torch.tensor([[cos(angle), -sin(angle), 0],
 											[sin(angle), cos(angle), 0]],
 											dtype=torch.float, device='cuda'))
