@@ -112,13 +112,13 @@ class EQDockModel(nn.Module):
 			if not (batch_idx in self.top_list.keys()):
 				self.top_list[batch_idx] = []
 			for i in range(self.max_conf):
-				maxval_y, ind_y = torch.max(scores[batch_idx,:,:], dim=1, keepdim=False)
-				maxval_x, ind_x = torch.max(maxval_y, dim=0)
+				minval_y, ind_y = torch.min(scores[batch_idx,:,:], dim=1, keepdim=False)
+				minval_x, ind_x = torch.min(minval_y, dim=0)
 				x = ind_x.item()
 				y = ind_y[x].item()
 				score = scores[batch_idx, x, y].item()
-				self.top_list[batch_idx].append((angle, x-L, y-L, score))
 				scores[batch_idx, x, y] = 0.0
+				self.top_list[batch_idx].append((angle, x-L, y-L, score))
 				
 				if score < self.top_list[batch_idx][0][3] and batch_idx==0:
 					self.top_translations.copy_(scores)
@@ -127,7 +127,7 @@ class EQDockModel(nn.Module):
 					self.top_rotations[angle_idx] = score
 		
 			#Resorting the top conformations and cutting the max number
-			self.top_list[batch_idx].sort(key = lambda t: -t[3])
+			self.top_list[batch_idx].sort(key = lambda t: t[3])
 			self.top_list[batch_idx] = self.top_list[batch_idx][:self.max_conf]
 
 	def score(self, translations):

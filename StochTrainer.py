@@ -13,7 +13,7 @@ from math import cos, sin
 from matplotlib import pylab as plt
 
 class StochTrainer:
-	def __init__(self, model, optimizer, buffer, device='cuda', num_samples=40, weight=1.0, step_size=10.0, sample_steps=100):
+	def __init__(self, model, optimizer, buffer, device='cuda', num_samples=10, weight=1.0, step_size=10.0, sample_steps=100):
 		self.model = model
 		self.optimizer = optimizer
 		self.buffer = buffer
@@ -44,10 +44,13 @@ class StochTrainer:
 		scores = self.model.scorer(translations).squeeze()
 		scores = scores.view(batch_size, L, L)
 		
-		maxval_y, ind_y = torch.max(scores, dim=2, keepdim=False)
-		maxval_x, ind_x = torch.max(maxval_y, dim=1)
+		minval_y, ind_y = torch.min(scores, dim=2, keepdim=False)
+		minval_x, ind_x = torch.min(minval_y, dim=1)
 		x = ind_x
 		y = ind_y[torch.arange(batch_size), ind_x]
+		
+		x -= int(L/2)
+		y -= int(L/2)
 		
 		# plt.imshow(scores[0,:,:].detach().cpu(), cmap='magma')
 		# plt.plot([y[0].item()], [x[0].item()], 'xb')

@@ -87,11 +87,11 @@ class Complex:
 				break
 		
 		rec, lig = _superpose_volumes(receptor.bulk, rligand.bulk, translation)
-		rec[ lig>=0.9 ] = 0
+		rec[ lig>0.05 ] = 0
 		
 		return cls(receptor, ligand, rotation, translation)
 
-	def score(self, boundary_size=3, weight_bulk=-1.0):
+	def score(self, boundary_size=3, weight_bulk=1.0):
 		self.receptor.make_boundary(boundary_size=boundary_size)
 		self.ligand.make_boundary(boundary_size=boundary_size)
 		rligand = self.ligand.rotate(self.rotation)
@@ -99,7 +99,7 @@ class Complex:
 		a11 = np.sum(self.receptor.bulk * trligand.bulk)
 		a22 = np.sum(self.receptor.boundary * trligand.boundary)
 		a12 = np.sum(self.receptor.bulk * trligand.boundary + self.receptor.boundary * trligand.bulk)
-		score = a22 + 0.5*a12 + weight_bulk*a11
+		score = -a22 - 0.5*a12 + weight_bulk*a11
 		return score
 
 	def plot(self):

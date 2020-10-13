@@ -87,12 +87,12 @@ def run_docking_model(data, docker, epoch=None):
 		angle = rotation[i].item()
 		pos = translation[i,:].cpu().numpy()
 		cplx_correct = Complex(rec, lig, angle, pos)
-		score_correct = cplx_correct.score(boundary_size=3, weight_bulk=-1.0)
+		score_correct = cplx_correct.score(boundary_size=3, weight_bulk=1.0)
 		angle_pred = pred_angles[i].item()
 		pos_pred = pred_translations[i,:].cpu().numpy()
 		cplx_pred = Complex(rec, lig, angle_pred, pos_pred)
-		score_pred = cplx_pred.score(boundary_size=3, weight_bulk=-1.0)
-		score_diff = (score_correct - score_pred)/score_correct
+		score_pred = cplx_pred.score(boundary_size=3, weight_bulk=1.0)
+		score_diff = (-score_correct + score_pred)
 
 	# pred_angle_vec = torch.cat([torch.cos(pred_angles), torch.sin(pred_angles)], dim=1)
 	# answ_angle_vec = torch.cat([torch.cos(rotation), torch.sin(rotation)], dim=1)
@@ -109,7 +109,7 @@ if __name__=='__main__':
 			print(i, torch.cuda.get_device_name(i), torch.cuda.get_device_capability(i))	
 		torch.cuda.set_device(1)
 
-	train_stream = get_dataset_stream('DatasetGeneration/dataset_train.pkl', batch_size=10)
+	train_stream = get_dataset_stream('DatasetGeneration/dataset_train.pkl', batch_size=32)
 	valid_stream = get_dataset_stream('DatasetGeneration/dataset_valid.pkl', batch_size=10)
 	
 	model = EQScoringModelV2().to(device='cuda')

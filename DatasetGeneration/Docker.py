@@ -16,7 +16,7 @@ from tqdm import tqdm
 
 class Docker:
 	def __init__(self, receptor, ligand,
-				num_angles=10, weight_bulk=-0.5, boundary_size=1):
+				num_angles=10, weight_bulk=1.0, boundary_size=1):
 		
 		self.num_angles = num_angles
 		self.weight_bulk = weight_bulk
@@ -26,6 +26,7 @@ class Docker:
 		self.ligand.make_boundary(boundary_size=boundary_size)
 				
 		self.angles = np.linspace(-np.pi, np.pi, num=num_angles)
+		self.Z = 0.0
 	
 	def dock_global(self):
 		scores = []
@@ -38,11 +39,12 @@ class Docker:
 			scores.append(score)
 			translations.append(translation)
 
-		max_ind = np.argmax(scores)
-		best_translation = translations[max_ind]
-		best_rotation = self.angles[max_ind]
-		best_score = scores[max_ind]
+		min_ind = np.argmin(scores)
+		best_translation = translations[min_ind]
+		best_rotation = self.angles[min_ind]
+		best_score = scores[min_ind]
 		res_cplx = Complex(self.receptor, self.ligand, best_rotation, best_translation)
+		
 		return best_score, res_cplx
 
 	def dock_translations(self, receptor, ligand):
@@ -70,8 +72,8 @@ class Docker:
 		cplx_lig = np.fft.rfft2(ligand[0,:,:])
 		trans_bound_bulk = np.fft.irfft2(cplx_rec * np.conj(cplx_lig))
 		
-		score = trans_bound[:,:] + 0.5*(trans_bulk_bound + trans_bound_bulk) + self.weight_bulk*trans_bulk
-		ind = np.unravel_index(np.argmax(score, axis=None), score.shape)
+		score = -trans_bound[:,:] - 0.5*(trans_bulk_bound + trans_bound_bulk) + self.weight_bulk*trans_bulk
+		ind = np.unravel_index(np.argmin(score, axis=None), score.shape)
 		
 		translation = np.array([ind[0], ind[1]])
 		if translation[0]>=box_size:
@@ -86,11 +88,11 @@ def test_dock_global():
 	rec = Protein.generate(size=50, points_coordinate_span = (1,9), num_points = 30)
 	lig = Protein.generate(size=50, points_coordinate_span = (1,9), num_points = 30)
 	cplx = Complex.generate(rec, lig)
-	cor_score = cplx.score(boundary_size=3, weight_bulk=-1.0)
+	cor_score = cplx.score(boundary_size=3, weight_bulk=1.0)
 	# cplx.plot()
-	dck = Docker(cplx.receptor, cplx.ligand, num_angles=360, boundary_size=3, weight_bulk=-1.0)
+	dck = Docker(cplx.receptor, cplx.ligand, num_angles=360, boundary_size=3, weight_bulk=1.0)
 	score, cplx_docked = dck.dock_global()
-	docked_score = cplx_docked.score(boundary_size=3, weight_bulk=-1.0)
+	docked_score = cplx_docked.score(boundary_size=3, weight_bulk=1.0)
 
 	print('Predicted:')
 	print(f'Score:{score}/{docked_score}', 'Translation:', cplx_docked.translation, 'Rotation:', cplx_docked.rotation)
@@ -107,16 +109,20 @@ def test_dock_global():
 
 
 def generate_dataset(num_examples=1000):
-	def generate_example():
+	def generate_example(filter=False):
 		while(True):
 			rec = Protein.generate(size=50, points_coordinate_span = (1,9), num_points = 30)
 			lig = Protein.generate(size=50, points_coordinate_span = (1,9), num_points = 30)
 			cplx = Complex.generate(rec, lig)
-			dck = Docker(cplx.receptor, cplx.ligand, num_angles=360, boundary_size=3, weight_bulk=-1.0)
+			dck = Docker(cplx.receptor, cplx.ligand, num_angles=360, boundary_size=3, weight_bulk=1.0)
 			score, cplx_docked = dck.dock_global()
 			
-			if np.linalg.norm(cplx_docked.translation - cplx.translation)<5.0 and np.abs(cplx_docked.rotation-cplx.rotation)<(np.pi*10.0/180.0):
-				return cplx_docked.receptor, cplx_docked.ligand, cplx_docked.translation, cplx_docked.rotation
+			
+			if filter:
+				if np.linalg.norm(cplx_docked.translation - cplx.translation)<5.0 and np.abs(cplx_docked.rotation-cplx.rotation)<(np.pi*10.0/180.0):
+					return cplx_docked.receptor.bulk, cplx_docked.ligand.bulk, cplx_docked.translation, cplx_docked.rotation
+			else:
+				return cplx_docked.receptor.bulk, cplx_docked.ligand.bulk, cplx_docked.translation, cplx_docked.rotation
 	
 	dataset = [generate_example() for i in tqdm(range(num_examples))]
 	return dataset
@@ -138,7 +144,9 @@ def generate(dataset_name, num_examples):
 		pkl.dump(dataset, fout)
 
 if __name__=='__main__':
-	test_dock_global()
-	# reformat('corr_toy_dataset_valid.pkl')
-	# reformat('corr_toy_dataset_1000.pkl')
+	# generate('unfilt_toy_dataset_valid.pkl', 10)
+	generate('unfilt_toy_dataset_train.pkl', 1000)
+	# test_dock_global()
+	# reformat('unfilt_toy_dataset_valid.pkl')
+	# reformat('unfilt_toy_dataset_1000.pkl')
 	

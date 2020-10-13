@@ -60,7 +60,7 @@ if __name__=='__main__':
 	import seaborn as sea
 	sea.set_style("whitegrid")
 
-	stream = get_dataset_stream(data_path='DatasetGeneration/dataset_valid.pkl')
+	stream = get_dataset_stream(data_path='DatasetGeneration/dataset_train.pkl')
 	for data in stream:
 		receptor, ligand, translation, rotation, index = data
 		break
