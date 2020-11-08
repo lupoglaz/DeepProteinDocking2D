@@ -109,8 +109,8 @@ if __name__=='__main__':
 			print(i, torch.cuda.get_device_name(i), torch.cuda.get_device_capability(i))	
 		torch.cuda.set_device(1)
 
-	train_stream = get_dataset_stream('DatasetGeneration/dataset_train.pkl', batch_size=32)
-	valid_stream = get_dataset_stream('DatasetGeneration/dataset_valid.pkl', batch_size=10)
+	train_stream = get_dataset_stream('DatasetGeneration/dataset_valid.pkl', batch_size=1)
+	valid_stream = get_dataset_stream('DatasetGeneration/dataset_valid.pkl', batch_size=1)
 	
 	model = EQScoringModelV2().to(device='cuda')
 	# model.eval()
@@ -133,7 +133,7 @@ if __name__=='__main__':
 		loss = []
 		for data in tqdm(train_stream):
 			loss.append([trainer.step_stoch(data, epoch=epoch)])
-			# break
+			break
 		
 		av_loss = np.average(loss, axis=0)[0,:]
 		
@@ -150,7 +150,7 @@ if __name__=='__main__':
 		docker = EQDockModel(model, num_angles=120)
 		for data in tqdm(valid_stream):
 			loss.append(run_docking_model(data, docker, epoch=epoch))
-			# break
+			break
 		
 		av_loss = np.average(loss, axis=0)
 		print('Epoch', epoch, 'Valid Loss:', av_loss)

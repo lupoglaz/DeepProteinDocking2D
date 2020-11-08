@@ -66,16 +66,13 @@ class StochTrainer:
 		curr_grid = nn.functional.affine_grid(R, size=repr.size(), align_corners=True)
 		return nn.functional.grid_sample(repr, curr_grid, align_corners=True)
 
-	def langevin(self, neg_alpha, neg_dr, neg_rec, neg_lig, neg_idx, traces):
+	def langevin(self, neg_alpha, neg_dr, rec_feat, lig_feat, neg_idx, traces):
 		noise_alpha = torch.zeros_like(neg_alpha)
 		noise_dr = torch.zeros_like(neg_dr)
 
 		self.requires_grad(False)
 		self.model.eval()
-		
-		rec_feat = self.model.repr(neg_rec).tensor.detach()
-		lig_feat = self.model.repr(neg_lig).tensor.detach()
-		
+				
 		with torch.no_grad():
 			rlig_feat = self.rotate(lig_feat, neg_alpha)
 			neg_dr = self.dock_spatial(rec_feat, rlig_feat)
@@ -103,7 +100,7 @@ class StochTrainer:
 			neg_dr.data += noise_dr.normal_(0, 0.5)
 			neg_alpha.data += noise_alpha.normal_(0, 0.05)
 
-			neg_dr.data.clamp_(-neg_rec.size(2), neg_rec.size(2))
+			neg_dr.data.clamp_(-rec_feat.size(2), rec_feat.size(2))
 			neg_alpha.data.clamp_(-np.pi, np.pi)
 		
 		return neg_alpha.detach(), neg_dr.detach(), traces
@@ -132,7 +129,12 @@ class StochTrainer:
 			if idx.item() == self.plot_idx:
 				traces.append([])
 		
-		neg_alpha, neg_dr, traces = self.langevin(neg_alpha, neg_dr, neg_rec, neg_lig, neg_idx, traces=traces)
+		neg_rec_feat = self.model.repr(neg_rec).tensor
+		neg_lig_feat = self.model.repr(neg_lig).tensor
+		pos_rec_feat = self.model.repr(pos_rec).tensor
+		pos_lig_feat = self.model.repr(pos_lig).tensor
+		
+		neg_alpha, neg_dr, traces = self.langevin(neg_alpha, neg_dr, neg_rec_feat.detach(), neg_lig_feat.detach(), neg_idx, traces=traces)
 		
 		if len(traces) > 0 and (not (epoch is None)):
 			for m, idx in enumerate(pos_idx):
@@ -142,18 +144,19 @@ class StochTrainer:
 			with open(f"Log/traces_{epoch}.th", "wb") as fout:
 				torch.save( (traces, correct), fout)
 
-
 		self.requires_grad(True)
 		self.model.train()
 		self.model.zero_grad()
 		
-		pos_out = self.model(pos_rec, pos_lig, pos_alpha, pos_dr)
+		pos_out,_,_ = self.model.mult(pos_rec_feat, pos_lig_feat, pos_alpha, pos_dr)
+		pos_out = self.model.scorer(pos_out)
 		L_p = (pos_out + self.weight * pos_out ** 2).mean()
-		neg_out = self.model(neg_rec, neg_lig, neg_alpha, neg_dr)
+		neg_out,_,_ = self.model.mult(neg_rec_feat, neg_lig_feat, neg_alpha, neg_dr)
+		neg_out = self.model.scorer(neg_out)
 		L_n = (-neg_out + self.weight * neg_out ** 2).mean()
 		loss = L_p + L_n
 		loss.backward()
-
+		
 		self.optimizer.step()
 		self.buffer.push(pos_alpha, pos_dr, pos_idx)
 		self.buffer.push(neg_alpha, neg_dr, neg_idx)
