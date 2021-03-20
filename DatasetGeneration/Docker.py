@@ -85,14 +85,14 @@ class Docker:
 
 
 def test_dock_global():
-	rec = Protein.generate(size=50, points_coordinate_span = (1,9), num_points = 30)
-	lig = Protein.generate(size=50, points_coordinate_span = (1,9), num_points = 30)
+	rec = Protein.generateConcave(size=50, num_points = 100)
+	lig = Protein.generateConcave(size=50, num_points = 100)
 	cplx = Complex.generate(rec, lig)
-	cor_score = cplx.score(boundary_size=3, weight_bulk=1.0)
+	cor_score = cplx.score(boundary_size=3, weight_bulk=4.0)
 	# cplx.plot()
-	dck = Docker(cplx.receptor, cplx.ligand, num_angles=360, boundary_size=3, weight_bulk=1.0)
+	dck = Docker(cplx.receptor, cplx.ligand, num_angles=360, boundary_size=3, weight_bulk=4.0)
 	score, cplx_docked = dck.dock_global()
-	docked_score = cplx_docked.score(boundary_size=3, weight_bulk=1.0)
+	docked_score = cplx_docked.score(boundary_size=3, weight_bulk=4.0)
 
 	print('Predicted:')
 	print(f'Score:{score}/{docked_score}', 'Translation:', cplx_docked.translation, 'Rotation:', cplx_docked.rotation)
@@ -109,15 +109,14 @@ def test_dock_global():
 
 
 def generate_dataset(num_examples=1000):
-	def generate_example(filter=False):
+	def generate_example(filter=True):
 		while(True):
-			rec = Protein.generate(size=50, points_coordinate_span = (1,9), num_points = 30)
-			lig = Protein.generate(size=50, points_coordinate_span = (1,9), num_points = 30)
+			rec = Protein.generateConcave(size=50, num_points = 100)
+			lig = Protein.generateConcave(size=50, num_points = 100)
 			cplx = Complex.generate(rec, lig)
-			dck = Docker(cplx.receptor, cplx.ligand, num_angles=360, boundary_size=3, weight_bulk=1.0)
+			dck = Docker(cplx.receptor, cplx.ligand, num_angles=360, boundary_size=3, weight_bulk=4.0)
 			score, cplx_docked = dck.dock_global()
-			
-			
+						
 			if filter:
 				if np.linalg.norm(cplx_docked.translation - cplx.translation)<5.0 and np.abs(cplx_docked.rotation-cplx.rotation)<(np.pi*10.0/180.0):
 					return cplx_docked.receptor.bulk, cplx_docked.ligand.bulk, cplx_docked.translation, cplx_docked.rotation
@@ -140,12 +139,17 @@ def reformat(dataset_name):
 
 def generate(dataset_name, num_examples):
 	dataset = generate_dataset(num_examples=num_examples)
+	reformatted_data = []
+	for receptor, ligand, translation, rotation in dataset:
+		reformatted_data.append((receptor.bulk, ligand.bulk, translation, rotation))
+
 	with open(dataset_name, 'wb') as fout:
-		pkl.dump(dataset, fout)
+		pkl.dump(reformatted_data, fout)
 
 if __name__=='__main__':
-	# generate('unfilt_toy_dataset_valid.pkl', 10)
-	generate('unfilt_toy_dataset_train.pkl', 1000)
+	
+	generate('toy_dataset_train.pkl', 1000)
+	generate('toy_dataset_valid.pkl', 100)
 	# test_dock_global()
 	# reformat('unfilt_toy_dataset_valid.pkl')
 	# reformat('unfilt_toy_dataset_1000.pkl')

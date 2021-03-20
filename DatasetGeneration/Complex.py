@@ -10,8 +10,8 @@ import seaborn as sea
 sea.set_style("whitegrid")
 
 from random import uniform
-from .Protein import Protein
-
+from Protein import Protein
+import shapely.geometry as geom
 
 def _pick_translation(receptor, ligand, threshold):
 	rec_center = np.array([receptor.shape[0]/2, receptor.shape[1]/2])
@@ -84,8 +84,20 @@ class Complex:
 			rligand = ligand.rotate(rotation)
 			translation, overlap = _pick_translation(receptor.bulk, rligand.bulk, threshold)
 			if not translation is None:
+				if not(ligand.hull is None):
+					trligand = rligand.translate(translation)
+					poly = receptor.hull.difference(trligand.hull)
+					# print(poly.is_valid)
+					# print(poly.geom_type)
+					# receptor.plot_hull()
+					# trligand.plot_bulk()
+					# trligand.plot_hull()
+					# plt.show()
+					if poly.geom_type != 'Polygon':
+						translation = None
+						continue
 				break
-		
+			
 		rec, lig = _superpose_volumes(receptor.bulk, rligand.bulk, translation)
 		rec[ lig>0.05 ] = 0
 		
@@ -94,8 +106,7 @@ class Complex:
 	def score(self, boundary_size=3, weight_bulk=1.0):
 		self.receptor.make_boundary(boundary_size=boundary_size)
 		self.ligand.make_boundary(boundary_size=boundary_size)
-		rligand = self.ligand.rotate(self.rotation)
-		trligand = rligand.translate(self.translation)
+		trligand = self.ligand.rotate(self.rotation).translate(self.translation)
 		a11 = np.sum(self.receptor.bulk * trligand.bulk)
 		a22 = np.sum(self.receptor.boundary * trligand.boundary)
 		a12 = np.sum(self.receptor.bulk * trligand.boundary + self.receptor.boundary * trligand.bulk)
@@ -120,8 +131,8 @@ class Complex:
 		# plt.show()
 
 if __name__=='__main__':
-	rec = Protein.generate(size=50, points_coordinate_span = (1,9))
-	lig = Protein.generate(size=50, points_coordinate_span = (2,8))
+	rec = Protein.generateConcave(size=50, num_points=50)
+	lig = Protein.generateConcave(size=50, num_points=50)
 	cplx = Complex.generate(rec, lig)
 	cplx.plot()
 	plt.show()
