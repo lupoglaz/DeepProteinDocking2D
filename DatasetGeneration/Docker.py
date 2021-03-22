@@ -27,6 +27,7 @@ class Docker:
 				
 		self.angles = np.linspace(-np.pi, np.pi, num=num_angles)
 		self.Z = 0.0
+
 	
 	def dock_global(self):
 		scores = []
@@ -139,17 +140,14 @@ def reformat(dataset_name):
 
 def generate(dataset_name, num_examples):
 	dataset = generate_dataset(num_examples=num_examples)
-	reformatted_data = []
-	for receptor, ligand, translation, rotation in dataset:
-		reformatted_data.append((receptor.bulk, ligand.bulk, translation, rotation))
-
+	
 	with open(dataset_name, 'wb') as fout:
-		pkl.dump(reformatted_data, fout)
+		pkl.dump(dataset, fout)
 
 if __name__=='__main__':
 	
-	generate('toy_dataset_train.pkl', 1000)
-	generate('toy_dataset_valid.pkl', 100)
+	# generate('toy_dataset_train.pkl', 1000)
+	# generate('toy_dataset_valid.pkl', 100)
 	# test_dock_global()
 	# reformat('unfilt_toy_dataset_valid.pkl')
 	# reformat('unfilt_toy_dataset_1000.pkl')

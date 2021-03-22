@@ -78,7 +78,7 @@ class Complex:
 		self.translation = translation
 
 	@classmethod
-	def generate(cls, receptor, ligand, threshold=0.3, max_iter=10):
+	def generate(cls, receptor, ligand, threshold=0.3, max_iter=100):
 		for attempt in range(max_iter):
 			rotation = uniform(-np.pi, np.pi)
 			rligand = ligand.rotate(rotation)

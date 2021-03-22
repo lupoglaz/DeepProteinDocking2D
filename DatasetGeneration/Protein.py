@@ -79,7 +79,7 @@ class Protein:
 		grid_coordinate_span = (0, size)
 		points_coordinate_span = (0.5*(1.0-occupancy)*size, size - 0.5*(1.0-occupancy)*size)
 		points = get_random_points(num_points, points_coordinate_span, points_coordinate_span)
-		optimal = alphashape.optimizealpha(points)
+		optimal = alpha * alphashape.optimizealpha(points)
 		hull = alphashape.alphashape(points, optimal)
 		bulk = hull2array(hull, np.zeros((size, size)), grid_coordinate_span, grid_coordinate_span)
 		return cls(bulk, hull=hull)
@@ -123,6 +123,74 @@ class Protein:
 				y_high = min(j + boundary_size, self.size)
 				if np.sum(self.bulk[x_low:x_high, y_low:y_high])>0.5:
 					self.boundary[i,j]=1.0
+
+	def get_XC(self):
+		"""
+		Analog of inertia tensor and center of mass for rmsd calc. Return 2/W * X and C
+		"""
+		X = torch.zeros(2,2)
+		C = torch.zeros(2)
+		x_i = (torch.arange(self.size).unsqueeze(dim=0) - self.size/2.0).repeat(self.size, 1)
+		y_i = (torch.arange(self.size).unsqueeze(dim=1) - self.size/2.0).repeat(1, self.size)
+		mask = torch.from_numpy(self.bulk > 0.5)
+		W = torch.sum(mask.to(dtype=torch.float32))
+		x_i = x_i.masked_select(mask)
+		y_i = y_i.masked_select(mask)
+		#Inertia tensor
+		X[0,0] = torch.sum(x_i*x_i)
+		X[1,1] = torch.sum(y_i*y_i)
+		X[0,1] = torch.sum(x_i*y_i)
+		X[1,0] = torch.sum(y_i*x_i)
+		#Center of mass
+		C[0] = torch.sum(x_i)
+		C[1] = torch.sum(x_i)
+		return 2.0*X/W, C/W
+
+	def compute_rmsd(self, angles, translation=None, angle=None):
+		num_angles = angles.size(0)
+		
+		X, C = self.get_XC()
+		X = X.unsqueeze(dim=0)
+		C = C.unsqueeze(dim=0).unsqueeze(dim=1).unsqueeze(dim=2)
+		
+		#Translations
+		T = torch.zeros(self.size*2, self.size*2, 2)
+		T[:,:,1] = (torch.arange(self.size*2).unsqueeze(dim=0) - self.size).repeat(self.size*2, 1)
+		T[:,:,0] = (torch.arange(self.size*2).unsqueeze(dim=1) - self.size).repeat(1, self.size*2)
+		if not(translation is None):
+			# T -> T1 - T2
+			T[:,:,0] -= translation[0]
+			T[:,:,1] -= translation[1]
+
+		T = T.unsqueeze(dim=0).repeat(num_angles, 1, 1, 1)
+		
+		#Rotations
+		R = torch.zeros(num_angles, 2, 2)
+		R[:,0,0] = torch.cos(angles)
+		R[:,1,1] = torch.cos(angles)
+		R[:,1,0] = torch.sin(angles)
+		R[:,0,1] = -torch.sin(angles)
+		Rtot = R.unsqueeze(dim=1).unsqueeze(dim=2)
+		I = torch.diag(torch.ones(2)).unsqueeze(dim=0)
+		Itot = I.unsqueeze(dim=1).unsqueeze(dim=2)
+		if not(angle is None):
+			# Itot -> R2
+			Itot = torch.zeros(1, 2, 2)
+			Itot[0,0,0] = torch.cos(angle)
+			Itot[0,1,1] = torch.cos(angle)
+			Itot[0,1,0] = torch.sin(angle)
+			Itot[0,0,1] = -torch.sin(angle)
+			# R -> R2.T @ R1
+			R = Itot.transpose(1,2) @ R
+			Itot = Itot.unsqueeze(dim=1).unsqueeze(dim=2)
+			
+		#RMSD
+		rmsd = torch.sum(T*T, dim=3)
+		rmsd = rmsd + torch.sum((I-R)*X, dim=(1,2)).unsqueeze(dim=1).unsqueeze(dim=2)
+		rmsd = rmsd + 2.0*torch.sum(torch.sum(T.unsqueeze(dim=4) * (Rtot-Itot), dim=3) * C, dim=3)
+		return torch.sqrt(rmsd)
+
+	
 	
 	def get_repr(self):
 		if self.boundary is None:
@@ -209,8 +277,30 @@ def test_hull():
 	
 	plt.show()
 
+def test_rmsd():
+	prot_init = Protein.generateConcave(size=50,num_points=70)
+	num_angles = 360
+	angles = torch.from_numpy(np.linspace(-np.pi, np.pi, num=num_angles))
+	rmsd = prot_init.compute_rmsd(angles, [10,5], angles[190])
+	plt.subplot(221)
+	prot_init.plot_bulk()
+
+	angle_idx = 200
+	translation = [10,0]
+	prot = prot_init.rotate(angles[angle_idx]).translate(translation)
+	plt.subplot(222)
+	prot.plot_bulk()
+	
+	plt.subplot(223)
+	plt.imshow(rmsd[angle_idx,:,:])
+	plt.title(f'rmsd = {rmsd[angle_idx, translation[0]+50, translation[1]+50].item()}')
+
+	plt.show()
+	
+
 if __name__ == '__main__':
-	test_hull()
+	test_rmsd()
+	# test_hull()
 		
 	# test_representation()
 	# test_translations()
