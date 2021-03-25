@@ -146,7 +146,7 @@ class Protein:
 		C[1] = torch.sum(x_i)
 		return 2.0*X/W, C/W
 
-	def compute_rmsd(self, angles, translation=None, angle=None):
+	def grid_rmsd(self, angles, translation=None, angle=None):
 		num_angles = angles.size(0)
 		
 		X, C = self.get_XC()
@@ -190,7 +190,32 @@ class Protein:
 		rmsd = rmsd + 2.0*torch.sum(torch.sum(T.unsqueeze(dim=4) * (Rtot-Itot), dim=3) * C, dim=3)
 		return torch.sqrt(rmsd)
 
-	
+	def rmsd(self, translation1, rotation1, translation2, rotation2):
+		X, C = self.get_XC()
+		T1 = torch.tensor(translation1)
+		T2 = torch.tensor(translation2)
+		T = T1 - T2
+		
+		rotation1 = torch.tensor([rotation1])
+		rotation2 = torch.tensor([rotation2])
+		R1 = torch.zeros(2, 2)
+		R1[0,0] = torch.cos(rotation1)
+		R1[1,1] = torch.cos(rotation1)
+		R1[1,0] = torch.sin(rotation1)
+		R1[0,1] = -torch.sin(rotation1)
+		R2 = torch.zeros(2, 2)
+		R2[0,0] = torch.cos(rotation2)
+		R2[1,1] = torch.cos(rotation2)
+		R2[1,0] = torch.sin(rotation2)
+		R2[0,1] = -torch.sin(rotation2)
+		R = R2.transpose(0,1) @ R1
+		
+		I = torch.diag(torch.ones(2))
+		#RMSD
+		rmsd = torch.sum(T*T)
+		rmsd = rmsd + torch.sum((I-R)*X, dim=(0,1))
+		rmsd = rmsd + 2.0*torch.sum(torch.sum(T.unsqueeze(dim=1) * (R1-R2), dim=0) * C, dim=0)
+		return torch.sqrt(rmsd)
 	
 	def get_repr(self):
 		if self.boundary is None:
@@ -299,8 +324,8 @@ def test_rmsd():
 	
 
 if __name__ == '__main__':
-	test_rmsd()
-	# test_hull()
+	# test_rmsd()
+	test_hull()
 		
 	# test_representation()
 	# test_translations()

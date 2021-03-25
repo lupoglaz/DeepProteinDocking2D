@@ -21,10 +21,12 @@ from Models import ProteinConv2D
 
 class DockerGPU:
 	def __init__(self, receptor, ligand,
-				num_angles=10, weight_bulk=1.0, boundary_size=1):
+				num_angles=10, a00=1.0, a11=-1.0, a10=-1.0, boundary_size=1):
 		
 		self.num_angles = num_angles
-		self.weight_bulk = weight_bulk
+		self.a00 = a00
+		self.a11 = a11
+		self.a10 = a10
 		self.receptor = receptor
 		self.ligand = ligand
 		self.receptor.make_boundary(boundary_size=boundary_size)
@@ -54,21 +56,8 @@ class DockerGPU:
 		# 0 : 0 - 0, bulk-bulk
 		# 1 : 1 - 1, boundary-boundary
 		# 2 : 0 - 1, bulk-boundary
-		scores = self.weight_bulk*translations[:,0,:,:] - translations[:,1,:,:] - translations[:,2,:,:]
-		
-		minval_y, ind_y = torch.min(scores, dim=2, keepdim=False)
-		minval_x, ind_x = torch.min(minval_y, dim=1)
-		minval_angle, ind_angle = torch.min(minval_x, dim=0)
-		x = ind_x[ind_angle].item()
-		y = ind_y[ind_angle, x].item()
-		
-		best_score = scores[ind_angle, x, y].item()
-		best_translation = [x-scores.size(1)/2.0, y-scores.size(1)/2.0]
-		best_rotation = self.angles[ind_angle].item()
-		
-		res_cplx = Complex(self.receptor, self.ligand, best_rotation, best_translation)
-		
-		return best_score, res_cplx, scores, [ind_angle, x, y]
+		return self.a00*translations[:,0,:,:] + self.a11*translations[:,1,:,:] + self.a10*translations[:,2,:,:]
+				
 
 	def get_conformation(self, scores):
 		minval_y, ind_y = torch.min(scores, dim=2, keepdim=False)
@@ -90,11 +79,12 @@ def test_dock_global():
 	rec = Protein.generateConcave(size=50, num_points = 100)
 	lig = Protein.generateConcave(size=50, num_points = 100)
 	cplx = Complex.generate(rec, lig)
-	cor_score = cplx.score(boundary_size=3, weight_bulk=4.0)
+	cor_score = cplx.score(boundary_size=3, a00=4.0)
 
-	dck = DockerGPU(cplx.receptor, cplx.ligand, num_angles=360, boundary_size=3, weight_bulk=4.0)
-	score, cplx_docked = dck.dock_global()
-	docked_score = cplx_docked.score(boundary_size=3, weight_bulk=4.0)
+	dck = DockerGPU(cplx.receptor, cplx.ligand, num_angles=360, boundary_size=3, a00=4.0)
+	scores = dck.dock_global()
+	score, cplx_docked, ind = dck.get_conformation(scores)
+	docked_score = cplx_docked.score(boundary_size=3, a00=4.0)
 
 	print('Predicted:')
 	print(f'Score:{score}/{docked_score}', 'Translation:', cplx_docked.translation, 'Rotation:', cplx_docked.rotation)

@@ -103,14 +103,14 @@ class Complex:
 		
 		return cls(receptor, ligand, rotation, translation)
 
-	def score(self, boundary_size=3, weight_bulk=1.0):
+	def score(self, boundary_size=3, a00=1.0, a11=-1.0, a10=-1.0):
 		self.receptor.make_boundary(boundary_size=boundary_size)
 		self.ligand.make_boundary(boundary_size=boundary_size)
 		trligand = self.ligand.rotate(self.rotation).translate(self.translation)
-		a11 = np.sum(self.receptor.bulk * trligand.bulk)
-		a22 = np.sum(self.receptor.boundary * trligand.boundary)
-		a12 = np.sum(self.receptor.bulk * trligand.boundary + self.receptor.boundary * trligand.bulk)
-		score = -a22 - 0.5*a12 + weight_bulk*a11
+		t00 = np.sum(self.receptor.bulk * trligand.bulk)
+		t11 = np.sum(self.receptor.boundary * trligand.boundary)
+		t10 = np.sum(self.receptor.bulk * trligand.boundary + self.receptor.boundary * trligand.bulk)
+		score = a11*a11 + a10*t10 + a00*t00
 		return score
 
 	def plot(self):
