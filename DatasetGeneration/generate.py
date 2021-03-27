@@ -16,7 +16,7 @@ from random import uniform
 from Protein import Protein
 from Complex import Complex
 from DockerGPU import DockerGPU
-from Funnels import Interaction
+from Interaction import Interaction
 from tqdm import tqdm
 
 def generate_dataset(dataset_name, num_examples=100, min_gap=0.2, rmsd_cutoff=5.0, boundary_size=3, a00=1.0, a11=0.4, a10=-1.0):
@@ -31,11 +31,11 @@ def generate_dataset(dataset_name, num_examples=100, min_gap=0.2, rmsd_cutoff=5.
 			lig = Protein.generateConcave(size=50, num_points = 100, alpha=0.95)
 			cplx = Complex.generate(rec, lig)
 
-			dck = DockerGPU(rec, lig, num_angles=360, boundary_size=boundary_size, a00=a00, a11=a11, a10=a10)
-			scores = dck.dock_global()
+			dck = DockerGPU(num_angles=360, boundary_size=boundary_size, a00=a00, a11=a11, a10=a10)
+			scores = dck.dock_global(rec, lig)
 			
 			#RMSD filter
-			best_score, dock_cplx, ind = dck.get_conformation(scores)
+			best_score, dock_cplx, ind = dck.get_conformation(scores, rec, lig)
 			rmsd = lig.rmsd(cplx.translation, cplx.rotation, dock_cplx.translation, dock_cplx.rotation)
 			if rmsd > rmsd_cutoff:
 				continue

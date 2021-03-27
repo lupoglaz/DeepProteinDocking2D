@@ -16,54 +16,62 @@ from random import uniform
 from Protein import Protein
 from Complex import Complex
 from DockerGPU import DockerGPU
-from Funnels import Interaction
+from Interaction import Interaction
 from tqdm import tqdm
 
+from pathlib import Path
 
-def interaction_dataset(dataset_name):
-	with open(dataset_name, 'rb') as fin:
-		dataset = pkl.load(fin)
 
-	all_proteins = []
-	native_scores = []
-	for receptor, ligand, rotation, translation in tqdm(dataset):
-		all_proteins.append(Protein(receptor))
-		all_proteins.append(Protein(ligand))
-		dck = DockerGPU(Protein(receptor), Protein(ligand), num_angles=360, boundary_size=3, weight_bulk=4.0)
-		score, cplx_docked, scores, ind = dck.dock_global()
-		native_scores.append(score)
-
-	max_native_score = max(native_scores)
-
-	
-	all_proteins = all_proteins#[:20]
-	num_proteins = len(all_proteins)
-	non_native_scores = []
-	interaction_matrix = np.zeros((num_proteins,num_proteins))
-	for rec_ind, receptor in tqdm(enumerate(all_proteins)):
-		for lig_ind, ligand in enumerate(all_proteins):
-			if lig_ind == (rec_ind + 1): #belongs to the native interaction
-				interaction_matrix[rec_ind, lig_ind] = 1.0#native_scores[int(rec_ind/2)]
-				continue
-			if lig_ind > rec_ind: #avoid double counting
-				continue
+class Interactome:
+	def __init__(self, docker, proteins=[]):
+		self.proteins = proteins
+		self.docker = docker
+		
+	@classmethod
+	def from_dataset(cls, docker, filename):
+		with open(filename, 'rb') as fin:
+			dataset = pkl.load(fin)
+		
+		proteins = []
+		for receptor, ligand, rotation, translation in dataset:
+			proteins.append(receptor)
+			proteins.append(ligand)
 			
-			dck = DockerGPU(receptor, ligand, num_angles=360, boundary_size=3, weight_bulk=4.0)
-			score, cplx_docked, scores, ind = dck.dock_global()
-			non_native_scores.append(score)
-			if score < max_native_score:
-				interaction_matrix[rec_ind, lig_ind] = 1.0
-				interaction_matrix[lig_ind, rec_ind] = 1.0
+		return cls(docker, proteins)
+	
+	def non_native(self):
+		for rec_ind, receptor in tqdm(enumerate(self.proteins), total=len(self.proteins)):
+			for lig_ind, ligand in tqdm(enumerate(self.proteins), total=rec_ind, leave=False):
+				if lig_ind > rec_ind: #avoid double counting
+					continue
+				if (lig_ind + 1 == rec_ind) and (rec_ind%2 == 1): #belongs to native 
+					continue
+				receptor, ligand = Protein(receptor), Protein(ligand)
+				scores = self.docker.dock_global(receptor, ligand)
+				yield rec_ind, lig_ind, Interaction(self.docker, scores, receptor, ligand)
+	
+	def native(self):
+		for n in tqdm(range(0, len(self.proteins), 2)):
+			receptor, ligand = Protein(self.proteins[n]), Protein(self.proteins[n+1])
+			scores = self.docker.dock_global(receptor, ligand)
+			yield n, n+1, Interaction(self.docker, scores, receptor, ligand)
 
-	plt.figure(figsize=(12,6))
-	plt.subplot(1,2,1)
-	plt.title(f'Scores')
-	plt.hist(non_native_scores+native_scores)
-	plt.hist(native_scores)
-	plt.hist(non_native_scores)
+	def all(self):
+		for rec_ind, receptor in tqdm(enumerate(self.proteins), total=len(self.proteins)):
+			for lig_ind, ligand in tqdm(enumerate(self.proteins), total=rec_ind, leave=False):
+				if lig_ind > rec_ind: #avoid double counting
+					continue
+				receptor, ligand = Protein(receptor), Protein(ligand)
+				scores = self.docker.dock_global(receptor, ligand)
+				yield rec_ind, lig_ind, Interaction(self.docker, scores, receptor, ligand)
+			
 
-	plt.subplot(1,2,2)
-	plt.title(f'Interaction')
-	plt.imshow(interaction_matrix)
-	plt.colorbar()
-	plt.show()
+if __name__=='__main__':
+	docker = DockerGPU(boundary_size=3, a00=1.0, a11=0.4, a10=-1.0)
+	interactome = Interactome.from_dataset(docker, Path('dock_validation.pkl'))
+	for i, j, interaction in interactome.native():
+		plt.figure(figsize=(12,6))
+		interaction.plot_funnels(num_funnels=3)
+		print(interaction.est_binding(5.0))
+		plt.show()
+		# break

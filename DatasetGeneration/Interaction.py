@@ -17,30 +17,29 @@ from tqdm import tqdm
 
 
 class Interaction:
-	def __init__(self, docker, scores):
+	def __init__(self, docker, scores, receptor, ligand):
 		self.docker = docker
 		self.scores = scores
-
-		self.min_score, self.cplx, self.ind = self.docker.get_conformation(self.scores)
+		self.min_score, self.cplx, self.ind = self.docker.get_conformation(self.scores, receptor, ligand)
 		
 	@classmethod
-	def with_docker(cls, docker):
-		min_score, cplx_docked, scores, min_ind = docker.dock_global()
-		return cls(docker, scores)
+	def with_docker(cls, docker, receptor, ligand):
+		scores = docker.dock_global(receptor, ligand)
+		return cls(docker, scores, receptor, ligand)
 		
 	def find_funnels(self, num_funnels=2):
-		rmsd_all = self.docker.ligand.grid_rmsd(self.docker.angles, self.cplx.translation, torch.tensor([self.cplx.rotation])).to(device='cuda')
+		rmsd_all = self.cplx.ligand.grid_rmsd(self.docker.angles, self.cplx.translation, torch.tensor([self.cplx.rotation])).to(device='cuda')
 
 		funnels = []
 		complexes = []
 		funnel_scores = self.scores.clone()
 				
 		for i in range(num_funnels):
-			funnel_min_score, cplx, ind = self.docker.get_conformation(funnel_scores)
+			funnel_min_score, cplx, ind = self.docker.get_conformation(funnel_scores, self.cplx.receptor, self.cplx.ligand)
 			funnel_trans = cplx.translation
 			funnel_rot = torch.tensor([cplx.rotation])
 
-			rmsd_grid = self.docker.ligand.grid_rmsd(self.docker.angles, funnel_trans, funnel_rot).to(device='cuda')
+			rmsd_grid = self.cplx.ligand.grid_rmsd(self.docker.angles, funnel_trans, funnel_rot).to(device='cuda')
 
 			mask_scores_clus = funnel_scores < 0.9*funnel_min_score
 			mask_rmsd = rmsd_grid < 5.0
@@ -57,27 +56,28 @@ class Interaction:
 		
 		return funnels, complexes
 
-def plot_funnels(docker, scores, ind, cplx):
-	min_score = scores[ind[0], ind[1], ind[2]]
-	mask_scores = scores < 0.3*min_score
-	rmsd_grid = docker.ligand.grid_rmsd(docker.angles, cplx.translation, torch.tensor([cplx.rotation])).to(device='cuda')
+	def est_binding(self, T):
+		return torch.log(torch.sum(torch.exp(-(1.0/T)*self.scores))).item()
+
+	def plot_funnels(self, num_funnels=2):
+		mask_scores = self.scores < 0.3*self.min_score
+		rmsd_grid = self.cplx.ligand.grid_rmsd(self.docker.angles, self.cplx.translation, torch.tensor([self.cplx.rotation])).to(device='cuda')
 	
-	all_rmsd = rmsd_grid.masked_select(mask_scores)
-	all_sc = scores.masked_select(mask_scores)
+		all_rmsd = rmsd_grid.masked_select(mask_scores)
+		all_sc = self.scores.masked_select(mask_scores)
 	
-	inter = Interaction(docker, scores)
-	funnels, complexes = inter.find_funnels()
+		funnels, complexes = self.find_funnels()
 	
-	for i,cplx in enumerate(complexes):
-		plt.subplot(1,3,i+1)
-		plt.title(f'Complex #{i}')
-		cplx.plot()
+		for i, cplx in enumerate(complexes):
+			plt.subplot(1,num_funnels+1,i+1)
+			plt.title(f'Complex #{i}')
+			cplx.plot()
 	
-	plt.subplot(1,3,3)
-	plt.scatter(all_rmsd.cpu().numpy(), all_sc.cpu().numpy())
-	for i, funnel in enumerate(funnels):
-		plt.scatter(funnel[0].cpu().numpy(), funnel[1].cpu().numpy(), label=f'Funnel:{i}')
-	plt.legend()
+		plt.subplot(1,num_funnels+1,num_funnels+1)
+		plt.scatter(all_rmsd.cpu().numpy(), all_sc.cpu().numpy())
+		for i, funnel in enumerate(funnels):
+			plt.scatter(funnel[0].cpu().numpy(), funnel[1].cpu().numpy(), label=f'Funnel:{i}')
+		plt.legend()
 
 def test_funnels():
 	rec = Protein.generateConcave(size=50, alpha=0.95, num_points = 100)
@@ -85,9 +85,9 @@ def test_funnels():
 	cplx = Complex.generate(rec, lig)
 	cor_score = cplx.score(boundary_size=3, a00=1.0, a11=0.4, a10=-1.0)
 	
-	dck = DockerGPU(cplx.receptor, cplx.ligand, num_angles=360, boundary_size=3, a00=1.0, a11=0.4, a10=-1.0)
-	scores = dck.dock_global()
-	score, cplx_docked, ind = dck.get_conformation(scores)
+	dck = DockerGPU(num_angles=360, boundary_size=3, a00=1.0, a11=0.4, a10=-1.0)
+	scores = dck.dock_global(cplx.receptor, cplx.ligand)
+	score, cplx_docked, ind = dck.get_conformation(scores, cplx.receptor, cplx.ligand)
 	docked_score = cplx_docked.score(boundary_size=3, a00=1.0, a11=0.4, a10=-1.0)
 
 	print('Predicted:')
@@ -96,7 +96,7 @@ def test_funnels():
 	print('Score:', cor_score, 'Translation:', cplx.translation, 'Rotation:', cplx.rotation)
 	
 	plt.figure(figsize=(12,6))
-	plot_funnels(dck, scores, ind, cplx_docked)
+	Interaction(dck, scores, cplx_docked.receptor, cplx_docked.ligand).plot_funnels()
 	plt.show()
 
 if __name__=='__main__':

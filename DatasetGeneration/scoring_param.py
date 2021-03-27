@@ -16,15 +16,15 @@ from random import uniform
 from Protein import Protein
 from Complex import Complex
 from DockerGPU import DockerGPU
-from Funnels import Interaction
+from Interaction import Interaction
 from tqdm import tqdm
 
 
 def get_funnel_gap(datapoint, a00, a11, a10, boundary_size=3):
 	rec = Protein(datapoint[0])
 	lig = Protein(datapoint[1])
-	dck = DockerGPU(rec, lig, num_angles=360, boundary_size=boundary_size, a00=a00, a11=a11, a10=a10)
-	scores = dck.dock_global()
+	dck = DockerGPU(num_angles=360, boundary_size=boundary_size, a00=a00, a11=a11, a10=a10)
+	scores = dck.dock_global(rec, lig)
 	inter = Interaction(dck, scores)
 	funnels, complexes = inter.find_funnels(num_funnels=2)
 	if len(funnels) == 2:
@@ -38,9 +38,9 @@ def get_rmsd(datapoint, a00, a11, a10, boundary_size=3):
 	receptor, ligand, translation, rotation = datapoint
 	rec = Protein(receptor)
 	lig = Protein(ligand)
-	dck = DockerGPU(rec, lig, num_angles=360, boundary_size=boundary_size, a00=a00, a11=a11, a10=a10)
-	scores = dck.dock_global()
-	best_score, res_cplx, ind = dck.get_conformation(scores)
+	dck = DockerGPU(num_angles=360, boundary_size=boundary_size, a00=a00, a11=a11, a10=a10)
+	scores = dck.dock_global(rec, lig)
+	best_score, res_cplx, ind = dck.get_conformation(scores, rec, lig)
 	rmsd = lig.rmsd(translation, rotation, res_cplx.translation, res_cplx.rotation)
 	return rmsd.item()
 
@@ -54,8 +54,10 @@ def scan_parameters(data, func, output_name='gap_score_param1.png', num_samples=
 	x = boundary-boundary energy
 	y = boundary-bulk energy
 	"""
-	xs = np.arange(-1.0, 1.0, 0.1)
-	ys = np.arange(-1.0, -0.0, 0.1)
+	# xs = np.arange(-1.0, 1.0, 0.1)
+	# ys = np.arange(-1.0, -0.0, 0.1)
+	xs = np.arange(-0.1, 0.1, 0.01)
+	ys = np.arange(-0.1, -0.0, 0.01)
 	M = np.zeros((len(xs), len(ys)))
 	
 	for xi, x in tqdm(enumerate(xs), total=len(xs)):
@@ -105,4 +107,4 @@ if __name__ == '__main__':
 	dataset = generate_dataset('test_dataset.pkl')
 
 	# scan_parameters(dataset, get_funnel_gap, output_name='gap_score_param1.png', name='Funnel gap')
-	scan_parameters(dataset, get_rmsd, output_name='rmsd_nat_param_small.png', num_samples=30, name='RMSD')
+	scan_parameters(dataset, get_rmsd, output_name='rmsd_nat_param_tiny.png', num_samples=30, name='RMSD')

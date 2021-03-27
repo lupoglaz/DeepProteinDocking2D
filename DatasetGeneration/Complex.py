@@ -87,12 +87,6 @@ class Complex:
 				if not(ligand.hull is None):
 					trligand = rligand.translate(translation)
 					poly = receptor.hull.difference(trligand.hull)
-					# print(poly.is_valid)
-					# print(poly.geom_type)
-					# receptor.plot_hull()
-					# trligand.plot_bulk()
-					# trligand.plot_hull()
-					# plt.show()
 					if poly.geom_type != 'Polygon':
 						translation = None
 						continue

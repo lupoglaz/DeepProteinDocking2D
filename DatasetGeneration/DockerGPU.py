@@ -20,18 +20,16 @@ sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 from Models import ProteinConv2D
 
 class DockerGPU:
-	def __init__(self, receptor, ligand,
-				num_angles=10, a00=1.0, a11=-1.0, a10=-1.0, boundary_size=1):
-		
+	def __init__(self, num_angles=10, a00=1.0, a11=-1.0, a10=-1.0, boundary_size=1):
+		# Features correspondance: 0-bulk, 1-boundary
+		# 0 : 0 - 0, bulk-bulk
+		# 1 : 1 - 1, boundary-boundary
+		# 2 : 0 - 1, bulk-boundary
 		self.num_angles = num_angles
 		self.a00 = a00
 		self.a11 = a11
 		self.a10 = a10
-		self.receptor = receptor
-		self.ligand = ligand
-		self.receptor.make_boundary(boundary_size=boundary_size)
-		self.ligand.make_boundary(boundary_size=boundary_size)
-				
+		self.boundary_size = boundary_size
 		self.angles = torch.from_numpy(np.linspace(-np.pi, np.pi, num=num_angles)).to(device='cuda')
 		self.conv = ProteinConv2D()
 
@@ -43,23 +41,22 @@ class DockerGPU:
 		curr_grid = nn.functional.affine_grid(R, size=repr.size(), align_corners=True)
 		return nn.functional.grid_sample(repr, curr_grid, align_corners=True)
 	
-	def dock_global(self):
-		f_rec = torch.from_numpy(self.receptor.get_repr()).to(device='cuda')
-		f_lig = torch.from_numpy(self.ligand.get_repr()).to(device='cuda')
+	def dock_global(self, receptor, ligand):
+		receptor.make_boundary(boundary_size=self.boundary_size)
+		ligand.make_boundary(boundary_size=self.boundary_size)
+
+		f_rec = torch.from_numpy(receptor.get_repr()).to(device='cuda')
+		f_lig = torch.from_numpy(ligand.get_repr()).to(device='cuda')
 		
 		f_lig = f_lig.unsqueeze(dim=0).repeat(self.num_angles, 1, 1, 1)
 		f_rec = f_rec.unsqueeze(dim=0).repeat(self.num_angles, 1, 1, 1)
 		rot_lig = self.rotate(f_lig, self.angles)
 		
 		translations = self.conv(f_rec, rot_lig)
-		# Features correspondance: 0-bulk, 1-boundary
-		# 0 : 0 - 0, bulk-bulk
-		# 1 : 1 - 1, boundary-boundary
-		# 2 : 0 - 1, bulk-boundary
 		return self.a00*translations[:,0,:,:] + self.a11*translations[:,1,:,:] + self.a10*translations[:,2,:,:]
 				
 
-	def get_conformation(self, scores):
+	def get_conformation(self, scores, receptor, ligand):
 		minval_y, ind_y = torch.min(scores, dim=2, keepdim=False)
 		minval_x, ind_x = torch.min(minval_y, dim=1)
 		minval_angle, ind_angle = torch.min(minval_x, dim=0)
@@ -70,7 +67,7 @@ class DockerGPU:
 		best_translation = [x-scores.size(1)/2.0, y-scores.size(1)/2.0]
 		best_rotation = self.angles[ind_angle].item()
 		
-		res_cplx = Complex(self.receptor, self.ligand, best_rotation, best_translation)
+		res_cplx = Complex(receptor, ligand, best_rotation, best_translation)
 		
 		return best_score, res_cplx, [ind_angle, x, y]
 
@@ -81,9 +78,9 @@ def test_dock_global():
 	cplx = Complex.generate(rec, lig)
 	cor_score = cplx.score(boundary_size=3, a00=4.0)
 
-	dck = DockerGPU(cplx.receptor, cplx.ligand, num_angles=360, boundary_size=3, a00=4.0)
-	scores = dck.dock_global()
-	score, cplx_docked, ind = dck.get_conformation(scores)
+	dck = DockerGPU(num_angles=360, boundary_size=3, a00=4.0)
+	scores = dck.dock_global(cplx.receptor, cplx.ligand)
+	score, cplx_docked, ind = dck.get_conformation(scores, cplx.receptor, cplx.ligand)
 	docked_score = cplx_docked.score(boundary_size=3, a00=4.0)
 
 	print('Predicted:')
