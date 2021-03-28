@@ -13,6 +13,8 @@ from random import uniform
 from Protein import Protein
 import shapely.geometry as geom
 
+from tqdm import tqdm
+
 def _pick_translation(receptor, ligand, threshold):
 	rec_center = np.array([receptor.shape[0]/2, receptor.shape[1]/2])
 	lig_center = np.array([ligand.shape[0]/2, ligand.shape[1]/2])
@@ -106,6 +108,26 @@ class Complex:
 		t10 = np.sum(self.receptor.bulk * trligand.boundary + self.receptor.boundary * trligand.bulk)
 		score = a11*a11 + a10*t10 + a00*t00
 		return score
+	
+	def get_canvas(self, cell_size):
+		rligand = self.ligand.rotate(self.rotation)
+		trligand = rligand.translate(self.translation)
+		dx, dy = int(self.translation[0]), int(self.translation[1])
+		prot_size = self.receptor.bulk.shape[0]
+
+		rec_x_start = int(cell_size/2) - int(prot_size/2) - int(dx/2)
+		rec_x_end = int(cell_size/2) + int(prot_size/2) - int(dx/2)
+		rec_y_start = int(cell_size/2) - int(prot_size/2) - int(dy/2)
+		rec_y_end = int(cell_size/2) + int(prot_size/2) - int(dy/2)
+		lig_x_start = int(cell_size/2) - int(prot_size/2) + int(dx/2)
+		lig_x_end = int(cell_size/2) + int(prot_size/2) + int(dx/2)
+		lig_y_start = int(cell_size/2) - int(prot_size/2) + int(dy/2)
+		lig_y_end = int(cell_size/2) + int(prot_size/2) + int(dy/2)
+
+		canvas = np.zeros( (cell_size, cell_size) )
+		canvas[rec_x_start:rec_x_end, rec_y_start:rec_y_end] = self.receptor.bulk
+		canvas[lig_x_start:lig_x_end, lig_y_start:lig_y_end] += 2*rligand.bulk
+		return canvas
 
 	def plot(self):
 		rligand = self.ligand.rotate(self.rotation)
@@ -124,9 +146,36 @@ class Complex:
 		plt.imshow(field)
 		# plt.show()
 
+def scan_parameter(param, func, output_name='gap_score_param1.png', num_samples=10, name=""):
+	f = plt.figure(figsize=(num_samples,len(param)+0.5))
+	cell_size = 80
+	canvas = np.zeros((cell_size*num_samples, cell_size*len(param)))
+	plot_num = 0 
+	for i, p in tqdm(enumerate(param), total=len(param)):
+		for j in range(num_samples):
+			rec = Protein.generateConcave(size=50, num_points=80, alpha=0.90)
+			lig = Protein.generateConcave(size=50, num_points=80, alpha=0.90)
+			cplx = func(rec, lig, p)
+			canvas[j*cell_size:(j+1)*cell_size, i*cell_size:(i+1)*cell_size] = cplx.get_canvas(cell_size)
+			
+	plt.imshow(canvas.transpose(), origin='lower', interpolation='nearest', resample=False, filternorm=False)
+	plt.xticks(ticks=[i*cell_size + cell_size/2 for i in range(num_samples)], labels=['%d'%(i+1) for i in range(num_samples)])
+	plt.yticks(ticks=[i*cell_size + cell_size/2 for i in range(len(param))], labels=['%.2f'%i for i in param])
+	plt.ylabel(name)
+	plt.xlabel('sample number')
+	plt.tight_layout()
+	plt.savefig(output_name)
+
+
+
 if __name__=='__main__':
 	rec = Protein.generateConcave(size=50, num_points=50)
 	lig = Protein.generateConcave(size=50, num_points=50)
 	cplx = Complex.generate(rec, lig)
 	cplx.plot()
 	plt.show()
+
+	# scan_parameter(param=np.arange(0.1,0.75,0.05, dtype=np.float32), 
+	# 				func=lambda x, y, p: Complex.generate(x, y, threshold=p),
+	# 				num_samples=10, 
+	# 				output_name='comp_overlap.png', name='Overlap')

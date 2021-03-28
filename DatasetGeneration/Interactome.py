@@ -61,9 +61,9 @@ class Interactome:
 			for lig_ind, ligand in tqdm(enumerate(self.proteins), total=rec_ind, leave=False):
 				if lig_ind > rec_ind: #avoid double counting
 					continue
-				receptor, ligand = Protein(receptor), Protein(ligand)
-				scores = self.docker.dock_global(receptor, ligand)
-				yield rec_ind, lig_ind, Interaction(self.docker, scores, receptor, ligand)
+				rec, lig = Protein(receptor), Protein(ligand)
+				scores = self.docker.dock_global(rec, lig)
+				yield rec_ind, lig_ind, Interaction(self.docker, scores, rec, lig)
 			
 
 if __name__=='__main__':

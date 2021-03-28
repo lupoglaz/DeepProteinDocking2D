@@ -84,6 +84,7 @@ def scan_parameters(data, func, output_name='gap_score_param1.png', num_samples=
 	plt.tight_layout()
 	plt.savefig(output_name)
 
+
 def generate_dataset(dataset_name, num_examples=100):
 	if Path(dataset_name).exists():
 		with open(dataset_name, 'rb') as fin:
@@ -107,4 +108,5 @@ if __name__ == '__main__':
 	dataset = generate_dataset('test_dataset.pkl')
 
 	# scan_parameters(dataset, get_funnel_gap, output_name='gap_score_param1.png', name='Funnel gap')
-	scan_parameters(dataset, get_rmsd, output_name='rmsd_nat_param_tiny.png', num_samples=30, name='RMSD')
+	# scan_parameters(dataset, get_rmsd, output_name='rmsd_nat_param_tiny.png', num_samples=30, name='RMSD')
+	

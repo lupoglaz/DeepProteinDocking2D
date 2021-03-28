@@ -8,6 +8,7 @@ import _pickle as pkl
 import matplotlib.pylab as plt
 import seaborn as sea
 sea.set_style("whitegrid")
+from matplotlib.offsetbox import OffsetImage, AnnotationBbox
 
 from random import uniform
 from Protein import Protein
@@ -42,7 +43,7 @@ class Interaction:
 			rmsd_grid = self.cplx.ligand.grid_rmsd(self.docker.angles, funnel_trans, funnel_rot).to(device='cuda')
 
 			mask_scores_clus = funnel_scores < 0.9*funnel_min_score
-			mask_rmsd = rmsd_grid < 5.0
+			mask_rmsd = rmsd_grid < 8.0
 			mask_funnel = torch.logical_and(mask_rmsd, mask_scores_clus)
 			
 			funnel_rmsd = rmsd_all.masked_select(mask_funnel).clone()
@@ -59,25 +60,35 @@ class Interaction:
 	def est_binding(self, T):
 		return torch.log(torch.sum(torch.exp(-(1.0/T)*self.scores))).item()
 
-	def plot_funnels(self, num_funnels=2):
-		mask_scores = self.scores < 0.3*self.min_score
+	def plot_funnels(self, num_funnels=2, cell_size=90, ax=None, im_offset=(70,25)):
+		mask_scores = self.scores < -10
 		rmsd_grid = self.cplx.ligand.grid_rmsd(self.docker.angles, self.cplx.translation, torch.tensor([self.cplx.rotation])).to(device='cuda')
 	
 		all_rmsd = rmsd_grid.masked_select(mask_scores)
 		all_sc = self.scores.masked_select(mask_scores)
 	
 		funnels, complexes = self.find_funnels()
-	
-		for i, cplx in enumerate(complexes):
-			plt.subplot(1,num_funnels+1,i+1)
-			plt.title(f'Complex #{i}')
-			cplx.plot()
-	
-		plt.subplot(1,num_funnels+1,num_funnels+1)
-		plt.scatter(all_rmsd.cpu().numpy(), all_sc.cpu().numpy())
+		
+		if ax is None:
+			ax = plt.subplot(111)
+
+		ax.scatter(all_rmsd.cpu().numpy(), all_sc.cpu().numpy())
 		for i, funnel in enumerate(funnels):
-			plt.scatter(funnel[0].cpu().numpy(), funnel[1].cpu().numpy(), label=f'Funnel:{i}')
-		plt.legend()
+			cplx_img = complexes[i].get_canvas(cell_size)
+			rmsds = funnel[0].cpu().numpy()
+			scores = funnel[1].cpu().numpy()
+			ax.scatter(rmsds, scores, label=f'Funnel:{i}')
+			
+			im = OffsetImage(cplx_img.copy(), zoom=1.0)
+			# im.image.axes = ax
+			ab = AnnotationBbox(im, (rmsds[0], scores[0]),
+								xybox=im_offset,
+								xycoords='data',
+								boxcoords="offset points",
+								pad=0.3,
+								arrowprops=dict(arrowstyle="->",color='black',lw=2.5))
+			ax.add_artist(ab)
+		
 
 def test_funnels():
 	rec = Protein.generateConcave(size=50, alpha=0.95, num_points = 100)

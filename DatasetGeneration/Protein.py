@@ -19,6 +19,7 @@ import shapely.geometry as geom
 import shapely.affinity as affine
 import descartes.patch as patch
 
+from tqdm import tqdm
 
 
 def get_random_points(num_points, xspan, yspan):
@@ -321,11 +322,39 @@ def test_rmsd():
 	plt.title(f'rmsd = {rmsd[angle_idx, translation[0]+50, translation[1]+50].item()}')
 
 	plt.show()
-	
+
+
+def scan_parameter(param, func, output_name='gap_score_param1.png', num_samples=10, name="", size=50):
+	f = plt.figure(figsize=(num_samples,len(param)+0.5))
+	canvas = np.zeros((size*num_samples, size*len(param)))
+	plot_num = 0 
+	for i, p in tqdm(enumerate(param), total=len(param)):
+		for j in range(num_samples):
+			prot = func(p)
+			canvas[j*50:(j+1)*50, i*50:(i+1)*50] = prot.bulk
+			
+	plt.imshow(canvas.transpose(), origin='lower', interpolation='nearest', resample=False, filternorm=False)
+	plt.xticks(ticks=[i*size + size/2 for i in range(num_samples)], labels=['%d'%(i+1) for i in range(num_samples)])
+	plt.yticks(ticks=[i*size + size/2 for i in range(len(param))], labels=['%.2f'%i for i in param])
+	plt.ylabel(name)
+	plt.xlabel('sample number')
+	plt.tight_layout()
+	plt.savefig(output_name)
 
 if __name__ == '__main__':
-	# test_rmsd()
-	test_hull()
+
+	# scan_parameter(param=np.arange(10,100,10, dtype=np.int), 
+	# 				func=lambda p: Protein.generateConcave(size=50, num_points = p, alpha=0.95),
+	# 				num_samples=10, 
+	# 				output_name='prot_num_points.png', name='Number of points', size=50)
+
+	# scan_parameter(	param=np.arange(0.5, 1.0, 0.05, dtype=np.float32),
+	# 				func=lambda p: Protein.generateConcave(size=50, num_points = 80, alpha=p),
+	# 				num_samples=10,
+	# 				output_name='prot_alpha.png', name='Alpha parameter', size=50)
+
+	test_rmsd()
+	# test_hull()
 		
 	# test_representation()
 	# test_translations()
