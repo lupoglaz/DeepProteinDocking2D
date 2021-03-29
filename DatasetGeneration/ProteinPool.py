@@ -47,6 +47,20 @@ class ParamDistribution:
 		return random.choices(vals, cum_weights=prob, k=1)[0]
 
 
+class InteractionCriteria:
+	def __init__(self, score_cutoff=-70, funnel_gap_cutoff=10):
+		self.score_cutoff = score_cutoff
+		self.funnel_gap_cutoff = funnel_gap_cutoff
+	
+	def __call__(self, interaction):
+		G, score, gap = interaction
+		if score < self.score_cutoff and gap>self.funnel_gap_cutoff:
+			return True
+		else:
+			return False
+
+
+
 class ProteinPool:
 	def __init__(self, proteins):
 		self.proteins = proteins
@@ -103,8 +117,33 @@ class ProteinPool:
 		new_pool.params = new_params
 		return new_pool
 	
-	def extract_docking_dataset(self, interaction_criteria, max_num_samples=1000):
-		pass
+	def extract_docking_dataset(self, docker, interaction_criteria, max_num_samples=1000):
+		pairs = [key for key, inter in self.interactions.items() if interaction_criteria(inter)]
+		dataset = []
+		for i, j in tqdm(pairs, total=max_num_samples):
+			receptor, ligand = Protein(self.proteins[i]), Protein(self.proteins[j])
+			scores = docker.dock_global(receptor, ligand)
+			min_score, cplx, ind = docker.get_conformation(scores, receptor, ligand)
+			dataset.append((cplx.receptor.bulk.copy(), cplx.ligand.bulk.copy(), cplx.translation.copy(), cplx.rotation))
+			if len(dataset) == max_num_samples:
+				break
+		return dataset
+
+	def extract_interactome_dataset(self, interaction_criteria, ind_range=(0, 900)):
+		proteins_sel = [protein for n, protein in enumerate(self.proteins) if n>=ind_range[0]]
+		
+		N = ind_range[1] - ind_range[0]
+		mat = np.zeros((N,N))
+		for (i,j), inter in self.interactions.items():
+			if not(i >= ind_range[0] and i<ind_range[1]):
+				continue
+			if not(j >= ind_range[0] and j<ind_range[1]):
+				continue
+			if interaction_criteria(inter):
+				mat[i-ind_range[0], j-ind_range[0]] = 1.0
+				mat[j-ind_range[0], i-ind_range[0]] = 1.0
+		
+		return proteins_sel.copy(), mat.copy()
 
 	def plot_interaction_dist(self, perc=0.8):
 		assert not(self.interactions is None)
@@ -233,21 +272,36 @@ if __name__=='__main__':
 		)
 	
 	docker = DockerGPU(boundary_size=3, a00=10.0, a11=0.4, a10=-1.0)
-	pool = ProteinPool.generate(num_proteins=500, params=params)
-	pool.get_interactions(docker)
-	pool.save('protein_pool_big.pkl')
+	#Generation
+	# pool = ProteinPool.generate(num_proteins=1000, params=params)
+	# pool.get_interactions(docker)
+	# pool.save('protein_pool_huge.pkl')
 	
-	# complexed_pool = pool.create_complexes(params)
-	# complexed_pool.get_interactions(docker)
-	# complexed_pool.save('protein_pool2.pkl')
+	#Docking dataset
+	# pool = ProteinPool.load('Data/protein_pool_huge.pkl')
+	# inter = InteractionCriteria(score_cutoff=-70, funnel_gap_cutoff=10)
+	# dataset_all = pool.extract_docking_dataset(docker, inter, max_num_samples=1100)
+	# print(f'Total data length {len(dataset_all)}')
+	# random.shuffle(dataset_all)
+	# with open('docking_data_train.pkl', 'wb') as fout:
+	# 	pkl.dump(dataset_all[:1000], fout)
+	# with open('docking_data_valid.pkl', 'wb') as fout:
+	# 	pkl.dump(dataset_all[1000:], fout)
 
-	# pool = ProteinPool.load('protein_pool1.pkl')
+	#Interaction dataset
+	# pool = ProteinPool.load('Data/protein_pool_huge.pkl')
+	# inter = InteractionCriteria(score_cutoff=-70, funnel_gap_cutoff=10)
+	# interactome_train = pool.extract_interactome_dataset(inter, ind_range=(0, 900))
+	# interactome_valid = pool.extract_interactome_dataset(inter, ind_range=(900, 1000))
+	# with open('interaction_data_train.pkl', 'wb') as fout:
+	# 	pkl.dump(interactome_train, fout)
+	# with open('interaction_data_valid.pkl', 'wb') as fout:
+	# 	pkl.dump(interactome_valid, fout)
+
+	#Visualization
+	# pool = ProteinPool.load('protein_pool_huge.pkl')
 	# pool.plot_interaction_dist(perc=90)
 	# pool.plot_interactions(docker, num_plots=20, type='best')
 	# pool.plot_interactions(docker, num_plots=20, type='worst')
 	# pool.plot_sample_funnels(docker, filename='funnels.png', range=[(-100, -80), (-70, -40), (-32, -20)])
 	
-	# pool = ProteinPool.load('protein_pool2.pkl')
-	# pool.plot_interaction_dist(perc=90)
-	# pool.plot_interactions(docker, num_plots=20)
-	# pool.plot_sample_funnels(docker)
