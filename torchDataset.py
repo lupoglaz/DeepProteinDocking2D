@@ -22,13 +22,14 @@ def crop_collate(batch):
 class ToyDataset2D(Dataset):
 	r"""
 	"""
-	def __init__(self, path='toy_dataset_1000.pkl'):
+	def __init__(self, path='toy_dataset_1000.pkl', max_size=100):
 		r"""
 		"""
 		self.path = path
 		with open(self.path, 'rb') as fin:
 			self.data = pkl.load(fin)
 
+		self.data = self.data[:max_size]
 		self.dataset_size = len(list(self.data))
 
 		print ("Dataset file: ", self.path)
@@ -38,7 +39,7 @@ class ToyDataset2D(Dataset):
 		r"""
 		"""
 		receptor, ligand, translation, rotation = self.data[index]
-		return torch.from_numpy(receptor), torch.from_numpy(ligand), torch.from_numpy(translation), torch.tensor([rotation]), index
+		return torch.from_numpy(receptor), torch.from_numpy(ligand), torch.tensor(translation), torch.tensor([rotation]), index
 
 		
 	def __len__(self):
@@ -48,8 +49,8 @@ class ToyDataset2D(Dataset):
 		return self.dataset_size
 
 
-def get_dataset_stream(data_path, batch_size = 10, shuffle = False):
-	dataset = ToyDataset2D(path=data_path)
+def get_dataset_stream(data_path, batch_size = 10, shuffle = False, max_size=1000):
+	dataset = ToyDataset2D(path=data_path, max_size=max_size)
 	trainloader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, num_workers=0, shuffle=shuffle, collate_fn=crop_collate)
 	return trainloader
 

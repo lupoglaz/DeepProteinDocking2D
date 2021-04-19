@@ -3,7 +3,7 @@ from torch import optim
 
 import numpy as np
 
-from Models import EQScoringModelV2, EQDockModel
+from Models import EQScoringModelV2, EQDockModel, EQDockerGPU
 from torchDataset import get_dataset_stream
 from tqdm import tqdm
 import random
@@ -59,7 +59,6 @@ class SampleBuffer:
 
 def run_docking_model(data, docker, epoch=None):
 	receptor, ligand, translation, rotation, indexes = data
-	batch_size = rotation.size(0)
 	receptor = receptor.to(device='cuda', dtype=torch.float).unsqueeze(dim=1)
 	ligand = ligand.to(device='cuda', dtype=torch.float).unsqueeze(dim=1)
 	translation = translation.to(device='cuda', dtype=torch.float)
@@ -68,8 +67,8 @@ def run_docking_model(data, docker, epoch=None):
 	pred_angles, pred_translations = docker(receptor, ligand)
 	
 	if not epoch is None:
-		dict = {"translations": docker.top_translations[0,:,:].cpu(),
-				"rotations": (docker.angles, docker.top_rotations),
+		log_data = {"translations": docker.top_translations.cpu(),
+				"rotations": (docker.angles.cpu(), docker.top_rotations),
 				"receptors": receptor.cpu(),
 				"ligands": ligand.cpu(),
 				"rotation": rotation.cpu(),
@@ -77,29 +76,24 @@ def run_docking_model(data, docker, epoch=None):
 				"pred_rotation": pred_angles.cpu(),
 				"pred_translation": pred_translations.cpu(),
 				}
-		with open(f"Log/valid_{epoch}.th", "wb") as fout:
-			torch.save( dict, fout)
+		
 
 	score_diff = 0.0
-	for i in range(batch_size):
-		rec = Protein(receptor[i,0,:,:].cpu().numpy())
-		lig = Protein(ligand[i,0,:,:].cpu().numpy())
-		angle = rotation[i].item()
-		pos = translation[i,:].cpu().numpy()
-		cplx_correct = Complex(rec, lig, angle, pos)
-		score_correct = cplx_correct.score(boundary_size=3, weight_bulk=1.0)
-		angle_pred = pred_angles[i].item()
-		pos_pred = pred_translations[i,:].cpu().numpy()
-		cplx_pred = Complex(rec, lig, angle_pred, pos_pred)
-		score_pred = cplx_pred.score(boundary_size=3, weight_bulk=1.0)
-		score_diff = (-score_correct + score_pred)
+	rec = Protein(receptor[0,0,:,:].cpu().numpy())
+	lig = Protein(ligand[0,0,:,:].cpu().numpy())
+	angle = rotation[0].item()
+	pos = translation[0,:].cpu().numpy()
+	cplx_correct = Complex(rec, lig, angle, pos)
+	score_correct = cplx_correct.score(boundary_size=3, a00=10.0, a11=0.4, a10=-1.0)
+	angle_pred = pred_angles.item()
+	pos_pred = pred_translations.cpu().numpy()
+	cplx_pred = Complex(rec, lig, angle_pred, pos_pred)
 
-	# pred_angle_vec = torch.cat([torch.cos(pred_angles), torch.sin(pred_angles)], dim=1)
-	# answ_angle_vec = torch.cat([torch.cos(rotation), torch.sin(rotation)], dim=1)
-	# La = torch.sqrt((pred_angle_vec - answ_angle_vec).pow(2).sum(dim=1)).mean().item()
-	# Lr = torch.sqrt((pred_translations - translation).pow(2).sum(dim=1)).mean().item()/50.0
-	# return La + Lr
-	return float(score_diff)/float(batch_size)
+	rmsd = lig.rmsd(pos, angle, pos_pred, angle_pred)
+	score_pred = cplx_pred.score(boundary_size=3, a00=10.0, a11=0.4, a10=-1.0)
+	score_diff = (-score_correct + score_pred)
+
+	return float(rmsd), log_data
 
 
 if __name__=='__main__':
@@ -109,8 +103,8 @@ if __name__=='__main__':
 			print(i, torch.cuda.get_device_name(i), torch.cuda.get_device_capability(i))	
 		torch.cuda.set_device(1)
 
-	train_stream = get_dataset_stream('DatasetGeneration/dataset_valid.pkl', batch_size=1)
-	valid_stream = get_dataset_stream('DatasetGeneration/dataset_valid.pkl', batch_size=1)
+	train_stream = get_dataset_stream('DatasetGeneration/docking_data_train.pkl', batch_size=32, max_size=100)
+	valid_stream = get_dataset_stream('DatasetGeneration/docking_data_valid.pkl', batch_size=1, max_size=30)
 	
 	model = EQScoringModelV2().to(device='cuda')
 	# model.eval()
@@ -133,7 +127,7 @@ if __name__=='__main__':
 		loss = []
 		for data in tqdm(train_stream):
 			loss.append([trainer.step_stoch(data, epoch=epoch)])
-			break
+			# break
 		
 		av_loss = np.average(loss, axis=0)[0,:]
 		
@@ -143,14 +137,19 @@ if __name__=='__main__':
 		
 		
 		if (epoch+1)%10 == 0:
-			model.eval()
 			torch.save(model.state_dict(), 'Log/dock_ebm.th')
 
 		loss = []
-		docker = EQDockModel(model, num_angles=120)
+		log_data = []
+		docker = EQDockerGPU(model, num_angles=360)
 		for data in tqdm(valid_stream):
-			loss.append(run_docking_model(data, docker, epoch=epoch))
-			break
+			it_loss, it_log_data = run_docking_model(data, docker, epoch=epoch)
+			loss.append(it_loss)
+			log_data.append(it_log_data)
+			# break
+
+		with open(f"Log/valid_{epoch}.th", "wb") as fout:
+			torch.save(log_data, fout)
 		
 		av_loss = np.average(loss, axis=0)
 		print('Epoch', epoch, 'Valid Loss:', av_loss)

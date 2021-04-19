@@ -5,8 +5,8 @@ from mpl_toolkits.mplot3d import Axes3D
 import seaborn as sea
 sea.set_style("whitegrid")
 from matplotlib import pylab as plt
+from DatasetGeneration import Complex, Protein
 from celluloid import Camera
-from DatasetGeneration import rotate_ligand
 import torch
 import numpy as np
 from tqdm import tqdm
@@ -18,36 +18,35 @@ def load_log(filename):
 	return list(zip(*loss))
 
 def plot(rec, lig, rot, trans):
-	box_size = int(rec.size(1))
-	field_size = box_size*3
-	field = np.zeros( (field_size, field_size) )
-	rot_lig = rotate_ligand(lig[:,:].numpy(), rot[0].item()*180.0/np.pi)
-	dx = int(trans[0].item())
-	dy = int(trans[1].item())
-	# print(dx, dy, rot[0].item()*180.0/np.pi)
-
-	field[ 	int(field_size/2 - box_size/2): int(field_size/2 + box_size/2),
-				int(field_size/2 - box_size/2): int(field_size/2 + box_size/2)] += rec.numpy()
-	
-	field[  int(field_size/2 - box_size/2 + dx): int(field_size/2 + box_size/2 + dx),
-			int(field_size/2 - box_size/2 + dy): int(field_size/2 + box_size/2 + dy) ] += 2*rot_lig
-
+	cplx = Complex(Protein(rec.numpy()), Protein(lig.numpy()), rot, trans)
+	field = cplx.get_canvas(cell_size=90)
 	plt.imshow(field)
 
-def plot_eval(output_name, max_epoch=40):
+def plot_eval(output_name, max_epoch=40, max_samples=5):
 	fig = plt.figure(figsize=(20,4))
 	camera = Camera(fig)
 	for epoch in tqdm(range(max_epoch)):
 		with open(f"Log/valid_{epoch}.th", "rb") as fin:
-			dict = torch.load( fin)
-		num_targets = dict["receptors"].size(0)
-		for i in range(num_targets):
-			plt.subplot(2, num_targets, i + 1)
-			plot(dict["receptors"][i,0,:,:], dict["ligands"][i,0,:,:], dict["rotation"][i], dict["translation"][i,:])
-			plt.subplot(2, num_targets, num_targets + i + 1)
-			plot(dict["receptors"][i,0,:,:], dict["ligands"][i,0,:,:], dict["pred_rotation"][i], dict["pred_translation"][i,:])
+			log_data = torch.load( fin)
+		num_targets = min(len(log_data), max_samples)
 		
-		plt.tight_layout()	
+		cell_size = 100
+		plot_image = np.zeros((2*cell_size, num_targets*cell_size))
+		for i in range(num_targets):
+			dict = log_data[i]
+			rec = dict["receptors"][0,0,:,:]
+			lig = dict["ligands"][0,0,:,:]
+			cplx = Complex(Protein(rec.numpy()), Protein(lig.numpy()), dict["rotation"].item(), dict["translation"].squeeze().numpy())
+			plot_image[:cell_size, i*cell_size:(i+1)*cell_size] = cplx.get_canvas(cell_size=cell_size)
+			
+			rec = dict["receptors"][0,0,:,:]
+			lig = dict["ligands"][0,0,:,:]
+			cplx = Complex(Protein(rec.numpy()), Protein(lig.numpy()), dict["pred_rotation"].item(), dict["pred_translation"].numpy())
+			plot_image[cell_size:, i*cell_size:(i+1)*cell_size] = cplx.get_canvas(cell_size=cell_size)
+			
+			
+		plt.imshow(plot_image)
+		# plt.show()
 		camera.snap()
 
 	animation = camera.animate()
@@ -58,14 +57,15 @@ def plot_dock(output_name, max_epoch=40):
 	camera = Camera(fig)
 	for epoch in tqdm(range(max_epoch)):
 		with open(f"Log/valid_{epoch}.th", "rb") as fin:
-			dict = torch.load( fin)
-	
+			log_data = torch.load( fin)
+		
+		dict = log_data[0]
 		angles, angle_scores = dict["rotations"]
 			
 		plt.subplot(1, 2, 1)
 		plt.imshow(dict["translations"], cmap='plasma')
 		plt.subplot(1, 2, 2)
-		plt.plot(angles, angle_scores)
+		plt.plot(angles.cpu(), angle_scores)
 		plt.tight_layout()	
 		camera.snap()
 
@@ -111,7 +111,9 @@ def plot_losses(output_name):
 	plt.savefig(f'{output_name}.png')
 
 if __name__=='__main__':
-	plot_dock("dock", max_epoch=100)
-	plot_traces("traces", max_epoch=100)
-	plot_eval("eval_anim", max_epoch=100)
+	max_epoch = 100
+	# plot_dock("dock", max_epoch=max_epoch)
+	plot_eval("eval_anim", max_epoch=max_epoch)
 	plot_losses("losses")
+
+	# plot_traces("traces", max_epoch=max_epoch)

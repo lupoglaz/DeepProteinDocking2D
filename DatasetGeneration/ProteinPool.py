@@ -299,7 +299,7 @@ if __name__=='__main__':
 	# 	pkl.dump(interactome_valid, fout)
 
 	#Visualization
-	# pool = ProteinPool.load('protein_pool_huge.pkl')
+	# pool = ProteinPool.load('Data/protein_pool_huge.pkl')
 	# pool.plot_interaction_dist(perc=90)
 	# pool.plot_interactions(docker, num_plots=20, type='best')
 	# pool.plot_interactions(docker, num_plots=20, type='worst')
