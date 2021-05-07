@@ -112,7 +112,7 @@ def plot_losses(output_name):
 
 if __name__=='__main__':
 	max_epoch = 100
-	# plot_dock("dock", max_epoch=max_epoch)
+	plot_dock("dock", max_epoch=max_epoch)
 	plot_eval("eval_anim", max_epoch=max_epoch)
 	plot_losses("losses")
 

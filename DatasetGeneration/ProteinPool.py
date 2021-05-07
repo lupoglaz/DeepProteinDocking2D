@@ -262,7 +262,80 @@ class ProteinPool:
 		plt.tight_layout()
 		plt.savefig(filename)
 
+	def plot_params(self, output_name='stats.png'):
+		from mpl_toolkits.axes_grid1 import make_axes_locatable
+		alpha_lst = []
+		num_pts_lst = []
+		for param in self.params:
+			alpha_lst.append(param["alpha"])
+			num_pts_lst.append(param["num_points"])
+		alphas = list(set(alpha_lst))
+		alphas.sort()
+		num_pts = list(set(num_pts_lst))
+		num_pts.sort()
+		N = len(alphas)
+		M = len(num_pts)
+				
+		size = self.proteins[0].shape[0]
 
+		# fig, axs = plt.subplots(ncols=2, nrows=2, sharex='col', sharey='row',
+		# 						gridspec_kw={'height_ratios': [1, 3],
+		# 									'width_ratios': [1, 3]}
+		# 						)
+		# axs[0,0].remove()
+		fig, ax = plt.subplots(figsize=(6,4))
+		
+		canvas = np.zeros((size*N, size*M))
+		
+		plot_num = 0 
+		for i, alpha in enumerate(alphas):
+			for j, num_points in enumerate(num_pts):
+				for k, prot in enumerate(self.proteins):
+					if (self.params[k]["alpha"] == alpha) and (self.params[k]["num_points"] == num_points):
+						protein = prot
+						break
+				canvas[i*size:(i+1)*size, j*size:(j+1)*size] = protein
+				
+		plt.imshow(canvas, origin='lower', interpolation='nearest', resample=False, filternorm=False, cmap=plt.get_cmap('binary'))
+		plt.xticks(ticks=[i*size + size/2 for i in range(M)], labels=['%d'%(num_points) for num_points in num_pts])
+		plt.yticks(ticks=[i*size + size/2 for i in range(N)], labels=['%.1f'%(alpha) for alpha in alphas])
+		plt.xlabel('Num points')
+		plt.ylabel('Alpha')
+		ax.grid(b=False)
+				
+		def get_bars(val_lst):
+			bar_values = list(set(val_lst))
+			bar_values.sort()
+			bar = []
+			tick = []
+			total = 0
+			for i, value in enumerate(bar_values):
+				total += val_lst.count(value)
+			for i, value in enumerate(bar_values):
+				bar.append(float(val_lst.count(value))/float(total))
+				tick.append(i*size + size/2)
+			return tick, bar
+		
+		
+		divider = make_axes_locatable(ax)
+		
+		ax_histx = divider.append_axes("top", 1.2, pad=0.1, sharex=ax)
+		ax_histy = divider.append_axes("right", 1.2, pad=0.1, sharey=ax)
+		ax_histx.grid(b=False)
+		ax_histy.grid(b=False)
+		
+		ax_histx.xaxis.set_tick_params(labelbottom=False)
+		ax_histy.yaxis.set_tick_params(labelleft=False)
+		a, b = get_bars(alpha_lst)
+		ax_histy.barh(a,b, height=size*0.75)
+		ax_histy.set_xlabel('Fraction')
+
+		a, b = get_bars(num_pts_lst)
+		ax_histx.bar(a,b,width=size*0.75)
+		ax_histx.set_ylabel('Fraction')
+		
+		plt.tight_layout()
+		plt.savefig(output_name)
 
 if __name__=='__main__':
 	params = ParamDistribution(
@@ -305,3 +378,5 @@ if __name__=='__main__':
 	# pool.plot_interactions(docker, num_plots=20, type='worst')
 	# pool.plot_sample_funnels(docker, filename='funnels.png', range=[(-100, -80), (-70, -40), (-32, -20)])
 	
+	pool = ProteinPool.load('Data/protein_pool_huge.pkl')
+	pool.plot_params()

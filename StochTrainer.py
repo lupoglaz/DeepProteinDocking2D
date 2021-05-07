@@ -12,11 +12,55 @@ from math import cos, sin
 
 from matplotlib import pylab as plt
 
+class SampleBuffer:
+	def __init__(self, num_samples, max_pos=100):
+		self.num_samples = num_samples
+		self.max_pos = max_pos
+		self.buffer = {}
+		for i in range(num_samples):
+			self.buffer[i] = []
+	
+	def __len__(self, i):
+		return len(self.buffer[i])
+	
+	def push(self, alphas, drs, index):
+		alphas = alphas.detach().to(device='cpu')
+		drs = drs.detach().to(device='cpu')
+
+		for alpha, dr, idx in zip(alphas, drs, index):
+			i = idx.item()
+			self.buffer[i].append((alpha, dr))
+			if len(self.buffer[i])>self.max_pos:
+				self.buffer[i].pop(0)
+
+	def get(self, index, num_samples=1, device='cuda'):
+		alphas = []
+		drs = []
+		for idx in index:
+			i = idx.item()
+			if len(self.buffer[i])>=num_samples and random.randint(0,10)<7:
+				lst = random.choices(self.buffer[i], k=num_samples)
+				alpha = list(map(lambda x: x[0], lst))
+				dr = list(map(lambda x: x[1], lst))
+				alphas.append(torch.stack(alpha, dim=0))
+				drs.append(torch.stack(dr, dim=0))
+			else:
+				alpha = torch.rand(num_samples, 1)*2*np.pi - np.pi
+				dr = torch.rand(num_samples, 2)*50.0 - 25.0
+				alphas.append(alpha)
+				drs.append(dr)
+		
+		alphas = torch.stack(alphas, dim=0).to(device=device)
+		drs = torch.stack(drs, dim=0).to(device=device)
+
+		return alphas, drs
+
+
 class StochTrainer:
-	def __init__(self, model, optimizer, buffer, device='cuda', num_samples=10, weight=1.0, step_size=10.0, sample_steps=100):
+	def __init__(self, model, optimizer, num_buf_samples=10, device='cuda', num_samples=10, weight=1.0, step_size=10.0, sample_steps=100):
 		self.model = model
 		self.optimizer = optimizer
-		self.buffer = buffer
+		self.buffer = SampleBuffer(num_buf_samples)
 
 		self.num_samples = num_samples
 		self.sample_steps = sample_steps

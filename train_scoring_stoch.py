@@ -13,50 +13,6 @@ from DockTrainer import DockTrainer
 
 from DatasetGeneration import Protein, Complex
 
-
-class SampleBuffer:
-	def __init__(self, num_samples, max_pos=100):
-		self.num_samples = num_samples
-		self.max_pos = max_pos
-		self.buffer = {}
-		for i in range(num_samples):
-			self.buffer[i] = []
-	
-	def __len__(self, i):
-		return len(self.buffer[i])
-	
-	def push(self, alphas, drs, index):
-		alphas = alphas.detach().to(device='cpu')
-		drs = drs.detach().to(device='cpu')
-
-		for alpha, dr, idx in zip(alphas, drs, index):
-			i = idx.item()
-			self.buffer[i].append((alpha, dr))
-			if len(self.buffer[i])>self.max_pos:
-				self.buffer[i].pop(0)
-
-	def get(self, index, num_samples=1, device='cuda'):
-		alphas = []
-		drs = []
-		for idx in index:
-			i = idx.item()
-			if len(self.buffer[i])>=num_samples and random.randint(0,10)<7:
-				lst = random.choices(self.buffer[i], k=num_samples)
-				alpha = list(map(lambda x: x[0], lst))
-				dr = list(map(lambda x: x[1], lst))
-				alphas.append(torch.stack(alpha, dim=0))
-				drs.append(torch.stack(dr, dim=0))
-			else:
-				alpha = torch.rand(num_samples, 1)*2*np.pi - np.pi
-				dr = torch.rand(num_samples, 2)*50.0 - 25.0
-				alphas.append(alpha)
-				drs.append(dr)
-		
-		alphas = torch.stack(alphas, dim=0).to(device=device)
-		drs = torch.stack(drs, dim=0).to(device=device)
-
-		return alphas, drs
-
 def run_docking_model(data, docker, epoch=None):
 	receptor, ligand, translation, rotation, indexes = data
 	receptor = receptor.to(device='cuda', dtype=torch.float).unsqueeze(dim=1)
@@ -104,16 +60,14 @@ if __name__=='__main__':
 		torch.cuda.set_device(1)
 
 	train_stream = get_dataset_stream('DatasetGeneration/docking_data_train.pkl', batch_size=32, max_size=100)
-	valid_stream = get_dataset_stream('DatasetGeneration/docking_data_valid.pkl', batch_size=1, max_size=30)
+	valid_stream = get_dataset_stream('DatasetGeneration/docking_data_valid.pkl', batch_size=1, max_size=20)
 	
 	model = EQScoringModelV2().to(device='cuda')
 	# model.eval()
 	# model.load_state_dict(torch.load('Log/dock_ebm.th'))
 	
 	optimizer = optim.Adam(model.parameters(), lr=1e-3, betas=(0.0, 0.999))
-	buffer = SampleBuffer(num_samples=len(train_stream)*64)
-
-	trainer = StochTrainer(model, optimizer, buffer)
+	trainer = StochTrainer(model, optimizer, num_samples=10, num_buf_samples=len(train_stream)*64)
 	# trainer = DockTrainer(model, optimizer, buffer)
 
 	with open('Log/log_train_scoring_v2.txt', 'w') as fout:
@@ -154,14 +108,4 @@ if __name__=='__main__':
 		av_loss = np.average(loss, axis=0)
 		print('Epoch', epoch, 'Valid Loss:', av_loss)
 		with open('Log/log_valid_scoring_v2.txt', 'a') as fout:
-			fout.write('%d\t%f\n'%(epoch, av_loss))		
-		
-
-	
-
-			
-
-
-
-
-
+			fout.write('%d\t%f\n'%(epoch, av_loss))
