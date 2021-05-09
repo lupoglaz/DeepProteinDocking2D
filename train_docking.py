@@ -4,7 +4,7 @@ from torch import optim
 import numpy as np
 
 from Models import EQScoringModel, EQDockerGPU
-from torchDataset import get_dataset_stream
+from torchDataset import get_docking_stream
 from tqdm import tqdm
 import random
 
@@ -58,8 +58,8 @@ if __name__=='__main__':
 			print(i, torch.cuda.get_device_name(i), torch.cuda.get_device_capability(i))	
 		torch.cuda.set_device(1)
 
-	train_stream = get_dataset_stream('DatasetGeneration/docking_data_train.pkl', batch_size=32, max_size=100)
-	valid_stream = get_dataset_stream('DatasetGeneration/docking_data_valid.pkl', batch_size=1, max_size=20)
+	train_stream = get_docking_stream('DatasetGeneration/docking_data_train.pkl', batch_size=32, max_size=100)
+	valid_stream = get_docking_stream('DatasetGeneration/docking_data_valid.pkl', batch_size=1, max_size=20)
 	
 	model = EQScoringModel().to(device='cuda')
 	# model.eval()

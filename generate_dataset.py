@@ -1,7 +1,9 @@
-from DatasetGeneration import DockerGPU, ProteinPool, ParamDistribution
+import _pickle as pkl
+from pathlib import Path
+from DatasetGeneration import DockerGPU, ProteinPool, ParamDistribution, InteractionCriteria
 
 if __name__ == '__main__':
-    params = ParamDistribution(
+	params = ParamDistribution(
 		alpha = [(0.8, 1), (0.9, 9), (0.95, 4)],
 		num_points = [(20, 1), (30, 2), (50, 4), (80, 8), (100, 6)],
 		overlap = [(0.10, 2), (0.20, 3), (0.30, 4), (0.50, 2), (0.60, 1)]
@@ -25,14 +27,14 @@ if __name__ == '__main__':
 	# 	pkl.dump(dataset_all[1000:], fout)
 
 	#Interaction dataset
-	# pool = ProteinPool.load('DatasetGeneration/Data/protein_pool_huge.pkl')
-	# inter = InteractionCriteria(score_cutoff=-70, funnel_gap_cutoff=10)
-	# interactome_train = pool.extract_interactome_dataset(inter, ind_range=(0, 900))
-	# interactome_valid = pool.extract_interactome_dataset(inter, ind_range=(900, 1000))
-	# with open('DatasetGeneration/interaction_data_train.pkl', 'wb') as fout:
-	# 	pkl.dump(interactome_train, fout)
-	# with open('DatasetGeneration/interaction_data_valid.pkl', 'wb') as fout:
-	# 	pkl.dump(interactome_valid, fout)
+	pool = ProteinPool.load('DatasetGeneration/Data/protein_pool_huge.pkl')
+	inter = InteractionCriteria(score_cutoff=-70, funnel_gap_cutoff=10)
+	interactome_train = pool.extract_interactome_dataset(inter, ind_range=(0, 900))
+	interactome_valid = pool.extract_interactome_dataset(inter, ind_range=(900, 1000))
+	with open('DatasetGeneration/interaction_data_train.pkl', 'wb') as fout:
+		pkl.dump(interactome_train, fout)
+	with open('DatasetGeneration/interaction_data_valid.pkl', 'wb') as fout:
+		pkl.dump(interactome_valid, fout)
 
 	#Visualization
 	# pool = ProteinPool.load('DatasetGeneration/Data/protein_pool_huge.pkl')
@@ -41,5 +43,6 @@ if __name__ == '__main__':
 	# pool.plot_interactions(docker, num_plots=20, type='worst')
 	# pool.plot_sample_funnels(docker, filename='funnels.png', range=[(-100, -80), (-70, -40), (-32, -20)])
 	
-	pool = ProteinPool.load('DatasetGeneration/Data/protein_pool_huge.pkl')
-	pool.plot_params()
+	#Parameters statistics
+	# pool = ProteinPool.load('DatasetGeneration/Data/protein_pool_huge.pkl')
+	# pool.plot_params()

@@ -130,7 +130,7 @@ class ProteinPool:
 		return dataset
 
 	def extract_interactome_dataset(self, interaction_criteria, ind_range=(0, 900)):
-		proteins_sel = [protein for n, protein in enumerate(self.proteins) if n>=ind_range[0]]
+		proteins_sel = [protein for n, protein in enumerate(self.proteins) if ((n>=ind_range[0]) and (n<ind_range[1]))]
 		
 		N = ind_range[1] - ind_range[0]
 		mat = np.zeros((N,N))
