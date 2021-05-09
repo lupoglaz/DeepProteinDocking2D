@@ -3,9 +3,7 @@ from torch import optim
 import torch.nn as nn
 import numpy as np
 
-from Models import EQScoringModelV2, EQDockModel
 from Models import ProteinConv2D
-from torchDataset import get_dataset_stream
 from tqdm import tqdm
 import random
 from math import cos, sin
@@ -56,7 +54,7 @@ class SampleBuffer:
 		return alphas, drs
 
 
-class StochTrainer:
+class EBMTrainer:
 	def __init__(self, model, optimizer, num_buf_samples=10, device='cuda', num_samples=10, weight=1.0, step_size=10.0, sample_steps=100):
 		self.model = model
 		self.optimizer = optimizer

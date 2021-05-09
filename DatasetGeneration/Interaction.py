@@ -11,9 +11,9 @@ sea.set_style("whitegrid")
 from matplotlib.offsetbox import OffsetImage, AnnotationBbox
 
 from random import uniform
-from Protein import Protein
-from Complex import Complex
-from DockerGPU import DockerGPU
+from .Protein import Protein
+from .Complex import Complex
+from .DockerGPU import DockerGPU
 from tqdm import tqdm
 
 

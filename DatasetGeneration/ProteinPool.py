@@ -13,11 +13,11 @@ sea.set_style("whitegrid")
 import random
 from random import uniform
 
-from Protein import Protein
-from Complex import Complex
-from DockerGPU import DockerGPU
-from Interaction import Interaction
-from Interactome import Interactome
+from .Protein import Protein
+from .Complex import Complex
+from .DockerGPU import DockerGPU
+from .Interaction import Interaction
+from .Interactome import Interactome
 from tqdm import tqdm
 import inspect
 

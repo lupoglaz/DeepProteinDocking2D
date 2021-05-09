@@ -3,13 +3,12 @@ from torch import optim
 
 import numpy as np
 
-from Models import EQScoringModelV2, EQDockModel, EQDockerGPU
+from Models import EQScoringModel, EQDockerGPU
 from torchDataset import get_dataset_stream
 from tqdm import tqdm
 import random
 
-from StochTrainer import StochTrainer
-from DockTrainer import DockTrainer
+from EBMTrainer import EBMTrainer
 
 from DatasetGeneration import Protein, Complex
 
@@ -62,14 +61,13 @@ if __name__=='__main__':
 	train_stream = get_dataset_stream('DatasetGeneration/docking_data_train.pkl', batch_size=32, max_size=100)
 	valid_stream = get_dataset_stream('DatasetGeneration/docking_data_valid.pkl', batch_size=1, max_size=20)
 	
-	model = EQScoringModelV2().to(device='cuda')
+	model = EQScoringModel().to(device='cuda')
 	# model.eval()
 	# model.load_state_dict(torch.load('Log/dock_ebm.th'))
 	
 	optimizer = optim.Adam(model.parameters(), lr=1e-3, betas=(0.0, 0.999))
-	trainer = StochTrainer(model, optimizer, num_samples=10, num_buf_samples=len(train_stream)*64)
-	# trainer = DockTrainer(model, optimizer, buffer)
-
+	trainer = EBMTrainer(model, optimizer, num_samples=10, num_buf_samples=len(train_stream)*64)
+	
 	with open('Log/log_train_scoring_v2.txt', 'w') as fout:
 		fout.write('Epoch\tLoss\n')
 	with open('Log/log_valid_scoring_v2.txt', 'w') as fout:

@@ -10,8 +10,8 @@ import seaborn as sea
 sea.set_style("whitegrid")
 
 from random import uniform
-from Protein import Protein
-from Complex import Complex
+from .Protein import Protein
+from .Complex import Complex
 from tqdm import tqdm
 
 import torch
