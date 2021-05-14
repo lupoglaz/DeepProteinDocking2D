@@ -3,7 +3,7 @@ from torch import optim
 
 import numpy as np
 
-from Models import CNNInteractionModel
+from Models import CNNInteractionModel, EQInteraction, EQRepresentation, EQScoringModel
 from torchDataset import get_interaction_stream, get_interaction_stream_balanced
 from tqdm import tqdm
 import random
@@ -19,10 +19,13 @@ if __name__=='__main__':
 			print(i, torch.cuda.get_device_name(i), torch.cuda.get_device_capability(i))	
 		torch.cuda.set_device(1)
 
-	train_stream = get_interaction_stream_balanced('DatasetGeneration/interaction_data_train.pkl', batch_size=32, max_size=1000, shuffle=True)
-	valid_stream = get_interaction_stream('DatasetGeneration/interaction_data_valid.pkl', batch_size=32, max_size=1000)
+	train_stream = get_interaction_stream_balanced('DatasetGeneration/interaction_data_train.pkl', batch_size=32, max_size=100, shuffle=True)
+	valid_stream = get_interaction_stream('DatasetGeneration/interaction_data_valid.pkl', batch_size=32, max_size=100)
 
-	model = CNNInteractionModel().cuda()
+	# model = CNNInteractionModel().cuda()
+	repr = EQRepresentation().cuda()
+	scoring = EQScoringModel().cuda()
+	model = EQInteraction(repr, scoring).cuda()
 	optimizer = optim.Adam(model.parameters(), lr=1e-3, betas=(0.0, 0.999))
 	trainer = SupervisedTrainer(model, optimizer)
 
