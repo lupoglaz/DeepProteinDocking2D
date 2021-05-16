@@ -106,7 +106,7 @@ class Complex:
 		t00 = np.sum(self.receptor.bulk * trligand.bulk)
 		t11 = np.sum(self.receptor.boundary * trligand.boundary)
 		t10 = np.sum(self.receptor.bulk * trligand.boundary + self.receptor.boundary * trligand.bulk)
-		score = a11*a11 + a10*t10 + a00*t00
+		score = a11*t11 + a10*t10 + a00*t00
 		return score
 	
 	def get_canvas(self, cell_size):
