@@ -6,8 +6,9 @@ import numpy as np
 from torch import optim
 
 class ImageCrossMultiply(nn.Module):
-	def __init__(self):
+	def __init__(self, full=True):
 		super(ImageCrossMultiply, self).__init__()
+		self.full = full
 
 	def forward(self, volume1, volume2, alpha, dr):
 		batch_size = volume1.size(0)
@@ -24,13 +25,20 @@ class ImageCrossMultiply(nn.Module):
 		
 		grid = nn.functional.affine_grid(A, size=volume2.size())
 		volume2 = nn.functional.grid_sample(volume2, grid)
-		volume1_unpacked = []
-		volume2_unpacked = []
-		for i in range(0, num_features):
-			volume1_unpacked.append(volume1[:,0:num_features-i,:,:])
-			volume2_unpacked.append(volume2[:,i:num_features,:,:])
-		volume1 = torch.cat(volume1_unpacked, dim=1)
-		volume2 = torch.cat(volume2_unpacked, dim=1)
+		if not self.full:
+			volume1_unpacked = []
+			volume2_unpacked = []
+			for i in range(0, num_features):
+				volume1_unpacked.append(volume1[:,0:num_features-i,:,:])
+				volume2_unpacked.append(volume2[:,i:num_features,:,:])
+			volume1 = torch.cat(volume1_unpacked, dim=1)
+			volume2 = torch.cat(volume2_unpacked, dim=1)
+		else:
+			volume1 = volume1.unsqueeze(dim=2).repeat(1, 1, num_features, 1, 1)
+			volume2 = volume2.unsqueeze(dim=1).repeat(1, num_features, 1, 1, 1)
+			volume1 = volume1.view(batch_size, num_features*num_features, volume_size, volume_size)
+			volume2 = volume2.view(batch_size, num_features*num_features, volume_size, volume_size)
+			
 
 		mults = (volume1 * volume2).sum(dim=3).sum(dim=2)
 		
@@ -81,6 +89,22 @@ def test_translation(a,b):
 	animation = camera.animate()
 	plt.show()
 
+def test_mult_order():
+	mult = ImageCrossMultiply()
+	alpha = torch.tensor([[2*np.pi]], dtype=torch.float, device='cpu')
+	dr = torch.tensor([[0.0, 0.0]], dtype=torch.float, device='cpu')
+	a = torch.zeros(1, 2, 50, 50, dtype=torch.float, device='cpu')
+	a[0,0,:,:] = 1.0
+	a[0,1,:,:] = 2.0
+	b = torch.zeros(1, 2, 50, 50, dtype=torch.float, device='cpu')
+	b[0,0,:,:] = 3.0
+	b[0,1,:,:] = 4.0
+	m, v2, _ = mult(a,b, alpha, dr)
+	for k in range(m.size(1)):
+		print(k, m[0, k]/(50*50))
+
+
+
 if __name__=='__main__':
 	import seaborn
 	from matplotlib import pylab as plt
@@ -106,7 +130,8 @@ if __name__=='__main__':
 	a = a.unsqueeze(dim=0).unsqueeze(dim=1)
 	b = b.unsqueeze(dim=0).unsqueeze(dim=1)
 
-	test_optimization(a,b)
+	# test_optimization(a,b)
 	# test_translation(a,b)
+	test_mult_order()
 	
 	

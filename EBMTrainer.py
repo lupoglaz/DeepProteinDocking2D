@@ -130,12 +130,12 @@ class EBMTrainer:
 			neg_out = self.model.scorer(pos_repr)
 			neg_out.mean().backward()
 			
-			if len(traces) > 0:
-				l=0
-				for m, idx in enumerate(neg_idx):
-					if idx.item() == self.plot_idx:
-						traces[l].append( (neg_alpha[m].item(), neg_dr[m,0].item(), neg_dr[m,1].item()) )
-						l+=1
+			# if len(traces) > 0:
+			# 	l=0
+			# 	for m, idx in enumerate(neg_idx):
+			# 		if idx.item() == self.plot_idx:
+			# 			traces[l].append( (neg_alpha[m].item(), neg_dr[m,0].item(), neg_dr[m,1].item()) )
+			# 			l+=1
 
 			langevin_opt.step()
 			
@@ -167,9 +167,9 @@ class EBMTrainer:
 		neg_dr = neg_dr.view(batch_size*self.num_samples, -1)
 		
 		traces = []
-		for idx in neg_idx:
-			if idx.item() == self.plot_idx:
-				traces.append([])
+		# for idx in neg_idx:
+		# 	if idx.item() == self.plot_idx:
+		# 		traces.append([])
 		
 		neg_rec_feat = self.model.repr(neg_rec).tensor
 		neg_lig_feat = self.model.repr(neg_lig).tensor
@@ -178,13 +178,13 @@ class EBMTrainer:
 		
 		neg_alpha, neg_dr, traces = self.langevin(neg_alpha, neg_dr, neg_rec_feat.detach(), neg_lig_feat.detach(), neg_idx, traces=traces)
 		
-		if len(traces) > 0 and (not (epoch is None)):
-			for m, idx in enumerate(pos_idx):
-				if idx.item() == self.plot_idx:
-					correct = (pos_alpha[m].item(), pos_dr[m,0].item(), pos_dr[m,1].item())
+		# if len(traces) > 0 and (not (epoch is None)):
+		# 	for m, idx in enumerate(pos_idx):
+		# 		if idx.item() == self.plot_idx:
+		# 			correct = (pos_alpha[m].item(), pos_dr[m,0].item(), pos_dr[m,1].item())
 
-			with open(f"Log/traces_{epoch}.th", "wb") as fout:
-				torch.save( (traces, correct), fout)
+		# 	with open(f"Log/traces_{epoch}.th", "wb") as fout:
+		# 		torch.save( (traces, correct), fout)
 
 		self.requires_grad(True)
 		self.model.train()
@@ -203,5 +203,5 @@ class EBMTrainer:
 		self.buffer.push(pos_alpha, pos_dr, pos_idx)
 		self.buffer.push(neg_alpha, neg_dr, neg_idx)
 		
-		return loss.item(),
+		return loss.item()
 	

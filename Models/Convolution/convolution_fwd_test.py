@@ -1,7 +1,7 @@
 import torch
 from torch import nn
-from convolution import ProteinConv2D
-from multiplication import ImageCrossMultiply
+from ProteinConvolution2D import ProteinConv2D
+from ..Multiplication import ImageCrossMultiply
 
 import seaborn
 from matplotlib import pylab as plt

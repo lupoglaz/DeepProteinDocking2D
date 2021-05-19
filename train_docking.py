@@ -1,7 +1,8 @@
 import torch
 from torch import optim
-
+from pathlib import Path
 import numpy as np
+import argparse
 
 from Models import EQScoringModel, EQDockerGPU
 from torchDataset import get_docking_stream
@@ -11,6 +12,7 @@ import random
 from EBMTrainer import EBMTrainer
 
 from DatasetGeneration import Protein, Complex
+from Logger import Logger
 
 def run_docking_model(data, docker, epoch=None):
 	receptor, ligand, translation, rotation, indexes = data
@@ -52,44 +54,29 @@ def run_docking_model(data, docker, epoch=None):
 
 
 if __name__=='__main__':
-	
+	parser = argparse.ArgumentParser(description='Train deep protein docking')	
+	parser.add_argument('-experiment', default='Debug', type=str)
+	args = parser.parse_args()
+
 	if torch.cuda.device_count()>1:
 		for i in range(torch.cuda.device_count()):
 			print(i, torch.cuda.get_device_name(i), torch.cuda.get_device_capability(i))	
 		torch.cuda.set_device(1)
 
-	train_stream = get_docking_stream('DatasetGeneration/docking_data_train.pkl', batch_size=32, max_size=100)
-	valid_stream = get_docking_stream('DatasetGeneration/docking_data_valid.pkl', batch_size=1, max_size=20)
+	train_stream = get_docking_stream('DatasetGeneration/docking_data_train.pkl', batch_size=24, max_size=100)
+	valid_stream = get_docking_stream('DatasetGeneration/docking_data_valid.pkl', batch_size=1, max_size=30)
 	
 	model = EQScoringModel().to(device='cuda')
-	# model.eval()
-	# model.load_state_dict(torch.load('Log/dock_ebm.th'))
 	
 	optimizer = optim.Adam(model.parameters(), lr=1e-3, betas=(0.0, 0.999))
-	trainer = EBMTrainer(model, optimizer, num_samples=10, num_buf_samples=len(train_stream)*64)
+	trainer = EBMTrainer(model, optimizer, num_samples=10, num_buf_samples=len(train_stream)*64, step_size=5.0)
+	logger = Logger.new(Path('Log')/Path(args.experiment))
 	
-	with open('Log/log_train_scoring_v2.txt', 'w') as fout:
-		fout.write('Epoch\tLoss\n')
-	with open('Log/log_valid_scoring_v2.txt', 'w') as fout:
-		fout.write('Epoch\tLoss\n')
-	
-	losses_train = []
-	losses_valid = []
+	min_loss = float('+Inf')
 	for epoch in range(100):
-		loss = []
 		for data in tqdm(train_stream):
-			loss.append([trainer.step_stoch(data, epoch=epoch)])
-			# break
-		
-		av_loss = np.average(loss, axis=0)[0,:]
-		
-		print('Epoch', epoch, 'Train Loss:', av_loss)
-		with open('Log/log_train_scoring_v2.txt', 'a') as fout:
-			fout.write('%d\t%f\n'%(epoch,av_loss[0]))
-		
-		
-		if (epoch+1)%10 == 0:
-			torch.save(model.state_dict(), 'Log/dock_ebm.th')
+			loss = trainer.step_stoch(data, epoch=epoch)
+			logger.log_train(loss)
 
 		loss = []
 		log_data = []
@@ -98,12 +85,13 @@ if __name__=='__main__':
 			it_loss, it_log_data = run_docking_model(data, docker, epoch=epoch)
 			loss.append(it_loss)
 			log_data.append(it_log_data)
-			# break
-
-		with open(f"Log/valid_{epoch}.th", "wb") as fout:
-			torch.save(log_data, fout)
 		
 		av_loss = np.average(loss, axis=0)
+		logger.log_valid(av_loss)
+		logger.log_data(log_data)
+
 		print('Epoch', epoch, 'Valid Loss:', av_loss)
-		with open('Log/log_valid_scoring_v2.txt', 'a') as fout:
-			fout.write('%d\t%f\n'%(epoch, av_loss))
+		if av_loss < min_loss:
+			torch.save(model.state_dict(), LOG_DIR/Path('dock_ebm.th'))
+			print(f'Model saved: min_loss = {av_loss} prev = {min_loss}')
+			min_loss = av_loss

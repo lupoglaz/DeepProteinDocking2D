@@ -81,24 +81,30 @@ class SwapQuadrants2DFunction(Function):
 
 
 class ProteinConv2D(nn.Module):
-	def __init__(self, append_coords=False):
+	def __init__(self, full=True):
 		super(ProteinConv2D, self).__init__()
 		self.protConvolve = ProteinConv2DFunction()
+		self.full = full
 	
 	def forward(self, volume1, volume2):
 		batch_size = volume1.size(0)
 		num_features = volume1.size(1)
 		volume_size = volume1.size(2)
 		
-		volume1_unpacked = []
-		volume2_unpacked = []
-		for i in range(0, num_features):
-			volume1_unpacked.append(volume1[:,0:num_features-i,:,:])
-			volume2_unpacked.append(volume2[:,i:num_features,:,:])
-		volume1 = torch.cat(volume1_unpacked, dim=1)
-		volume2 = torch.cat(volume2_unpacked, dim=1)
+		if not self.full: #lower triangle product
+			volume1_unpacked = []
+			volume2_unpacked = []
+			for i in range(0, num_features):
+				volume1_unpacked.append(volume1[:,0:num_features-i,:,:])
+				volume2_unpacked.append(volume2[:,i:num_features,:,:])
+			volume1 = torch.cat(volume1_unpacked, dim=1)
+			volume2 = torch.cat(volume2_unpacked, dim=1)
+			num_output_features = volume1.size(1)
+		else: #complete product
+			volume1 = volume1.unsqueeze(dim=2).repeat(1, 1, num_features, 1, 1)
+			volume2 = volume2.unsqueeze(dim=1).repeat(1, num_features, 1, 1, 1)
+			num_output_features = num_features*num_features
 		
-		num_output_features = volume1.size(1)
 		volume1 = volume1.view(batch_size*num_output_features, volume_size, volume_size)
 		volume2 = volume2.view(batch_size*num_output_features, volume_size, volume_size)
 		input_volume1 = F.pad(volume1, (0, volume_size, 0, volume_size)).contiguous()

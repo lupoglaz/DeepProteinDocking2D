@@ -25,6 +25,7 @@ class DockerGPU:
 		# 0 : 0 - 0, bulk-bulk
 		# 1 : 1 - 1, boundary-boundary
 		# 2 : 0 - 1, bulk-boundary
+		# 3 : 1 - 0, boundary-bulk
 		self.num_angles = num_angles
 		self.a00 = a00
 		self.a11 = a11
@@ -38,8 +39,8 @@ class DockerGPU:
 		T0 = torch.stack([torch.cos(alpha), -torch.sin(alpha), torch.zeros_like(alpha)], dim=1)
 		T1 = torch.stack([torch.sin(alpha), torch.cos(alpha), torch.zeros_like(alpha)], dim=1)
 		R = torch.stack([T0, T1], dim=1)
-		curr_grid = nn.functional.affine_grid(R, size=repr.size(), align_corners=True)
-		return nn.functional.grid_sample(repr, curr_grid, align_corners=True)
+		curr_grid = nn.functional.affine_grid(R, size=repr.size(), align_corners=False)
+		return nn.functional.grid_sample(repr, curr_grid, align_corners=False, mode='nearest')
 	
 	def dock_global(self, receptor, ligand):
 		receptor.make_boundary(boundary_size=self.boundary_size)
@@ -53,7 +54,7 @@ class DockerGPU:
 		rot_lig = self.rotate(f_lig, self.angles)
 		
 		translations = self.conv(f_rec, rot_lig)
-		return self.a00*translations[:,0,:,:] + self.a11*translations[:,1,:,:] + self.a10*translations[:,2,:,:]
+		return self.a00*translations[:,0,:,:] + self.a11*translations[:,1,:,:] + self.a10*(translations[:,2,:,:]+translations[:,3,:,:])
 				
 
 	def get_conformation(self, scores, receptor, ligand):
@@ -72,19 +73,21 @@ class DockerGPU:
 		return best_score, res_cplx, [ind_angle, x, y]
 
 
-def test_dock_global():
+def test_dock_global(a00, a11, a10, boundary_size=3):
 	rec = Protein.generateConcave(size=50, num_points = 100)
 	lig = Protein.generateConcave(size=50, num_points = 100)
 	cplx = Complex.generate(rec, lig)
-	cor_score = cplx.score(boundary_size=3, a00=4.0)
+	cor_score = cplx.score(boundary_size=boundary_size, a00=a00, a11=a11, a10=a10)
 
-	dck = DockerGPU(num_angles=360, boundary_size=3, a00=4.0)
+	dck = DockerGPU(num_angles=360, boundary_size=boundary_size, a00=a00, a11=a11, a10=a10)
 	scores = dck.dock_global(cplx.receptor, cplx.ligand)
 	score, cplx_docked, ind = dck.get_conformation(scores, cplx.receptor, cplx.ligand)
-	docked_score = cplx_docked.score(boundary_size=3, a00=4.0)
+	docked_score = cplx_docked.score(boundary_size=boundary_size, a00=a00, a11=a11, a10=a10)
+
+	rmsd = lig.rmsd(cplx.translation, cplx.rotation, cplx_docked.translation, cplx_docked.rotation)
 
 	print('Predicted:')
-	print(f'Score:{score}/{docked_score}', 'Translation:', cplx_docked.translation, 'Rotation:', cplx_docked.rotation)
+	print(f'Score:{score}/{docked_score}', 'Translation:', cplx_docked.translation, 'Rotation:', cplx_docked.rotation, 'RMSD:', rmsd)
 	print('Correct:')
 	print('Score:', cor_score, 'Translation:', cplx.translation, 'Rotation:', cplx.rotation)
 	plt.figure(figsize=(12,6))

@@ -18,7 +18,7 @@ class EQRepresentation(nn.Module):
 		r2_act = gspaces.Rot2dOnR2(N=-1, maximum_frequency=5)
 		self.feat_type_in = e2nn.FieldType(r2_act, [r2_act.irreps['irrep_0']])
 		self.feat_type_hid = e2nn.FieldType(r2_act, 16*[r2_act.irreps['irrep_0']]+4*[r2_act.irreps['irrep_1']]+2*[r2_act.irreps['irrep_2']])
-		self.feat_type_out = e2nn.FieldType(r2_act, 8*[r2_act.trivial_repr])
+		self.feat_type_out = e2nn.FieldType(r2_act, 4*[r2_act.trivial_repr])
 		
 		self.repr = nn.Sequential(
 			e2nn.R2Conv(self.feat_type_in, self.feat_type_hid, kernel_size=5, padding=2, bias=False),

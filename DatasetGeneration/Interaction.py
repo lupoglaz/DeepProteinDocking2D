@@ -60,7 +60,7 @@ class Interaction:
 	def est_binding(self, T):
 		return torch.log(torch.sum(torch.exp(-(1.0/T)*self.scores))).item()
 
-	def plot_funnels(self, num_funnels=2, cell_size=90, ax=None, im_offset=(70,25)):
+	def plot_funnels(self, num_funnels=2, cell_size=90, ax=None, im_offset=(70,25), plot_conformations=True):
 		mask_scores = self.scores < -10
 		rmsd_grid = self.cplx.ligand.grid_rmsd(self.docker.angles, self.cplx.translation, torch.tensor([self.cplx.rotation])).to(device='cuda')
 	
@@ -79,15 +79,16 @@ class Interaction:
 			scores = funnel[1].cpu().numpy()
 			ax.scatter(rmsds, scores, label=f'Funnel:{i}')
 			
-			im = OffsetImage(cplx_img.copy(), zoom=1.0)
-			# im.image.axes = ax
-			ab = AnnotationBbox(im, (rmsds[0], scores[0]),
-								xybox=im_offset,
-								xycoords='data',
-								boxcoords="offset points",
-								pad=0.3,
-								arrowprops=dict(arrowstyle="->",color='black',lw=2.5))
-			ax.add_artist(ab)
+			if plot_conformations:
+				im = OffsetImage(cplx_img.copy(), zoom=1.0)
+				# im.image.axes = ax
+				ab = AnnotationBbox(im, (rmsds[0], scores[0]),
+									xybox=im_offset,
+									xycoords='data',
+									boxcoords="offset points",
+									pad=0.3,
+									arrowprops=dict(arrowstyle="->",color='black',lw=2.5))
+				ax.add_artist(ab)
 		
 
 def test_funnels():
