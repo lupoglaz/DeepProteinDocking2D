@@ -19,6 +19,8 @@ import shapely.geometry as geom
 import shapely.affinity as affine
 import descartes.patch as patch
 
+import torch.nn.functional as F
+
 from tqdm import tqdm
 
 
@@ -112,18 +114,31 @@ class Protein:
 		return Protein(bulk=blk, boundary=bnd, hull=hull)
 
 
-	def make_boundary(self, boundary_size=3):
-		self.boundary = np.zeros((self.size, self.size))
-		for i in range(self.size):
-			for j in range(self.size):
-				if self.bulk[i,j]>0.5:
-					continue
-				x_low = max(i - boundary_size, 0)
-				x_high = min(i + boundary_size, self.size)
-				y_low = max(j - boundary_size, 0)
-				y_high = min(j + boundary_size, self.size)
-				if np.sum(self.bulk[x_low:x_high, y_low:y_high])>0.5:
-					self.boundary[i,j]=1.0
+	# def make_boundary(self, boundary_size=3):
+	# 	self.boundary = np.zeros((self.size, self.size))
+	# 	for i in range(self.size):
+	# 		for j in range(self.size):
+	# 			if self.bulk[i,j]>0.5:
+	# 				continue
+	# 			x_low = max(i - boundary_size, 0)
+	# 			x_high = min(i + boundary_size, self.size)
+	# 			y_low = max(j - boundary_size, 0)
+	# 			y_high = min(j + boundary_size, self.size)
+	# 			if np.sum(self.bulk[x_low:x_high, y_low:y_high])>0.5:
+	# 				self.boundary[i,j]=1.0
+
+	def make_boundary(self):
+		epsilon = 1e-5
+		sobel_top = torch.tensor([[1, 2, 1], [0, 0, 0], [-1, -2, -1]], dtype=torch.double)
+		sobel_left = sobel_top.t()
+
+		feat_top = F.conv2d(torch.from_numpy(self.bulk).unsqueeze(0).unsqueeze(0), weight=sobel_top.unsqueeze(0).unsqueeze(0), padding=1)
+		feat_left = F.conv2d(torch.from_numpy(self.bulk).unsqueeze(0).unsqueeze(0), weight=sobel_left.unsqueeze(0).unsqueeze(0),padding=1)
+
+		top = feat_top.squeeze() + epsilon
+		right = feat_left.squeeze() + epsilon
+		self.boundary = torch.sqrt(top ** 2 + right ** 2)
+
 
 	def get_XC(self):
 		"""
@@ -353,12 +368,12 @@ if __name__ == '__main__':
 	# 				num_samples=10,
 	# 				output_name='prot_alpha.png', name='Alpha parameter', size=50)
 
-	test_rmsd()
+	# test_rmsd()
 	# test_hull()
 		
-	# test_representation()
+	test_representation()
 	# test_translations()
-
+	#
 	# test_protein_generation()
 	# test_rotations()
 	# test_translations()
