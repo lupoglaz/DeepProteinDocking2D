@@ -21,14 +21,14 @@ class RMSDLoss(nn.Module):
 		"""
 		batch_size = protein.size(0)
 		size = protein.size(2)
-		X = torch.zeros(batch_size, 2, 2)
-		C = torch.zeros(batch_size, 2)
-		x_i = (torch.arange(size).unsqueeze(dim=0) - size/2.0).repeat(size, 1)
-		y_i = (torch.arange(size).unsqueeze(dim=1) - size/2.0).repeat(1, size)
+		X = torch.zeros(batch_size, 2, 2, device=protein.device)
+		C = torch.zeros(batch_size, 2, device=protein.device)
+		x_i = (torch.arange(size).unsqueeze(dim=0).to(device=protein.device) - size/2.0).repeat(size, 1)
+		y_i = (torch.arange(size).unsqueeze(dim=1).to(device=protein.device) - size/2.0).repeat(1, size)
 		x_i = x_i.unsqueeze(dim=0).repeat(batch_size, 1, 1)
 		y_i = y_i.unsqueeze(dim=0).repeat(batch_size, 1, 1)
 		
-		mask = (protein > 0.5).to(dtype=torch.float32)
+		mask = (protein > 0.5).to(dtype=torch.float32).squeeze()
 		W = torch.sum(mask)
 		x_i = x_i*mask
 		y_i = y_i*mask
@@ -43,26 +43,24 @@ class RMSDLoss(nn.Module):
 		return 2.0*X/W, C/W
 
 	def forward(self, ligand, translation1, rotation1, translation2, rotation2):
-		X, C = self.get_XC(ligand)
-		T = T1 - T2
+		with torch.no_grad():
+			X, C = self.get_XC(ligand)
+		T = translation1 - translation2
 		
-		R1 = torch.zeros(batch_size, 2, 2)
-		R1[0,0] = torch.cos(rotation1)
-		R1[1,1] = torch.cos(rotation1)
-		R1[1,0] = torch.sin(rotation1)
-		R1[0,1] = -torch.sin(rotation1)
-		R2 = torch.zeros(2, 2)
-		R2[0,0] = torch.cos(rotation2)
-		R2[1,1] = torch.cos(rotation2)
-		R2[1,0] = torch.sin(rotation2)
-		R2[0,1] = -torch.sin(rotation2)
-		R = R2.transpose(0,1) @ R1
-		
-		I = torch.diag(torch.ones(2))
+		T0 = torch.stack([torch.cos(rotation1), -torch.sin(rotation1)], dim=1)
+		T1 = torch.stack([torch.sin(rotation1), torch.cos(rotation1)], dim=1)
+		R1 = torch.stack([T0, T1], dim=1)
+
+		T0 = torch.stack([torch.cos(rotation2), -torch.sin(rotation2)], dim=1)
+		T1 = torch.stack([torch.sin(rotation2), torch.cos(rotation2)], dim=1)
+		R2 = torch.stack([T0, T1], dim=1)
+
+		R = R2.transpose(1,2) @ R1
+		I = torch.diag(torch.ones(2, device=ligand.device)).unsqueeze(dim=0).repeat(ligand.size(0),1,1)
 		#RMSD
 		rmsd = torch.sum(T*T)
-		rmsd = rmsd + torch.sum((I-R)*X, dim=(0,1))
-		rmsd = rmsd + 2.0*torch.sum(torch.sum(T.unsqueeze(dim=1) * (R1-R2), dim=0) * C, dim=0)
+		rmsd = rmsd + torch.sum((I-R)*X, dim=(1,2))
+		rmsd = rmsd + 2.0*torch.sum(torch.sum(T.unsqueeze(dim=2) * (R1-R2), dim=1) * C, dim=1)
 		return torch.sqrt(rmsd)
 
 
@@ -74,7 +72,7 @@ class SupervisedTrainer:
 		if self.model.type=='int':
 			self.loss = nn.BCELoss()
 		elif self.model.type=='pos':
-			self.loss = None
+			self.loss = RMSDLoss()
 
 	def rotate(self, repr):
 		with torch.no_grad():
@@ -99,9 +97,32 @@ class SupervisedTrainer:
 
 		loss.backward()
 		self.optimizer.step()
-		return loss.item(),
+		return loss.item()
 
-	def eval(self, receptor, ligand, target, threshold=0.5):
+	def step_stoch(self, data, epoch=None):
+		receptor, ligand, translation, rotation, pos_idx = data
+		receptor = receptor.to(device=self.device, dtype=torch.float32).unsqueeze(dim=1)
+		ligand = ligand.to(device=self.device, dtype=torch.float32).unsqueeze(dim=1)
+		rotation = rotation.to(device=self.device, dtype=torch.float32)
+		translation = translation.to(device=self.device, dtype=torch.float32)
+		
+		self.model.train()
+		self.model.zero_grad()
+		pred = self.model(receptor, ligand)
+		loss = torch.mean(self.loss(ligand, pred[:,:2], pred[:,-1], translation, rotation))
+		
+		loss.backward()
+		self.optimizer.step()
+		return loss.item()
+
+	def eval(self, data, threshold=0.5):
+		if self.model.type == 'int':
+			receptor, ligand, target = data
+		else:
+			receptor, ligand, translation, rotation, pos_idx = data
+			translation = translation.to(device=self.device, dtype=torch.float32)
+			rotation = rotation.to(device=self.device, dtype=torch.float32)
+
 		receptor = receptor.to(device=self.device, dtype=torch.float32).unsqueeze(dim=1)
 		ligand = ligand.to(device=self.device, dtype=torch.float32).unsqueeze(dim=1)
 		self.model.eval()
@@ -125,4 +146,5 @@ class SupervisedTrainer:
 						TN += 1
 				return TP, FP, TN, FN
 			else:
-				pass
+				loss = torch.mean(self.loss(ligand, pred[:,:2], pred[:,-1], translation, rotation))
+				return loss.item(), pred[:,:2], pred[:,-1]

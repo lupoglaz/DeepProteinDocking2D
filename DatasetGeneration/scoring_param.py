@@ -29,7 +29,7 @@ def get_funnel_gap(datapoint, a00, a11, a10, boundary_size=3):
 	if len(funnels) == 2:
 		min_score0 = torch.min(funnels[0][1]).item()
 		min_score1 = torch.min(funnels[1][1]).item()
-		return min_score1 - min_score0
+		return (min_score1 - min_score0)/min_score0
 	else:
 		return None
 

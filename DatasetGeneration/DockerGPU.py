@@ -20,7 +20,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 from Models import ProteinConv2D
 
 class DockerGPU:
-	def __init__(self, num_angles=10, a00=1.0, a11=-1.0, a10=-1.0, boundary_size=1):
+	def __init__(self, num_angles=360, a00=1.0, a11=-1.0, a10=-1.0, boundary_size=1):
 		# Features correspondance: 0-bulk, 1-boundary
 		# 0 : 0 - 0, bulk-bulk
 		# 1 : 1 - 1, boundary-boundary

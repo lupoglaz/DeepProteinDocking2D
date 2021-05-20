@@ -4,12 +4,13 @@ from pathlib import Path
 import numpy as np
 import argparse
 
-from Models import EQScoringModel, EQDockerGPU
+from Models import EQScoringModel, EQDockerGPU, CNNInteractionModel
 from torchDataset import get_docking_stream
 from tqdm import tqdm
 import random
 
 from EBMTrainer import EBMTrainer
+from SupervisedTrainer import SupervisedTrainer
 
 from DatasetGeneration import Protein, Complex
 from Logger import Logger
@@ -35,27 +36,20 @@ def run_docking_model(data, docker, epoch=None):
 				}
 		
 
-	score_diff = 0.0
 	rec = Protein(receptor[0,0,:,:].cpu().numpy())
 	lig = Protein(ligand[0,0,:,:].cpu().numpy())
 	angle = rotation[0].item()
-	pos = translation[0,:].cpu().numpy()
-	cplx_correct = Complex(rec, lig, angle, pos)
-	score_correct = cplx_correct.score(boundary_size=3, a00=10.0, a11=0.4, a10=-1.0)
+	pos = translation[0,:].cpu().numpy()	
 	angle_pred = pred_angles.item()
 	pos_pred = pred_translations.cpu().numpy()
-	cplx_pred = Complex(rec, lig, angle_pred, pos_pred)
-
 	rmsd = lig.rmsd(pos, angle, pos_pred, angle_pred)
-	score_pred = cplx_pred.score(boundary_size=3, a00=10.0, a11=0.4, a10=-1.0)
-	score_diff = (-score_correct + score_pred)
-
+	
 	return float(rmsd), log_data
-
 
 if __name__=='__main__':
 	parser = argparse.ArgumentParser(description='Train deep protein docking')	
 	parser.add_argument('-experiment', default='Debug', type=str)
+	parser.add_argument('-supervised', default=True, type=bool)
 	args = parser.parse_args()
 
 	if torch.cuda.device_count()>1:
@@ -65,11 +59,16 @@ if __name__=='__main__':
 
 	train_stream = get_docking_stream('DatasetGeneration/docking_data_train.pkl', batch_size=24, max_size=100)
 	valid_stream = get_docking_stream('DatasetGeneration/docking_data_valid.pkl', batch_size=1, max_size=30)
+		
+	if args.supervised:
+		model = CNNInteractionModel(type='pos').to(device='cuda')
+		optimizer = optim.Adam(model.parameters(), lr=1e-3, betas=(0.0, 0.999))
+		trainer = SupervisedTrainer(model, optimizer)
+	else:
+		model = EQScoringModel().to(device='cuda')
+		optimizer = optim.Adam(model.parameters(), lr=1e-3, betas=(0.0, 0.999))
+		trainer = EBMTrainer(model, optimizer, num_samples=10, num_buf_samples=len(train_stream)*64, step_size=10.0)
 	
-	model = EQScoringModel().to(device='cuda')
-	
-	optimizer = optim.Adam(model.parameters(), lr=1e-3, betas=(0.0, 0.999))
-	trainer = EBMTrainer(model, optimizer, num_samples=10, num_buf_samples=len(train_stream)*64, step_size=5.0)
 	logger = Logger.new(Path('Log')/Path(args.experiment))
 	
 	min_loss = float('+Inf')
@@ -77,12 +76,23 @@ if __name__=='__main__':
 		for data in tqdm(train_stream):
 			loss = trainer.step_stoch(data, epoch=epoch)
 			logger.log_train(loss)
-
+		
 		loss = []
 		log_data = []
 		docker = EQDockerGPU(model, num_angles=360)
 		for data in tqdm(valid_stream):
-			it_loss, it_log_data = run_docking_model(data, docker, epoch=epoch)
+			if args.supervised:
+				it_loss, pred_trans, pred_rot = trainer.eval(data)
+				receptor, ligand, translation, rotation, _ = data
+				it_log_data = {	"receptors": receptor.unsqueeze(dim=1).cpu(),
+							"ligands": ligand.unsqueeze(dim=1).cpu(),
+							"rotation": rotation.squeeze().cpu(),
+							"translation": translation.squeeze().cpu(),
+							"pred_rotation": pred_rot.squeeze().cpu(),
+							"pred_translation": pred_trans.squeeze().cpu()}
+			else:
+				it_loss, it_log_data = run_docking_model(data, docker, epoch=epoch)
+
 			loss.append(it_loss)
 			log_data.append(it_log_data)
 		
@@ -92,6 +102,6 @@ if __name__=='__main__':
 
 		print('Epoch', epoch, 'Valid Loss:', av_loss)
 		if av_loss < min_loss:
-			torch.save(model.state_dict(), LOG_DIR/Path('dock_ebm.th'))
+			torch.save(model.state_dict(), logger.log_dir/Path('dock_ebm.th'))
 			print(f'Model saved: min_loss = {av_loss} prev = {min_loss}')
 			min_loss = av_loss

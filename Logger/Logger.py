@@ -63,7 +63,7 @@ class Logger:
 		f = plt.figure(figsize =(12,6))
 		plt.subplot(1,2,1)
 		plt.plot(train_x, train_y, label='train')
-		plt.ylim([np.min(train_y)-0.1, 0.2])
+		# plt.ylim([np.min(train_y)-0.1, 0.2])
 		plt.subplot(1,2,2)
 		plt.plot(loss_valid[0], loss_valid[1], label='valid')
 		plt.legend()
@@ -81,6 +81,8 @@ class Logger:
 				log_data = torch.load( fin)
 			
 			dict = log_data[0]
+			if (not("rotations" in dict.keys())) or (not("translations" in dict.keys())):
+				return
 			angles, angle_scores = dict["rotations"]
 				
 			plt.subplot(1, 2, 1)
@@ -105,6 +107,8 @@ class Logger:
 			plot_image = np.zeros((2*cell_size, num_targets*cell_size))
 			for i in range(num_targets):
 				dict = log_data[i]
+				if (not("receptors" in dict.keys())) or (not("ligands" in dict.keys())):
+					return
 				rec = dict["receptors"][0,0,:,:]
 				lig = dict["ligands"][0,0,:,:]
 				cplx = Complex(Protein(rec.numpy()), Protein(lig.numpy()), dict["rotation"].item(), dict["translation"].squeeze().numpy())

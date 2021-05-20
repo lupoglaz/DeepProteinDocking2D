@@ -152,7 +152,7 @@ class EBMTrainer:
 		
 		pos_rec = receptor.to(device=self.device, dtype=torch.float32).unsqueeze(dim=1)
 		pos_lig = ligand.to(device=self.device, dtype=torch.float32).unsqueeze(dim=1)
-		pos_alpha = rotation.to(device=self.device, dtype=torch.float32).unsqueeze(dim=1)*(np.pi/180.0)
+		pos_alpha = rotation.to(device=self.device, dtype=torch.float32).unsqueeze(dim=1)
 		pos_dr = translation.to(device=self.device, dtype=torch.float32)
 
 		batch_size = pos_rec.size(0)

@@ -107,15 +107,15 @@ if __name__=='__main__':
 	# scan_parameters(dataset, get_rmsd, output_name='DatasetGeneration/Data/score_param_rmsd.pkl',
 	# 				a11=np.arange(-3.0, 3.0, 0.1), a10=np.arange(-3.0, 0.0, 0.1), a00=3.0, boundary_size=3, num_samples=20)
 	
-	# plot_dock_examples(dataset, a00=3.0, a10=-0.1, a11=-0.5)
+	plot_dock_examples(dataset, a00=3.0, a10=-0.2, a11=-0.8)
 	
 	
-	# scan_parameters(dataset, get_funnel_gap, output_name='DatasetGeneration/Data/score_param_gap.pkl',
+	# scan_parameters(dataset, get_funnel_gap, output_name='DatasetGeneration/Data/score_param_gap1.pkl',
 	# 				a11=np.arange(-3.0, 3.0, 0.1), a10=np.arange(-3.0, 0.0, 0.1), a00=3.0, boundary_size=3, num_samples=20)
 
-	plot_funnel_examples(dataset, a00=3.0, a10=-0.1, a11=-0.5)
+	# plot_funnel_examples(dataset, a00=3.0, a10=-0.2, a11=-0.8)
 
 	# plot_param_scan(input_name='DatasetGeneration/Data/score_param_rmsd.pkl',
 	# 				output_name='score_param_rmsd.png', name='RMSD, a00=3.0')
-	# plot_param_scan(input_name='DatasetGeneration/Data/score_param_gap.pkl',
+	# plot_param_scan(input_name='DatasetGeneration/Data/score_param_gap1.pkl',
 	# 				output_name='score_param_gap.png', name='Funnel gap, a00=3.0')

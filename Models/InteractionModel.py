@@ -93,10 +93,10 @@ class CNNInteractionModel(nn.Module):
 		lig = torch.flatten(lig, 1)
 		
 		if self.type == 'int':
-			interaction = self.sigmoid(self.fc(torch.cat([rec,lig], dim=1)))
+			interaction = self.sigmoid(self.fc_int(torch.cat([rec,lig], dim=1)))
 			return interaction
 		else:
-			position = self.fc(torch.cat([rec,lig], dim=1))
+			position = self.fc_pos(torch.cat([rec,lig], dim=1))
 			return position
 		
 		
