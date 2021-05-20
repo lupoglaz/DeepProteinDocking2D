@@ -1,5 +1,7 @@
 import torch
 from torch import optim
+import argparse
+from pathlib import Path
 
 import numpy as np
 
@@ -11,9 +13,13 @@ import random
 from SupervisedTrainer import SupervisedTrainer
 
 from DatasetGeneration import Protein, Complex
+from Logger import Logger
 
 if __name__=='__main__':
-	
+	parser = argparse.ArgumentParser(description='Train deep protein docking')	
+	parser.add_argument('-experiment', default='DebugCNNInter', type=str)
+	args = parser.parse_args()
+
 	if torch.cuda.device_count()>1:
 		for i in range(torch.cuda.device_count()):
 			print(i, torch.cuda.get_device_name(i), torch.cuda.get_device_capability(i))	
@@ -29,26 +35,13 @@ if __name__=='__main__':
 	optimizer = optim.Adam(model.parameters(), lr=1e-3, betas=(0.0, 0.999))
 	trainer = SupervisedTrainer(model, optimizer)
 
-	with open('Log/log_train_interaction.txt', 'w') as fout:
-		fout.write('Epoch\tLoss\n')
-	with open('Log/log_valid_interaction.txt', 'w') as fout:
-		fout.write('Epoch\tAccuracy\tPrecision\tRecall\n')
-	
+	logger = Logger.new(Path('Log')/Path(args.experiment))
+		
 	for epoch in range(100):
-		loss = []
 		for data in tqdm(train_stream):
-			loss.append([trainer.step(data)])
-			# break
+			loss = trainer.step(data)
+			logger.log_train(loss)
 		
-		av_loss = np.average(loss, axis=0)[0,:]
-		
-		print('Epoch', epoch, 'Train Loss:', av_loss)
-		with open('Log/log_train_interaction.txt', 'a') as fout:
-			fout.write('%d\t%f\n'%(epoch,av_loss[0]))
-		
-		if (epoch+1)%10 == 0:
-			torch.save(model.state_dict(), 'Log/inter.th')
-
 		TP, FP, TN, FN = 0, 0, 0, 0
 		for data in tqdm(valid_stream):
 			tp, fp, tn, fn = trainer.eval(data)
@@ -68,5 +61,7 @@ if __name__=='__main__':
 			Recall = 0.0
 
 		print(f'Epoch {epoch} Acc: {Accuracy} Prec: {Precision} Rec: {Recall}')
-		with open('Log/log_valid_interaction.txt', 'a') as fout:
-			fout.write('%d\t%f\t%f\t%f\n'%(epoch, Accuracy, Precision, Recall))
+		logger.log_valid_inter(Accuracy, Precision, Recall)
+
+		if (epoch+1)%10 == 0:
+			torch.save(model.state_dict(), logger.log_dir / Path('model.th'))

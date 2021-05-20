@@ -48,7 +48,7 @@ def run_docking_model(data, docker, epoch=None):
 
 if __name__=='__main__':
 	parser = argparse.ArgumentParser(description='Train deep protein docking')	
-	parser.add_argument('-experiment', default='Debug', type=str)
+	parser.add_argument('-experiment', default='DebugCNN', type=str)
 	parser.add_argument('-supervised', default=True, type=bool)
 	args = parser.parse_args()
 
@@ -57,8 +57,8 @@ if __name__=='__main__':
 			print(i, torch.cuda.get_device_name(i), torch.cuda.get_device_capability(i))	
 		torch.cuda.set_device(1)
 
-	train_stream = get_docking_stream('DatasetGeneration/docking_data_train.pkl', batch_size=24, max_size=100)
-	valid_stream = get_docking_stream('DatasetGeneration/docking_data_valid.pkl', batch_size=1, max_size=30)
+	train_stream = get_docking_stream('DatasetGeneration/docking_data_train.pkl', batch_size=24, max_size=None)
+	valid_stream = get_docking_stream('DatasetGeneration/docking_data_valid.pkl', batch_size=1, max_size=None)
 		
 	if args.supervised:
 		model = CNNInteractionModel(type='pos').to(device='cuda')

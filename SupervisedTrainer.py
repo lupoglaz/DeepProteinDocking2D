@@ -83,7 +83,8 @@ class SupervisedTrainer:
 			curr_grid = nn.functional.affine_grid(R, size=repr.size(), align_corners=True)
 			return nn.functional.grid_sample(repr, curr_grid, align_corners=True)
 
-	def step(self, receptor, ligand, target):
+	def step(self, data):
+		receptor, ligand, target = data
 		receptor = receptor.to(device=self.device, dtype=torch.float32).unsqueeze(dim=1)
 		ligand = ligand.to(device=self.device, dtype=torch.float32).unsqueeze(dim=1)
 		receptor = self.rotate(receptor)

@@ -38,6 +38,10 @@ class Logger:
 	def log_valid(self, loss):
 		with open(self.log_dir/Path('valid.txt'), 'a') as fout:
 			fout.write('%d\t%f\n'%(self.step, loss))
+	
+	def log_valid_inter(self, Accuracy, Precision, Recall):
+		with open(self.log_dir/Path('valid.txt'), 'a') as fout:
+			fout.write('%d\t%f\t%f\t%f\n'%(self.step, Accuracy, Precision, Recall))
 
 	def log_data(self, data):
 		with open(self.log_dir/Path(f'valid_{self.epoch}.th'), "wb") as fout:
@@ -63,7 +67,8 @@ class Logger:
 		f = plt.figure(figsize =(12,6))
 		plt.subplot(1,2,1)
 		plt.plot(train_x, train_y, label='train')
-		# plt.ylim([np.min(train_y)-0.1, 0.2])
+		print(np.std(train_y))
+		plt.ylim([np.min(train_y)-0.1, np.mean(train_y)+0.2*np.std(train_y)])
 		plt.subplot(1,2,2)
 		plt.plot(loss_valid[0], loss_valid[1], label='valid')
 		plt.legend()
@@ -126,3 +131,33 @@ class Logger:
 		animation = camera.animate()
 		animation.save(output_name.with_suffix('.mp4').as_posix())
 
+	def plot_losses_int(self, output_name=None, average_num=5):
+		def load_log(filename):
+			with open(filename) as fin:
+				header = fin.readline()
+				loss = [tuple([float(x) for x in line.split()]) for line in fin]
+			data = [np.array(x) for x in list(zip(*loss))]
+			return data
+		
+		def moving_average(x, w):
+			return np.convolve(x, np.ones(w), 'valid') / w
+
+		loss_train = load_log(self.log_dir/Path('train.txt'))
+		loss_valid = load_log(self.log_dir/Path('valid.txt'))
+		
+		train_x = moving_average(loss_train[0], average_num)
+		train_y = moving_average(loss_train[1], average_num)
+		f = plt.figure(figsize =(12,6))
+		plt.subplot(1,2,1)
+		plt.plot(train_x, train_y, label='train')
+
+		plt.subplot(1,2,2)
+		plt.plot(loss_valid[0], loss_valid[1], label='accuracy')
+		plt.plot(loss_valid[0], loss_valid[2], label='precision')
+		plt.plot(loss_valid[0], loss_valid[2], label='recall')
+		plt.legend()
+
+		if output_name is None:
+			plt.show()
+		else:
+			plt.savefig(f'{output_name}.png')
