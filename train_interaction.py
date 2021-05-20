@@ -22,10 +22,10 @@ if __name__=='__main__':
 	train_stream = get_interaction_stream_balanced('DatasetGeneration/interaction_data_train.pkl', batch_size=32, max_size=100, shuffle=True)
 	valid_stream = get_interaction_stream('DatasetGeneration/interaction_data_valid.pkl', batch_size=32, max_size=100)
 
-	# model = CNNInteractionModel().cuda()
-	repr = EQRepresentation().cuda()
-	scoring = EQScoringModel().cuda()
-	model = EQInteraction(repr, scoring).cuda()
+	model = CNNInteractionModel().cuda()
+	# repr = EQRepresentation().cuda()
+	# scoring = EQScoringModel().cuda()
+	# model = EQInteraction(repr, scoring).cuda()
 	optimizer = optim.Adam(model.parameters(), lr=1e-3, betas=(0.0, 0.999))
 	trainer = SupervisedTrainer(model, optimizer)
 
@@ -36,8 +36,8 @@ if __name__=='__main__':
 	
 	for epoch in range(100):
 		loss = []
-		for receptor, ligand, interaction in tqdm(train_stream):
-			loss.append([trainer.step(receptor, ligand, interaction)])
+		for data in tqdm(train_stream):
+			loss.append([trainer.step(data)])
 			# break
 		
 		av_loss = np.average(loss, axis=0)[0,:]
@@ -50,8 +50,8 @@ if __name__=='__main__':
 			torch.save(model.state_dict(), 'Log/inter.th')
 
 		TP, FP, TN, FN = 0, 0, 0, 0
-		for receptor, ligand, interaction in tqdm(valid_stream):
-			tp, fp, tn, fn = trainer.eval(receptor, ligand, interaction)
+		for data in tqdm(valid_stream):
+			tp, fp, tn, fn = trainer.eval(data)
 			TP += tp
 			FP += fp
 			TN += tn

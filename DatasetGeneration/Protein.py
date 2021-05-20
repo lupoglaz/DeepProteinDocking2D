@@ -127,7 +127,7 @@ class Protein:
 	# 			if np.sum(self.bulk[x_low:x_high, y_low:y_high])>0.5:
 	# 				self.boundary[i,j]=1.0
 
-	def make_boundary(self):
+	def make_boundary(self, boundary_size=None):
 		epsilon = 1e-5
 		sobel_top = torch.tensor([[1, 2, 1], [0, 0, 0], [-1, -2, -1]], dtype=torch.double)
 		sobel_left = sobel_top.t()
@@ -137,7 +137,7 @@ class Protein:
 
 		top = feat_top.squeeze() + epsilon
 		right = feat_left.squeeze() + epsilon
-		self.boundary = torch.sqrt(top ** 2 + right ** 2)
+		self.boundary = torch.sqrt(top ** 2 + right ** 2).numpy()
 
 
 	def get_XC(self):
@@ -322,7 +322,7 @@ def test_rmsd():
 	prot_init = Protein.generateConcave(size=50,num_points=70)
 	num_angles = 360
 	angles = torch.from_numpy(np.linspace(-np.pi, np.pi, num=num_angles))
-	rmsd = prot_init.compute_rmsd(angles, [10,5], angles[190])
+	rmsd = prot_init.grid_rmsd(angles, [10,5], angles[190])
 	plt.subplot(221)
 	prot_init.plot_bulk()
 
@@ -357,7 +357,7 @@ def scan_parameter(param, func, output_name='gap_score_param1.png', num_samples=
 	plt.savefig(output_name)
 
 if __name__ == '__main__':
-
+	pass
 	# scan_parameter(param=np.arange(10,100,10, dtype=np.int), 
 	# 				func=lambda p: Protein.generateConcave(size=50, num_points = p, alpha=0.95),
 	# 				num_samples=10, 
@@ -371,9 +371,8 @@ if __name__ == '__main__':
 	# test_rmsd()
 	# test_hull()
 		
-	test_representation()
+	# test_representation()
 	# test_translations()
+	# test_rotations()
 	#
 	# test_protein_generation()
-	# test_rotations()
-	# test_translations()
