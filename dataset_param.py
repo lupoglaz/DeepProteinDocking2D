@@ -104,14 +104,19 @@ if __name__=='__main__':
 
 	dataset = generate_dataset('DatasetGeneration/Data/score_param_prots.pkl', num_examples=100, overlap=0.4)
 	
-	# scan_parameters(dataset, get_rmsd, output_name='DatasetGeneration/Data/score_param_rmsd.pkl',
-	# 				a11=np.arange(-3.0, 3.0, 0.1), a10=np.arange(-3.0, 0.0, 0.1), a00=3.0, boundary_size=3, num_samples=20)
-	
-	plot_dock_examples(dataset, a00=3.0, a10=-0.2, a11=-0.8)
-	
-	
-	# scan_parameters(dataset, get_funnel_gap, output_name='DatasetGeneration/Data/score_param_gap1.pkl',
-	# 				a11=np.arange(-3.0, 3.0, 0.1), a10=np.arange(-3.0, 0.0, 0.1), a00=3.0, boundary_size=3, num_samples=20)
+	scan_parameters(dataset, get_rmsd, output_name='DatasetGeneration/Data/score_a00=3.0_param_rmsd.pkl',
+					a11=np.arange(-3.0, 3.0, 0.1), a10=np.arange(-3.0, 0.0, 0.1), a00=3.0, boundary_size=3, num_samples=20)
+
+	scan_parameters(dataset, get_funnel_gap, output_name='DatasetGeneration/Data/score_a00=3.0_param_gap.pkl',
+					a11=np.arange(-3.0, 3.0, 0.1), a10=np.arange(-3.0, 0.0, 0.1), a00=3.0, boundary_size=3, num_samples=20)
+
+	scan_parameters(dataset, get_rmsd, output_name='DatasetGeneration/Data/score_a00=10.0_param_rmsd.pkl',
+					a11=np.arange(-3.0, 3.0, 0.1), a10=np.arange(-3.0, 0.0, 0.1), a00=10.0, boundary_size=3, num_samples=20)
+
+	scan_parameters(dataset, get_funnel_gap, output_name='DatasetGeneration/Data/score_a00=10.0_param_gap.pkl',
+					a11=np.arange(-3.0, 3.0, 0.1), a10=np.arange(-3.0, 0.0, 0.1), a00=10.0, boundary_size=3, num_samples=20)
+
+	# plot_dock_examples(dataset, a00=3.0, a10=-0.2, a11=-0.8)
 
 	# plot_funnel_examples(dataset, a00=3.0, a10=-0.2, a11=-0.8)
 
