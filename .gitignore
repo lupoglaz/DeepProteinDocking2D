@@ -1,3 +1,7 @@
+# no Data/
+Data/
+toy_concave_data/
+
 #Pytorch
 *.th
 *.pkl
