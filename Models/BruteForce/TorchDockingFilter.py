@@ -5,9 +5,9 @@ import matplotlib.pylab as plt
 import seaborn as sea
 sea.set_style("whitegrid")
 
-from DeepProteinDocking.DatasetGeneration.utility_functions import *
-from DeepProteinDocking.DatasetGeneration.grid_rmsd import RMSD
-
+from DeepProteinDocking2D.Models.BruteForce.utility_functions import read_pkl
+from DeepProteinDocking2D.Models.BruteForce.grid_rmsd import RMSD
+import numpy as np
 
 class TorchDockingFilter:
     def __init__(self):
@@ -79,9 +79,7 @@ class TorchDockingFilter:
         # print('padded shape', receptor.shape)
 
         f_rec = receptor.unsqueeze(0).repeat(self.num_angles,1,1,1)
-        # print(f_rec.shape)
         f_lig = ligand.unsqueeze(0).repeat(self.num_angles,1,1,1)
-        # print(f_lig.shape)
         rot_lig = TorchDockingFilter().rotate(f_lig, self.angles)
 
         if debug:
@@ -169,7 +167,7 @@ class TorchDockingFilter:
 if __name__ == '__main__':
 
     data = read_pkl('toy_concave_data/scoregridsearch_training_numpoints=50_r=15_a=0.9_fmin=0.05_fmax=0.2_boxsize=50_ScoreMin-++_crossterms_datasize=10_txy_rot')
-    receptor, ligand, gt_txy, gt_rot  = data[-1]
+    receptor, ligand, gt_txy, gt_rot = data[-1]
 
     init_dim = receptor.shape[-1]
     ### print(receptor.shape)

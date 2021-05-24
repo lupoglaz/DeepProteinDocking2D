@@ -1,8 +1,8 @@
 import torch
 import numpy as np
 import random
-from DeepProteinDocking.DatasetGeneration.utility_functions import *
-
+from DeepProteinDocking2D.Models.BruteForce.utility_functions import read_pkl, plot_assembly
+import matplotlib.pyplot as plt
 
 class RMSD:
     def __init__(self, ligand, gt_rot, gt_txy, pred_rot, pred_txy):
@@ -74,7 +74,7 @@ class RMSD:
 
 
 if __name__ == '__main__':
-    from DeepProteinDocking.Models.model_concave_docking import ConcaveDocking
+    from DeepProteinDocking2D.Models.BruteForce.model_bruteforce_docking import BruteForceDocking
 
 
     def load_ckp(checkpoint_fpath, model):
@@ -126,7 +126,7 @@ if __name__ == '__main__':
         plt.title('Ground Truth                      Input                       Predicted Pose')
         plt.text(10,10, "Ligand RMSD="+str(rmsd_out.item()), backgroundcolor='w')
         if plotting:
-            plt.savefig('../figs/Ligand'+str(index)+'_RMSD_'+str(rmsd_out.item()) + '.png')
+            plt.savefig('figs/RMSDCheck_Ligand'+str(index)+'_RMSD_'+str(rmsd_out.item()) + '.png')
             plt.show()
 
         return rmsd_out
@@ -145,34 +145,18 @@ if __name__ == '__main__':
     # index_range = 10
     # resume_epoch = 'end'
     resume_epoch = 10
-
-    # testset = 'toy_concave_data/scoregridsearch_training_numpoints=50_r=15_a=0.9_fmin=0.05_fmax=0.2_boxsize=50_ScoreMin-++_crossterms_datasize=' + str(
-    #     test_size)+'_txy_rot'
-    # testcase = 'SE2_3layers_1scal7vec_lr-4_FixedtorchFFT_train1000test100_'
-    # testcase = 'RSMDcorrectlogging_0to2pi_SE2_3layers_1scal7vec_lr-4_FixedtorchFFT_train1000test100_'
-    # testcase = 'CheckRMSDNaN_eps-3_Checktxyrot30ep_RSMDcorrect_-pi+pi_SE2_3layers_1scal7vec_lr-4_FixedtorchFFT_train1000test100_'
-    # testcase = 'TEST_k=9p=0_3layers_1scal7vec_-pi+pi_SE2_lr-4_FixedtorchFFT_train1000test100_'
-    # testcase = 'TEST_2layers_1scal7vec_-pi+pi_SE2_lr-4_FixedtorchFFT_train1000test100_'
-    #
-    # test_size = 220
-    # testset = '../DatasetGeneration/toy_concave_data/docking_data_train'+str(test_size)
-    # testset = '../DatasetGeneration/toy_concave_data/docking_data_valid'+str(test_size)
-    # testcase = 'Georgydata_RSMDlogging_SE2_3layers_1scal7vec_lr-4_FixedtorchFFT_train1000test100_'
-    # testcase = 'Georgydata_RSMDlogging_SE2_3layers_1scal7vec_lr-4_FixedtorchFFT_train200test50_'
-    # testcase = 'Checkgtrottxy30epoch_Georgydata_RSMDlogging_SE2_3layers_1scal7vec_lr-4_FixedtorchFFT_train880test220_'
-
-    testcase = 'Georgydata_10ep_SE2_2layers_1scal7vec_lr-4_FixedtorchFFT_train880test220_'
-    # testset = '../DatasetGeneration/toy_concave_data/docking_data_train880'
-    # testset = '../DatasetGeneration/toy_concave_data/docking_data_valid220'
-    testset = '../DatasetGeneration/toy_concave_data/docking_data_test'
+    testcase = 'repo_merge_training_check_'
+    # testset = 'toy_concave_data/docking_data_train880'
+    # testset = 'toy_concave_data/docking_data_valid220'
+    testset = 'toy_concave_data/docking_data_test'
 
     data = read_pkl(testset)
-    model = ConcaveDocking().to(device=0)
-    ckp_path = '../Log/' + testcase + str(resume_epoch) + '.th'
+    model = BruteForceDocking().to(device=0)
+    ckp_path = 'Log/' + testcase + str(resume_epoch) + '.th'
     model = load_ckp(ckp_path, model)
 
     log_header = 'Example\tRMSD\n'
-    with open('Data/log_RMSD_testset_' + testcase + '.txt', 'w') as fout:
+    with open('Log/log_RMSD_testset_' + testcase + '.txt', 'w') as fout:
         fout.write(log_header)
 
         rmsd_list = []

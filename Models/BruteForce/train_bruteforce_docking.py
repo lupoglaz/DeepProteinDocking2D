@@ -3,12 +3,12 @@ import torch
 from torch import optim
 
 import numpy as np
-from DeepProteinDocking2D.torchDataset import get_dataset_stream
+from DeepProteinDocking2D.Models.BruteForce.torchDataset import get_dataset_stream
 from tqdm import tqdm
-from DeepProteinDocking2D.DatasetGeneration.TorchDockingFilter import TorchDockingFilter
-from DeepProteinDocking2D.Models.model_bruteforce_docking import BruteForceDocking
-from DeepProteinDocking2D.DatasetGeneration.utility_functions import plot_assembly
-from DeepProteinDocking2D.DatasetGeneration.grid_rmsd import RMSD
+from DeepProteinDocking2D.Models.BruteForce.TorchDockingFilter import TorchDockingFilter
+from DeepProteinDocking2D.Models.BruteForce.model_bruteforce_docking import BruteForceDocking
+from DeepProteinDocking2D.Models.BruteForce.utility_functions import plot_assembly
+from DeepProteinDocking2D.Models.BruteForce.grid_rmsd import RMSD
 
 import matplotlib.pyplot as plt
 
@@ -75,7 +75,7 @@ class BruteForceDockingTrainer:
                 plt.imshow(pair.transpose())
                 plt.title('Ground Truth                      Input                       Predicted Pose')
                 plt.text(10, 10, "Ligand RMSD=" + str(rmsd_out.item()), backgroundcolor='w')
-                plt.savefig('../figs/Ligand_RMSD_' + str(rmsd_out.item()) + '.png')
+                plt.savefig('figs/Pose_BruteForceTorchFFT_SE2Conv2D_Ligand_RMSD_' + str(rmsd_out.item()) + '.png')
                 plt.show()
 
         return loss.item(), rmsd_out.item()
@@ -115,8 +115,7 @@ class BruteForceDockingTrainer:
 
         ### Continue training on existing model?
         if resume_training:
-            ckp_path = '../Log/' + testcase + str(resume_epoch) + '.th'
-
+            ckp_path = 'Log/' + testcase + str(resume_epoch) + '.th'
             model, optimizer, start_epoch = BruteForceDockingTrainer().load_ckp(ckp_path, model, optimizer)
             start_epoch += 1
 
@@ -125,9 +124,9 @@ class BruteForceDockingTrainer:
         else:
             start_epoch = 1
             ### Loss log files
-            with open('../Log/losses/log_train_' + testcase + '.txt', 'w') as fout:
+            with open('Log/losses/log_train_' + testcase + '.txt', 'w') as fout:
                 fout.write(log_header)
-            with open('../Log/losses/log_test_' + testcase + '.txt', 'w') as fout:
+            with open('Log/losses/log_test_' + testcase + '.txt', 'w') as fout:
                 fout.write(log_header)
         num_epochs = start_epoch + train_epochs
 
@@ -146,7 +145,7 @@ class BruteForceDockingTrainer:
 
                 avg_testloss = np.average(testloss, axis=0)[0, :]
                 print('\nEpoch', epoch, 'TEST LOSS:', avg_testloss)
-                with open('../Log/losses/log_test_' + testcase + '.txt', 'a') as fout:
+                with open('Log/losses/log_test_' + testcase + '.txt', 'a') as fout:
                     fout.write(log_format % (epoch, avg_testloss[0], avg_testloss[1]))
 
             trainloss = []
@@ -156,60 +155,30 @@ class BruteForceDockingTrainer:
 
             avg_trainloss = np.average(trainloss, axis=0)[0, :]
             print('\nEpoch', epoch, 'Train Loss:', avg_trainloss)
-            with open('../Log/losses/log_train_' + testcase + '.txt', 'a') as fout:
+            with open('Log/losses/log_train_' + testcase + '.txt', 'a') as fout:
                 fout.write(log_format % (epoch, avg_trainloss[0], avg_trainloss[1]))
 
             #### saving model while training
             if epoch % save_freq == 0:
-                BruteForceDockingTrainer().save_checkpoint(checkpoint_dict, '../Log/' + testcase + str(epoch) + '.th')
-                print('saving model ' + '../Log/' + testcase + str(epoch) + '.th')
+                BruteForceDockingTrainer().save_checkpoint(checkpoint_dict, 'Log/' + testcase + str(epoch) + '.th')
+                print('saving model ' + 'Log/' + testcase + str(epoch) + '.th')
 
-        BruteForceDockingTrainer().save_checkpoint(checkpoint_dict, '../Log/' + testcase + '_end.th')
+        BruteForceDockingTrainer().save_checkpoint(checkpoint_dict, 'Log/' + testcase + 'end.th')
 
 
 if __name__ == '__main__':
-    train_size = 1000
-    test_size = 100
-    trainset = '../DatasetGeneration/toy_concave_data/scoregridsearch_training_numpoints=50_r=15_a=0.9_fmin=0.05_fmax=0.2_boxsize=50_ScoreMin-++_crossterms_datasize=' + str(
-        train_size) + '_txy_rot'
-    testset = '../DatasetGeneration/toy_concave_data/scoregridsearch_training_numpoints=50_r=15_a=0.9_fmin=0.05_fmax=0.2_boxsize=50_ScoreMin-++_crossterms_datasize=' + str(
-        test_size) + '_txy_rot'
-
-    ### working models
-    # testcase = 'Simplifiedmodel_lr-4_FixedtorchFFT_conv2dfeats_train1000test100'
-    # testcase = 'SE2_3layers_1scal7vec_lr-4_FixedtorchFFT_train1000test100_'
-    # testcase = 'RSMDlogging_SE2_3layers_1scal7vec_lr-4_FixedtorchFFT_train1000test100_'
-    # testcase = 'RSMDcorrectlogging_0to2pi_SE2_3layers_1scal7vec_lr-4_FixedtorchFFT_train1000test100_'
-    # testcase = 'RSMDcorrectlogging_0to2pi_SE2_3layers_1scal7vec_lr-4_FixedtorchFFT_train10test1_'
-    # testcase = 'CheckRMSDNaN_eps-3_Checktxyrot30ep_RSMDcorrect_-pi+pi_SE2_3layers_1scal7vec_lr-4_FixedtorchFFT_train1000test100_'
-    # testcase = 'TEST_2layers_1scal7vec_-pi+pi_SE2_lr-4_FixedtorchFFT_train1000test100_'
-    # testcase = 'TEST_k=9p=0_2layers_1scal7vec_-pi+pi_SE2_lr-4_FixedtorchFFT_train1000test100_'
-    # testcase = 'TEST_k=9p=0_3layers_1scal7vec_-pi+pi_SE2_lr-4_FixedtorchFFT_train1000test100_'
-
     #################################################################################
-    testcase = 'TEST_codecheck_2layers_1scal7vec_-pi+pi_SE2_lr-4_FixedtorchFFT_train1000test100_'
-
-    #################################################################################
-    #
-    # train_size = 880
-    # test_size = 220
-    # trainset = '../DatasetGeneration/toy_concave_data/docking_data_train'+str(train_size)
-    # testset = '../DatasetGeneration/toy_concave_data/docking_data_valid'+str(test_size)
-    # testcase = 'Georgydata_RSMDlogging_SE2_3layers_1scal7vec_lr-4_FixedtorchFFT_train10test1_'
-    # testcase = 'Georgydata_RSMDlogging_SE2_3layers_1scal7vec_lr-4_FixedtorchFFT_train200test50_'
-
-    ### working models
-    # testcase = 'Checkgtrottxy30epoch_Georgydata_RSMDlogging_SE2_3layers_1scal7vec_lr-4_FixedtorchFFT_train880test220_'
-    #################################################################################
-    # testcase = 'Georgydata_k=9p=0_SE2_3layers_1scal7vec_lr-4_FixedtorchFFT_train880test220_'
-
-    # testcase = 'Georgydata_10ep_SE2_2layers_1scal7vec_lr-4_FixedtorchFFT_train880test220_'
-
-    # testcase = 'Georgydata_10ep_SE2_2layers_1scal7vec_lr-4_FixedtorchFFT_train880test220_'
+    # import sys
+    # print(sys.path)
+    train_size = 880
+    test_size = 220
+    trainset = 'toy_concave_data/docking_data_train'+str(train_size)
+    testset = 'toy_concave_data/docking_data_valid'+str(test_size)
+    testcase = 'repo_merge_training_check_'
 
     #########################
     ### testing set
-    # testset = '../DatasetGeneration/toy_concave_data/docking_data_test'
+    # testset = 'toy_concave_data/docking_data_test'
 
     #### initialization torch settings
     np.random.seed(42)
@@ -241,13 +210,12 @@ if __name__ == '__main__':
         BruteForceDockingTrainer().train_model(model, optimizer, testcase, train_epochs, train_stream, valid_stream,
                                                resume_training=True, resume_epoch=check_epoch, plotting=True)
 
-
-    #
-    train()
+    ######################
+    # train()
 
     epoch = 10
 
-    # epoch = '_end'
+    # epoch = 'end'
 
     plot_validation_set(check_epoch=epoch)
 

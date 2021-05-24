@@ -4,9 +4,7 @@ import torch.nn.functional as F
 import numpy as np
 
 import matplotlib.pyplot as plt
-from DeepProteinDocking.DatasetGeneration.TorchDockingFilter import TorchDockingFilter
-from DeepProteinDocking.DatasetGeneration.utility_functions import plot_assembly
-from DeepProteinDocking.Models.model_topK import *
+from DeepProteinDocking2D.Models.BruteForce.TorchDockingFilter import TorchDockingFilter
 from e2cnn import nn as enn
 from e2cnn import gspaces
 
@@ -75,7 +73,7 @@ class BruteForceDocking(nn.Module):
                 plt.imshow(np.vstack((rec_plot, lig_plot)))
                 plt.title('Input                   F1_bulk                    F2_bound')
                 plt.colorbar()
-                plt.savefig('../figs/FixedtorchFFT_SE2Conv2D_++-Score_feats_'+str(torch.argmax(FFT_score))+'.png')
+                plt.savefig('figs/Feats_BruteForceTorchFFT_SE2Conv2D_++-Score_feats_'+str(torch.argmax(FFT_score))+'.png')
                 plt.show()
 
         return FFT_score

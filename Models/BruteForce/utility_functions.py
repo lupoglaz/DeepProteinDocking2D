@@ -55,8 +55,6 @@ def plot_multipoly(multipolygon):
 
 
 def get_rot_mat(theta):
-    # pi = torch.acos(torch.zeros(1)).item() * 2
-    # theta = (theta * pi/180.0)
     return torch.tensor([[torch.cos(theta), -torch.sin(theta), 0],
                          [torch.sin(theta), torch.cos(theta), 0]]).cuda()
 
@@ -131,7 +129,7 @@ def plot_dataset(dataset, setname, dim0, dim1):
         ax[j,k].text(5, 5, scoring, bbox={'facecolor': 'white', 'pad': 5}, fontsize=7)
 
     plt.tight_layout()
-    plt.savefig('/g3/home/sb1638/Desktop/dataset_figs/'+setname + str(count)+'.png')
+    plt.savefig('figs/'+setname + str(count)+'.png')
     plt.close()
 
 if __name__ == '__main__':
