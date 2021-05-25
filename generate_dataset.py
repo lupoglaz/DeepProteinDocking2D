@@ -2,57 +2,124 @@ import _pickle as pkl
 from pathlib import Path
 from DatasetGeneration import DockerGPU, ProteinPool, ParamDistribution, InteractionCriteria
 import random
+import argparse
 
-if __name__ == '__main__':
-	params = ParamDistribution(
-		alpha = [(0.8, 1), (0.9, 9), (0.95, 4)],
-		num_points = [(20, 1), (30, 2), (50, 4), (80, 8), (100, 6)],
-		overlap = [(0.10, 2), (0.20, 3), (0.30, 4), (0.50, 2), (0.60, 1)]
-		)
-	
-	savefile = 'DatasetGeneration/protein_pool_small.pkl'
+def generate_shapes(params, savefile, num_proteins=500):
+	pool = ProteinPool.generate(num_proteins=num_proteins, params=params)
+	pool.save(savefile)
 
-	docker = DockerGPU(boundary_size=3, a00=3.0, a10=-0.2, a11=-0.8)
-	#Structures
-	# pool = ProteinPool.generate(num_proteins=100, params=params)
-	# pool.save(savefile)
-	
-	#Interaction
-	# pool = ProteinPool.load(savefile)
-	# pool.get_interactions(docker)
-	# pool.save(savefile)
-	
-	#Docking dataset
+def generate_interactions(docker, savefile):
 	pool = ProteinPool.load(savefile)
-	inter = InteractionCriteria(score_cutoff=-300, funnel_gap_cutoff=50)
-	dataset_all = pool.extract_docking_dataset(docker, inter, max_num_samples=1100)
+	pool.get_interactions(docker)
+	pool.save(savefile)
+
+def extract_docking_dataset(docker, interaction_criteria, savefile, 
+							output_files=['DatasetGeneration/docking_data_train.pkl', 'DatasetGeneration/docking_data_valid.pkl'],
+							max_num_samples = 1100):
+	pool = ProteinPool.load(savefile)
+	dataset_all = pool.extract_docking_dataset(docker, interaction_criteria, max_num_samples=max_num_samples)
 	total_len = len(dataset_all)
-	train_len = int(0.8*total_len)
-	valid_len = total_len - train_len
 	print(f'Total data length {total_len}')
-	print(f'Training/validation split length {train_len} / {valid_len}')
-	random.shuffle(dataset_all)
-	with open('DatasetGeneration/docking_data_train.pkl', 'wb') as fout:
-		pkl.dump(dataset_all[:train_len], fout)
-	with open('DatasetGeneration/docking_data_valid.pkl', 'wb') as fout:
-		pkl.dump(dataset_all[train_len:], fout)
+	if len(output_files) == 2:
+		train_len = int(0.8*total_len)
+		valid_len = total_len - train_len
+		print(f'Training/validation split length {train_len} / {valid_len}')
+		random.shuffle(dataset_all)
+		with open(output_files[0], 'wb') as fout:
+			pkl.dump(dataset_all[:train_len], fout)
+		with open(output_files[1], 'wb') as fout:
+			pkl.dump(dataset_all[train_len:], fout)
+	elif len(output_files) == 1:
+		with open(output_files[0], 'wb') as fout:
+			pkl.dump(dataset_all, fout)
 
-	#Interaction dataset
+def extract_interaction_dataset(interaction_criteria, savefile, 
+								output_files=['DatasetGeneration/interaction_data_train.pkl', 'DatasetGeneration/interaction_data_valid.pkl'],
+								num_proteins = 100):
 	pool = ProteinPool.load(savefile)
-	inter = InteractionCriteria(score_cutoff=-300, funnel_gap_cutoff=50)
-	interactome_train = pool.extract_interactome_dataset(inter, ind_range=(0, 90))
-	interactome_valid = pool.extract_interactome_dataset(inter, ind_range=(90, 100))
-	with open('DatasetGeneration/interaction_data_train.pkl', 'wb') as fout:
-		pkl.dump(interactome_train, fout)
-	with open('DatasetGeneration/interaction_data_valid.pkl', 'wb') as fout:
-		pkl.dump(interactome_valid, fout)
+	if len(output_files) == 2:
+		train_len = int(0.8*num_proteins)
+		valid_len = num_proteins - train_len
+		print(f'Training/validation split length {train_len} / {valid_len}')
+		interactome_train = pool.extract_interactome_dataset(interaction_criteria, ind_range=(0, train_len))
+		interactome_valid = pool.extract_interactome_dataset(interaction_criteria, ind_range=(train_len, num_proteins))
+		with open(output_files[0], 'wb') as fout:
+			pkl.dump(interactome_train, fout)
+		with open(output_files[1], 'wb') as fout:
+			pkl.dump(interactome_valid, fout)
+	elif len(output_files) == 1:
+		interactome_test = pool.extract_interactome_dataset(interaction_criteria, ind_range=(0, num_proteins))
+		with open(output_files[0], 'wb') as fout:
+			pkl.dump(interactome_test, fout)
 
-	#Visualization
+def visualize(docker, savefile):
 	pool = ProteinPool.load(savefile)
 	pool.plot_interaction_dist(perc=80)
 	pool.plot_interactions(docker, num_plots=20, type='best')
 	pool.plot_interactions(docker, num_plots=20, type='worst')
 	pool.plot_sample_funnels(docker, filename='funnels.png', range=[(-400, -80), (-40, -40), (-400, -20)])
 	pool.plot_params()
+
+def generate_set(num_proteins, params, interaction_criteria, docker, savefile, training_set=True, num_docking_samples=1100, num_inter_proteins=100):
+	#Structures
+	generate_shapes(params, savefile, num_proteins)
+	#Interaction
+	generate_interactions(docker, savefile)
+	if training_set:
+		#Docking dataset
+		extract_docking_dataset(docker, inter, savefile,
+								output_files=['DatasetGeneration/docking_data_train.pkl', 'DatasetGeneration/docking_data_valid.pkl'],
+								max_num_samples = num_docking_samples)
+		#Interaction dataset
+		extract_interaction_dataset(inter, savefile,
+								output_files=['DatasetGeneration/interaction_data_train.pkl', 'DatasetGeneration/interaction_data_valid.pkl'],
+								num_proteins = num_inter_proteins)
+	else:
+		#Docking dataset
+		extract_docking_dataset(docker, inter, savefile,
+								output_files=['DatasetGeneration/docking_data_test.pkl'],
+								max_num_samples = num_docking_samples)
+		#Interaction dataset
+		extract_interaction_dataset(inter, savefile,
+								output_files=['DatasetGeneration/interaction_data_test.pkl'],
+								num_proteins = num_inter_proteins)
+	#Visualization
+	visualize(docker, savefile)
+
+if __name__ == '__main__':
+	parser = argparse.ArgumentParser(description='Generate protein docking dataset')	
+	parser.add_argument('-train', action='store_const', const=lambda:'train', dest='cmd')
+	parser.add_argument('-test', action='store_const', const=lambda:'test', dest='cmd')	
 	
+	parser.add_argument('-a00', default=3.0, type=float)
+	parser.add_argument('-a10', default=-0.3, type=float)
+	parser.add_argument('-a11', default=2.5, type=float)
+	parser.add_argument('-score_cutoff', default=-100, type=float)
+	parser.add_argument('-funnel_gap_cutoff', default=20, type=float)
+
+	args = parser.parse_args()
 	
+	inter = InteractionCriteria(score_cutoff=args.score_cutoff, funnel_gap_cutoff=args.funnel_gap_cutoff)
+	docker = DockerGPU(a00=args.a00, a10=args.a10, a11=args.a11)
+
+	if args.cmd is None:
+		parser.print_help()
+		sys.exit()
+	
+	elif args.cmd() == 'train':
+		params = ParamDistribution(
+			alpha = [(0.8, 1), (0.9, 9), (0.95, 4)],
+			num_points = [(20, 1), (30, 2), (50, 4), (80, 8), (100, 6)]
+			)
+		
+		savefile = 'DatasetGeneration/Data/protein_pool_big.pkl'
+		generate_set(500, params, inter, docker, savefile, training_set=True, num_docking_samples=1100, num_inter_proteins=500)
+
+	elif args.cmd() == 'test':
+		params = ParamDistribution(
+			alpha = [(0.85, 4), (0.91, 4), (0.95, 4), (0.98, 4)],
+			num_points = [(60, 1), (70, 2), (80, 4), (90, 8), (100, 6), (110, 6), (120, 6)]
+			)
+		
+		savefile = 'DatasetGeneration/Data/protein_pool_small.pkl'
+		generate_set(250, params, inter, docker, savefile, training_set=False, num_docking_samples=1100, num_inter_proteins=250)

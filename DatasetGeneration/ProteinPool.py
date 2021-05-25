@@ -44,7 +44,7 @@ class ParamDistribution:
 	def sample(self, param_name):
 		param = getattr(self, param_name)
 		vals, prob = zip(*param)
-		return random.choices(vals, cum_weights=prob, k=1)[0]
+		return np.random.choice(vals, p=prob)
 
 
 class InteractionCriteria:

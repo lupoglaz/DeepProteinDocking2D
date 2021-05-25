@@ -48,30 +48,38 @@ class Logger:
 			torch.save(data, fout)
 		self.epoch += 1
 
-	def plot_losses(self, output_name=None, average_num=5):
+	def plot_losses(self, output_name=None, average_num=5, xlabel='Iteration', ylabel='RMSD'):
 		def load_log(filename):
 			with open(filename) as fin:
-				header = fin.readline()
+				header = fin.readline().split('\t')
 				loss = [tuple([float(x) for x in line.split()]) for line in fin]
 			data = [np.array(x) for x in list(zip(*loss))]
-			return data
+			return data, header
 		
 		def moving_average(x, w):
 			return np.convolve(x, np.ones(w), 'valid') / w
 
-		loss_train = load_log(self.log_dir/Path('train.txt'))
-		loss_valid = load_log(self.log_dir/Path('valid.txt'))
+		loss_train, header_train = load_log(self.log_dir/Path('train.txt'))
+		loss_valid, header_valid = load_log(self.log_dir/Path('valid.txt'))
 		
 		train_x = moving_average(loss_train[0], average_num)
 		train_y = moving_average(loss_train[1], average_num)
-		f = plt.figure(figsize =(12,6))
-		plt.subplot(1,2,1)
-		plt.plot(train_x, train_y, label='train')
-		print(np.std(train_y))
-		plt.ylim([np.min(train_y)-0.1, np.mean(train_y)+0.2*np.std(train_y)])
-		plt.subplot(1,2,2)
-		plt.plot(loss_valid[0], loss_valid[1], label='valid')
-		plt.legend()
+		print(header_train, header_valid)
+		if header_train[0] == header_valid[0] and header_train[1] == header_valid[1]:
+			f = plt.figure(figsize =(6,6))
+			plt.plot(train_x, train_y, label='Training')
+			plt.plot(loss_valid[0], loss_valid[1], label='Validation')
+			plt.xlabel(xlabel)
+			plt.ylabel(ylabel)
+			plt.legend()
+		else:
+			f = plt.figure(figsize =(12,6))
+			plt.subplot(1,2,1)
+			plt.plot(train_x, train_y, label='train')
+			plt.ylim([np.min(train_y)-0.1, np.median(train_y)+5.0])
+			plt.subplot(1,2,2)
+			plt.plot(loss_valid[0], loss_valid[1], label='valid')
+			plt.legend()
 
 		if output_name is None:
 			plt.show()
@@ -79,7 +87,7 @@ class Logger:
 			plt.savefig(f'{output_name}.png')
 
 	def plot_dock(self, output_name, max_epoch=40):
-		fig = plt.figure(figsize=(12,6))
+		fig, axs = plt.subplots(1, 2, figsize=(12,6))
 		camera = Camera(fig)
 		for epoch in tqdm(range(max_epoch)):
 			with open(self.log_dir/Path(f'valid_{epoch}.th'), "rb") as fin:
@@ -90,11 +98,9 @@ class Logger:
 				return
 			angles, angle_scores = dict["rotations"]
 				
-			plt.subplot(1, 2, 1)
-			plt.imshow(dict["translations"], cmap='plasma')
-			plt.subplot(1, 2, 2)
-			plt.plot(angles.cpu(), angle_scores)
-			plt.tight_layout()	
+			axs[0].imshow(dict["translations"], cmap='plasma')
+			axs[1].plot(angles.cpu(), angle_scores)
+			plt.tight_layout()
 			camera.snap()
 
 		animation = camera.animate()
@@ -154,7 +160,7 @@ class Logger:
 		plt.subplot(1,2,2)
 		plt.plot(loss_valid[0], loss_valid[1], label='accuracy')
 		plt.plot(loss_valid[0], loss_valid[2], label='precision')
-		plt.plot(loss_valid[0], loss_valid[2], label='recall')
+		plt.plot(loss_valid[0], loss_valid[3], label='recall')
 		plt.legend()
 
 		if output_name is None:

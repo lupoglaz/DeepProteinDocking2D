@@ -74,6 +74,11 @@ class EBMTrainer:
 		for p in parameters:
 			p.requires_grad = flag
 
+	def load_checkpoint(self, path):
+		raw_model = self.model.module if hasattr(self.model, "module") else self.model
+		checkpoint = torch.load(path)
+		raw_model.load_state_dict(checkpoint)
+
 	def dock_spatial(self, rec_repr, lig_repr):
 		translations = self.conv(rec_repr, lig_repr)
 		

@@ -149,7 +149,7 @@ class Protein:
 		x_i = (torch.arange(self.size).unsqueeze(dim=0) - self.size/2.0).repeat(self.size, 1)
 		y_i = (torch.arange(self.size).unsqueeze(dim=1) - self.size/2.0).repeat(1, self.size)
 		mask = torch.from_numpy(self.bulk > 0.5)
-		W = torch.sum(mask.to(dtype=torch.float32))
+		W = torch.sum(mask.to(dtype=torch.float32)) + 1E-5
 		x_i = x_i.masked_select(mask)
 		y_i = y_i.masked_select(mask)
 		#Inertia tensor
@@ -231,7 +231,7 @@ class Protein:
 		rmsd = torch.sum(T*T)
 		rmsd = rmsd + torch.sum((I-R)*X, dim=(0,1))
 		rmsd = rmsd + 2.0*torch.sum(torch.sum(T.unsqueeze(dim=1) * (R1-R2), dim=0) * C, dim=0)
-		return torch.sqrt(rmsd)
+		return torch.sqrt(rmsd+1E-5)
 	
 	def get_repr(self):
 		if self.boundary is None:

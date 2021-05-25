@@ -29,7 +29,7 @@ class RMSDLoss(nn.Module):
 		y_i = y_i.unsqueeze(dim=0).repeat(batch_size, 1, 1)
 		
 		mask = (protein > 0.5).to(dtype=torch.float32).squeeze()
-		W = torch.sum(mask)
+		W = torch.sum(mask) + 1E-5
 		x_i = x_i*mask
 		y_i = y_i*mask
 		#Inertia tensor
@@ -73,6 +73,11 @@ class SupervisedTrainer:
 			self.loss = nn.BCELoss()
 		elif self.model.type=='pos':
 			self.loss = RMSDLoss()
+
+	def load_checkpoint(self, path):
+		raw_model = self.model.module if hasattr(self.model, "module") else self.model
+		checkpoint = torch.load(path)
+		raw_model.load_state_dict(checkpoint)
 
 	def rotate(self, repr):
 		with torch.no_grad():
