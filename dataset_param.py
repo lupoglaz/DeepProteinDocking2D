@@ -76,46 +76,64 @@ def plot_funnel_examples(dataset, a00, a11, a10, boundary_size=3, num_plots=10, 
 	else:
 		plt.savefig(filename)
 
-def plot_param_scan(input_name, output_name=None, name=""):
+def plot_param_scan(input_name, ax, output_name=None, name="", ylabel=True):
+	font = {'family': 'serif',
+			'weight': 'normal',
+			'size': 6,
+			}
 	with open(input_name, 'rb') as fin:
 		a00, a10, a11, M = pkl.load(fin)
 	
-	f = plt.figure(figsize=(12,12))
 	extent=(a10[0], a10[-1], a11[0], a11[-1])
-	plt.imshow(M, extent=extent, origin='lower')
-	plt.colorbar()
-	plt.title(name)
-	plt.xlabel('bound-bulk')
-	plt.ylabel('bound-bound')
-	plt.xticks(a10, fontsize=5)
-	plt.yticks(a11, fontsize=6)
-	plt.tight_layout()
+	p = ax.imshow(M, extent=extent, origin='lower')
+	ax.set_title(name)
+	ax.set_xlabel('bound-bulk')
+	if ylabel:
+		ax.set_ylabel('bound-bound')
+	ax.set_xticks(a10)
+	ax.set_yticks(a11)
+	ax.tick_params(axis='x', which='major', labelsize=8, rotation=90)
+	ax.tick_params(axis='x', which='minor', labelsize=8, rotation=90)
+	ax.tick_params(axis='y', which='major', labelsize=8)
+	ax.tick_params(axis='y', which='minor', labelsize=8)
+	return p
+
+def param_scans(input_names, titles=["", ""], output_name=None):
+	fig, axs = plt.subplots(1, 2, figsize=(8,8), sharey=True, constrained_layout=True)
+	pa = plot_param_scan(input_names[0], ax=axs[0], name=titles[0])
+	pb = plot_param_scan(input_names[1], ax=axs[1], name=titles[1], ylabel=False)
+	fig.colorbar(pa, ax=axs[0], shrink=0.6, location='bottom')
+	fig.colorbar(pb, ax=axs[1], shrink=0.6, location='bottom')
+	# plt.tight_layout()
 	if output_name is None:
 		plt.show()
 	else:
 		plt.savefig(output_name)
 
+
 if __name__=='__main__':
 
-	# cplx_scan_param(param=np.arange(0.2, 0.6, 0.05, dtype=np.float32),
-	# 				func=lambda x, y, p: Complex.generate(x, y, threshold=p),
-	# 				num_samples=10,
-	# 				output_name='comp_overlap.png', name='Overlap')
+	cplx_scan_param(param=np.arange(0.2, 0.6, 0.05, dtype=np.float32),
+					func=lambda x, y, p: Complex.generate(x, y, threshold=p),
+					num_samples=10,
+					output_name='comp_overlap.png', name='Overlap')
 
-	dataset = generate_dataset('DatasetGeneration/Data/score_param_prots.pkl', num_examples=100, overlap=0.4)
+	# dataset = generate_dataset('DatasetGeneration/Data/score_param_prots.pkl', num_examples=100, overlap=0.4)
 	
 	# scan_parameters(dataset, get_rmsd, output_name='DatasetGeneration/Data/score_param_rmsd.pkl',
 	# 				a11=np.arange(-3.0, 3.0, 0.1), a10=np.arange(-3.0, 0.0, 0.1), a00=3.0, boundary_size=3, num_samples=20)
 	
-	plot_dock_examples(dataset, a00=3.0, a10=-0.3, a11=2.5)
+	# plot_dock_examples(dataset, a00=3.0, a10=-0.3, a11=2.5)
 	
 	
 	# scan_parameters(dataset, get_funnel_gap, output_name='DatasetGeneration/Data/score_param_gap.pkl',
 	# 				a11=np.arange(-3.0, 3.0, 0.1), a10=np.arange(-3.0, 0.0, 0.1), a00=3.0, boundary_size=3, num_samples=20)
 
-	plot_funnel_examples(dataset, a00=3.0, a10=-0.3, a11=2.5)
+	# plot_funnel_examples(dataset, a00=3.0, a10=-0.3, a11=2.5)
 
 	# plot_param_scan(input_name='DatasetGeneration/Data/score_a00=10.0_param_rmsd.pkl',
 	# 				output_name='score_param_rmsd_a10.png', name='RMSD, a00=10.0')
 	# plot_param_scan(input_name='DatasetGeneration/Data/score_a00=10.0_param_gap.pkl',
 	# 				output_name='score_param_gap_a10.png', name='Funnel gap, a00=10.0')
+	# param_scans(input_names=['DatasetGeneration/Data/score_a00=3.0_param_rmsd.pkl', 'DatasetGeneration/Data/score_a00=3.0_param_gap.pkl'],
+	# 			titles=['RMSD', 'Funnel gap'], output_name='dataset_param_scan.png')

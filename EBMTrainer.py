@@ -113,7 +113,7 @@ class EBMTrainer:
 		curr_grid = nn.functional.affine_grid(R, size=repr.size(), align_corners=True)
 		return nn.functional.grid_sample(repr, curr_grid, align_corners=True)
 
-	def langevin(self, neg_alpha, neg_dr, rec_feat, lig_feat, neg_idx, traces):
+	def langevin(self, neg_alpha, neg_dr, rec_feat, lig_feat, neg_idx):
 		noise_alpha = torch.zeros_like(neg_alpha)
 		noise_dr = torch.zeros_like(neg_dr)
 
@@ -135,13 +135,6 @@ class EBMTrainer:
 			neg_out = self.model.scorer(pos_repr)
 			neg_out.mean().backward()
 			
-			# if len(traces) > 0:
-			# 	l=0
-			# 	for m, idx in enumerate(neg_idx):
-			# 		if idx.item() == self.plot_idx:
-			# 			traces[l].append( (neg_alpha[m].item(), neg_dr[m,0].item(), neg_dr[m,1].item()) )
-			# 			l+=1
-
 			langevin_opt.step()
 			
 			neg_dr.data += noise_dr.normal_(0, 0.5)
@@ -150,9 +143,9 @@ class EBMTrainer:
 			neg_dr.data.clamp_(-rec_feat.size(2), rec_feat.size(2))
 			neg_alpha.data.clamp_(-np.pi, np.pi)
 		
-		return neg_alpha.detach(), neg_dr.detach(), traces
+		return neg_alpha.detach(), neg_dr.detach()
 
-	def step_stoch(self, data, epoch=None):
+	def step(self, data, epoch=None):
 		receptor, ligand, translation, rotation, pos_idx = data
 		
 		pos_rec = receptor.to(device=self.device, dtype=torch.float32).unsqueeze(dim=1)
@@ -171,26 +164,13 @@ class EBMTrainer:
 		neg_alpha = neg_alpha.view(batch_size*self.num_samples, -1)
 		neg_dr = neg_dr.view(batch_size*self.num_samples, -1)
 		
-		traces = []
-		# for idx in neg_idx:
-		# 	if idx.item() == self.plot_idx:
-		# 		traces.append([])
-		
 		neg_rec_feat = self.model.repr(neg_rec).tensor
 		neg_lig_feat = self.model.repr(neg_lig).tensor
 		pos_rec_feat = self.model.repr(pos_rec).tensor
 		pos_lig_feat = self.model.repr(pos_lig).tensor
 		
-		neg_alpha, neg_dr, traces = self.langevin(neg_alpha, neg_dr, neg_rec_feat.detach(), neg_lig_feat.detach(), neg_idx, traces=traces)
+		neg_alpha, neg_dr = self.langevin(neg_alpha, neg_dr, neg_rec_feat.detach(), neg_lig_feat.detach(), neg_idx)
 		
-		# if len(traces) > 0 and (not (epoch is None)):
-		# 	for m, idx in enumerate(pos_idx):
-		# 		if idx.item() == self.plot_idx:
-		# 			correct = (pos_alpha[m].item(), pos_dr[m,0].item(), pos_dr[m,1].item())
-
-		# 	with open(f"Log/traces_{epoch}.th", "wb") as fout:
-		# 		torch.save( (traces, correct), fout)
-
 		self.requires_grad(True)
 		self.model.train()
 		self.model.zero_grad()

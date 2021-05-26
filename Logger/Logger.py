@@ -48,7 +48,7 @@ class Logger:
 			torch.save(data, fout)
 		self.epoch += 1
 
-	def plot_losses(self, output_name=None, average_num=5, xlabel='Iteration', ylabel='RMSD'):
+	def plot_losses(self, output_name=None, average_num=5, xlabel='Iteration', ylabel='RMSD', coupled=False):
 		def load_log(filename):
 			with open(filename) as fin:
 				header = fin.readline().split('\t')
@@ -64,8 +64,8 @@ class Logger:
 		
 		train_x = moving_average(loss_train[0], average_num)
 		train_y = moving_average(loss_train[1], average_num)
-		print(header_train, header_valid)
-		if header_train[0] == header_valid[0] and header_train[1] == header_valid[1]:
+		
+		if coupled:
 			f = plt.figure(figsize =(6,6))
 			plt.plot(train_x, train_y, label='Training')
 			plt.plot(loss_valid[0], loss_valid[1], label='Validation')

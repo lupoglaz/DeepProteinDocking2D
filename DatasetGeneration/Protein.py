@@ -4,6 +4,7 @@ import numpy as np
 import torch
 import argparse
 import _pickle as pkl
+import math
 
 import matplotlib.pylab as plt
 import seaborn as sea
@@ -231,7 +232,11 @@ class Protein:
 		rmsd = torch.sum(T*T)
 		rmsd = rmsd + torch.sum((I-R)*X, dim=(0,1))
 		rmsd = rmsd + 2.0*torch.sum(torch.sum(T.unsqueeze(dim=1) * (R1-R2), dim=0) * C, dim=0)
-		return torch.sqrt(rmsd+1E-5)
+		if rmsd < 0:
+			rmsd = 0.0
+		else:
+			rmsd = torch.sqrt(rmsd)
+		return rmsd
 	
 	def get_repr(self):
 		if self.boundary is None:

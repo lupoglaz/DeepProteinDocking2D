@@ -57,7 +57,7 @@ def visualize(docker, savefile):
 	pool.plot_interaction_dist(perc=80)
 	pool.plot_interactions(docker, num_plots=20, type='best')
 	pool.plot_interactions(docker, num_plots=20, type='worst')
-	pool.plot_sample_funnels(docker, filename='funnels.png', range=[(-400, -80), (-40, -40), (-400, -20)])
+	pool.plot_sample_funnels(docker, filename='funnels.png', range=[(-200, -150), (-200, -100), (-100, -20)])
 	pool.plot_params()
 
 def generate_set(num_proteins, params, interaction_criteria, docker, savefile, training_set=True, num_docking_samples=1100, num_inter_proteins=100):

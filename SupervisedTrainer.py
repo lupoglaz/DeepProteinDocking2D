@@ -105,7 +105,7 @@ class SupervisedTrainer:
 		self.optimizer.step()
 		return loss.item()
 
-	def step_stoch(self, data, epoch=None):
+	def step(self, data, epoch=None):
 		receptor, ligand, translation, rotation, pos_idx = data
 		receptor = receptor.to(device=self.device, dtype=torch.float32).unsqueeze(dim=1)
 		ligand = ligand.to(device=self.device, dtype=torch.float32).unsqueeze(dim=1)
