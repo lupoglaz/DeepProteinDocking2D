@@ -145,7 +145,8 @@ if __name__ == '__main__':
     # index_range = 10
     # resume_epoch = 'end'
     resume_epoch = 30
-    testcase = 'newdata_BruteForce_training_check'
+    # testcase = 'newdata_BruteForce_training_check'
+    testcase = 'newdata_learnedWs_BruteForce_training_check'
     # testset = 'toy_concave_data/docking_data_train'
     testset = 'toy_concave_data/docking_data_valid'
     # testset = 'toy_concave_data/docking_data_test'
@@ -156,7 +157,7 @@ if __name__ == '__main__':
     model = load_ckp(ckp_path, model)
 
     log_header = 'Example\tRMSD\n'
-    with open('Log/log_RMSD_validset_' + testcase + '.txt', 'w') as fout:
+    with open('Log/log_RMSD_testset_' + testcase + '.txt', 'w') as fout:
         fout.write(log_header)
 
         rmsd_list = []

@@ -170,14 +170,10 @@ if __name__ == '__main__':
     #################################################################################
     # import sys
     # print(sys.path)
-    # train_size = 880
-    # test_size = 220
-    # trainset = 'toy_concave_data/docking_data_train'+str(train_size)
-    # testset = 'toy_concave_data/docking_data_valid'+str(test_size)
-    # testcase = 'repo_merge_training_check_'
     trainset = 'toy_concave_data/docking_data_train'
     testset = 'toy_concave_data/docking_data_valid'
-    testcase = 'newdata_BruteForce_training_check'
+    # testcase = 'newdata_BruteForce_training_check'
+    testcase = 'newdata_learnedWs_BruteForce_training_check'
 
     #########################
     ### testing set
