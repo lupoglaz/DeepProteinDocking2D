@@ -145,7 +145,7 @@ class EBMTrainer:
 		
 		return neg_alpha.detach(), neg_dr.detach()
 
-	def step_stoch(self, data, epoch=None):
+	def step(self, data, epoch=None):
 		receptor, ligand, translation, rotation, pos_idx = data
 		
 		pos_rec = receptor.to(device=self.device, dtype=torch.float32).unsqueeze(dim=1)

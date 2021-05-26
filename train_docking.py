@@ -11,6 +11,7 @@ import random
 
 from EBMTrainer import EBMTrainer
 from SupervisedTrainer import SupervisedTrainer
+from DockingTrainer import DockingTrainer
 
 from DatasetGeneration import Protein, Complex
 from Logger import Logger
@@ -59,17 +60,19 @@ def run_prediction_model(data, trainer, epoch=None):
 
 if __name__=='__main__':
 	parser = argparse.ArgumentParser(description='Train deep protein docking')	
-	parser.add_argument('-experiment', default='EBMDocking', type=str)
+	parser.add_argument('-experiment', default='DebugDocking', type=str)
 	
 	parser.add_argument('-train', action='store_const', const=lambda:'train', dest='cmd')
 	parser.add_argument('-test', action='store_const', const=lambda:'test', dest='cmd')
 
 	parser.add_argument('-resnet', action='store_const', const=lambda:'resnet', dest='model')
 	parser.add_argument('-ebm', action='store_const', const=lambda:'ebm', dest='model')
+	parser.add_argument('-docker', action='store_const', const=lambda:'docker', dest='model')
 
 	parser.add_argument('-step_size', default=10.0, type=float)
 	parser.add_argument('-num_samples', default=10, type=int)
 	parser.add_argument('-batch_size', default=24, type=int)
+	parser.add_argument('-num_epochs', default=100, type=int)
 	args = parser.parse_args()
 
 	if (args.cmd is None) or (args.model is None):
@@ -92,14 +95,18 @@ if __name__=='__main__':
 		model = EQScoringModel().to(device='cuda')
 		optimizer = optim.Adam(model.parameters(), lr=1e-3, betas=(0.0, 0.999))
 		trainer = EBMTrainer(model, optimizer, num_samples=args.num_samples, num_buf_samples=len(train_stream)*args.batch_size, step_size=args.step_size)
+	elif args.model() == 'docker':
+		model = EQScoringModel().to(device='cuda')
+		optimizer = optim.Adam(model.parameters(), lr=1e-3, betas=(0.0, 0.999))
+		trainer = DockingTrainer(model, optimizer)
 	
 	
 	if args.cmd() == 'train':
 		logger = Logger.new(Path('Log')/Path(args.experiment))
 		min_loss = float('+Inf')
-		for epoch in range(100):
+		for epoch in range(args.num_epochs):
 			for data in tqdm(train_stream):
-				loss = trainer.step_stoch(data, epoch=epoch)
+				loss = trainer.step(data, epoch=epoch)
 				logger.log_train(loss)
 			
 			loss = []
@@ -108,7 +115,9 @@ if __name__=='__main__':
 			for data in tqdm(valid_stream):
 				if args.model() == 'resnet':
 					it_loss, it_log_data = run_prediction_model(data, trainer, epoch=0)
-				else:
+				elif args.model() == 'ebm':
+					it_loss, it_log_data = run_docking_model(data, docker, epoch=epoch)
+				elif args.model() == 'docker':
 					it_loss, it_log_data = run_docking_model(data, docker, epoch=epoch)
 
 				loss.append(it_loss)
@@ -135,7 +144,9 @@ if __name__=='__main__':
 		for data in tqdm(test_stream):
 			if args.model() == 'resnet':
 				it_loss, it_log_data = run_prediction_model(data, trainer, epoch=0)
-			else:
+			elif args.model() == 'ebm':
+				it_loss, it_log_data = run_docking_model(data, docker, epoch=0)
+			elif args.model() == 'docker':
 				it_loss, it_log_data = run_docking_model(data, docker, epoch=0)
 
 			loss.append(it_loss)
