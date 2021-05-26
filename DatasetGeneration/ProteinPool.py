@@ -260,7 +260,10 @@ class ProteinPool:
 
 		axs[0].set_ylabel('Energy', fontdict=font)
 		plt.tight_layout()
-		plt.savefig(filename)
+		if filename is None:
+			plt.show()
+		else:
+			plt.savefig(filename)
 
 	def plot_params(self, output_name='stats.png'):
 		from mpl_toolkits.axes_grid1 import make_axes_locatable
@@ -298,7 +301,7 @@ class ProteinPool:
 				
 		plt.imshow(canvas, origin='lower', interpolation='nearest', resample=False, filternorm=False, cmap=plt.get_cmap('binary'))
 		plt.xticks(ticks=[i*size + size/2 for i in range(M)], labels=['%d'%(num_points) for num_points in num_pts])
-		plt.yticks(ticks=[i*size + size/2 for i in range(N)], labels=['%.1f'%(alpha) for alpha in alphas])
+		plt.yticks(ticks=[i*size + size/2 for i in range(N)], labels=['%.2f'%(alpha) for alpha in alphas])
 		plt.xlabel('Num points')
 		plt.ylabel('Alpha')
 		ax.grid(b=False)

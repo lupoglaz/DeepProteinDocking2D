@@ -71,7 +71,8 @@ class Interaction:
 		
 		if ax is None:
 			ax = plt.subplot(111)
-
+		
+		prev_rmsd = None
 		ax.scatter(all_rmsd.cpu().numpy(), all_sc.cpu().numpy())
 		for i, funnel in enumerate(funnels):
 			cplx_img = complexes[i].get_canvas(cell_size)
@@ -80,8 +81,11 @@ class Interaction:
 			ax.scatter(rmsds, scores, label=f'Funnel:{i}')
 			
 			if plot_conformations:
-				im = OffsetImage(cplx_img.copy(), zoom=1.0)
+				im = OffsetImage(cplx_img.copy(), zoom=1.0, cmap='gist_heat_r')
 				# im.image.axes = ax
+				if not(prev_rmsd is None):
+					if np.abs(rmsds[0] - prev_rmsd) < 10:
+						im_offset = (im_offset[0] + 60, im_offset[1])
 				ab = AnnotationBbox(im, (rmsds[0], scores[0]),
 									xybox=im_offset,
 									xycoords='data',
@@ -89,6 +93,7 @@ class Interaction:
 									pad=0.3,
 									arrowprops=dict(arrowstyle="->",color='black',lw=2.5))
 				ax.add_artist(ab)
+				prev_rmsd = rmsds[0]
 		
 
 def test_funnels():

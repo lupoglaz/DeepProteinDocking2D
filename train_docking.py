@@ -46,6 +46,17 @@ def run_docking_model(data, docker, epoch=None):
 	
 	return float(rmsd), log_data
 
+def run_prediction_model(data, trainer, epoch=None):
+	loss, pred_trans, pred_rot = trainer.eval(data)
+	receptor, ligand, translation, rotation, _ = data
+	log_data = {"receptors": receptor.unsqueeze(dim=1).cpu(),
+				"ligands": ligand.unsqueeze(dim=1).cpu(),
+				"rotation": rotation.squeeze().cpu(),
+				"translation": translation.squeeze().cpu(),
+				"pred_rotation": pred_rot.squeeze().cpu(),
+				"pred_translation": pred_trans.squeeze().cpu()}
+	return loss, log_data
+
 if __name__=='__main__':
 	parser = argparse.ArgumentParser(description='Train deep protein docking')	
 	parser.add_argument('-experiment', default='EBMDocking', type=str)
@@ -96,14 +107,7 @@ if __name__=='__main__':
 			docker = EQDockerGPU(model, num_angles=360)
 			for data in tqdm(valid_stream):
 				if args.model() == 'resnet':
-					it_loss, pred_trans, pred_rot = trainer.eval(data)
-					receptor, ligand, translation, rotation, _ = data
-					it_log_data = {	"receptors": receptor.unsqueeze(dim=1).cpu(),
-								"ligands": ligand.unsqueeze(dim=1).cpu(),
-								"rotation": rotation.squeeze().cpu(),
-								"translation": translation.squeeze().cpu(),
-								"pred_rotation": pred_rot.squeeze().cpu(),
-								"pred_translation": pred_trans.squeeze().cpu()}
+					it_loss, it_log_data = run_prediction_model(data, trainer, epoch=0)
 				else:
 					it_loss, it_log_data = run_docking_model(data, docker, epoch=epoch)
 
@@ -130,14 +134,7 @@ if __name__=='__main__':
 		docker = EQDockerGPU(model, num_angles=360)
 		for data in tqdm(test_stream):
 			if args.model() == 'resnet':
-				it_loss, pred_trans, pred_rot = trainer.eval(data)
-				receptor, ligand, translation, rotation, _ = data
-				it_log_data = {	"receptors": receptor.unsqueeze(dim=1).cpu(),
-							"ligands": ligand.unsqueeze(dim=1).cpu(),
-							"rotation": rotation.squeeze().cpu(),
-							"translation": translation.squeeze().cpu(),
-							"pred_rotation": pred_rot.squeeze().cpu(),
-							"pred_translation": pred_trans.squeeze().cpu()}
+				it_loss, it_log_data = run_prediction_model(data, trainer, epoch=0)
 			else:
 				it_loss, it_log_data = run_docking_model(data, docker, epoch=0)
 

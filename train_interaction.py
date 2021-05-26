@@ -78,4 +78,4 @@ if __name__=='__main__':
 	elif args.cmd() == 'test':
 		trainer.load_checkpoint(logger.log_dir / Path('model.th'))
 		test_stream = get_interaction_stream('DatasetGeneration/interaction_data_test.pkl', batch_size=32, max_size=1000)
-		Accuracy, Precision, Recall = test(test_stream, trainer, 0)
+		Accuracy, Precision, Recall = test(valid_stream, trainer, 0)

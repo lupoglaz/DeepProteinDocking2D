@@ -127,6 +127,7 @@ class Complex:
 		canvas = np.zeros( (cell_size, cell_size) )
 		canvas[rec_x_start:rec_x_end, rec_y_start:rec_y_end] = self.receptor.bulk
 		canvas[lig_x_start:lig_x_end, lig_y_start:lig_y_end] += 2*rligand.bulk
+		canvas[canvas>2.0] = 2.0
 		return canvas
 
 	def plot(self):
@@ -158,11 +159,11 @@ def scan_parameter(param, func, output_name='gap_score_param1.png', num_samples=
 			cplx = func(rec, lig, p)
 			canvas[j*cell_size:(j+1)*cell_size, i*cell_size:(i+1)*cell_size] = cplx.get_canvas(cell_size)
 			
-	plt.imshow(canvas.transpose(), origin='lower', interpolation='nearest', resample=False, filternorm=False)
+	plt.imshow(canvas.transpose(), origin='lower', interpolation='nearest', resample=False, filternorm=False, cmap='gist_heat_r')
 	plt.xticks(ticks=[i*cell_size + cell_size/2 for i in range(num_samples)], labels=['%d'%(i+1) for i in range(num_samples)])
 	plt.yticks(ticks=[i*cell_size + cell_size/2 for i in range(len(param))], labels=['%.2f'%i for i in param])
-	plt.ylabel(name)
-	plt.xlabel('sample number')
+	plt.ylabel(name, fontsize=12)
+	plt.xlabel('sample number', fontsize=12)
 	plt.tight_layout()
 	plt.savefig(output_name)
 

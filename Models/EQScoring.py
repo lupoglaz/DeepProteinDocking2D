@@ -23,10 +23,7 @@ class EQScoringModel(nn.Module):
 		self.repr = EQRepresentation()
 
 		self.scorer = nn.Sequential(
-			nn.ReLU(),
-			nn.Linear(16,32),
-			nn.ReLU(),
-			nn.Linear(32,1)
+			nn.Linear(4,1, bias=False)
 		)
 
 	def forward(self, receptor, ligand, alpha, dr):
