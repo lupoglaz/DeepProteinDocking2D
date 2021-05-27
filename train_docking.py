@@ -88,9 +88,9 @@ if __name__=='__main__':
 	valid_stream = get_docking_stream('DatasetGeneration/docking_data_valid.pkl', batch_size=1, max_size=None)
 	
 	if args.model() == 'resnet':
-		model = CNNInteractionModel(type='pos').to(device='cuda')
+		model = CNNInteractionModel().to(device='cuda')
 		optimizer = optim.Adam(model.parameters(), lr=1e-3, betas=(0.0, 0.999))
-		trainer = SupervisedTrainer(model, optimizer)
+		trainer = SupervisedTrainer(model, optimizer, type='pos')
 	elif args.model() == 'ebm':
 		model = EQScoringModel().to(device='cuda')
 		optimizer = optim.Adam(model.parameters(), lr=1e-3, betas=(0.0, 0.999))
@@ -98,7 +98,7 @@ if __name__=='__main__':
 	elif args.model() == 'docker':
 		model = EQScoringModel().to(device='cuda')
 		optimizer = optim.Adam(model.parameters(), lr=1e-3, betas=(0.0, 0.999))
-		trainer = DockingTrainer(model, optimizer)
+		trainer = DockingTrainer(model, optimizer, type='pos')
 	
 	
 	if args.cmd() == 'train':
