@@ -69,6 +69,7 @@ if __name__=='__main__':
 	parser.add_argument('-ebm', action='store_const', const=lambda:'ebm', dest='model')
 	parser.add_argument('-docker', action='store_const', const=lambda:'docker', dest='model')
 
+	parser.add_argument('-gpu', default=1, type=int)
 	parser.add_argument('-step_size', default=10.0, type=float)
 	parser.add_argument('-num_samples', default=10, type=int)
 	parser.add_argument('-batch_size', default=24, type=int)
@@ -82,7 +83,7 @@ if __name__=='__main__':
 	if torch.cuda.device_count()>1:
 		for i in range(torch.cuda.device_count()):
 			print(i, torch.cuda.get_device_name(i), torch.cuda.get_device_capability(i))	
-		torch.cuda.set_device(1)
+		torch.cuda.set_device(args.gpu)
 	
 	train_stream = get_docking_stream('DatasetGeneration/docking_data_train.pkl', batch_size=args.batch_size, max_size=None)
 	valid_stream = get_docking_stream('DatasetGeneration/docking_data_valid.pkl', batch_size=1, max_size=None)
