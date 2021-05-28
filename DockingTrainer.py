@@ -10,11 +10,17 @@ from math import cos, sin
 import numpy as np
 
 class DockingTrainer:
-	def __init__(self, model, optimizer, num_angles=360, device='cuda'):
+	def __init__(self, model, optimizer, num_angles=360, device='cuda', type='pos'):
 		self.model = model
 		self.optimizer = optimizer
 		self.device = device
-		self.loss = nn.CrossEntropyLoss(size_average=True)
+		self.type = type
+		if type == 'pos':
+			self.loss = nn.CrossEntropyLoss(size_average=True)
+		elif type == 'int':
+			self.loss = nn.BCELoss()
+		else:
+			raise(Exception('Type unknown:', type))
 		
 		self.num_angles = num_angles
 		self.conv = ProteinConv2D()
@@ -96,28 +102,71 @@ class DockingTrainer:
 		return flat_idx
 
 	def step(self, data, epoch=None):
-		receptor, ligand, translation, rotation, pos_idx = data
-		receptor = receptor.to(device=self.device, dtype=torch.float32).unsqueeze(dim=1)
-		ligand = ligand.to(device=self.device, dtype=torch.float32).unsqueeze(dim=1)
-		rotation = rotation.to(device=self.device, dtype=torch.float32)
-		translation = translation.to(device=self.device, dtype=torch.float32)
-		
+		if self.type == 'pos':
+			receptor, ligand, translation, rotation, pos_idx = data
+			receptor = receptor.to(device=self.device, dtype=torch.float32).unsqueeze(dim=1)
+			ligand = ligand.to(device=self.device, dtype=torch.float32).unsqueeze(dim=1)
+			rotation = rotation.to(device=self.device, dtype=torch.float32)
+			translation = translation.to(device=self.device, dtype=torch.float32)
+		elif self.type == 'int':
+			receptor, ligand, target = data
+			receptor = receptor.to(device=self.device, dtype=torch.float32).unsqueeze(dim=1)
+			ligand = ligand.to(device=self.device, dtype=torch.float32).unsqueeze(dim=1)
+			target = target.to(device=self.device).unsqueeze(dim=1)
+				
 		self.model.train()
 		self.model.zero_grad()
 
 		rec_repr = self.model.repr(receptor)
 		lig_repr = self.model.repr(ligand)
 		translations = self.dock_global(rec_repr.tensor, lig_repr.tensor)
-		scores = -self.score(translations)
-		
-		flat_idx = self.conf_idx(rotation, translation, scores)
-		probs = scores.contiguous().flatten(start_dim=1)
-		loss = self.loss(probs, flat_idx)
+
+		if self.type == 'pos':
+			scores = -self.score(translations)
+			flat_idx = self.conf_idx(rotation, translation, scores)
+			probs = scores.contiguous().flatten(start_dim=1)
+			loss = self.loss(probs, flat_idx)
+		elif self.type == 'int':
+			translations = translations.transpose(1,2)
+			pred = self.model.inter(translations)
+			loss = self.loss(pred, target)
 		
 		loss.backward()
 		self.optimizer.step()
 		
 		return loss.item()
 
-	def eval(self, data):
-		pass
+	def eval(self, data, threshold=0.5):
+		if self.type == 'int':
+			receptor, ligand, target = data
+		else:
+			raise(NotImplemented())
+
+		receptor = receptor.to(device=self.device, dtype=torch.float32).unsqueeze(dim=1)
+		ligand = ligand.to(device=self.device, dtype=torch.float32).unsqueeze(dim=1)
+		self.model.eval()
+		with torch.no_grad():
+			rec_repr = self.model.repr(receptor)
+			lig_repr = self.model.repr(ligand)
+			translations = self.dock_global(rec_repr.tensor, lig_repr.tensor)
+			pred = self.model.inter(translations.transpose(1,2))
+			
+			if self.type == 'int':
+				TP = 0
+				FP = 0
+				TN = 0
+				FN = 0
+				for i in range(pred.size(0)):
+					p = pred[i].item()
+					a = target[i].item()
+					if p>=threshold and a>=threshold:
+						TP += 1
+					elif p>=threshold and a<threshold:
+						FP += 1
+					elif p<threshold and a>=threshold:
+						FN += 1
+					elif p<threshold and a<threshold:
+						TN += 1
+				return TP, FP, TN, FN
+			else:
+				raise(NotImplemented())

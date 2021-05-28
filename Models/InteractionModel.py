@@ -25,10 +25,9 @@ class BasicBlock(nn.Module):
 
 
 class CNNInteractionModel(nn.Module):
-	def __init__(self, layers=[2, 2, 2, 2], type='int'):
+	def __init__(self, layers=[2, 2, 2, 2]):
 		super(CNNInteractionModel, self).__init__()
 		self.inplanes = 64
-		self.type = type
 		self.layer0 = nn.Sequential(
 			nn.Conv2d(1, self.inplanes, kernel_size=7, stride=2, padding=3, bias=False),
 			nn.BatchNorm2d(self.inplanes),
@@ -40,12 +39,8 @@ class CNNInteractionModel(nn.Module):
 		self.layer3 = self._make_layer(512, 512, blocks=2, stride=2)
 		
 		self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
-		if self.type == 'int':
-			self.fc_int = nn.Linear(1024, 1)
-		elif self.type == 'pos':
-			self.fc_pos = nn.Linear(1024, 3)
-		else:
-			raise(Exception('Type unknown:', type))
+		self.fc_int = nn.Linear(1024, 1)
+		self.fc_pos = nn.Linear(1024, 3)
 		self.sigmoid = nn.Sigmoid()
 
 		for m in self.modules():
@@ -92,11 +87,6 @@ class CNNInteractionModel(nn.Module):
 		lig = self.avgpool(lig)
 		lig = torch.flatten(lig, 1)
 		
-		if self.type == 'int':
-			interaction = self.sigmoid(self.fc_int(torch.cat([rec,lig], dim=1)))
-			return interaction
-		else:
-			position = self.fc_pos(torch.cat([rec,lig], dim=1))
-			return position
+		return rec, lig
 		
 		

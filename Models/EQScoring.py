@@ -26,6 +26,26 @@ class EQScoringModel(nn.Module):
 			nn.Linear(4,1, bias=False)
 		)
 
+		self.inter = nn.Sequential(
+			nn.Conv3d(4, 4, kernel_size=3),
+			nn.ReLU(),
+			nn.MaxPool3d(kernel_size=(5,3,3)),
+
+			nn.Conv3d(4, 8, kernel_size=3),
+			nn.ReLU(),
+			nn.MaxPool3d(kernel_size=(5,3,3)),
+
+			nn.Conv3d(8, 16, kernel_size=3),
+			nn.ReLU(),
+			nn.MaxPool3d(kernel_size=(7,5,5)),
+
+			nn.Flatten(start_dim=1),
+			nn.Linear(16, 4),
+			nn.ReLU(),
+			nn.Linear(4, 1),
+			nn.Sigmoid()
+		)
+
 	def forward(self, receptor, ligand, alpha, dr):
 		rec_feat = self.repr(receptor).tensor
 		lig_feat = self.repr(ligand).tensor

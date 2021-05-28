@@ -65,14 +65,17 @@ class RMSDLoss(nn.Module):
 
 
 class SupervisedTrainer:
-	def __init__(self, model, optimizer, device='cuda'):
+	def __init__(self, model, optimizer, device='cuda', type='pos'):
 		self.model = model
 		self.optimizer = optimizer
 		self.device = device
-		if self.model.type=='int':
+		self.type = type
+		if self.type=='int':
 			self.loss = nn.BCELoss()
-		elif self.model.type=='pos':
+		elif self.type=='pos':
 			self.loss = RMSDLoss()
+		else:
+			raise(Exception('Type unknown:', type))
 
 	def load_checkpoint(self, path):
 		raw_model = self.model.module if hasattr(self.model, "module") else self.model
@@ -88,41 +91,37 @@ class SupervisedTrainer:
 			curr_grid = nn.functional.affine_grid(R, size=repr.size(), align_corners=True)
 			return nn.functional.grid_sample(repr, curr_grid, align_corners=True)
 
-	def step(self, data):
-		receptor, ligand, target = data
-		receptor = receptor.to(device=self.device, dtype=torch.float32).unsqueeze(dim=1)
-		ligand = ligand.to(device=self.device, dtype=torch.float32).unsqueeze(dim=1)
-		receptor = self.rotate(receptor)
-		ligand = self.rotate(ligand)
-		target = target.to(device=self.device).unsqueeze(dim=1)
-
-		self.model.train()
-		self.model.zero_grad()
-		pred = self.model(receptor, ligand)
-		loss = self.loss(pred, target)
-
-		loss.backward()
-		self.optimizer.step()
-		return loss.item()
-
 	def step(self, data, epoch=None):
-		receptor, ligand, translation, rotation, pos_idx = data
-		receptor = receptor.to(device=self.device, dtype=torch.float32).unsqueeze(dim=1)
-		ligand = ligand.to(device=self.device, dtype=torch.float32).unsqueeze(dim=1)
-		rotation = rotation.to(device=self.device, dtype=torch.float32)
-		translation = translation.to(device=self.device, dtype=torch.float32)
-		
+		if self.type == 'int':
+			receptor, ligand, target = data
+			receptor = receptor.to(device=self.device, dtype=torch.float32).unsqueeze(dim=1)
+			ligand = ligand.to(device=self.device, dtype=torch.float32).unsqueeze(dim=1)
+			receptor = self.rotate(receptor)
+			ligand = self.rotate(ligand)
+			target = target.to(device=self.device).unsqueeze(dim=1)
+		elif self.type == 'pos':
+			receptor, ligand, translation, rotation, pos_idx = data
+			receptor = receptor.to(device=self.device, dtype=torch.float32).unsqueeze(dim=1)
+			ligand = ligand.to(device=self.device, dtype=torch.float32).unsqueeze(dim=1)
+			rotation = rotation.to(device=self.device, dtype=torch.float32)
+			translation = translation.to(device=self.device, dtype=torch.float32)	
+
 		self.model.train()
 		self.model.zero_grad()
-		pred = self.model(receptor, ligand)
-		loss = torch.mean(self.loss(ligand, pred[:,:2], pred[:,-1], translation, rotation))
-		
+		rec, lig = self.model(receptor, ligand)
+		if self.type == 'int':
+			pred = self.model.sigmoid(self.model.fc_int(torch.cat([rec,lig], dim=1)))
+			loss = self.loss(pred, target)
+		elif self.type == 'pos':
+			pred = self.fc_pos(torch.cat([rec,lig], dim=1))
+			loss = torch.mean(self.loss(ligand, pred[:,:2], pred[:,-1], translation, rotation))	
+
 		loss.backward()
 		self.optimizer.step()
 		return loss.item()
 
 	def eval(self, data, threshold=0.5):
-		if self.model.type == 'int':
+		if self.type == 'int':
 			receptor, ligand, target = data
 		else:
 			receptor, ligand, translation, rotation, pos_idx = data
