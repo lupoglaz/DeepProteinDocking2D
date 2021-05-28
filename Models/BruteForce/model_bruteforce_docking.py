@@ -16,6 +16,7 @@ class BruteForceDocking(nn.Module):
         self.boundW = nn.Parameter(torch.rand(1)).cuda()
         self.crosstermW1 = nn.Parameter(torch.rand(1)).cuda()
         self.crosstermW2 = nn.Parameter(torch.rand(1)).cuda()
+        self.bulkW = nn.Parameter(torch.rand(1)).cuda()
 
         self.scal = 1
         self.vec = 7
@@ -53,7 +54,8 @@ class BruteForceDocking(nn.Module):
             lig_feat,
             weight_bound=self.boundW,
             weight_crossterm1=self.crosstermW1,
-            weight_crossterm2=self.crosstermW2
+            weight_crossterm2=self.crosstermW2,
+            weight_bulk=self.bulkW
         )
 
         if eval and plotting:

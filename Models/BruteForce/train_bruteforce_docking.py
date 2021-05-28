@@ -173,7 +173,7 @@ if __name__ == '__main__':
     trainset = 'toy_concave_data/docking_data_train'
     testset = 'toy_concave_data/docking_data_valid'
     # testcase = 'newdata_BruteForce_training_check'
-    testcase = 'newdata_twoCTweightslearnedWs_BruteForce_training_check'
+    testcase = 'newdata_twoCTweights_alllearnedWs_BruteForce_training_check'
 
     #########################
     ### testing set
@@ -197,7 +197,7 @@ if __name__ == '__main__':
     valid_stream = get_dataset_stream(testset + '.pkl', batch_size=1)
 
     ######################
-    train_epochs = 30
+    train_epochs = 10
 
 
     def train(resume_training=False, resume_epoch=0):
@@ -212,7 +212,7 @@ if __name__ == '__main__':
     ######################
     train()
 
-    epoch = 30
+    epoch = 10
 
     # epoch = 'end'
 

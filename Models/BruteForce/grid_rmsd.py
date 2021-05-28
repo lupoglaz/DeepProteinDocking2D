@@ -140,16 +140,15 @@ if __name__ == '__main__':
     torch.backends.cudnn.determininistic = True
     torch.cuda.set_device(0)
 
-    plotting = True
-    test_size = 100
-    # index_range = 10
+    plotting = False
     # resume_epoch = 'end'
-    resume_epoch = 30
+    resume_epoch = 10
     # testcase = 'newdata_BruteForce_training_check'
-    testcase = 'newdata_learnedWs_BruteForce_training_check'
+    # testcase = 'newdata_learnedWs_BruteForce_training_check'
+    testcase = 'newdata_twoCTweights_alllearnedWs_BruteForce_training_check'
     # testset = 'toy_concave_data/docking_data_train'
-    testset = 'toy_concave_data/docking_data_valid'
-    # testset = 'toy_concave_data/docking_data_test'
+    # testset = 'toy_concave_data/docking_data_valid'
+    testset = 'toy_concave_data/docking_data_test'
 
     data = read_pkl(testset)
     model = BruteForceDocking().to(device=0)
