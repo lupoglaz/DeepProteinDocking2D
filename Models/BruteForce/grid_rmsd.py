@@ -140,7 +140,7 @@ if __name__ == '__main__':
     torch.backends.cudnn.determininistic = True
     torch.cuda.set_device(0)
 
-    plotting = False
+    plotting = True
     test_size = 100
     # index_range = 10
     # resume_epoch = 'end'

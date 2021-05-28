@@ -173,7 +173,7 @@ if __name__ == '__main__':
     trainset = 'toy_concave_data/docking_data_train'
     testset = 'toy_concave_data/docking_data_valid'
     # testcase = 'newdata_BruteForce_training_check'
-    testcase = 'newdata_learnedWs_BruteForce_training_check'
+    testcase = 'newdata_twoCTweightslearnedWs_BruteForce_training_check'
 
     #########################
     ### testing set

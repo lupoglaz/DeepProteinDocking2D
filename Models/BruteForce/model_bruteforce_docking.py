@@ -14,7 +14,8 @@ class BruteForceDocking(nn.Module):
     def __init__(self):
         super(BruteForceDocking, self).__init__()
         self.boundW = nn.Parameter(torch.rand(1)).cuda()
-        self.crosstermW = nn.Parameter(torch.rand(1)).cuda()
+        self.crosstermW1 = nn.Parameter(torch.rand(1)).cuda()
+        self.crosstermW2 = nn.Parameter(torch.rand(1)).cuda()
 
         self.scal = 1
         self.vec = 7
@@ -51,7 +52,8 @@ class BruteForceDocking(nn.Module):
             rec_feat,
             lig_feat,
             weight_bound=self.boundW,
-            weight_crossterm=self.crosstermW
+            weight_crossterm1=self.crosstermW1,
+            weight_crossterm2=self.crosstermW2
         )
 
         if eval and plotting:
@@ -80,7 +82,7 @@ class BruteForceDocking(nn.Module):
                 plt.savefig('figs/Feats_BruteForceTorchFFT_SE2Conv2D_++-Score_feats_'+str(torch.argmax(FFT_score))+'.png')
                 plt.show()
 
-        return FFT_score
+        return FFT_score.flatten()
 
 if __name__ == '__main__':
     print('works')

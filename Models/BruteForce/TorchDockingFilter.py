@@ -65,7 +65,7 @@ class TorchDockingFilter:
         curr_grid = F.affine_grid(R, size=repr.size(), align_corners=True).type(torch.float)
         return F.grid_sample(repr, curr_grid, align_corners=True)
 
-    def dock_global(self, receptor, ligand, weight_bulk=1.0, weight_bound=1.0, weight_crossterm=1.0, debug=False):
+    def dock_global(self, receptor, ligand, weight_bulk=1.0, weight_bound=1.0, weight_crossterm1=1.0, weight_crossterm2=1.0, debug=False):
         initbox_size = receptor.shape[-1]
         # print(receptor.shape)
         pad_size = initbox_size // 2
@@ -91,12 +91,12 @@ class TorchDockingFilter:
                         plt.imshow(rot_lig[i,0,:,:].detach().cpu())
                         plt.show()
 
-        score = TorchDockingFilter().CE_dock_translations(f_rec, rot_lig, weight_bulk, weight_bound, weight_crossterm)
+        score = TorchDockingFilter().CE_dock_translations(f_rec, rot_lig, weight_bulk, weight_bound, weight_crossterm1, weight_crossterm2)
 
-        return score.flatten()
+        return score
 
 
-    def CE_dock_translations(self, receptor, ligand, weight_bulk, weight_bound, weight_crossterm):
+    def CE_dock_translations(self, receptor, ligand, weight_bulk, weight_bound, weight_crossterm1, weight_crossterm2):
         box_size = receptor.shape[-1]
 
         receptor_bulk, receptor_bound = torch.chunk(receptor, chunks=2, dim=1)
@@ -142,7 +142,9 @@ class TorchDockingFilter:
         trans_bound_bulk = torch.irfft(cconv, signal_dim, signal_sizes=(box_size, box_size))
 
         ## cross-term scoring Energy maximizing
-        score = weight_bound * trans_bound + weight_crossterm * (trans_bulk_bound + trans_bound_bulk) - weight_bulk * trans_bulk
+        # score = weight_bound * trans_bound + weight_crossterm * (trans_bulk_bound + trans_bound_bulk) - weight_bulk * trans_bulk
+
+        score = weight_bound * trans_bound + weight_crossterm1 * trans_bulk_bound + weight_crossterm2 * trans_bound_bulk - weight_bulk * trans_bulk
 
         # print(score.shape)
 
