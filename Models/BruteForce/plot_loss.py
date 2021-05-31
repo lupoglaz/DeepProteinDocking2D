@@ -11,7 +11,7 @@ loss_components = True
 
 # CB_color_cycle = ['#377EB8', '#FF7F00', '#4DAF4A', '#F781BF', '#A65628', '#984EA3', '#999999', '#E41A1C', '#DEDE00']
 
-testcase = 'newdata_BruteForce_training_check'
+testcase = 'TEST_interactionL2loss_B*smax(B)relu()_BruteForce_training_'
 
 #LOSS WITH ROTATION
 train = pd.read_csv("Log/losses/log_train_"+ testcase +".txt", sep='\t', header=0, names=['Epoch',	'Loss',	'rmsd'])

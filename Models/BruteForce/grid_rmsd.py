@@ -141,14 +141,24 @@ if __name__ == '__main__':
     torch.cuda.set_device(0)
 
     plotting = False
+
     # resume_epoch = 'end'
-    resume_epoch = 10
+    # resume_epoch = 10
     # testcase = 'newdata_BruteForce_training_check'
     # testcase = 'newdata_learnedWs_BruteForce_training_check'
+    # testcase = 'newdata_twoCTweights_alllearnedWs_BruteForce_training_check'
+
     testcase = 'newdata_twoCTweights_alllearnedWs_BruteForce_training_check'
-    # testset = 'toy_concave_data/docking_data_train'
-    # testset = 'toy_concave_data/docking_data_valid'
-    testset = 'toy_concave_data/docking_data_test'
+    dataset = 'docking'
+    setid = 'test'
+    testset = 'toy_concave_data/' + dataset + '_data_' + setid
+    resume_epoch = 5
+
+    # testcase = 'TEST_interactionL2loss_B*smax(B)relu()_BruteForce_training_'
+    # dataset = 'interaction'
+    # setid = 'valid'
+    # testset = 'toy_concave_data/'+dataset+'_data_'+setid
+    # resume_epoch = 5
 
     data = read_pkl(testset)
     model = BruteForceDocking().to(device=0)
@@ -156,7 +166,7 @@ if __name__ == '__main__':
     model = load_ckp(ckp_path, model)
 
     log_header = 'Example\tRMSD\n'
-    with open('Log/log_RMSD_testset_' + testcase + '.txt', 'w') as fout:
+    with open('Log/log_RMSD_'+dataset+'_'+setid+'_' + testcase + '.txt', 'w') as fout:
         fout.write(log_header)
 
         rmsd_list = []

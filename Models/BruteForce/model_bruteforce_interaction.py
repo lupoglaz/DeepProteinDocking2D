@@ -14,7 +14,9 @@ class BruteForceInteraction(nn.Module):
     def __init__(self):
         super(BruteForceInteraction, self).__init__()
         self.boundW = nn.Parameter(torch.rand(1)).cuda()
-        self.crosstermW = nn.Parameter(torch.rand(1)).cuda()
+        self.crosstermW1 = nn.Parameter(torch.rand(1)).cuda()
+        self.crosstermW2 = nn.Parameter(torch.rand(1)).cuda()
+        self.bulkW = nn.Parameter(torch.rand(1)).cuda()
         self.FoI_weights = nn.Parameter(torch.rand(1, 360, 1, 1)).cuda()
 
         self.scal = 1
@@ -53,18 +55,18 @@ class BruteForceInteraction(nn.Module):
             rec_feat,
             lig_feat,
             weight_bound=self.boundW,
-            weight_crossterm=self.crosstermW
+            weight_crossterm1=self.crosstermW1,
+            weight_crossterm2=self.crosstermW2,
+            weight_bulk=self.bulkW
         )
         softmax = torch.nn.Softmax2d()
 
         FoI_prob = F.conv2d(input=FFT_score.unsqueeze(0), weight=self.FoI_weights, bias=None)
-        FoI_prob = FoI_prob.relu()
-        FoI_prob = softmax(FoI_prob)
+        # FoI_prob = FoI_prob.relu()
+        FoI_prob = FoI_prob * softmax(FoI_prob)
         # print(FoI_prob.shape, FoI_prob)
-        pred_sigmoid = torch.sigmoid(FoI_prob)
-        # print(pred_sigmoid.shape, pred_sigmoid)
-        pred_interact = torch.sum(pred_sigmoid)
-        # print(pred_interact.shape, pred_interact)
+        pred_interact = torch.sum(FoI_prob.relu())
+        # print(pred_interact.shape, pred_interact)s
 
 
         if eval and plotting:

@@ -40,8 +40,8 @@ class BruteForceDockingTrainer:
         # print(pred_interact.shape, pred_interact)
         #### Loss functions
         # CE_loss = torch.nn.CrossEntropyLoss()
-        l1_loss = torch.nn.L1Loss()
-        loss = l1_loss(pred_interact.squeeze().unsqueeze(0), gt_interact.squeeze().unsqueeze(0))
+        l2_loss = torch.nn.MSELoss()
+        loss = l2_loss(pred_interact.squeeze().unsqueeze(0), gt_interact.squeeze().unsqueeze(0))
 
         if train:
             model.zero_grad()
@@ -110,17 +110,7 @@ class BruteForceDockingTrainer:
                 'optimizer': optimizer.state_dict(),
             }
 
-            trainloss = []
-            for data in tqdm(train_stream):
-                train_output = [BruteForceDockingTrainer().run_model(data, model, train=True)]
-                trainloss.append(train_output)
-
-            avg_trainloss = np.average(trainloss, axis=0)[0, :]
-            print('\nEpoch', epoch, 'Train Loss:', avg_trainloss)
-            with open('Log/losses/log_train_' + testcase + '.txt', 'a') as fout:
-                fout.write(log_format % (epoch, avg_trainloss[0], avg_trainloss[1]))
-
-            if epoch % test_freq == 0 or epoch == 1:
+            if epoch % test_freq == 0 and epoch > 1:
                 testloss = []
                 for data in tqdm(valid_stream):
                     test_output = [BruteForceDockingTrainer().run_model(data, model, train=False, plotting=plotting)]
@@ -130,6 +120,16 @@ class BruteForceDockingTrainer:
                 print('\nEpoch', epoch, 'TEST LOSS:', avg_testloss)
                 with open('Log/losses/log_test_' + testcase + '.txt', 'a') as fout:
                     fout.write(log_format % (epoch, avg_testloss[0], avg_testloss[1]))
+
+            trainloss = []
+            for data in tqdm(train_stream):
+                train_output = [BruteForceDockingTrainer().run_model(data, model, train=True)]
+                trainloss.append(train_output)
+
+            avg_trainloss = np.average(trainloss, axis=0)[0, :]
+            print('\nEpoch', epoch, 'Train Loss:', avg_trainloss)
+            with open('Log/losses/log_train_' + testcase + '.txt', 'a') as fout:
+                fout.write(log_format % (epoch, avg_trainloss[0], avg_trainloss[1]))
 
             #### saving model while training
             if epoch % save_freq == 0:
@@ -145,7 +145,7 @@ if __name__ == '__main__':
     # print(sys.path)
     trainset = 'toy_concave_data/interaction_data_train'
     testset = 'toy_concave_data/interaction_data_valid'
-    testcase = 'TEST_interaction_BruteForce_training_'
+    testcase = 'TEST_interactionL2loss_B*smax(B)relu()_BruteForce_training_'
 
 
     #########################
@@ -172,7 +172,7 @@ if __name__ == '__main__':
     # valid_stream = get_interaction_stream_balanced(testset + '.pkl', batch_size=1)
 
     ######################
-    train_epochs = 30
+    train_epochs = 10
 
 
     def train(resume_training=False, resume_epoch=0):
@@ -185,9 +185,9 @@ if __name__ == '__main__':
                                                resume_training=True, resume_epoch=check_epoch, plotting=True)
 
     ######################
-    train()
+    # train()
 
-    epoch = 30
+    epoch = 5
 
     # epoch = 'end'
 
