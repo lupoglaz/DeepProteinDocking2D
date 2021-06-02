@@ -43,7 +43,7 @@ class BruteForceInteractionTrainer:
         pretrain_model = BruteForceDocking().to(device=0).eval()
         FFT_score = pretrain_model(receptor, ligand, plotting=plotting).cuda()
         pred_interact = model(FFT_score, plotting=plotting)
-        # print(pred_interact.shape, pred_interact)
+        print(pred_interact.item(), gt_interact.item())
         #### Loss functions
         l2_loss = torch.nn.MSELoss()
         loss = l2_loss(pred_interact.squeeze().unsqueeze(0), gt_interact.squeeze().unsqueeze(0))
@@ -187,7 +187,7 @@ if __name__ == '__main__':
     testset = 'toy_concave_data/interaction_data_valid'
     # testcase = 'TEST_interactionL2loss_B*smax(B)relu()_BruteForce_training_'
     # testcase = 'TEST_balancedstream_interactionL2loss_B*smax(B)relu()_BruteForce_training_'
-    testcase = 'statphys_interaction_balancedstream_dockingpretrain_BruteForce_training_'
+    testcase = 'statphys_3dconvReLU_interaction_balancedstream_dockingpretrain_BruteForce_training_'
 
     #########################
     ### testing set

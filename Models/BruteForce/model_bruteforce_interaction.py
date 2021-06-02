@@ -42,6 +42,7 @@ class BruteForceInteraction(nn.Module):
         self.conv3D = nn.Sequential(
             nn.Conv3d(1, 1, kernel_size=self.kernel, padding=self.pad, stride=self.stride, dilation=self.dilation, bias=False),
             nn.ReLU()
+            # nn.Softplus()
         )
 
 
@@ -49,12 +50,13 @@ class BruteForceInteraction(nn.Module):
         softmax = torch.nn.Softmax2d()
         P = softmax(FFT_score.unsqueeze(0)).reshape(self.num_angles, self.dim, self.dim)
 
-        # B = F.conv2d(input=FFT_score.unsqueeze(0), weight=self.FoI_weights, bias=None)
-        # B = B.relu()
-
         B = self.conv3D(FFT_score.unsqueeze(0).unsqueeze(0))
-        E = -torch.log(torch.sum(P * B))
-        pred_interact = torch.exp(-E) / (torch.exp(-E) + 1)
+
+        # E = -torch.log(torch.sum(P * B)) ## sum(P * B) == exp(-E) => -log(exp(-E)) = E
+        # pred_interact = torch.exp(-E) / (torch.exp(-E) + 1)
+
+        pred_interact = torch.sum(P * B) / (torch.sum(P * B) + 1)
+
 
         # if eval and plotting:
         #     with torch.no_grad():
