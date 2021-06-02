@@ -8,7 +8,7 @@ from tqdm import tqdm
 from DeepProteinDocking2D.Models.BruteForce.TorchDockingFilter import TorchDockingFilter
 from DeepProteinDocking2D.Models.BruteForce.model_bruteforce_docking import BruteForceDocking
 from DeepProteinDocking2D.Models.BruteForce.utility_functions import plot_assembly
-from DeepProteinDocking2D.Models.BruteForce.grid_rmsd import RMSD
+from DeepProteinDocking2D.Models.BruteForce.validation_metrics import RMSD
 
 import matplotlib.pyplot as plt
 
@@ -37,7 +37,7 @@ class BruteForceDockingTrainer:
         ### run model and loss calculation
         ##### call model
         pred_score = model(receptor, ligand, plotting=plotting)
-
+        pred_score = pred_score.flatten()
         with torch.no_grad():
             target_flatindex = TorchDockingFilter().encode_transform(gt_rot, gt_txy)
             pred_rot, pred_txy = TorchDockingFilter().extract_transform(pred_score)

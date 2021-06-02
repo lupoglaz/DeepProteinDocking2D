@@ -84,7 +84,7 @@ class BruteForceDocking(nn.Module):
                 plt.savefig('figs/Feats_BruteForceTorchFFT_SE2Conv2D_++-Score_feats_'+str(torch.argmax(FFT_score))+'.png')
                 plt.show()
 
-        return FFT_score.flatten()
+        return FFT_score
 
 if __name__ == '__main__':
     print('works')

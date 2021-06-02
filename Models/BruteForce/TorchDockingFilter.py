@@ -6,7 +6,7 @@ import seaborn as sea
 sea.set_style("whitegrid")
 
 from DeepProteinDocking2D.Models.BruteForce.utility_functions import read_pkl
-from DeepProteinDocking2D.Models.BruteForce.grid_rmsd import RMSD
+from DeepProteinDocking2D.Models.BruteForce.validation_metrics import RMSD
 import numpy as np
 
 class TorchDockingFilter:
