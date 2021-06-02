@@ -3,6 +3,7 @@ import numpy as np
 import random
 from DeepProteinDocking2D.Models.BruteForce.utility_functions import read_pkl, plot_assembly
 import matplotlib.pyplot as plt
+from tqdm import tqdm
 
 class RMSD:
     def __init__(self, ligand, gt_rot, gt_txy, pred_rot, pred_txy):
@@ -73,6 +74,33 @@ class RMSD:
         return rmsd
 
 
+class APR:
+    def __init__(self):
+        pass
+
+    def calcAPR(self, stream, trainer, epoch=0):
+        TP, FP, TN, FN = 0, 0, 0, 0
+        for data in tqdm(stream):
+            tp, fp, tn, fn = trainer.eval(data)
+            TP += tp
+            FP += fp
+            TN += tn
+            FN += fn
+
+        Accuracy = float(TP + TN) / float(TP + TN + FP + FN)
+        if (TP + FP) > 0:
+            Precision = float(TP) / float(TP + FP)
+        else:
+            Precision = 0.0
+        if (TP + FN) > 0:
+            Recall = float(TP) / float(TP + FN)
+        else:
+            Recall = 0.0
+
+        print(f'Epoch {epoch} Acc: {Accuracy} Prec: {Precision} Rec: {Recall}')
+        return Accuracy, Precision, Recall
+
+
 if __name__ == '__main__':
     from DeepProteinDocking2D.Models.BruteForce.model_bruteforce_docking import BruteForceDocking
 
@@ -140,7 +168,7 @@ if __name__ == '__main__':
     torch.backends.cudnn.determininistic = True
     torch.cuda.set_device(0)
 
-    plotting = False
+    plotting = True
 
     # resume_epoch = 'end'
     # resume_epoch = 10
@@ -148,17 +176,17 @@ if __name__ == '__main__':
     # testcase = 'newdata_learnedWs_BruteForce_training_check'
     # testcase = 'newdata_twoCTweights_alllearnedWs_BruteForce_training_check'
 
-    testcase = 'newdata_twoCTweights_alllearnedWs_BruteForce_training_check'
-    dataset = 'docking'
-    setid = 'test'
-    testset = 'toy_concave_data/' + dataset + '_data_' + setid
-    resume_epoch = 5
-
-    # testcase = 'TEST_interactionL2loss_B*smax(B)relu()_BruteForce_training_'
-    # dataset = 'interaction'
-    # setid = 'valid'
-    # testset = 'toy_concave_data/'+dataset+'_data_'+setid
+    # testcase = 'newdata_twoCTweights_alllearnedWs_BruteForce_training_check'
+    # dataset = 'docking'
+    # setid = 'test'
+    # testset = 'toy_concave_data/' + dataset + '_data_' + setid
     # resume_epoch = 5
+
+    testcase = 'TEST_interactionL2loss_B*smax(B)relu()_BruteForce_training_'
+    dataset = 'interaction'
+    setid = 'valid'
+    testset = 'toy_concave_data/'+dataset+'_data_'+setid
+    resume_epoch = 5
 
     data = read_pkl(testset)
     model = BruteForceDocking().to(device=0)
