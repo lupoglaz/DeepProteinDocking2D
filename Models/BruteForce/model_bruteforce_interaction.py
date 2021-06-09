@@ -12,77 +12,55 @@ class BruteForceInteraction(nn.Module):
 
     def __init__(self):
         super(BruteForceInteraction, self).__init__()
-        self.FoI_weights = nn.Parameter(torch.rand(1, 360, 1, 1)).cuda()
-        self.dim = TorchDockingFilter().dim
-        self.num_angles = TorchDockingFilter().num_angles
+        self.softmax = torch.nn.Softmax2d()
 
-        # self.scal = 1
-        # self.vec = 7
-        # self.SO2 = gspaces.Rot2dOnR2(N=-1, maximum_frequency=4)
-        # self.feat_type_in1 = enn.FieldType(self.SO2, 1 * [self.SO2.trivial_repr])
-        # self.feat_type_out1 = enn.FieldType(self.SO2, self.scal * [self.SO2.irreps['irrep_0']] + self.vec * [self.SO2.irreps['irrep_1']])
-        # self.feat_type_out_final = enn.FieldType(self.SO2, 1 * [self.SO2.irreps['irrep_0']] + 1 * [self.SO2.irreps['irrep_1']])
-        #
-        # self.kernel = 5
-        # self.pad = self.kernel//2
-        # self.stride = 1
-        # self.dilation = 1
-        #
-        # self.netSE2 = enn.SequentialModule(
-        #     enn.R2Conv(self.feat_type_in1, self.feat_type_out1, kernel_size=self.kernel, stride=self.stride, dilation=self.dilation, padding=self.pad , bias=False),
-        #     enn.NormNonLinearity(self.feat_type_out1, function='n_relu', bias=False),
-        #     enn.R2Conv(self.feat_type_out1, self.feat_type_out_final, kernel_size=self.kernel, stride=self.stride, dilation=self.dilation, padding=self.pad, bias=False),
-        #     enn.NormNonLinearity(self.feat_type_out_final, function='n_relu', bias=False),
-        # )
+        # self.FoI_weights = nn.Parameter(torch.rand(1, 360, 1, 1)).cuda()
+        # self.dim = TorchDockingFilter().dim
+        # self.num_angles = TorchDockingFilter().num_angles
+        # self.softmin = torch.nn.Softmin(dim=1)
 
         self.kernel = 5
         self.pad = self.kernel//2
         self.stride = 1
         self.dilation = 1
         self.conv3D = nn.Sequential(
-            nn.Conv3d(1, 1, kernel_size=self.kernel, padding=self.pad, stride=self.stride, dilation=self.dilation, bias=False),
-            nn.ReLU()
-            # nn.Softplus()
+            nn.Conv3d(1, 4, kernel_size=self.kernel, padding=self.pad, stride=self.stride, dilation=self.dilation, bias=False),
+            nn.ReLU(),
+            nn.Conv3d(4, 1, kernel_size=self.kernel, padding=self.pad, stride=self.stride, dilation=self.dilation, bias=False),
+            nn.ReLU(),
         )
 
 
     def forward(self, FFT_score, plotting=False):
-        softmax = torch.nn.Softmax2d()
-        P = softmax(FFT_score.unsqueeze(0)).reshape(self.num_angles, self.dim, self.dim)
+        E = -FFT_score
 
-        B = self.conv3D(FFT_score.unsqueeze(0).unsqueeze(0))
+        P = self.softmax(-E.unsqueeze(0)).squeeze()
+        # print(P.shape)
+
+        B = self.conv3D(E.unsqueeze(0).unsqueeze(0)).squeeze()
+        # print(B.shape)
+
+        pred_interact = torch.sum(P * B) / (torch.sum(P * B) + 1)
 
         # E = -torch.log(torch.sum(P * B)) ## sum(P * B) == exp(-E) => -log(exp(-E)) = E
         # pred_interact = torch.exp(-E) / (torch.exp(-E) + 1)
 
-        pred_interact = torch.sum(P * B) / (torch.sum(P * B) + 1)
+        if eval and plotting:
+            with torch.no_grad():
+                plt.close()
+                plt.figure(figsize=(8, 8))
+                minind = torch.argmin(E)
+                plot_index = int(((minind / self.dim ** 2) * np.pi / 180.0) - np.pi)
+                plotE = E.squeeze()[plot_index, :, :].detach().cpu()
+                plotP = P.squeeze()[plot_index, :, :].detach().cpu()
+                plotB = B.squeeze()[plot_index, :, :].detach().cpu()
 
-
-        # if eval and plotting:
-        #     with torch.no_grad():
-        #         plt.close()
-        #         plt.figure(figsize=(8, 8))
-        #         if rec_feat.shape[-1] < receptor.shape[-1]:
-        #             pad_size = (receptor.shape[-1] - rec_feat.shape[-1])//2
-        #             if rec_feat.shape[-1] % 2 == 0:
-        #                 rec_feat = F.pad(rec_feat, pad=([pad_size, pad_size, pad_size, pad_size]), mode='constant', value=0)
-        #                 lig_feat = F.pad(lig_feat, pad=([pad_size, pad_size, pad_size, pad_size]), mode='constant', value=0)
-        #             else:
-        #                 rec_feat = F.pad(rec_feat, pad=([pad_size, pad_size + 1, pad_size, pad_size + 1]), mode='constant',
-        #                                  value=0)
-        #                 lig_feat = F.pad(lig_feat, pad=([pad_size, pad_size + 1, pad_size, pad_size + 1]), mode='constant',
-        #                                value=0)
-        #             # print('padded shape', rec_feat.shape)
-        #         rec_plot = np.hstack((receptor.squeeze().detach().cpu(), rec_feat[0].squeeze().detach().cpu(),
-        #                               rec_feat[1].squeeze().detach().cpu()))
-        #         lig_plot = np.hstack((ligand.squeeze().detach().cpu(), lig_feat[0].squeeze().detach().cpu(),
-        #                               lig_feat[1].squeeze().detach().cpu()))
-        #         # plt.imshow(np.vstack((rec_plot, lig_plot)), vmin=0, vmax=1)
-        #         plt.imshow(np.vstack((rec_plot, lig_plot)))
-        #         plt.title('Input                   F1_bulk                    F2_bound')
-        #         plt.colorbar()
-        #         plt.savefig('figs/Feats_InteractionBruteForceTorchFFT_SE2Conv2D_++-Score_feats_'+str(torch.argmax(FFT_score))+'.png')
-        #         plt.show()
+                plot = np.hstack((plotE, plotP, plotB, plotP*plotB))
+                plt.imshow(plot, vmin=-1, vmax=1)
+                plt.title('E map,       P map,       B map,        P*B')
+                plt.colorbar()
+                plt.savefig('figs/maxE_Emaps_Pmaps_Bmaps_statphys_InteractionBruteForce.png')
+                plt.show()
 
         return pred_interact
 

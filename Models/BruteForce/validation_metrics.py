@@ -78,12 +78,12 @@ class APR:
     def __init__(self):
         pass
 
-    def calcAPR(self, stream, trainer, model, epoch=0):
+    def calcAPR(self, stream, trainer, model, epoch=0, pretrain_model=None):
         print('Calculating Accuracy, Precision, Recall')
         TP, FP, TN, FN = 0, 0, 0, 0
 
         for data in tqdm(stream):
-            tp, fp, tn, fn = trainer.run_model(data, model, train=False)
+            tp, fp, tn, fn = trainer.run_model(data, model, train=False, pretrain_model=pretrain_model)
             # print(tp, fp, tn,fn)
             TP += tp
             FP += fp
@@ -172,25 +172,19 @@ if __name__ == '__main__':
     torch.backends.cudnn.determininistic = True
     torch.cuda.set_device(0)
 
-    plotting = True
+    plotting = False
 
-    # resume_epoch = 'end'
-    # resume_epoch = 10
-    # testcase = 'newdata_BruteForce_training_check'
-    # testcase = 'newdata_learnedWs_BruteForce_training_check'
-    # testcase = 'newdata_twoCTweights_alllearnedWs_BruteForce_training_check'
+    testcase = 'docking_pretrain_bruteforce_allLearnedWs_10epochs_'
+    dataset = 'docking'
+    setid = 'test'
+    testset = 'toy_concave_data/' + dataset + '_data_' + setid
+    resume_epoch = 10
 
-    # testcase = 'newdata_twoCTweights_alllearnedWs_BruteForce_training_check'
-    # dataset = 'docking'
-    # setid = 'test'
-    # testset = 'toy_concave_data/' + dataset + '_data_' + setid
+    # testcase = 'TEST_interactionL2loss_B*smax(B)relu()_BruteForce_training_'
+    # dataset = 'interaction'
+    # setid = 'valid'
+    # testset = 'toy_concave_data/'+dataset+'_data_'+setid
     # resume_epoch = 5
-
-    testcase = 'TEST_interactionL2loss_B*smax(B)relu()_BruteForce_training_'
-    dataset = 'interaction'
-    setid = 'valid'
-    testset = 'toy_concave_data/'+dataset+'_data_'+setid
-    resume_epoch = 5
 
     data = read_pkl(testset)
     model = BruteForceDocking().to(device=0)

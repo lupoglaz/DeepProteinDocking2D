@@ -1,5 +1,6 @@
 import random
 import torch
+from torch import nn
 from torch import optim
 
 import numpy as np
@@ -36,11 +37,11 @@ class BruteForceDockingTrainer:
 
         ### run model and loss calculation
         ##### call model
-        pred_score = model(receptor, ligand, plotting=plotting)
-        pred_score = pred_score.flatten()
+        FFT_score = model(receptor, ligand, plotting=plotting)
+        FFT_score = FFT_score.flatten()
         with torch.no_grad():
             target_flatindex = TorchDockingFilter().encode_transform(gt_rot, gt_txy)
-            pred_rot, pred_txy = TorchDockingFilter().extract_transform(pred_score)
+            pred_rot, pred_txy = TorchDockingFilter().extract_transform(FFT_score)
             rmsd_out = RMSD(ligand, gt_rot, gt_txy, pred_rot, pred_txy).calc_rmsd()
             # print('extracted predicted indices', pred_rot, pred_txy)
             # print('gt indices', gt_rot, gt_txy)
@@ -48,7 +49,7 @@ class BruteForceDockingTrainer:
 
         #### Loss functions
         CE_loss = torch.nn.CrossEntropyLoss()
-        loss = CE_loss(pred_score.squeeze().unsqueeze(0), target_flatindex.unsqueeze(0))
+        loss = CE_loss(FFT_score.squeeze().unsqueeze(0), target_flatindex.unsqueeze(0))
 
         if train:
             model.zero_grad()
@@ -59,9 +60,18 @@ class BruteForceDockingTrainer:
 
         if eval and plotting:
             with torch.no_grad():
+                # plt.close()
+                # maxind = torch.argmax(FFT_score)
+                # plot_index = int(((maxind / self.dim ** 2) * np.pi / 180.0) - np.pi)
+                # plotE = FFT_score.reshape(self.num_angles, self.dim, self.dim).squeeze()[plot_index, :, :].detach().cpu()
+                # plt.imshow(plotE)
+                # plt.title('FFT best rotation x, y')
+                # plt.colorbar()
+                # plt.show()
+
                 plt.close()
                 plt.figure(figsize=(8, 8))
-                pred_rot, pred_txy = TorchDockingFilter().extract_transform(pred_score)
+                pred_rot, pred_txy = TorchDockingFilter().extract_transform(FFT_score)
                 print('extracted predicted indices', pred_rot, pred_txy)
                 print('gt indices', gt_rot, gt_txy)
                 rmsd_out = RMSD(ligand, gt_rot, gt_txy, pred_rot, pred_txy).calc_rmsd()
@@ -120,6 +130,7 @@ class BruteForceDockingTrainer:
             start_epoch += 1
 
             print(model)
+            print(list(model.named_parameters()))
             print('\nRESUMING TRAINING AT EPOCH', start_epoch, '\n')
         else:
             start_epoch = 1
@@ -173,7 +184,13 @@ if __name__ == '__main__':
     trainset = 'toy_concave_data/docking_data_train'
     testset = 'toy_concave_data/docking_data_valid'
     # testcase = 'newdata_BruteForce_training_check'
-    testcase = 'newdata_twoCTweights_alllearnedWs_BruteForce_training_check'
+    # testcase = 'newdata_twoCTweights_alllearnedWs_BruteForce_training_check'
+
+    # testcase = 'pretrain_bruteforcedocking_alllearnedWs_10epochs'
+    # testcase = 'pretrain_shiftedorigin_bruteforcedocking_alllearnedWs_10epochs'
+
+    testcase = 'docking_pretrain_bruteforce_allLearnedWs_10epochs_'
+
 
     #########################
     ### testing set
@@ -193,6 +210,8 @@ if __name__ == '__main__':
     model = BruteForceDocking().to(device=0)
     optimizer = optim.Adam(model.parameters(), lr=lr)
 
+    print(list(model.parameters()))
+
     train_stream = get_dataset_stream(trainset + '.pkl', batch_size=1)
     valid_stream = get_dataset_stream(testset + '.pkl', batch_size=1)
 
@@ -210,7 +229,7 @@ if __name__ == '__main__':
                                                resume_training=True, resume_epoch=check_epoch, plotting=True)
 
     ######################
-    train()
+    # train()
 
     epoch = 10
 
