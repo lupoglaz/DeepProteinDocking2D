@@ -1,5 +1,6 @@
 import random
 import torch
+from torch import nn
 from torch import optim
 
 import numpy as np
@@ -23,7 +24,7 @@ class BruteForceInteractionTrainer:
         # self.dim = TorchDockingFilter().dim
         # self.num_angles = TorchDockingFilter().num_angles
 
-    def run_model(self, data, model, train=True, plotting=False):
+    def run_model(self, data, model, train=True, plotting=False, pretrain_model=None):
         receptor, ligand, gt_interact = data
 
         receptor = receptor.squeeze()
@@ -40,16 +41,21 @@ class BruteForceInteractionTrainer:
 
         ### run model and loss calculation
         ##### call model(s)
-        pretrain_model = BruteForceDocking().to(device=0).eval()
-        FFT_score = pretrain_model(receptor, ligand, plotting=plotting).cuda()
+        FFT_score = pretrain_model(receptor, ligand, plotting=False)
+        for n, p in pretrain_model.named_parameters():
+            if p.requires_grad:
+                print(n, p, p.grad)
         pred_interact = model(FFT_score, plotting=plotting)
-        print(pred_interact.item(), gt_interact.item())
         #### Loss functions
-        l2_loss = torch.nn.MSELoss()
-        loss = l2_loss(pred_interact.squeeze().unsqueeze(0), gt_interact.squeeze().unsqueeze(0))
+        BCEloss = torch.nn.BCELoss()
+
+        loss = BCEloss(pred_interact, gt_interact)
+        print(pred_interact.item(), gt_interact.item())
+
 
         if eval and plotting:
             with torch.no_grad():
+                plt.close()
                 pred_rot, pred_txy = TorchDockingFilter().extract_transform(FFT_score)
                 # print(pred_txy, pred_rot)
                 pair = plot_assembly(receptor.squeeze().detach().cpu().numpy(), ligand.squeeze().detach().cpu().numpy(),
@@ -68,6 +74,7 @@ class BruteForceInteractionTrainer:
             model.zero_grad()
             loss.backward()
             optimizer.step()
+            optimizer_pretrain.step()
         else:
             model.eval()
             with torch.no_grad():
@@ -114,7 +121,7 @@ class BruteForceInteractionTrainer:
 
     @staticmethod
     def train_model(model, optimizer, testcase, train_epochs, train_stream, valid_stream, resume_training=False,
-                    resume_epoch=0, plotting=False):
+                    resume_epoch=0, plotting=False, pretrain_model=None):
 
         test_freq = 1
         save_freq = 1
@@ -151,19 +158,21 @@ class BruteForceInteractionTrainer:
             }
 
             if epoch % test_freq == 0 and epoch > 1:
-                testloss = []
-                for data in tqdm(valid_stream):
-                    test_output = [BruteForceInteractionTrainer().run_model(data, model, train=False, plotting=plotting)]
-                    testloss.append(test_output)
-
-                avg_testloss = np.average(testloss, axis=0)[0, :]
-                print('\nEpoch', epoch, 'TEST LOSS:', avg_testloss)
-                with open('Log/losses/log_test_' + testcase + '.txt', 'a') as fout:
-                    fout.write(log_format % (epoch, avg_testloss[0], avg_testloss[1]))
+                BruteForceInteractionTrainer().checkAPR(epoch, valid_stream, pretrain_model=pretrain_model)
+                #
+                # testloss = []
+                # for data in tqdm(valid_stream):
+                #     test_output = [BruteForceInteractionTrainer().run_model(data, model, train=False, plotting=plotting, pretrain_model=pretrain_model)]
+                #     testloss.append(test_output)
+                #
+                # avg_testloss = np.average(testloss, axis=0)[0, :]
+                # print('\nEpoch', epoch, 'TEST LOSS:', avg_testloss)
+                # with open('Log/losses/log_test_' + testcase + '.txt', 'a') as fout:
+                #     fout.write(log_format % (epoch, avg_testloss[0], avg_testloss[1]))
 
             trainloss = []
             for data in tqdm(train_stream):
-                train_output = [BruteForceInteractionTrainer().run_model(data, model, train=True)]
+                train_output = [BruteForceInteractionTrainer().run_model(data, model, train=True, pretrain_model=pretrain_model)]
                 trainloss.append(train_output)
 
             avg_trainloss = np.average(trainloss, axis=0)[0, :]
@@ -178,6 +187,25 @@ class BruteForceInteractionTrainer:
 
         BruteForceInteractionTrainer().save_checkpoint(checkpoint_dict, 'Log/' + testcase + 'end.th')
 
+    @staticmethod
+    def checkAPR(check_epoch, datastream, pretrain_model):
+        Accuracy, Precision, Recall = APR().calcAPR(datastream, BruteForceInteractionTrainer(), model, check_epoch, pretrain_model)
+        # print(Accuracy, Precision, Recall)
+        log_format = '%f\t%f\t%f\n'
+        with open('Log/losses/log_validAPR_' + testcase + '.txt', 'a') as fout:
+            fout.write(log_format % (Accuracy, Precision, Recall))
+
+    @staticmethod
+    def freeze_weights(pretrain_model):
+        print('Freezing docking model CNN weights')
+        for name, param in pretrain_model.named_parameters():
+            if 'W' not in name:
+                print('Freezing weights', name)
+                param.requires_grad = False
+            elif 'W' in name:
+                param.requires_grad = False
+                param.copy_(torch.rand(1))
+                param.requires_grad = True
 
 if __name__ == '__main__':
     #################################################################################
@@ -185,13 +213,14 @@ if __name__ == '__main__':
     # print(sys.path)
     trainset = 'toy_concave_data/interaction_data_train'
     testset = 'toy_concave_data/interaction_data_valid'
-    # testcase = 'TEST_interactionL2loss_B*smax(B)relu()_BruteForce_training_'
-    # testcase = 'TEST_balancedstream_interactionL2loss_B*smax(B)relu()_BruteForce_training_'
-    testcase = 'statphys_3dconvReLU_interaction_balancedstream_dockingpretrain_BruteForce_training_'
+    # testcase = 'CHECK_reluBCEloss_statphys_interaction_balancedstream_dockingpretrain_BruteForce_training_'
+    # testcase = 'revSigmoidB_statphys_interaction_balancedstream_dockingpretrain_BruteForce_training_'
+    # testcase = 'conv3d3layers4feats_revSigmoidB_statphys_interaction_balancedstream_dockingpretrain_BruteForce_training_'
+    testcase = 'learnedscoringW_conv3d2layers4feats_statphys_interaction_balancedstream_dockingpretrain_BruteForce_training_'
 
     #########################
     ### testing set
-    # testset = 'toy_concave_data/interaction_data_test'
+    testset = 'toy_concave_data/interaction_data_test'
 
     #### initialization torch settings
     np.random.seed(42)
@@ -207,6 +236,12 @@ if __name__ == '__main__':
     model = BruteForceInteraction().to(device=0)
     optimizer = optim.Adam(model.parameters(), lr=lr)
 
+    pretrain_model = BruteForceDocking().to(device=0)
+    optimizer_pretrain = optim.Adam(pretrain_model.parameters(), lr=lr)
+    path_pretrain = 'Log/docking_pretrain_bruteforce_allLearnedWs_10epochs_end.th'
+    pretrain_model.load_state_dict(torch.load(path_pretrain)['state_dict'])
+    BruteForceInteractionTrainer().freeze_weights(pretrain_model)
+
     train_stream = get_interaction_stream_balanced(trainset + '.pkl', batch_size=1)
     valid_stream = get_interaction_stream_balanced(testset + '.pkl', batch_size=1)
 
@@ -215,28 +250,18 @@ if __name__ == '__main__':
 
     def train(resume_training=False, resume_epoch=0):
         BruteForceInteractionTrainer().train_model(model, optimizer, testcase, train_epochs, train_stream, valid_stream,
-                                               resume_training=resume_training, resume_epoch=resume_epoch)
+                                               resume_training=resume_training, resume_epoch=resume_epoch, pretrain_model=pretrain_model)
 
 
     def plot_validation_set(check_epoch, plotting=True):
         BruteForceInteractionTrainer().train_model(model, optimizer, testcase, train_epochs, train_stream, valid_stream,
-                                               resume_training=True, resume_epoch=check_epoch, plotting=plotting)
-
-    def checkAPR(check_epoch):
-
-        Accuracy, Precision, Recall = APR().calcAPR(valid_stream, BruteForceDockingTrainer(), model, check_epoch)
-        print(Accuracy, Precision, Recall)
-        log_format = '%f\t%f\t%f\n'
-        with open('Log/losses/log_APR_' + testcase + '.txt', 'a') as fout:
-            fout.write(log_format % (Accuracy, Precision, Recall))
+                                               resume_training=True, resume_epoch=check_epoch, plotting=plotting, pretrain_model=pretrain_model)
 
     ######################
     train()
+
+    # epoch = 1
     #
-    # epoch = 2
-    #
-    # checkAPR(epoch)
-    #
-    # plot_validation_set(check_epoch=epoch)
+    # plot_validation_set(check_epoch=epoch) ## also checks APR
     #
     # train(True, epoch)

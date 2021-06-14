@@ -141,9 +141,7 @@ class TorchDockingFilter:
         cconv = torch.stack([re, im], dim=3)
         trans_bound_bulk = torch.irfft(cconv, signal_dim, signal_sizes=(box_size, box_size))
 
-        ## cross-term scoring Energy maximizing
-        # score = weight_bound * trans_bound + weight_crossterm * (trans_bulk_bound + trans_bound_bulk) - weight_bulk * trans_bulk
-
+        ## cross-term score maximizing
         score = weight_bound * trans_bound + weight_crossterm1 * trans_bulk_bound + weight_crossterm2 * trans_bound_bulk - weight_bulk * trans_bulk
 
         # print(score.shape)

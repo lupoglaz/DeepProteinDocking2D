@@ -13,10 +13,10 @@ class BruteForceDocking(nn.Module):
 
     def __init__(self):
         super(BruteForceDocking, self).__init__()
-        self.boundW = nn.Parameter(torch.rand(1)).cuda()
-        self.crosstermW1 = nn.Parameter(torch.rand(1)).cuda()
-        self.crosstermW2 = nn.Parameter(torch.rand(1)).cuda()
-        self.bulkW = nn.Parameter(torch.rand(1)).cuda()
+        self.boundW = nn.Parameter(torch.rand(1))
+        self.crosstermW1 = nn.Parameter(torch.rand(1))
+        self.crosstermW2 = nn.Parameter(torch.rand(1))
+        self.bulkW = nn.Parameter(torch.rand(1))
 
         self.scal = 1
         self.vec = 7
@@ -60,6 +60,8 @@ class BruteForceDocking(nn.Module):
 
         if eval and plotting:
             with torch.no_grad():
+                print('Learned scoring coefficients')
+                print(self.boundW, self.crosstermW1, self.crosstermW2, self.bulkW)
                 plt.close()
                 plt.figure(figsize=(8, 8))
                 if rec_feat.shape[-1] < receptor.shape[-1]:
@@ -89,3 +91,4 @@ class BruteForceDocking(nn.Module):
 if __name__ == '__main__':
     print('works')
     print(BruteForceDocking())
+    print(list(BruteForceDocking().parameters()))
