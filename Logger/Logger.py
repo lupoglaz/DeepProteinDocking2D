@@ -49,6 +49,10 @@ class Logger:
 		self.epoch += 1
 
 	def plot_losses(self, output_name=None, average_num=5, xlabel='Iteration', ylabel='RMSD', coupled=False):
+		import matplotlib.font_manager as font_manager
+		from matplotlib import rcParams
+		font_manager.fontManager.addfont('/home/lupoglaz/.fonts/Helvetica.ttf')
+		rcParams['font.family'] = 'Helvetica'
 		def load_log(filename):
 			with open(filename) as fin:
 				header = fin.readline().split('\t')
@@ -69,9 +73,9 @@ class Logger:
 			f = plt.figure(figsize =(6,6))
 			plt.plot(train_x, train_y, label='Training')
 			plt.plot(loss_valid[0], loss_valid[1], label='Validation')
-			plt.xlabel(xlabel)
-			plt.ylabel(ylabel)
-			plt.legend()
+			plt.xlabel(xlabel, fontsize=18)
+			plt.ylabel(ylabel, fontsize=18)
+			plt.legend(fontsize=18)
 		else:
 			f = plt.figure(figsize =(12,6))
 			plt.subplot(1,2,1)
@@ -79,7 +83,7 @@ class Logger:
 			plt.ylim([np.min(train_y)-0.1, np.median(train_y)+5.0])
 			plt.subplot(1,2,2)
 			plt.plot(loss_valid[0], loss_valid[1], label='valid')
-			plt.legend()
+			plt.legend(fontsize=18)
 
 		if output_name is None:
 			plt.show()

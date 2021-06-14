@@ -77,19 +77,21 @@ def plot_funnel_examples(dataset, a00, a11, a10, boundary_size=3, num_plots=10, 
 		plt.savefig(filename)
 
 def plot_param_scan(input_name, ax, output_name=None, name="", ylabel=True):
-	font = {'family': 'serif',
-			'weight': 'normal',
-			'size': 6,
-			}
+	import matplotlib.font_manager as font_manager
+	from matplotlib import rcParams
+	font_manager.fontManager.addfont('/home/lupoglaz/.fonts/Helvetica.ttf')
+	rcParams['font.family'] = 'Helvetica'
+	font = {'weight': 'normal',
+			'size': 6}
 	with open(input_name, 'rb') as fin:
 		a00, a10, a11, M = pkl.load(fin)
 	
 	extent=(a10[0], a10[-1], a11[0], a11[-1])
 	p = ax.imshow(M, extent=extent, origin='lower')
 	ax.set_title(name)
-	ax.set_xlabel('bound-bulk')
+	ax.set_xlabel('boundary-bulk')
 	if ylabel:
-		ax.set_ylabel('bound-bound')
+		ax.set_ylabel('boundary-boundary')
 	ax.set_xticks(a10)
 	ax.set_yticks(a11)
 	ax.tick_params(axis='x', which='major', labelsize=8, rotation=90)
@@ -99,6 +101,10 @@ def plot_param_scan(input_name, ax, output_name=None, name="", ylabel=True):
 	return p
 
 def param_scans(input_names, titles=["", ""], output_name=None):
+	import matplotlib.font_manager as font_manager
+	from matplotlib import rcParams
+	font_manager.fontManager.addfont('/home/lupoglaz/.fonts/Helvetica.ttf')
+	rcParams['font.family'] = 'Helvetica'
 	fig, axs = plt.subplots(1, 2, figsize=(8,8), sharey=True, constrained_layout=True)
 	pa = plot_param_scan(input_names[0], ax=axs[0], name=titles[0])
 	pb = plot_param_scan(input_names[1], ax=axs[1], name=titles[1], ylabel=False)
@@ -113,10 +119,10 @@ def param_scans(input_names, titles=["", ""], output_name=None):
 
 if __name__=='__main__':
 
-	cplx_scan_param(param=np.arange(0.2, 0.6, 0.05, dtype=np.float32),
-					func=lambda x, y, p: Complex.generate(x, y, threshold=p),
-					num_samples=10,
-					output_name='comp_overlap.png', name='Overlap')
+	# cplx_scan_param(param=np.arange(0.2, 0.6, 0.05, dtype=np.float32),
+	# 				func=lambda x, y, p: Complex.generate(x, y, threshold=p),
+	# 				num_samples=10,
+	# 				output_name='comp_overlap.png', name='Overlap fraction')
 
 	# dataset = generate_dataset('DatasetGeneration/Data/score_param_prots.pkl', num_examples=100, overlap=0.4)
 	
@@ -135,5 +141,5 @@ if __name__=='__main__':
 	# 				output_name='score_param_rmsd_a10.png', name='RMSD, a00=10.0')
 	# plot_param_scan(input_name='DatasetGeneration/Data/score_a00=10.0_param_gap.pkl',
 	# 				output_name='score_param_gap_a10.png', name='Funnel gap, a00=10.0')
-	# param_scans(input_names=['DatasetGeneration/Data/score_a00=3.0_param_rmsd.pkl', 'DatasetGeneration/Data/score_a00=3.0_param_gap.pkl'],
-	# 			titles=['RMSD', 'Funnel gap'], output_name='dataset_param_scan.png')
+	param_scans(input_names=['DatasetGeneration/Data/score_a00=3.0_param_rmsd.pkl', 'DatasetGeneration/Data/score_a00=3.0_param_gap.pkl'],
+				titles=['RMSD', 'Funnel gap'], output_name='dataset_param_scan.png')

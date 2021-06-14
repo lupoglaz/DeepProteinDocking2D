@@ -54,9 +54,8 @@ def extract_interaction_dataset(interaction_criteria, savefile,
 
 def visualize(docker, savefile):
 	pool = ProteinPool.load(savefile)
-	pool.plot_interaction_dist(perc=80)
-	pool.plot_interactions(docker, num_plots=20, type='best')
-	pool.plot_interactions(docker, num_plots=20, type='worst')
+	# pool.plot_interaction_dist(perc=80)
+	pool.plot_interactions(docker, filename='examples.png', num_plots=10)
 	pool.plot_sample_funnels(docker, filename='funnels.png', range=[(-200, -150), (-200, -100), (-100, -20)])
 	pool.plot_params()
 
@@ -83,13 +82,13 @@ def generate_set(num_proteins, params, interaction_criteria, docker, savefile, t
 		extract_interaction_dataset(inter, savefile,
 								output_files=['DatasetGeneration/interaction_data_test.pkl'],
 								num_proteins = num_inter_proteins)
-	#Visualization
-	visualize(docker, savefile)
 
 if __name__ == '__main__':
 	parser = argparse.ArgumentParser(description='Generate protein docking dataset')	
 	parser.add_argument('-train', action='store_const', const=lambda:'train', dest='cmd')
 	parser.add_argument('-test', action='store_const', const=lambda:'test', dest='cmd')	
+	parser.add_argument('-gen', action='store_const', const=lambda:'gen', dest='act')
+	parser.add_argument('-vis', action='store_const', const=lambda:'vis', dest='act')
 	
 	parser.add_argument('-a00', default=3.0, type=float)
 	parser.add_argument('-a10', default=-0.3, type=float)
@@ -113,7 +112,12 @@ if __name__ == '__main__':
 			)
 		
 		savefile = 'DatasetGeneration/Data/protein_pool_big.pkl'
-		generate_set(500, params, inter, docker, savefile, training_set=True, num_docking_samples=1100, num_inter_proteins=500)
+		if args.act() == 'gen':
+			generate_set(500, params, inter, docker, savefile, training_set=True, num_docking_samples=1100, num_inter_proteins=500)
+		elif args.act() == 'vis':
+			visualize(docker, savefile)
+		else:
+			print('No action specified')
 
 	elif args.cmd() == 'test':
 		params = ParamDistribution(
@@ -122,4 +126,9 @@ if __name__ == '__main__':
 			)
 		
 		savefile = 'DatasetGeneration/Data/protein_pool_small.pkl'
-		generate_set(250, params, inter, docker, savefile, training_set=False, num_docking_samples=1100, num_inter_proteins=250)
+		if args.act() == 'gen':
+			generate_set(250, params, inter, docker, savefile, training_set=False, num_docking_samples=1100, num_inter_proteins=250)
+		elif args.act() == 'vis':
+			visualize(docker, savefile)
+		else:
+			print('No action specified')
