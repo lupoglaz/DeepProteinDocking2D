@@ -7,6 +7,8 @@ import _pickle as pkl
 from pathlib import Path
 
 import matplotlib.pylab as plt
+from matplotlib import rcParams
+
 import seaborn as sea
 sea.set_style("whitegrid")
 
@@ -196,16 +198,16 @@ class ProteinPool:
 		plt.tight_layout()
 		plt.show()
 
-	def plot_interactions(self, docker, num_plots=10, type='best'):
-		plt.figure(figsize=(num_plots*3, 3))
+	def plot_interactions(self, docker, filename=None, num_plots=10):
+		import matplotlib.font_manager as font_manager
+		font_manager.fontManager.addfont('/home/lupoglaz/.fonts/Helvetica.ttf')
+		rcParams['font.family'] = 'Helvetica'
+		
+		plt.figure(figsize=(num_plots*2, 5))
 		cell_size = 90
-		canvas = np.zeros((cell_size, cell_size*num_plots))
-		if type=='best':
-			sorted_inter = sorted(list(self.interactions.items()), key=lambda x: x[1][1])
-		elif type=='worst':
-			sorted_inter = sorted(list(self.interactions.items()), key=lambda x: -x[1][1])
-		else:
-			raise Exception(f'Unknown type {type}')
+		canvas_best = np.zeros((cell_size, cell_size*num_plots))
+		canvas_worst = np.zeros((cell_size, cell_size*num_plots))
+		sorted_inter = sorted(list(self.interactions.items()), key=lambda x: x[1][1])
 		
 		plot_num = 0
 		min_scores = []
@@ -213,19 +215,56 @@ class ProteinPool:
 			rec, lig = Protein(self.proteins[i]), Protein(self.proteins[j])
 			scores = docker.dock_global(rec, lig)
 			min_score, cplx, ind = docker.get_conformation(scores, rec, lig)
-			canvas[:,plot_num*cell_size:(plot_num+1)*cell_size] = cplx.get_canvas(cell_size)
+			canvas_best[:,plot_num*cell_size:(plot_num+1)*cell_size] = cplx.get_canvas(cell_size)
 			min_scores.append(min_score)
 			plot_num += 1
+
+		plot_num = 0
+		max_scores = []
+		for (i, j), (G, score, gap) in (sorted_inter[-num_plots:]):
+			rec, lig = Protein(self.proteins[i]), Protein(self.proteins[j])
+			scores = docker.dock_global(rec, lig)
+			max_score, cplx, ind = docker.get_conformation(scores, rec, lig)
+			canvas_worst[:,plot_num*cell_size:(plot_num+1)*cell_size] = cplx.get_canvas(cell_size)
+			max_scores.append(max_score)
+			plot_num += 1
 		
-		plt.imshow(canvas)
-		plt.xticks(ticks=[i*cell_size + cell_size/2 for i in range(num_plots)], labels=['%.1f'%s for s in min_scores])
-		plt.xlabel('score')
-		plt.show()
+		ax = plt.subplot(2,1,1)
+		ax.grid(False)
+		ax.spines['top'].set_visible(False)
+		ax.spines['right'].set_visible(False)
+		ax.spines['bottom'].set_visible(False)
+		ax.spines['left'].set_visible(False)
+		ax.xaxis.tick_top()
+		ax.tick_params(axis=u'both', which=u'both',length=0)
+		plt.title('Interacting', fontsize=24)
+		plt.imshow(canvas_best, origin='lower', interpolation='nearest', resample=False, filternorm=False, cmap='gist_heat_r')
+		plt.xticks(ticks=[i*cell_size + cell_size/2 for i in range(num_plots)], labels=['%.1f'%s for s in min_scores], fontsize=16)
+		plt.yticks([])
+		ax = plt.subplot(2,1,2)
+		ax.grid(False)
+		ax.spines['top'].set_visible(False)
+		ax.spines['right'].set_visible(False)
+		ax.spines['bottom'].set_visible(False)
+		ax.spines['left'].set_visible(False)
+		ax.xaxis.tick_top()
+		ax.tick_params(axis=u'both', which=u'both',length=0)
+		plt.title('Non-interacting', fontsize=24)
+		plt.imshow(canvas_worst, origin='lower', interpolation='nearest', resample=False, filternorm=False, cmap='gist_heat_r')
+		plt.xticks(ticks=[i*cell_size + cell_size/2 for i in range(num_plots)], labels=['%.1f'%s for s in max_scores], fontsize=16)
+		# plt.xlabel('score', fontsize=16)
+		plt.yticks([])
+		plt.tight_layout()
+		if filename is None:
+			plt.show()
+		else:
+			plt.savefig(filename)
 
 	def plot_sample_funnels(self, docker, filename='funnels.png', range=[(-100, -80), (-70, -40), (-32, -20)], titles=['A','B','C']):
-		# plt.figure(figsize=(18,6))
-		font = {'family': 'serif',
-				'weight': 'normal',
+		import matplotlib.font_manager as font_manager
+		font_manager.fontManager.addfont('/home/lupoglaz/.fonts/Helvetica.ttf')
+		rcParams['font.family'] = 'Helvetica'
+		font = {'weight': 'normal',
 				'size': 18,
 				}
 
@@ -245,8 +284,8 @@ class ProteinPool:
 			else:
 				inter.plot_funnels(ax=axs[sample_num], im_offset=(60, -75))
 			
-			axs[sample_num].set_title(titles[sample_num], fontdict=font)
-			axs[sample_num].set_xlabel('RMSD', fontdict=font)
+			axs[sample_num].set_title(titles[sample_num], fontsize=24)
+			axs[sample_num].set_xlabel('RMSD', fontsize=20)
 			# axs[sample_num].legend(prop=font)
 			for label in axs[sample_num].get_xticklabels():
 				label.set_fontproperties(font)
@@ -257,8 +296,9 @@ class ProteinPool:
 			sample_num += 1
 			if sample_num == num_samples:
 				break
+			
 
-		axs[0].set_ylabel('Energy', fontdict=font)
+		axs[0].set_ylabel('Energy', fontsize=20)
 		plt.tight_layout()
 		if filename is None:
 			plt.show()
@@ -267,6 +307,9 @@ class ProteinPool:
 
 	def plot_params(self, output_name='stats.png'):
 		from mpl_toolkits.axes_grid1 import make_axes_locatable
+		import matplotlib.font_manager as font_manager
+		font_manager.fontManager.addfont('/home/lupoglaz/.fonts/Helvetica.ttf')
+		rcParams['font.family'] = 'Helvetica'
 		alpha_lst = []
 		num_pts_lst = []
 		for param in self.params:
@@ -300,10 +343,10 @@ class ProteinPool:
 				canvas[i*size:(i+1)*size, j*size:(j+1)*size] = protein
 				
 		plt.imshow(canvas, origin='lower', interpolation='nearest', resample=False, filternorm=False, cmap=plt.get_cmap('binary'))
-		plt.xticks(ticks=[i*size + size/2 for i in range(M)], labels=['%d'%(num_points) for num_points in num_pts])
-		plt.yticks(ticks=[i*size + size/2 for i in range(N)], labels=['%.2f'%(alpha) for alpha in alphas])
-		plt.xlabel('Num points')
-		plt.ylabel('Alpha')
+		plt.xticks(ticks=[i*size + size/2 for i in range(M)], labels=['%d'%(num_points) for num_points in num_pts], fontsize=12)
+		plt.yticks(ticks=[i*size + size/2 for i in range(N)], labels=['%.2f'%(alpha) for alpha in alphas], fontsize=12)
+		plt.xlabel('Number of points', fontsize=16)
+		plt.ylabel('Alpha', fontsize=16)
 		ax.grid(b=False)
 				
 		def get_bars(val_lst):
@@ -331,11 +374,11 @@ class ProteinPool:
 		ax_histy.yaxis.set_tick_params(labelleft=False)
 		a, b = get_bars(alpha_lst)
 		ax_histy.barh(a,b, height=size*0.75)
-		ax_histy.set_xlabel('Fraction')
+		ax_histy.set_xlabel('Fraction', fontsize=16)
 
 		a, b = get_bars(num_pts_lst)
 		ax_histx.bar(a,b,width=size*0.75)
-		ax_histx.set_ylabel('Fraction')
+		ax_histx.set_ylabel('Fraction', fontsize=16)
 		
 		plt.tight_layout()
 		plt.savefig(output_name)

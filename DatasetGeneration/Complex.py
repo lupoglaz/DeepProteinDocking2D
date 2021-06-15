@@ -148,6 +148,10 @@ class Complex:
 		# plt.show()
 
 def scan_parameter(param, func, output_name='gap_score_param1.png', num_samples=10, name=""):
+	import matplotlib.font_manager as font_manager
+	from matplotlib import rcParams
+	font_manager.fontManager.addfont('/home/lupoglaz/.fonts/Helvetica.ttf')
+	rcParams['font.family'] = 'Helvetica'
 	f = plt.figure(figsize=(num_samples,len(param)+0.5))
 	cell_size = 80
 	canvas = np.zeros((cell_size*num_samples, cell_size*len(param)))
@@ -162,8 +166,8 @@ def scan_parameter(param, func, output_name='gap_score_param1.png', num_samples=
 	plt.imshow(canvas.transpose(), origin='lower', interpolation='nearest', resample=False, filternorm=False, cmap='gist_heat_r')
 	plt.xticks(ticks=[i*cell_size + cell_size/2 for i in range(num_samples)], labels=['%d'%(i+1) for i in range(num_samples)])
 	plt.yticks(ticks=[i*cell_size + cell_size/2 for i in range(len(param))], labels=['%.2f'%i for i in param])
-	plt.ylabel(name, fontsize=12)
-	plt.xlabel('sample number', fontsize=12)
+	plt.ylabel(name, fontsize=16)
+	plt.xlabel('Sample number', fontsize=16)
 	plt.tight_layout()
 	plt.savefig(output_name)
 
