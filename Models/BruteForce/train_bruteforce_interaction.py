@@ -231,7 +231,9 @@ if __name__ == '__main__':
     # testcase = 'test_3Dconv_dockingPretrain_statphys_conv3d(E)_'
     # testcase = 'test_freezeW_3Dconv_dockingPretrain_statphys_conv3d(E)_'
 
-    testcase = 'test_freezeW_3Dconv_dockingPretrain_statphys_conv3d(-E)_'
+    # testcase = 'test_freezeW_3Dconv_dockingPretrain_statphys_conv3d(-E)_'
+
+    testcase = 'test_flatsoftmax_freezeW_3Dconv_dockingPretrain_statphys_conv3d(-E)_'
 
     #########################
     ### testing set
