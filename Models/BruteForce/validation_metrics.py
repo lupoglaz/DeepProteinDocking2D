@@ -99,15 +99,14 @@ class APR:
             Recall = float(TP) / float(TP + FN)
         else:
             Recall = 0.0
+        F1score = TP / (TP + 0.5*(FP + FN))
 
-        print(f'Epoch {epoch} Acc: {Accuracy} Prec: {Precision} Rec: {Recall}')
+        print(f'Epoch {epoch} Acc: {Accuracy} Prec: {Precision} Rec: {Recall} F1: {F1score}')
 
-        return Accuracy, Precision, Recall
-
+        return Accuracy, Precision, Recall, F1score
 
 if __name__ == '__main__':
     from DeepProteinDocking2D.Models.BruteForce.model_bruteforce_docking import BruteForceDocking
-
 
     def load_ckp(checkpoint_fpath, model):
         model.eval()
