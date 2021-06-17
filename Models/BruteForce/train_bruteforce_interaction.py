@@ -39,11 +39,11 @@ class BruteForceInteractionTrainer:
 
         ### run model and loss calculation
         ##### call model(s)
-        FFT_score = pretrain_model(receptor, ligand, plotting=plotting)
+        FFT_score = pretrain_model(receptor, ligand, plotting=False)
         # for n, p in pretrain_model.named_parameters():
         #     if p.requires_grad:
         #         print(n, p, p.grad)
-        pred_interact = model(FFT_score, plotting=plotting)
+        pred_interact = model(FFT_score, plotting=False)
         #### Loss functions
         BCEloss = torch.nn.BCELoss()
         loss = BCEloss(pred_interact, gt_interact)
@@ -192,13 +192,15 @@ class BruteForceInteractionTrainer:
     def freeze_weights(model):
         print('Freezing docking model CNN weights')
         for name, param in model.named_parameters():
-            if 'W' not in name:
-                print('Freezing weights', name)
+            if param.requires_grad:
                 param.requires_grad = False
-            elif 'W' in name:
-                param.requires_grad = False
-                param.copy_(torch.rand(1))
-                param.requires_grad = True
+            # if 'W' not in name:
+            #     print('Freezing weights', name)
+            #     param.requires_grad = False
+            # elif 'W' in name:
+            #     param.requires_grad = False
+            #     param.copy_(torch.rand(1))
+            #     param.requires_grad = True
 
 
 if __name__ == '__main__':
@@ -219,8 +221,17 @@ if __name__ == '__main__':
     # testcase = 'resetweights_E_conv3d2layers4feats_statphys_interaction_balancedstream_dockingpretrain_BruteForce_training_'
 
     # testcase = 'conv3d3layers4feats_revSigmoidB_statphys_interaction_balancedstream_dockingpretrain_BruteForce_training_'
-    testcase = 'resetweights_conv3d3layers4feats_revSigmoidB_statphys_interaction_balancedstream_dockingpretrain_BruteForce_training_'
+    # testcase = 'resetweights_conv3d3layers4feats_revSigmoidB_statphys_interaction_balancedstream_dockingpretrain_BruteForce_training_'
 
+    # testcase = 'conv3d2layers4feats_dockingPretrain_statphys_conv3d(E)_'
+
+    # testcase = 'test_pointwise1Dconv_dockingPretrain_statphys_conv3d(E)_'
+    # testcase = 'test_freezeW_pointwise1Dconv_dockingPretrain_statphys_conv3d(E)_'
+
+    # testcase = 'test_3Dconv_dockingPretrain_statphys_conv3d(E)_'
+    # testcase = 'test_freezeW_3Dconv_dockingPretrain_statphys_conv3d(E)_'
+
+    testcase = 'test_freezeW_3Dconv_dockingPretrain_statphys_conv3d(-E)_'
 
     #########################
     ### testing set
@@ -243,10 +254,10 @@ if __name__ == '__main__':
     pretrain_model = BruteForceDocking().to(device=0)
     optimizer_pretrain = optim.Adam(pretrain_model.parameters(), lr=lr)
 
-    # path_pretrain = 'Log/docking_pretrain_bruteforce_allLearnedWs_10epochs_end.th'
-    # pretrain_model.load_state_dict(torch.load(path_pretrain)['state_dict'])
-    #### freezing scoring coeffs Ws
-    # BruteForceInteractionTrainer().freeze_weights(pretrain_model)
+    path_pretrain = 'Log/docking_pretrain_bruteforce_allLearnedWs_10epochs_end.th'
+    pretrain_model.load_state_dict(torch.load(path_pretrain)['state_dict'])
+    #### freezing weights in pretrain model
+    BruteForceInteractionTrainer().freeze_weights(pretrain_model)
 
     train_stream = get_interaction_stream_balanced(trainset + '.pkl', batch_size=1)
     valid_stream = get_interaction_stream_balanced(testset + '.pkl', batch_size=1)
@@ -268,6 +279,6 @@ if __name__ == '__main__':
     #
     epoch = 1
 
-    plot_validation_set(check_epoch=epoch, plotting=False) ## also checks APR
+    plot_validation_set(check_epoch=epoch) ## also checks APR
     #
     # train(True, epoch)
