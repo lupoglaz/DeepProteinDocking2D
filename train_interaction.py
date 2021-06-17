@@ -5,7 +5,7 @@ from pathlib import Path
 
 import numpy as np
 
-from Models import CNNInteractionModel, EQScoringModel
+from Models import CNNInteractionModel, EQScoringModel, EQInteraction, SidInteraction
 from torchDataset import get_interaction_stream, get_interaction_stream_balanced
 from tqdm import tqdm
 import random
@@ -50,6 +50,8 @@ if __name__=='__main__':
 
 	parser.add_argument('-batch_size', default=32, type=int)
 	parser.add_argument('-num_epochs', default=1, type=int)
+	parser.add_argument('-pretrain', default=None, type=str)
+
 
 
 	args = parser.parse_args()
@@ -67,7 +69,12 @@ if __name__=='__main__':
 		optimizer = optim.Adam(model.parameters(), lr=1e-3, betas=(0.0, 0.999))
 		trainer = SupervisedTrainer(model, optimizer, type='int')
 	elif args.model() == 'docker':
-		model = EQScoringModel().cuda()
+		scoring_model = EQScoringModel()
+		if not(args.pretrain is None):
+			trainer = DockingTrainer(scoring_model, None, type='pos')
+			trainer.load_checkpoint(Path('Log')/Path(args.pretrain)/Path('dock_ebm.th'))
+		
+		model = SidInteraction(scoring_model).cuda()
 		optimizer = optim.Adam(model.parameters(), lr=1e-3, betas=(0.0, 0.999))
 		trainer = DockingTrainer(model, optimizer, type='int')
 	

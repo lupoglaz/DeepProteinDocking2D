@@ -95,7 +95,8 @@ if __name__=='__main__':
 	elif args.model() == 'ebm':
 		model = EQScoringModel().to(device='cuda')
 		optimizer = optim.Adam(model.parameters(), lr=1e-3, betas=(0.0, 0.999))
-		trainer = EBMTrainer(model, optimizer, num_samples=args.num_samples, num_buf_samples=len(train_stream)*args.batch_size, step_size=args.step_size)
+		trainer = EBMTrainer(model, optimizer, num_samples=args.num_samples, num_buf_samples=len(train_stream)*args.batch_size, step_size=args.step_size,
+							global_step=True, add_positive=True)
 	elif args.model() == 'docker':
 		model = EQScoringModel().to(device='cuda')
 		optimizer = optim.Adam(model.parameters(), lr=1e-3, betas=(0.0, 0.999))
