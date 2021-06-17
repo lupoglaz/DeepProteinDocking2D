@@ -55,10 +55,13 @@ class SampleBuffer:
 
 
 class EBMTrainer:
-	def __init__(self, model, optimizer, num_buf_samples=10, device='cuda', num_samples=10, weight=1.0, step_size=10.0, sample_steps=100):
+	def __init__(self, model, optimizer, num_buf_samples=10, device='cuda', num_samples=10, weight=1.0, step_size=10.0, sample_steps=100,
+				global_step=True, add_positive=True):
 		self.model = model
 		self.optimizer = optimizer
 		self.buffer = SampleBuffer(num_buf_samples)
+		self.global_step = global_step
+		self.add_positive = add_positive
 
 		self.num_samples = num_samples
 		self.sample_steps = sample_steps
@@ -119,10 +122,11 @@ class EBMTrainer:
 
 		self.requires_grad(False)
 		self.model.eval()
-				
-		with torch.no_grad():
-			rlig_feat = self.rotate(lig_feat, neg_alpha)
-			neg_dr = self.dock_spatial(rec_feat, rlig_feat)
+
+		if self.global_step:		
+			with torch.no_grad():
+				rlig_feat = self.rotate(lig_feat, neg_alpha)
+				neg_dr = self.dock_spatial(rec_feat, rlig_feat)
 		
 		neg_alpha.requires_grad_()
 		neg_dr.requires_grad_()
@@ -185,7 +189,8 @@ class EBMTrainer:
 		loss.backward()
 		
 		self.optimizer.step()
-		self.buffer.push(pos_alpha, pos_dr, pos_idx)
+		if self.add_positive:
+			self.buffer.push(pos_alpha, pos_dr, pos_idx)
 		self.buffer.push(neg_alpha, neg_dr, neg_idx)
 		
 		return loss.item()

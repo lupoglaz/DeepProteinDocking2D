@@ -120,16 +120,15 @@ class DockingTrainer:
 		rec_repr = self.model.repr(receptor)
 		lig_repr = self.model.repr(ligand)
 		translations = self.dock_global(rec_repr.tensor, lig_repr.tensor)
+		scores = -self.score(translations)
 
 		if self.type == 'pos':
-			scores = -self.score(translations)
 			flat_idx = self.conf_idx(rotation, translation, scores)
 			probs = scores.contiguous().flatten(start_dim=1)
 			loss = self.loss(probs, flat_idx)
 		elif self.type == 'int':
-			translations = translations.transpose(1,2)
-			pred = self.model.inter(translations)
-			loss = self.loss(pred, target)
+			pred = self.model(scores, self.angles)
+			loss = self.loss(pred, target.squeeze())
 		
 		loss.backward()
 		self.optimizer.step()
@@ -149,7 +148,8 @@ class DockingTrainer:
 			rec_repr = self.model.repr(receptor)
 			lig_repr = self.model.repr(ligand)
 			translations = self.dock_global(rec_repr.tensor, lig_repr.tensor)
-			pred = self.model.inter(translations.transpose(1,2))
+			scores = -self.score(translations)
+			pred = self.model(scores, self.angles)
 			
 			if self.type == 'int':
 				TP = 0
