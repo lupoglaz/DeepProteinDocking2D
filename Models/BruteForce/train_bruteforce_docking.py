@@ -189,7 +189,9 @@ if __name__ == '__main__':
     # testcase = 'pretrain_bruteforcedocking_alllearnedWs_10epochs'
     # testcase = 'pretrain_shiftedorigin_bruteforcedocking_alllearnedWs_10epochs'
 
-    testcase = 'docking_pretrain_bruteforce_allLearnedWs_10epochs_'
+    # testcase = 'docking_pretrain_bruteforce_allLearnedWs_10epochs_'
+
+    testcase = 'docking_debug_10epochs_'
 
 
     #########################
@@ -210,7 +212,7 @@ if __name__ == '__main__':
     model = BruteForceDocking().to(device=0)
     optimizer = optim.Adam(model.parameters(), lr=lr)
 
-    print(list(model.parameters()))
+    # print(list(model.parameters()))
 
     train_stream = get_dataset_stream(trainset + '.pkl', batch_size=1)
     valid_stream = get_dataset_stream(testset + '.pkl', batch_size=1)
@@ -229,7 +231,7 @@ if __name__ == '__main__':
                                                resume_training=True, resume_epoch=check_epoch, plotting=True)
 
     ######################
-    # train()
+    train()
 
     epoch = 10
 

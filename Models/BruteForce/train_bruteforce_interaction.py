@@ -205,8 +205,8 @@ class BruteForceInteractionTrainer:
 
 if __name__ == '__main__':
     #################################################################################
-    # import sys
-    # print(sys.path)
+    import sys
+    print(sys.path)
     trainset = 'toy_concave_data/interaction_data_train'
     testset = 'toy_concave_data/interaction_data_valid'
     # testcase = 'CHECK_reluBCEloss_statphys_interaction_balancedstream_dockingpretrain_BruteForce_training_'

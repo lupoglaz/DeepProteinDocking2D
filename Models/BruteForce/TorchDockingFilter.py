@@ -7,6 +7,7 @@ sea.set_style("whitegrid")
 
 from DeepProteinDocking2D.Models.BruteForce.utility_functions import read_pkl
 from DeepProteinDocking2D.Models.BruteForce.validation_metrics import RMSD
+from DeepProteinDocking2D.Models.BruteForce.utility_functions import plot_assembly
 import numpy as np
 
 class TorchDockingFilter:
@@ -96,7 +97,7 @@ class TorchDockingFilter:
         return score
 
 
-    def CE_dock_translations(self, receptor, ligand, weight_bulk, weight_bound, weight_crossterm1, weight_crossterm2):
+    def CE_dock_translations(self, receptor, ligand, weight_bulk=2.8, weight_bound=3.0, weight_crossterm1=-0.3, weight_crossterm2=-0.3):
         box_size = receptor.shape[-1]
 
         receptor_bulk, receptor_bound = torch.chunk(receptor, chunks=2, dim=1)
@@ -115,6 +116,8 @@ class TorchDockingFilter:
         im = -cplx_rec[:, :, :, 0] * cplx_lig[:, :, :, 1] + cplx_rec[:, :, :, 1] * cplx_lig[:, :, :, 0]
         cconv = torch.stack([re, im], dim=3)
         trans_bulk = torch.irfft(cconv, signal_dim, signal_sizes=(box_size, box_size))
+
+        # print(cplx_rec.shape, cplx_lig.shape)
 
         # Boundary score
         cplx_rec = torch.rfft(receptor_bound, signal_ndim=signal_dim)
@@ -163,25 +166,28 @@ class TorchDockingFilter:
         print('RMSD', rmsd_out.item())
         print()
 
+        pair = plot_assembly(receptor.detach().cpu(), ligand.detach().cpu().numpy(), pred_rot.detach().cpu().numpy(),
+                             pred_txy.detach().cpu().numpy(), gt_rot.detach().cpu().numpy(), gt_txy.detach().cpu().numpy())
+        plt.imshow(pair.transpose())
+        plt.show()
 
 if __name__ == '__main__':
 
-    data = read_pkl('toy_concave_data/scoregridsearch_training_numpoints=50_r=15_a=0.9_fmin=0.05_fmax=0.2_boxsize=50_ScoreMin-++_crossterms_datasize=10_txy_rot')
-    receptor, ligand, gt_txy, gt_rot = data[-1]
+    data = read_pkl('toy_concave_data/docking_data_train')
 
-    init_dim = receptor.shape[-1]
-    ### print(receptor.shape)
-    if init_dim > 51:
-        receptor = receptor[25:75, 25:75]
-        ligand = ligand[25:75, 25:75]
+    for i in range(len(data)):
+        receptor, ligand, gt_txy, gt_rot = data[i]
 
-    receptor = torch.tensor(receptor, dtype=torch.float).cuda()
-    ligand = torch.tensor(ligand, dtype=torch.float).cuda()
-    receptor_stack = TorchDockingFilter().make_boundary(receptor)
-    ligand_stack = TorchDockingFilter().make_boundary(ligand)
-    # pred_score = TorchDockingFilter().dock_global(receptor, ligand)
+        init_dim = receptor.shape[-1]
+        ### print(receptor.shape)
+        if init_dim > 51:
+            receptor = receptor[25:75, 25:75]
+            ligand = ligand[25:75, 25:75]
 
-    TorchDockingFilter().check_FFT_predictions(TorchDockingFilter().dock_global(receptor_stack, ligand_stack, debug=False), receptor, ligand,
-                                               gt_rot, gt_txy)
+        receptor = torch.tensor(receptor, dtype=torch.float).cuda()
+        ligand = torch.tensor(ligand, dtype=torch.float).cuda()
+        receptor_stack = TorchDockingFilter().make_boundary(receptor)
+        ligand_stack = TorchDockingFilter().make_boundary(ligand)
+        pred_score = TorchDockingFilter().dock_global(receptor_stack, ligand_stack, debug=False)
 
-
+        TorchDockingFilter().check_FFT_predictions(pred_score, receptor, ligand, gt_rot, gt_txy)
