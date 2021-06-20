@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --partition=p_ccib_1
-#SBATCH --job-name=ProteinDocking
+#SBATCH --job-name=eq1.5_resetWs
 #SBATCH --nodes=1
 ##SBATCH --ntasks=1
 #SBATCH --tasks-per-node=1
@@ -14,16 +14,18 @@
 
 export OMP_NUM_THREADS=$SLURM_CPUS_PER_TASK
 
-srun -N1 -n1 \
-python distributed_train.py \
--experiment SmallDataset \
--dataset_train DockingDatasetSmall/SplitChains:training_set.dat \
--dataset_valid DockingDatasetSmall/SplitComplexes:validation_set.dat \
--batch_size_train 18 \
--max_decoys_train 9 \
--batch_size_valid 7 \
--max_epoch 300 \
--load 0 \
--gpus 2 \
--nodes $SLURM_NNODES \
--nr 0
+srun -N1 -n1 python train_bruteforce_interaction.py
+
+#srun -N1 -n1 \
+#python distributed_train.py \
+#-experiment SmallDataset \
+#-dataset_train DockingDatasetSmall/SplitChains:training_set.dat \
+#-dataset_valid DockingDatasetSmall/SplitComplexes:validation_set.dat \
+#-batch_size_train 18 \
+#-max_decoys_train 9 \
+#-batch_size_valid 7 \
+#-max_epoch 300 \
+#-load 0 \
+#-gpus 2 \
+#-nodes $SLURM_NNODES \
+#-nr 0
