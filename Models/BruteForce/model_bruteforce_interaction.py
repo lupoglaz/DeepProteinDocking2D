@@ -12,12 +12,11 @@ class BruteForceInteraction(nn.Module):
 
     def __init__(self):
         super(BruteForceInteraction, self).__init__()
-        self.softmax = torch.nn.Softmax2d()
+        self.softmax = torch.nn.Softmax()
 
-        # self.FoI_weights = nn.Parameter(torch.rand(1, 360, 1, 1)).cuda()
+        self.FoI_weights = nn.Parameter(torch.rand(1, 360, 1, 1))
         self.dim = TorchDockingFilter().dim
         self.num_angles = TorchDockingFilter().num_angles
-        # self.softmin = torch.nn.Softmin(dim=1)
 
         self.kernel = 5
         self.pad = self.kernel//2
@@ -26,27 +25,26 @@ class BruteForceInteraction(nn.Module):
         self.conv3D = nn.Sequential(
             nn.Conv3d(1, 4, kernel_size=self.kernel, padding=self.pad, stride=self.stride, dilation=self.dilation, bias=False),
             nn.ReLU(),
-            nn.Conv3d(4, 4, kernel_size=self.kernel, padding=self.pad, stride=self.stride, dilation=self.dilation, bias=False),
-            nn.ReLU(),
             nn.Conv3d(4, 1, kernel_size=self.kernel, padding=self.pad, stride=self.stride, dilation=self.dilation, bias=False),
-            nn.ReLU(),
+            # nn.ReLU(),
+            nn.Sigmoid(),
         )
 
 
     def forward(self, FFT_score, plotting=False):
         E = -FFT_score
 
-        P = self.softmax(-E.unsqueeze(0)).squeeze()
-        # print(P.shape)
+        Pflatsm = self.softmax(-E.flatten()).squeeze()
+        P = Pflatsm.reshape(self.num_angles, self.dim, self.dim)
+        # print(P.shape, torch.sum(Pflatsm))
 
-        # B = self.conv3D(-E.unsqueeze(0).unsqueeze(0)).squeeze()
-        # B = self.conv3D(E.unsqueeze(0).unsqueeze(0)).squeeze()
-        # print(B.shape)
+        # E = torch.sigmoid(-E)
+        # B = F.conv2d(E.unsqueeze(0), weight=self.FoI_weights, stride=1, padding=0, bias=None)
+        # B = B.squeeze().repeat(self.num_angles, 1, 1)
+        # print(P.shape, B.shape)
+        # pred_interact = torch.sum(P * B) / (torch.sum(P * B) + 1)
 
-        Esig = torch.sigmoid(-E)
-        B = self.conv3D(Esig.unsqueeze(0).unsqueeze(0)).squeeze()
-
-
+        B = self.conv3D(E.unsqueeze(0).unsqueeze(0)).squeeze()
         pred_interact = torch.sum(P * B) / (torch.sum(P * B) + 1)
 
         # E = -torch.log(torch.sum(P * B)) ## sum(P * B) == exp(-E) => -log(exp(-E)) = E
@@ -67,7 +65,7 @@ class BruteForceInteraction(nn.Module):
                 plt.imshow(plot)#, vmin=-1, vmax=1)
                 plt.title('E map,       P map,       B map,        P*B')
                 plt.colorbar()
-                plt.savefig('figs/maxE_Emaps_Pmaps_Bmaps_statphys_InteractionBruteForce.png')
+                plt.savefig('figs/maxE_Emaps_Pmaps_Bmaps_statphys_InteractionBruteForce'+str(minind)+'.png')
                 plt.show()
 
         return pred_interact
