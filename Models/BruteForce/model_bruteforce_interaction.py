@@ -44,8 +44,17 @@ class BruteForceInteraction(nn.Module):
         # print(P.shape, B.shape)
         # pred_interact = torch.sum(P * B) / (torch.sum(P * B) + 1)
 
+        ### eq 1.5
         B = self.conv3D(E.unsqueeze(0).unsqueeze(0)).squeeze()
-        pred_interact = torch.sum(P * B) / (torch.sum(P * B) + 1)
+        pred_interact = torch.sum(B * P) / (torch.sum(P))
+
+        ### eq 10
+        # B = self.conv3D(E.unsqueeze(0).unsqueeze(0)).squeeze()
+        # eP = torch.sum(B * P) / (torch.sum((1-B)*P))
+        # pred_interact = eP / (eP + 1)
+
+        # B = self.conv3D(E.unsqueeze(0).unsqueeze(0)).squeeze()
+        # pred_interact = torch.sum(P * B) / (torch.sum(P * B) + 1)
 
         # E = -torch.log(torch.sum(P * B)) ## sum(P * B) == exp(-E) => -log(exp(-E)) = E
         # pred_interact = torch.exp(-E) / (torch.exp(-E) + 1)
