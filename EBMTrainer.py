@@ -123,7 +123,8 @@ class EBMTrainer:
 		self.requires_grad(False)
 		self.model.eval()
 
-		if self.global_step:		
+		if self.global_step:
+			print('GS')		
 			with torch.no_grad():
 				rlig_feat = self.rotate(lig_feat, neg_alpha)
 				neg_dr = self.dock_spatial(rec_feat, rlig_feat)
@@ -190,6 +191,7 @@ class EBMTrainer:
 		
 		self.optimizer.step()
 		if self.add_positive:
+			print('AP')
 			self.buffer.push(pos_alpha, pos_dr, pos_idx)
 		self.buffer.push(neg_alpha, neg_dr, neg_idx)
 		

@@ -74,6 +74,10 @@ if __name__=='__main__':
 	parser.add_argument('-num_samples', default=10, type=int)
 	parser.add_argument('-batch_size', default=24, type=int)
 	parser.add_argument('-num_epochs', default=100, type=int)
+
+	parser.add_argument('-no_global_step', action='store_const', const=lambda:'no_global_step', dest='ablation')
+	parser.add_argument('-no_pos_samples', action='store_const', const=lambda:'no_pos_samples', dest='ablation')
+	parser.add_argument('-default', action='store_const', const=lambda:'default', dest='ablation')
 	args = parser.parse_args()
 
 	if (args.cmd is None) or (args.model is None):
@@ -95,8 +99,22 @@ if __name__=='__main__':
 	elif args.model() == 'ebm':
 		model = EQScoringModel().to(device='cuda')
 		optimizer = optim.Adam(model.parameters(), lr=1e-3, betas=(0.0, 0.999))
-		trainer = EBMTrainer(model, optimizer, num_samples=args.num_samples, num_buf_samples=len(train_stream)*args.batch_size, step_size=args.step_size,
+		if args.ablation is None:
+			print('My default')
+			trainer = EBMTrainer(model, optimizer, num_samples=args.num_samples, num_buf_samples=len(train_stream)*args.batch_size, step_size=args.step_size,
 							global_step=True, add_positive=True)
+		elif args.ablation() == 'no_global_step':
+			print('No global step')
+			trainer = EBMTrainer(model, optimizer, num_samples=args.num_samples, num_buf_samples=len(train_stream)*args.batch_size, step_size=args.step_size,
+							global_step=False, add_positive=True)
+		elif args.ablation() == 'no_pos_samples':
+			print('No positive samples')
+			trainer = EBMTrainer(model, optimizer, num_samples=args.num_samples, num_buf_samples=len(train_stream)*args.batch_size, step_size=args.step_size,
+							global_step=True, add_positive=False)
+		elif args.ablation() == 'default':
+			print('Default')
+			trainer = EBMTrainer(model, optimizer, num_samples=args.num_samples, num_buf_samples=len(train_stream)*args.batch_size, step_size=args.step_size,
+							global_step=False, add_positive=False)
 	elif args.model() == 'docker':
 		model = EQScoringModel().to(device='cuda')
 		optimizer = optim.Adam(model.parameters(), lr=1e-3, betas=(0.0, 0.999))

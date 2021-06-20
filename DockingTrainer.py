@@ -16,7 +16,7 @@ class DockingTrainer:
 		self.device = device
 		self.type = type
 		if type == 'pos':
-			self.loss = nn.CrossEntropyLoss(size_average=True)
+			self.loss = nn.MSELoss(size_average=True)
 		elif type == 'int':
 			self.loss = nn.BCELoss()
 		else:
@@ -127,7 +127,7 @@ class DockingTrainer:
 			probs = scores.contiguous().flatten(start_dim=1)
 			loss = self.loss(probs, flat_idx)
 		elif self.type == 'int':
-			pred = self.model(scores, self.angles)
+			pred = self.model(scores, self.angles, ligand)
 			loss = self.loss(pred, target.squeeze())
 		
 		loss.backward()
@@ -149,7 +149,7 @@ class DockingTrainer:
 			lig_repr = self.model.repr(ligand)
 			translations = self.dock_global(rec_repr.tensor, lig_repr.tensor)
 			scores = -self.score(translations)
-			pred = self.model(scores, self.angles)
+			pred = self.model(scores, self.angles, ligand)
 			
 			if self.type == 'int':
 				TP = 0
