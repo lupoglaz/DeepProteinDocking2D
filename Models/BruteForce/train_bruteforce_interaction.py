@@ -208,7 +208,11 @@ if __name__ == '__main__':
     import sys
     print(sys.path)
     trainset = 'toy_concave_data/interaction_data_train'
-    testset = 'toy_concave_data/interaction_data_valid'
+    validset = 'toy_concave_data/interaction_data_valid'
+    ### testing set
+    testset = 'toy_concave_data/interaction_data_test'
+
+
     # testcase = 'CHECK_reluBCEloss_statphys_interaction_balancedstream_dockingpretrain_BruteForce_training_'
     # testcase = 'revSigmoidB_statphys_interaction_balancedstream_dockingpretrain_BruteForce_training_'
     # testcase = 'conv3d3layers4feats_revSigmoidB_statphys_interaction_balancedstream_dockingpretrain_BruteForce_training_'
@@ -233,11 +237,15 @@ if __name__ == '__main__':
 
     # testcase = 'test_freezeW_3Dconv_dockingPretrain_statphys_conv3d(-E)_'
 
-    testcase = 'test_flatsoftmax_freezeW_3Dconv_dockingPretrain_statphys_conv3d(-E)_'
+    # testcase = 'test_origEquation_sigmoid_flatsoftmax_statphys_dockingPretrain_freezeW_'
+
+    testcase = 'test_sigmoid+eq1.5_flatsoftmax_statphys_dockingPretrain_freezeW_'
+
+    # testcase = 'test_sigmoid+eq10_flatsoftmax_statphys_dockingPretrain_freezeW_'
+
 
     #########################
-    ### testing set
-    # testset = 'toy_concave_data/interaction_data_test'
+
 
     #### initialization torch settings
     np.random.seed(42)
@@ -262,7 +270,8 @@ if __name__ == '__main__':
     BruteForceInteractionTrainer().freeze_weights(pretrain_model)
 
     train_stream = get_interaction_stream_balanced(trainset + '.pkl', batch_size=1)
-    valid_stream = get_interaction_stream_balanced(testset + '.pkl', batch_size=1)
+    valid_stream = get_interaction_stream_balanced(validset + '.pkl', batch_size=1)
+    test_stream = get_interaction_stream_balanced(testset + '.pkl', batch_size=1)
 
     ######################
     train_epochs = 1
@@ -272,7 +281,7 @@ if __name__ == '__main__':
                                                resume_training=resume_training, resume_epoch=resume_epoch, pretrain_model=pretrain_model)
 
 
-    def plot_validation_set(check_epoch, plotting=True):
+    def plot_validation_set(check_epoch, plotting=True, valid_stream=valid_stream ):
         BruteForceInteractionTrainer().train_model(model, optimizer, testcase, train_epochs, train_stream, valid_stream,
                                                resume_training=True, resume_epoch=check_epoch, plotting=plotting, pretrain_model=pretrain_model)
 
@@ -281,6 +290,8 @@ if __name__ == '__main__':
     #
     epoch = 1
 
-    plot_validation_set(check_epoch=epoch) ## also checks APR
+    plot_validation_set(check_epoch=epoch, valid_stream=valid_stream) ## also checks APR
+
+    plot_validation_set(check_epoch=epoch, valid_stream=test_stream)
     #
     # train(True, epoch)
