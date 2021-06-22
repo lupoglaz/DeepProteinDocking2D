@@ -12,7 +12,7 @@ class BruteForceInteraction(nn.Module):
 
     def __init__(self):
         super(BruteForceInteraction, self).__init__()
-        self.softmax = torch.nn.Softmax()
+        self.softmax = torch.nn.Softmax(dim=0)
 
         self.FoI_weights = nn.Parameter(torch.rand(1, 360, 1, 1))
         self.dim = TorchDockingFilter().dim
@@ -38,24 +38,16 @@ class BruteForceInteraction(nn.Module):
         P = Pflatsm.reshape(self.num_angles, self.dim, self.dim)
         # print(P.shape, torch.sum(Pflatsm))
 
-        # E = torch.sigmoid(-E)
-        # B = F.conv2d(E.unsqueeze(0), weight=self.FoI_weights, stride=1, padding=0, bias=None)
-        # B = B.squeeze().repeat(self.num_angles, 1, 1)
-        # print(P.shape, B.shape)
-        # pred_interact = torch.sum(P * B) / (torch.sum(P * B) + 1)
-
         ### eq 1.5
-        B = self.conv3D(E.unsqueeze(0).unsqueeze(0)).squeeze()
-        pred_interact = torch.sum(B * P) / (torch.sum(P))
+        #B = self.conv3D(E.unsqueeze(0).unsqueeze(0)).squeeze()
+        #pred_interact = torch.sum(B * P) / (torch.sum(P))
 
         ### eq 10
-        # B = self.conv3D(E.unsqueeze(0).unsqueeze(0)).squeeze()
-        # eP = torch.sum(B * P) / (torch.sum((1-B)*P))
-        # pred_interact = eP / (eP + 1)
+        B = self.conv3D(E.unsqueeze(0).unsqueeze(0)).squeeze()
+        eP = torch.sum(B * P) / (torch.sum((1-B)*P))
+        pred_interact = eP / (eP + 1) ## eq 7 substituted
 
-        # B = self.conv3D(E.unsqueeze(0).unsqueeze(0)).squeeze()
         # pred_interact = torch.sum(P * B) / (torch.sum(P * B) + 1)
-
         # E = -torch.log(torch.sum(P * B)) ## sum(P * B) == exp(-E) => -log(exp(-E)) = E
         # pred_interact = torch.exp(-E) / (torch.exp(-E) + 1)
 
@@ -64,17 +56,21 @@ class BruteForceInteraction(nn.Module):
                 plt.close()
                 plt.figure(figsize=(8, 8))
                 minind = torch.argmin(E)
-                plot_index = int(((minind / self.dim ** 2) * np.pi / 180.0) - np.pi)
-                plotE = E.squeeze()[plot_index, :, :].detach().cpu()
-                plotP = P.squeeze()[plot_index, :, :].detach().cpu()
-                plotB = B.squeeze()[plot_index, :, :].detach().cpu()
+                maxind = torch.argmax(FFT_score)
+                print('E min', torch.min(E), 'Score max', torch.max(FFT_score))
+                plot_minindex = int(((minind / self.dim ** 2) * np.pi / 180.0) - np.pi)
+                plot_maxindex = int(((maxind / self.dim ** 2) * np.pi / 180.0) - np.pi)
+                plotScore = FFT_score.squeeze()[plot_maxindex, :, :].detach().cpu()
+                plotE = E.squeeze()[plot_minindex, :, :].detach().cpu()
+                plotP = P.squeeze()[plot_minindex, :, :].detach().cpu()
+                plotB = B.squeeze()[plot_minindex, :, :].detach().cpu()
 
-                # plot = np.hstack((plotE, plotP, plotB, plotP*plotB))
-                plot = plotB
-                plt.imshow(plot)#, vmin=-1, vmax=1)
-                plt.title('E map,       P map,       B map,        P*B')
+                plot = np.hstack((plotScore, plotE, plotP, plotB))
+                # plot = plotB
+                plt.imshow(plot, vmin=int(torch.min(E)), vmax=int(torch.max(FFT_score)))
+                plt.title('FFTscore'+str(int(torch.max(FFT_score).item()))+', Energy'+str(int(torch.min(E).item()))+', Probability, B indicator')
                 plt.colorbar()
-                plt.savefig('figs/maxE_Emaps_Pmaps_Bmaps_statphys_InteractionBruteForce'+str(minind)+'.png')
+                plt.savefig('figs/Bmap_statphys_InteractionBruteForce'+str(minind.item())+'.png')
                 plt.show()
 
         return pred_interact

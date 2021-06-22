@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --partition=p_ccib_1
-#SBATCH --job-name=eq1.5_resetWs
+#SBATCH --job-name=eq10_UnfreezeWs
 #SBATCH --nodes=1
 ##SBATCH --ntasks=1
 #SBATCH --tasks-per-node=1
@@ -8,10 +8,11 @@
 #SBATCH --gres=gpu:2 # Number of GPUs
 #SBATCH --constraint=volta
 #SBATCH --time=48:00:00
-#SBATCH --output=slurm.%N.%j.out
-#SBATCH --error=slurm.%N.%j.err
+#SBATCH --output=slurm.%N.eq10_UnfreezeWs.out
+#SBATCH --error=slurm.%N.eq10_UnfreezeWs.err
 #SBATCH --export=ALL
 
+pwd
 export OMP_NUM_THREADS=$SLURM_CPUS_PER_TASK
 
 srun -N1 -n1 python train_bruteforce_interaction.py
