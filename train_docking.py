@@ -161,7 +161,7 @@ if __name__=='__main__':
 		loss = []
 		log_data = []
 		docker = EQDockerGPU(model, num_angles=360)
-		for data in tqdm(test_stream):
+		for data in tqdm(valid_stream):
 			if args.model() == 'resnet':
 				it_loss, it_log_data = run_prediction_model(data, trainer, epoch=0)
 			elif args.model() == 'ebm':

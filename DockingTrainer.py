@@ -16,9 +16,9 @@ class DockingTrainer:
 		self.device = device
 		self.type = type
 		if type == 'pos':
-			self.loss = nn.MSELoss(size_average=True)
+			self.loss = nn.CrossEntropyLoss()
 		elif type == 'int':
-			self.loss = nn.BCELoss()
+			self.loss = nn.MSELoss()
 		else:
 			raise(Exception('Type unknown:', type))
 		
@@ -124,8 +124,8 @@ class DockingTrainer:
 
 		if self.type == 'pos':
 			flat_idx = self.conf_idx(rotation, translation, scores)
-			probs = scores.contiguous().flatten(start_dim=1)
-			loss = self.loss(probs, flat_idx)
+			logprobs = scores.contiguous().flatten(start_dim=1)
+			loss = self.loss(logprobs, flat_idx)
 		elif self.type == 'int':
 			pred = self.model(scores, self.angles, ligand)
 			loss = self.loss(pred, target.squeeze())
