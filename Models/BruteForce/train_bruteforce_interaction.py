@@ -201,27 +201,23 @@ class BruteForceInteractionTrainer:
 
     @staticmethod
     def checkAPR(check_epoch, datastream, pretrain_model):
-        log_format = '%f\t%f\t%f\t%f\n'
-        log_header = 'Accuracy\tPrecision\tRecall\tF1score\n'
-        Accuracy, Precision, Recall, F1score = APR().calcAPR(datastream, BruteForceInteractionTrainer(), model, check_epoch, pretrain_model)
+        log_format = '%f\t%f\t%f\t%f\t%f\n'
+        log_header = 'Accuracy\tPrecision\tRecall\tF1score\tMCC\n'
+        Accuracy, Precision, Recall, F1score, MCC = APR().calcAPR(datastream, BruteForceInteractionTrainer(), model, check_epoch, pretrain_model)
         # print(Accuracy, Precision, Recall)
         with open('Log/losses/log_validAPR_' + testcase + '.txt', 'a') as fout:
             fout.write(log_header)
-            fout.write(log_format % (Accuracy, Precision, Recall, F1score))
+            fout.write(log_format % (Accuracy, Precision, Recall, F1score, MCC))
 
     @staticmethod
-    def freeze_weights(model):
-        print('Freezing docking model CNN weights')
+    def freeze_weights(model, param_to_freeze=''):
+        print('Freezing docking model weights')
         for name, param in model.named_parameters():
-            if param.requires_grad:
+            if param_to_freeze is None and param.requires_grad:
                 param.requires_grad = False
-            # if 'W' not in name:
-            #     print('Freezing weights', name)
-            #     param.requires_grad = False
-            # elif 'W' in name:
-            #     param.requires_grad = False
-            #     param.copy_(torch.rand(1))
-            #     param.requires_grad = True
+            elif param_to_freeze in name:
+                print('Unfreezing Weights', name)
+                param.requires_grad = True
 
 
 if __name__ == '__main__':
@@ -235,13 +231,17 @@ if __name__ == '__main__':
 
     ### eq10 freeze, unfreeze, resetW 
     #testcase = 'test_pretrainFreezeW_sigmoid+eq10_flatsoftmax_statphys_'
-    testcase = 'test_pretrainUnfreezeW_sigmoid+eq10_flatsoftmax_statphys_'
+    #testcase = 'test_pretrainUnfreezeW_sigmoid+eq10_flatsoftmax_statphys_'
     #testcase = 'test_pretrainResetW_sigmoid+eq10_flatsoftmax_statphys_'
 
-    ### eq1.5 freeze, unfreeze, resetW
-    #testcase = 'test_pretrainFreezeW_sigmoid+eq1.5_flatsoftmax_statphys_'
-    #testcase = 'test_pretrainUnfreezeW_sigmoid+eq1.5_flatsoftmax_statphys_'
-    #testcase = 'test_pretrainResetW_sigmoid+eq1.5_flatsoftmax_statphys_'
+    #testcase = 'test_pretrain_aweights_UnfreezeW_sigmoid+eq10_flatsoftmax_statphys_'
+    #testcase = 'test_pretrain_RaWs_Ftheta_sigmoid+eq10_flatsoftmax_statphys_'
+    #testcase = 'test_pretrain_NoRaWs_Ftheta_sigmoid+eq10_flatsoftmax_statphys_'
+
+    ###### replicates
+    testcase = str(sys.argv[1])+'_pretrain_frozen_a,theta_'
+    #testcase = str(sys.argv[1])+'_pretrain_unfrozen_a,theta_'
+    
     #########################
 
     #### initialization torch settings
@@ -265,8 +265,12 @@ if __name__ == '__main__':
 
     path_pretrain = 'Log/docking_pretrain_bruteforce_allLearnedWs_10epochs_end.th'
     pretrain_model.load_state_dict(torch.load(path_pretrain)['state_dict'])
-    #### freezing weights in pretrain model
-    #BruteForceInteractionTrainer().freeze_weights(pretrain_model)
+    #### freezing all weights in pretrain model
+    BruteForceInteractionTrainer().freeze_weights(pretrain_model)
+
+    #### freezing weights except for "a" weights
+    #BruteForceInteractionTrainer().freeze_weights(pretrain_model, 'W')
+
 
     train_stream = get_interaction_stream_balanced(trainset + '.pkl', batch_size=1)
     valid_stream = get_interaction_stream_balanced(validset + '.pkl', batch_size=1)
@@ -294,5 +298,3 @@ if __name__ == '__main__':
 
     plot_validation_set(check_epoch=epoch, valid_stream=test_stream)
 
-    #
-    # train(True, epoch)

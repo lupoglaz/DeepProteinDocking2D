@@ -101,9 +101,12 @@ class APR:
             Recall = 0.0
         F1score = TP / (TP + 0.5*(FP + FN))
 
-        print(f'Epoch {epoch} Acc: {Accuracy} Prec: {Precision} Rec: {Recall} F1: {F1score}')
+        MCC = ((TP * TN) - (FP * FN) /
+                np.sqrt((TP+FP)*(TP+FN)*(TN+FP)*(TN+FN)))
 
-        return Accuracy, Precision, Recall, F1score
+        print(f'Epoch {epoch} Acc: {Accuracy} Prec: {Precision} Rec: {Recall} F1: {F1score} MCC: {MCC}')
+
+        return Accuracy, Precision, Recall, F1score, MCC
 
 if __name__ == '__main__':
     from DeepProteinDocking2D.Models.BruteForce.model_bruteforce_docking import BruteForceDocking

@@ -38,18 +38,10 @@ class BruteForceInteraction(nn.Module):
         P = Pflatsm.reshape(self.num_angles, self.dim, self.dim)
         # print(P.shape, torch.sum(Pflatsm))
 
-        ### eq 1.5
-        #B = self.conv3D(E.unsqueeze(0).unsqueeze(0)).squeeze()
-        #pred_interact = torch.sum(B * P) / (torch.sum(P))
-
         ### eq 10
         B = self.conv3D(E.unsqueeze(0).unsqueeze(0)).squeeze()
         eP = torch.sum(B * P) / (torch.sum((1-B)*P))
         pred_interact = eP / (eP + 1) ## eq 7 substituted
-
-        # pred_interact = torch.sum(P * B) / (torch.sum(P * B) + 1)
-        # E = -torch.log(torch.sum(P * B)) ## sum(P * B) == exp(-E) => -log(exp(-E)) = E
-        # pred_interact = torch.exp(-E) / (torch.exp(-E) + 1)
 
         if eval and plotting:
             with torch.no_grad():
