@@ -264,8 +264,8 @@ if __name__ == '__main__':
     pretrain_model = BruteForceDocking().to(device=0)
     optimizer_pretrain = optim.Adam(pretrain_model.parameters(), lr=lr)
 
-    # path_pretrain = 'Log/docking_pretrain_bruteforce_allLearnedWs_10epochs_end.th'
-    # pretrain_model.load_state_dict(torch.load(path_pretrain)['state_dict'])
+    path_pretrain = 'Log/docking_pretrain_bruteforce_allLearnedWs_10epochs_end.th'
+    pretrain_model.load_state_dict(torch.load(path_pretrain)['state_dict'])
     #### freezing all weights in pretrain model
     # BruteForceInteractionTrainer().freeze_weights(pretrain_model)
 
@@ -291,7 +291,7 @@ if __name__ == '__main__':
                                                    pretrain_model=pretrain_model, optimizer_pretrain=optimizer_pretrain)
 
     ######################
-    # train()
+    train()
     #
     epoch = 1
 
