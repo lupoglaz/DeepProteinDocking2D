@@ -208,6 +208,7 @@ class BruteForceInteractionTrainer:
         with open('Log/losses/log_validAPR_' + testcase + '.txt', 'a') as fout:
             fout.write(log_header)
             fout.write(log_format % (Accuracy, Precision, Recall, F1score, MCC))
+        fout.close()
 
     @staticmethod
     def freeze_weights(model, param_to_freeze=''):
