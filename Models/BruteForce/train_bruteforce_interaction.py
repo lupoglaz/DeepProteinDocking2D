@@ -211,12 +211,12 @@ class BruteForceInteractionTrainer:
         fout.close()
 
     @staticmethod
-    def freeze_weights(model, param_to_freeze=''):
-        print('Freezing docking model weights')
+    def freeze_weights(model, param_to_freeze=None):
         for name, param in model.named_parameters():
             if param_to_freeze is None and param.requires_grad:
+                print('Freezing docking model weights')
                 param.requires_grad = False
-            elif param_to_freeze in name:
+            elif param_to_freeze is not None and param_to_freeze in name:
                 print('Unfreezing Weights', name)
                 param.requires_grad = True
 
@@ -240,9 +240,12 @@ if __name__ == '__main__':
     #testcase = 'test_pretrain_NoRaWs_Ftheta_sigmoid+eq10_flatsoftmax_statphys_'
 
     ###### replicates
-    testcase = str(sys.argv[1])+'_pretrain_frozen_a,theta_'
+    # testcase = str(sys.argv[1])+'_pretrain_frozen_a,theta_'
     # testcase = str(sys.argv[1])+'_pretrain_unfrozen_a,theta_'
-    
+
+    ### alternate testing
+    testcase = 'test1x1conv_'+str(sys.argv[1])+'_pretrain_frozen_a,theta_'
+
     #########################
 
     #### initialization torch settings
@@ -267,7 +270,7 @@ if __name__ == '__main__':
     path_pretrain = 'Log/docking_pretrain_bruteforce_allLearnedWs_10epochs_end.th'
     pretrain_model.load_state_dict(torch.load(path_pretrain)['state_dict'])
     #### freezing all weights in pretrain model
-    BruteForceInteractionTrainer().freeze_weights(pretrain_model)
+    BruteForceInteractionTrainer().freeze_weights(pretrain_model, None)
 
     #### freezing weights except for "a" weights
     #BruteForceInteractionTrainer().freeze_weights(pretrain_model, 'W')
@@ -290,8 +293,8 @@ if __name__ == '__main__':
                                                resume_training=True, resume_epoch=check_epoch, plotting=plotting,
                                                    pretrain_model=pretrain_model, optimizer_pretrain=optimizer_pretrain)
 
-    ######################
-    # train()
+    #####################
+    train()
     #
     epoch = 1
 
