@@ -44,7 +44,7 @@ class BruteForceInteraction(nn.Module):
         # pred_interact = eP / (eP + 1) ## eq 7 substituted
 
         ###
-        B = F.conv2d(E.unsqueeze(0).unsqueeze(0), weight=self.FoI_weights, bias=None)
+        B = F.conv2d(E.unsqueeze(0), weight=self.FoI_weights, bias=None)
         P = F.conv2d(P, weight=self.FoI_weights, bias=None)
         eP = torch.sum(B * P) / (torch.sum((1-B)*P))
         pred_interact = eP / (eP + 1) ## eq 7 substituted
