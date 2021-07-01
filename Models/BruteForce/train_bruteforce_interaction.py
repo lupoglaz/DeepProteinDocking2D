@@ -46,6 +46,7 @@ class BruteForceInteractionTrainer:
 
         pred_interact = model(FFT_score, plotting=False)
 
+        ### check if pretrain weights are frozen or updating
         # for n, p in pretrain_model.named_parameters():
         #     if p.requires_grad:
         #         print(n, p, p.grad)
@@ -230,21 +231,9 @@ if __name__ == '__main__':
     ### testing set
     testset = 'toy_concave_data/interaction_data_test'
 
-    ### eq10 freeze, unfreeze, resetW 
-    #testcase = 'test_pretrainFreezeW_sigmoid+eq10_flatsoftmax_statphys_'
-    #testcase = 'test_pretrainUnfreezeW_sigmoid+eq10_flatsoftmax_statphys_'
-    #testcase = 'test_pretrainResetW_sigmoid+eq10_flatsoftmax_statphys_'
-
-    #testcase = 'test_pretrain_aweights_UnfreezeW_sigmoid+eq10_flatsoftmax_statphys_'
-    #testcase = 'test_pretrain_RaWs_Ftheta_sigmoid+eq10_flatsoftmax_statphys_'
-    #testcase = 'test_pretrain_NoRaWs_Ftheta_sigmoid+eq10_flatsoftmax_statphys_'
-
     ###### replicates
-    # testcase = str(sys.argv[1])+'_pretrain_frozen_a,theta_'
+    testcase = str(sys.argv[1])+'_pretrain_frozen_a,theta_'
     # testcase = str(sys.argv[1])+'_pretrain_unfrozen_a,theta_'
-
-    ### alternate testing
-    testcase = 'test1x1conv_'+str(sys.argv[1])+'_pretrain_frozen_a,theta_'
 
     #########################
 
@@ -298,6 +287,7 @@ if __name__ == '__main__':
     #
     epoch = 1
 
+    #### load unfrozen retrained docking model for eval
     # path_unfrozen_model = 'Log/dockingScratch_'+str(sys.argv[1])+'_pretrain_unfrozen_a,theta_end.th'
     # pretrain_model.load_state_dict(torch.load(path_unfrozen_model)['state_dict'])
     plot_validation_set(check_epoch=epoch, valid_stream=valid_stream, pretrain_model=pretrain_model) ## also checks APR

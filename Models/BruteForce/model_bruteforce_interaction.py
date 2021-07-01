@@ -1,12 +1,9 @@
 import torch
 from torch import nn
-import torch.nn.functional as F
 import numpy as np
 
 import matplotlib.pyplot as plt
 from DeepProteinDocking2D.Models.BruteForce.TorchDockingFilter import TorchDockingFilter
-from e2cnn import nn as enn
-from e2cnn import gspaces
 
 class BruteForceInteraction(nn.Module):
 
@@ -14,7 +11,6 @@ class BruteForceInteraction(nn.Module):
         super(BruteForceInteraction, self).__init__()
         self.softmax = torch.nn.Softmax(dim=0)
 
-        self.FoI_weights = nn.Parameter(torch.rand(1, 360, 1, 1))
         self.dim = TorchDockingFilter().dim
         self.num_angles = TorchDockingFilter().num_angles
 
@@ -26,7 +22,6 @@ class BruteForceInteraction(nn.Module):
             nn.Conv3d(1, 4, kernel_size=self.kernel, padding=self.pad, stride=self.stride, dilation=self.dilation, bias=False),
             nn.ReLU(),
             nn.Conv3d(4, 1, kernel_size=self.kernel, padding=self.pad, stride=self.stride, dilation=self.dilation, bias=False),
-            # nn.ReLU(),
             nn.Sigmoid(),
         )
 
@@ -39,15 +34,9 @@ class BruteForceInteraction(nn.Module):
         # print(P.shape, torch.sum(Pflatsm))
 
         ### eq 10
-        # B = self.conv3D(E.unsqueeze(0).unsqueeze(0)).squeeze()
-        # eP = torch.sum(B * P) / (torch.sum((1-B)*P))
-        # pred_interact = eP / (eP + 1) ## eq 7 substituted
-
-        ###
-        B = F.conv2d(E.unsqueeze(0), weight=self.FoI_weights, bias=None)
-        P = torch.sum(P, dim=0)
-        pred_interact = torch.sum(B * P) / (torch.sum((1-B)*P))
-        # pred_interact = eP / (eP + 1) ## eq 7 substituted
+        B = self.conv3D(E.unsqueeze(0).unsqueeze(0)).squeeze()
+        eP = torch.sum(B * P) / (torch.sum((1-B)*P))
+        pred_interact = eP / (eP + 1) ## eq 7 substituted
 
         if eval and plotting:
             with torch.no_grad():
