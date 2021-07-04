@@ -48,9 +48,9 @@ class BruteForceInteractionTrainer:
         pred_interact = model(FFT_score, plotting=False)
 
         ### check if pretrain weights are frozen or updating
-        for n, p in pretrain_model.named_parameters():
-            if p.requires_grad:
-                print(n, p, p.grad)
+        # for n, p in pretrain_model.named_parameters():
+        #     if p.requires_grad:
+        #         print(n, p, p.grad)
         #### Loss functions
         BCEloss = torch.nn.BCELoss()
         loss = BCEloss(pred_interact, gt_interact)
@@ -240,8 +240,8 @@ if __name__ == '__main__':
 
     ##### after thought checks
     # testcase = str(sys.argv[1])+'_bias=True_frozen'
-    testcase = str(sys.argv[1])+'_bias=True_unfrozen'
-    # testcase = str(sys.argv[1])+'_bias=True_scratch'
+    # testcase = str(sys.argv[1])+'_bias=True_unfrozen'
+    testcase = str(sys.argv[1])+'_bias=True_scratch'
     #########################
 
     #### initialization torch settings
@@ -289,11 +289,11 @@ if __name__ == '__main__':
                                                    pretrain_model=pretrain_model, optimizer_pretrain=optimizer_pretrain)
 
     #####################
-    # train()
+    train()
     #
     epoch = 1
 
-    # time.sleep(60)
+    time.sleep(60)
     #### load unfrozen retrained docking model for eval
     path_docking_model = 'Log/docking_' + testcase + 'end.th'
     pretrain_model.load_state_dict(torch.load(path_docking_model)['state_dict'])
