@@ -35,8 +35,7 @@ class BruteForceInteraction(nn.Module):
 
         ### eq 10
         B = self.conv3D(E.unsqueeze(0).unsqueeze(0)).squeeze()
-        eP = -torch.log(torch.sum(B * P) / (torch.sum((1-B)*P)))
-        # eP = torch.sum(B * P) / (torch.sum((1-B)*P))
+        eP = torch.sum(B * P) / (torch.sum((1-B)*P))
         pred_interact = eP / (eP + 1) ## eq 7 substituted
 
         if eval and plotting:
