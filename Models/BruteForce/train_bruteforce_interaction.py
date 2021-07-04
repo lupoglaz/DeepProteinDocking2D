@@ -76,12 +76,10 @@ class BruteForceInteractionTrainer:
 
         if train:
             pretrain_model.zero_grad()
-
             model.zero_grad()
             loss.backward(retain_graph=True)
-            optimizer.step()
-
             optimizer_pretrain.step()
+            optimizer.step()
 
         else:
             pretrain_model.eval()
@@ -240,7 +238,8 @@ if __name__ == '__main__':
 
     ##### after thought checks
     # testcase = str(sys.argv[1])+'_bias=True_frozen'
-    testcase = str(sys.argv[1])+'_bias=True_scratch'
+    testcase = str(sys.argv[1])+'_bias=True_unfrozen'
+    # testcase = str(sys.argv[1])+'_bias=True_scratch'
     #########################
 
     #### initialization torch settings
@@ -262,8 +261,8 @@ if __name__ == '__main__':
     pretrain_model = BruteForceDocking().to(device=0)
     optimizer_pretrain = optim.Adam(pretrain_model.parameters(), lr=lr)
 
-    # path_pretrain = 'Log/docking_pretrain_bruteforce_allLearnedWs_10epochs_end.th'
-    # pretrain_model.load_state_dict(torch.load(path_pretrain)['state_dict'])
+    path_pretrain = 'Log/docking_pretrain_bruteforce_allLearnedWs_10epochs_end.th'
+    pretrain_model.load_state_dict(torch.load(path_pretrain)['state_dict'])
     #### freezing all weights in pretrain model
     # BruteForceInteractionTrainer().freeze_weights(pretrain_model, None)
 
