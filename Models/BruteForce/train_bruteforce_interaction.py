@@ -227,6 +227,8 @@ if __name__ == '__main__':
     #################################################################################
     # import sys
     # print(sys.path)
+    import time
+
     trainset = 'toy_concave_data/interaction_data_train'
     validset = 'toy_concave_data/interaction_data_valid'
     ### testing set
@@ -261,8 +263,8 @@ if __name__ == '__main__':
     pretrain_model = BruteForceDocking().to(device=0)
     optimizer_pretrain = optim.Adam(pretrain_model.parameters(), lr=lr)
 
-    path_pretrain = 'Log/docking_pretrain_bruteforce_allLearnedWs_10epochs_end.th'
-    pretrain_model.load_state_dict(torch.load(path_pretrain)['state_dict'])
+    # path_pretrain = 'Log/docking_pretrain_bruteforce_allLearnedWs_10epochs_end.th'
+    # pretrain_model.load_state_dict(torch.load(path_pretrain)['state_dict'])
     #### freezing all weights in pretrain model
     # BruteForceInteractionTrainer().freeze_weights(pretrain_model, None)
 
@@ -287,10 +289,11 @@ if __name__ == '__main__':
                                                    pretrain_model=pretrain_model, optimizer_pretrain=optimizer_pretrain)
 
     #####################
-    train()
+    # train()
     #
     epoch = 1
 
+    # time.sleep(60)
     #### load unfrozen retrained docking model for eval
     path_docking_model = 'Log/docking_' + testcase + 'end.th'
     pretrain_model.load_state_dict(torch.load(path_docking_model)['state_dict'])
