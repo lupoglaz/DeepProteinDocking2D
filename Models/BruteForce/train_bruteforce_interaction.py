@@ -54,7 +54,7 @@ class BruteForceInteractionTrainer:
         #### Loss functions
         BCEloss = torch.nn.BCELoss()
         loss = BCEloss(pred_interact, gt_interact)
-        # print(pred_interact.item(), gt_interact.item())
+        print(pred_interact.item(), gt_interact.item())
 
 
         if eval and plotting:
@@ -75,12 +75,14 @@ class BruteForceInteractionTrainer:
                 plt.show()
 
         if train:
-            # pretrain_model.zero_grad()
-            # optimizer_pretrain.step()
+            pretrain_model.zero_grad()
 
             model.zero_grad()
             loss.backward(retain_graph=True)
             optimizer.step()
+
+            optimizer_pretrain.step()
+
         else:
             pretrain_model.eval()
             model.eval()
