@@ -290,9 +290,9 @@ if __name__ == '__main__':
     epoch = 1
 
     #### load unfrozen retrained docking model for eval
-    # path_unfrozen_model = 'Log/dockingScratch_'+str(sys.argv[1])+'_pretrain_unfrozen_a,theta_end.th'
-    # pretrain_model.load_state_dict(torch.load(path_unfrozen_model)['state_dict'])
-    
+    path_unfrozen_model = 'Log/dockingScratch_' + testcase + 'end.th'
+    pretrain_model.load_state_dict(torch.load(path_unfrozen_model)['state_dict'])
+
     plot_validation_set(check_epoch=epoch, valid_stream=valid_stream, pretrain_model=pretrain_model) ## also checks APR
 
     plot_validation_set(check_epoch=epoch, valid_stream=test_stream, pretrain_model=pretrain_model)
