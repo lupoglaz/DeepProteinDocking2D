@@ -145,7 +145,7 @@ class BruteForceInteractionTrainer:
             model, optimizer, start_epoch = BruteForceDockingTrainer().load_ckp(ckp_path, model, optimizer)
 
             print('Loading docking model at', str(resume_epoch))
-            ckp_path = 'Log/dockingScratch_' + testcase + str(resume_epoch) + '.th'
+            ckp_path = 'Log/docking_' + testcase + str(resume_epoch) + '.th'
             pretrain_model, optimizer_pretrain, start_epoch = BruteForceDockingTrainer().load_ckp(ckp_path, pretrain_model, optimizer_pretrain)
 
             start_epoch += 1
@@ -193,12 +193,12 @@ class BruteForceInteractionTrainer:
             #### saving model while training
             if epoch % save_freq == 0:
                 BruteForceInteractionTrainer().save_checkpoint(checkpoint_dict, 'Log/' + testcase + str(epoch) + '.th')
-                BruteForceInteractionTrainer().save_checkpoint(pretrain_checkpoint_dict, 'Log/dockingScratch_' + testcase + str(epoch) + '.th')
+                BruteForceInteractionTrainer().save_checkpoint(pretrain_checkpoint_dict, 'Log/docking_' + testcase + str(epoch) + '.th')
 
                 print('saving model ' + 'Log/' + testcase + str(epoch) + '.th')
 
         BruteForceInteractionTrainer().save_checkpoint(checkpoint_dict, 'Log/' + testcase + 'end.th')
-        BruteForceInteractionTrainer().save_checkpoint(pretrain_checkpoint_dict, 'Log/dockingScratch_' + testcase + 'end.th')
+        BruteForceInteractionTrainer().save_checkpoint(pretrain_checkpoint_dict, 'Log/docking_' + testcase + 'end.th')
 
     @staticmethod
     def checkAPR(check_epoch, datastream, pretrain_model):
@@ -236,7 +236,8 @@ if __name__ == '__main__':
     # testcase = str(sys.argv[1])+'_pretrain_unfrozen_a,theta_'
 
     ##### after thought checks
-    testcase = str(sys.argv[1])+'_bias=True_frozen'
+    # testcase = str(sys.argv[1])+'_bias=True_frozen'
+    testcase = str(sys.argv[1])+'_bias=True_scratch'
     #########################
 
     #### initialization torch settings
@@ -247,7 +248,7 @@ if __name__ == '__main__':
     torch.backends.cudnn.determininistic = True
     torch.cuda.set_device(0)
 
-    # CUDA_LAUNCH_BLOCKING = 1
+    CUDA_LAUNCH_BLOCKING = 1
 
     # torch.autograd.set_detect_anomaly(True)
     ######################
@@ -258,14 +259,13 @@ if __name__ == '__main__':
     pretrain_model = BruteForceDocking().to(device=0)
     optimizer_pretrain = optim.Adam(pretrain_model.parameters(), lr=lr)
 
-    path_pretrain = 'Log/docking_pretrain_bruteforce_allLearnedWs_10epochs_end.th'
-    pretrain_model.load_state_dict(torch.load(path_pretrain)['state_dict'])
+    # path_pretrain = 'Log/docking_pretrain_bruteforce_allLearnedWs_10epochs_end.th'
+    # pretrain_model.load_state_dict(torch.load(path_pretrain)['state_dict'])
     #### freezing all weights in pretrain model
-    BruteForceInteractionTrainer().freeze_weights(pretrain_model, None)
+    # BruteForceInteractionTrainer().freeze_weights(pretrain_model, None)
 
     #### freezing weights except for "a" weights
     #BruteForceInteractionTrainer().freeze_weights(pretrain_model, 'W')
-
 
     train_stream = get_interaction_stream_balanced(trainset + '.pkl', batch_size=1)
     valid_stream = get_interaction_stream_balanced(validset + '.pkl', batch_size=1)
@@ -290,8 +290,8 @@ if __name__ == '__main__':
     epoch = 1
 
     #### load unfrozen retrained docking model for eval
-    path_unfrozen_model = 'Log/dockingScratch_' + testcase + 'end.th'
-    pretrain_model.load_state_dict(torch.load(path_unfrozen_model)['state_dict'])
+    path_docking_model = 'Log/docking_' + testcase + 'end.th'
+    pretrain_model.load_state_dict(torch.load(path_docking_model)['state_dict'])
 
     plot_validation_set(check_epoch=epoch, valid_stream=valid_stream, pretrain_model=pretrain_model) ## also checks APR
 
