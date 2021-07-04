@@ -19,9 +19,9 @@ class BruteForceInteraction(nn.Module):
         self.stride = 1
         self.dilation = 1
         self.conv3D = nn.Sequential(
-            nn.Conv3d(1, 4, kernel_size=self.kernel, padding=self.pad, stride=self.stride, dilation=self.dilation, bias=False),
+            nn.Conv3d(1, 4, kernel_size=self.kernel, padding=self.pad, stride=self.stride, dilation=self.dilation, bias=True),
             nn.ReLU(),
-            nn.Conv3d(4, 1, kernel_size=self.kernel, padding=self.pad, stride=self.stride, dilation=self.dilation, bias=False),
+            nn.Conv3d(4, 1, kernel_size=self.kernel, padding=self.pad, stride=self.stride, dilation=self.dilation, bias=True),
             nn.Sigmoid(),
         )
 
@@ -35,7 +35,8 @@ class BruteForceInteraction(nn.Module):
 
         ### eq 10
         B = self.conv3D(E.unsqueeze(0).unsqueeze(0)).squeeze()
-        eP = torch.sum(B * P) / (torch.sum((1-B)*P))
+        eP = -torch.log(torch.sum(B * P) / (torch.sum((1-B)*P)))
+        # eP = torch.sum(B * P) / (torch.sum((1-B)*P))
         pred_interact = eP / (eP + 1) ## eq 7 substituted
 
         if eval and plotting:
