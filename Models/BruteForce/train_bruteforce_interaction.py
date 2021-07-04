@@ -75,11 +75,13 @@ class BruteForceInteractionTrainer:
 
         if train:
             pretrain_model.zero_grad()
-            optimizer_pretrain.step()
 
             model.zero_grad()
             loss.backward(retain_graph=True)
             optimizer.step()
+            
+            optimizer_pretrain.step()
+
         else:
             pretrain_model.eval()
             model.eval()
