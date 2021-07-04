@@ -74,8 +74,8 @@ class BruteForceInteractionTrainer:
                 plt.show()
 
         if train:
-            # pretrain_model.zero_grad()
-            # optimizer_pretrain.step()
+            pretrain_model.zero_grad()
+            optimizer_pretrain.step()
 
             model.zero_grad()
             loss.backward(retain_graph=True)
