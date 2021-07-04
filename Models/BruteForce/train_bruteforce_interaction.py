@@ -47,9 +47,9 @@ class BruteForceInteractionTrainer:
         pred_interact = model(FFT_score, plotting=False)
 
         ### check if pretrain weights are frozen or updating
-        # for n, p in pretrain_model.named_parameters():
-        #     if p.requires_grad:
-        #         print(n, p, p.grad)
+        for n, p in pretrain_model.named_parameters():
+            if p.requires_grad:
+                print(n, p, p.grad)
         #### Loss functions
         BCEloss = torch.nn.BCELoss()
         loss = BCEloss(pred_interact, gt_interact)
@@ -74,14 +74,12 @@ class BruteForceInteractionTrainer:
                 plt.show()
 
         if train:
-            pretrain_model.zero_grad()
+            # pretrain_model.zero_grad()
+            # optimizer_pretrain.step()
 
             model.zero_grad()
             loss.backward(retain_graph=True)
             optimizer.step()
-            
-            optimizer_pretrain.step()
-
         else:
             pretrain_model.eval()
             model.eval()
