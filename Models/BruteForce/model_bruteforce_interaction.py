@@ -19,9 +19,9 @@ class BruteForceInteraction(nn.Module):
         self.stride = 1
         self.dilation = 1
         self.conv3D = nn.Sequential(
-            nn.Conv3d(1, 4, kernel_size=self.kernel, padding=self.pad, stride=self.stride, dilation=self.dilation, bias=False),
+            nn.Conv3d(1, 4, kernel_size=self.kernel, padding=self.pad, stride=self.stride, dilation=self.dilation, bias=True),
             nn.ReLU(),
-            nn.Conv3d(4, 1, kernel_size=self.kernel, padding=self.pad, stride=self.stride, dilation=self.dilation, bias=False),
+            nn.Conv3d(4, 1, kernel_size=self.kernel, padding=self.pad, stride=self.stride, dilation=self.dilation, bias=True),
             nn.Sigmoid(),
         )
 

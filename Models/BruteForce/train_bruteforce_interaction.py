@@ -53,7 +53,7 @@ class BruteForceInteractionTrainer:
         #### Loss functions
         BCEloss = torch.nn.BCELoss()
         loss = BCEloss(pred_interact, gt_interact)
-        print(pred_interact.item(), gt_interact.item())
+        # print(pred_interact.item(), gt_interact.item())
 
 
         if eval and plotting:
@@ -232,9 +232,11 @@ if __name__ == '__main__':
     testset = 'toy_concave_data/interaction_data_test'
 
     ###### replicates
-    testcase = str(sys.argv[1])+'_pretrain_frozen_a,theta_'
+    # testcase = str(sys.argv[1])+'_pretrain_frozen_a,theta_'
     # testcase = str(sys.argv[1])+'_pretrain_unfrozen_a,theta_'
 
+    ##### after thought checks
+    testcase = str(sys.argv[1])+'_bias=True_fromScratch'
     #########################
 
     #### initialization torch settings
