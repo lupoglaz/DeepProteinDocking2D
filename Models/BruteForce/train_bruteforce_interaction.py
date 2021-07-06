@@ -198,8 +198,9 @@ class BruteForceInteractionTrainer:
 
                 print('saving model ' + 'Log/' + testcase + str(epoch) + '.th')
 
-        BruteForceInteractionTrainer().save_checkpoint(checkpoint_dict, 'Log/' + testcase + 'end.th')
-        BruteForceInteractionTrainer().save_checkpoint(pretrain_checkpoint_dict, 'Log/docking_' + testcase + 'end.th')
+        ### unecessary unless training > 1 epoch
+        # BruteForceInteractionTrainer().save_checkpoint(checkpoint_dict, 'Log/' + testcase + 'end.th')
+        # BruteForceInteractionTrainer().save_checkpoint(pretrain_checkpoint_dict, 'Log/docking_' + testcase + 'end.th')
 
     @staticmethod
     def checkAPR(check_epoch, datastream, pretrain_model):
@@ -240,10 +241,10 @@ if __name__ == '__main__':
 
     ##### after thought checks
     # testcase = str(sys.argv[1])+'_bias=True_frozen'
-    # testcase = str(sys.argv[1])+'_bias=True_unfrozen'
+    testcase = str(sys.argv[1])+'_bias=True_unfrozen'
     # testcase = str(sys.argv[1])+'_bias=True_scratch'
 
-    testcase = str(sys.argv[1])+'_bias=False_unfrozen'
+    # testcase = str(sys.argv[1])+'_bias=False_unfrozen'
 
     #########################
 
@@ -255,7 +256,7 @@ if __name__ == '__main__':
     torch.backends.cudnn.determininistic = True
     torch.cuda.set_device(0)
 
-    CUDA_LAUNCH_BLOCKING = 1
+    # CUDA_LAUNCH_BLOCKING = 1
 
     # torch.autograd.set_detect_anomaly(True)
     ######################
@@ -266,8 +267,8 @@ if __name__ == '__main__':
     pretrain_model = BruteForceDocking().to(device=0)
     optimizer_pretrain = optim.Adam(pretrain_model.parameters(), lr=lr)
 
-    # path_pretrain = 'Log/docking_pretrain_bruteforce_allLearnedWs_10epochs_end.th'
-    # pretrain_model.load_state_dict(torch.load(path_pretrain)['state_dict'])
+    path_pretrain = 'Log/docking_pretrain_bruteforce_allLearnedWs_10epochs_end.th'
+    pretrain_model.load_state_dict(torch.load(path_pretrain)['state_dict'])
     #### freezing all weights in pretrain model
     # BruteForceInteractionTrainer().freeze_weights(pretrain_model, None)
 
@@ -292,15 +293,14 @@ if __name__ == '__main__':
                                                    pretrain_model=pretrain_model, optimizer_pretrain=optimizer_pretrain)
 
     #####################
-    # train()
-    #
+    train()
+
     epoch = 1
 
+    # give time to save models
     time.sleep(60)
-    # #### load unfrozen retrained docking model for eval
-    # path_docking_model = 'Log/docking_' + testcase + 'end.th'
-    # pretrain_model.load_state_dict(torch.load(path_docking_model)['state_dict'])
 
+    ### loads relevant pretrained model under resume_training condition
     plot_validation_set(check_epoch=epoch, valid_stream=valid_stream, pretrain_model=pretrain_model) ## also checks APR
 
     plot_validation_set(check_epoch=epoch, valid_stream=test_stream, pretrain_model=pretrain_model)
