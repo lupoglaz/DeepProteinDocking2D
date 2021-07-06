@@ -15,7 +15,7 @@
 pwd
 export OMP_NUM_THREADS=$SLURM_CPUS_PER_TASK
 
-srun -N1 -n1 python train_bruteforce_interaction.py rep1;
+#srun -N1 -n1 python train_bruteforce_interaction.py rep1;
 
 srun -N1 -n1 python train_bruteforce_interaction.py rep2;
 
