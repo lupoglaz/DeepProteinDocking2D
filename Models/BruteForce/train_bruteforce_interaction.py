@@ -216,12 +216,12 @@ class BruteForceInteractionTrainer:
     @staticmethod
     def freeze_weights(model, param_to_freeze=None):
         for name, param in model.named_parameters():
-            if param_to_freeze is None and param.requires_grad:
-                print('Freezing docking model weights')
-                param.requires_grad = False
-            elif param_to_freeze is not None and param_to_freeze in name:
+            if param_to_freeze is not None and param_to_freeze in name:
                 print('Unfreezing Weights', name)
                 param.requires_grad = True
+            else:
+                print('Freezing docking model weights', name)
+                param.requires_grad = False
 
 
 if __name__ == '__main__':
@@ -241,10 +241,11 @@ if __name__ == '__main__':
 
     ##### after thought checks
     # testcase = str(sys.argv[1])+'_bias=True_frozen'
-    testcase = str(sys.argv[1])+'_bias=True_unfrozen'
+    # testcase = str(sys.argv[1])+'_bias=True_unfrozen'
     # testcase = str(sys.argv[1])+'_bias=True_scratch'
 
     # testcase = str(sys.argv[1])+'_bias=False_unfrozen'
+    testcase = str(sys.argv[1])+'_bias=True_aW_unfrozen'
 
     #########################
 
@@ -270,10 +271,10 @@ if __name__ == '__main__':
     path_pretrain = 'Log/docking_pretrain_bruteforce_allLearnedWs_10epochs_end.th'
     pretrain_model.load_state_dict(torch.load(path_pretrain)['state_dict'])
     #### freezing all weights in pretrain model
-    BruteForceInteractionTrainer().freeze_weights(pretrain_model, None)
+    # BruteForceInteractionTrainer().freeze_weights(pretrain_model, None)
 
     #### freezing weights except for "a" weights
-    #BruteForceInteractionTrainer().freeze_weights(pretrain_model, 'W')
+    BruteForceInteractionTrainer().freeze_weights(pretrain_model, 'W')
 
     train_stream = get_interaction_stream_balanced(trainset + '.pkl', batch_size=1)
     valid_stream = get_interaction_stream_balanced(validset + '.pkl', batch_size=1)
