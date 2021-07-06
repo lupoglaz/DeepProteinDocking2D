@@ -54,7 +54,7 @@ class BruteForceInteractionTrainer:
         #### Loss functions
         BCEloss = torch.nn.BCELoss()
         loss = BCEloss(pred_interact, gt_interact)
-        print(pred_interact.item(), gt_interact.item())
+        # print(pred_interact.item(), gt_interact.item())
 
 
         if eval and plotting:
@@ -241,7 +241,10 @@ if __name__ == '__main__':
     ##### after thought checks
     # testcase = str(sys.argv[1])+'_bias=True_frozen'
     # testcase = str(sys.argv[1])+'_bias=True_unfrozen'
-    testcase = str(sys.argv[1])+'_bias=True_scratch'
+    # testcase = str(sys.argv[1])+'_bias=True_scratch'
+
+    testcase = str(sys.argv[1])+'_bias=False_unfrozen'
+
     #########################
 
     #### initialization torch settings
@@ -263,8 +266,8 @@ if __name__ == '__main__':
     pretrain_model = BruteForceDocking().to(device=0)
     optimizer_pretrain = optim.Adam(pretrain_model.parameters(), lr=lr)
 
-    # path_pretrain = 'Log/docking_pretrain_bruteforce_allLearnedWs_10epochs_end.th'
-    # pretrain_model.load_state_dict(torch.load(path_pretrain)['state_dict'])
+    path_pretrain = 'Log/docking_pretrain_bruteforce_allLearnedWs_10epochs_end.th'
+    pretrain_model.load_state_dict(torch.load(path_pretrain)['state_dict'])
     #### freezing all weights in pretrain model
     # BruteForceInteractionTrainer().freeze_weights(pretrain_model, None)
 
