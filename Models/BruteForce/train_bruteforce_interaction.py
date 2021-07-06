@@ -270,7 +270,7 @@ if __name__ == '__main__':
     path_pretrain = 'Log/docking_pretrain_bruteforce_allLearnedWs_10epochs_end.th'
     pretrain_model.load_state_dict(torch.load(path_pretrain)['state_dict'])
     #### freezing all weights in pretrain model
-    # BruteForceInteractionTrainer().freeze_weights(pretrain_model, None)
+    BruteForceInteractionTrainer().freeze_weights(pretrain_model, None)
 
     #### freezing weights except for "a" weights
     #BruteForceInteractionTrainer().freeze_weights(pretrain_model, 'W')
