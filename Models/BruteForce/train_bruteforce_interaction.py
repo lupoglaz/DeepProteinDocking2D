@@ -240,12 +240,12 @@ if __name__ == '__main__':
     # testcase = str(sys.argv[1])+'_pretrain_unfrozen_a,theta_'
 
     ##### after thought checks
-    # testcase = str(sys.argv[1])+'_bias=True_frozen'
-    testcase = str(sys.argv[1])+'_bias=True_unfrozen'
+    testcase = str(sys.argv[1])+'_bias=True_frozen'
+    # testcase = str(sys.argv[1])+'_bias=True_unfrozen'
+    # testcase = str(sys.argv[1])+'_bias=True_aW_unfrozen'
+
     # testcase = str(sys.argv[1])+'_bias=True_scratch'
 
-    # testcase = str(sys.argv[1])+'_bias=False_unfrozen'
-    # testcase = str(sys.argv[1])+'_bias=True_aW_unfrozen'
 
     #########################
 
@@ -271,7 +271,7 @@ if __name__ == '__main__':
     path_pretrain = 'Log/docking_pretrain_bruteforce_allLearnedWs_10epochs_end.th'
     pretrain_model.load_state_dict(torch.load(path_pretrain)['state_dict'])
     #### freezing all weights in pretrain model
-    # BruteForceInteractionTrainer().freeze_weights(pretrain_model, None)
+    BruteForceInteractionTrainer().freeze_weights(pretrain_model, None)
 
     #### freezing weights except for "a" weights
     # BruteForceInteractionTrainer().freeze_weights(pretrain_model, 'W')
