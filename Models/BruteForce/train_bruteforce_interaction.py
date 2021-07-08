@@ -241,11 +241,11 @@ if __name__ == '__main__':
 
     ##### after thought checks
     # testcase = str(sys.argv[1])+'_bias=True_frozen'
-    # testcase = str(sys.argv[1])+'_bias=True_unfrozen'
+    testcase = str(sys.argv[1])+'_bias=True_unfrozen'
     # testcase = str(sys.argv[1])+'_bias=True_scratch'
 
     # testcase = str(sys.argv[1])+'_bias=False_unfrozen'
-    testcase = str(sys.argv[1])+'_bias=True_aW_unfrozen'
+    # testcase = str(sys.argv[1])+'_bias=True_aW_unfrozen'
 
     #########################
 
@@ -274,7 +274,7 @@ if __name__ == '__main__':
     # BruteForceInteractionTrainer().freeze_weights(pretrain_model, None)
 
     #### freezing weights except for "a" weights
-    BruteForceInteractionTrainer().freeze_weights(pretrain_model, 'W')
+    # BruteForceInteractionTrainer().freeze_weights(pretrain_model, 'W')
 
     train_stream = get_interaction_stream_balanced(trainset + '.pkl', batch_size=1)
     valid_stream = get_interaction_stream_balanced(validset + '.pkl', batch_size=1)
