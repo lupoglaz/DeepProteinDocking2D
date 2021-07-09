@@ -14,7 +14,6 @@ from DeepProteinDocking2D.Models.BruteForce.model_bruteforce_interaction import 
 from DeepProteinDocking2D.Models.BruteForce.utility_functions import plot_assembly
 from DeepProteinDocking2D.Models.BruteForce.validation_metrics import APR
 
-from DeepProteinDocking2D.Models.BruteForce.train_bruteforce_docking import BruteForceDockingTrainer
 from DeepProteinDocking2D.Models.BruteForce.model_bruteforce_docking import BruteForceDocking
 
 
@@ -143,11 +142,11 @@ class BruteForceInteractionTrainer:
         if resume_training:
             print('Loading interaction model at', str(resume_epoch))
             ckp_path = 'Log/' + testcase + str(resume_epoch) + '.th'
-            model, optimizer, start_epoch = BruteForceDockingTrainer().load_ckp(ckp_path, model, optimizer)
+            model, optimizer, start_epoch = BruteForceInteractionTrainer().load_ckp(ckp_path, model, optimizer)
 
             print('Loading docking model at', str(resume_epoch))
             ckp_path = 'Log/docking_' + testcase + str(resume_epoch) + '.th'
-            pretrain_model, optimizer_pretrain, start_epoch = BruteForceDockingTrainer().load_ckp(ckp_path, pretrain_model, optimizer_pretrain)
+            pretrain_model, optimizer_pretrain, start_epoch = BruteForceInteractionTrainer().load_ckp(ckp_path, pretrain_model, optimizer_pretrain)
 
             start_epoch += 1
 
@@ -240,13 +239,13 @@ if __name__ == '__main__':
     # testcase = str(sys.argv[1])+'_pretrain_unfrozen_a,theta_'
 
     ##### after thought checks
-    # testcase = str(sys.argv[1])+'_bias=True_frozen'
-    # testcase = str(sys.argv[1])+'_bias=True_unfrozen'
-    # testcase = str(sys.argv[1])+'_bias=True_aW_unfrozen'
+    # testcase = str(sys.argv[1])+'_bias=True_frozen' (a exp)
+    # testcase = str(sys.argv[1])+'_bias=True_unfrozen' (b exp)
+    # testcase = str(sys.argv[1])+'_bias=True_aW_unfrozen' (c exp)
 
     # testcase = str(sys.argv[1])+'_bias=True_scratch'
 
-    testcase = str(sys.argv[1])+'_dexpLOAD_bias=True_aW_unfrozen'
+    # testcase = str(sys.argv[1])+'_dexpLOAD_bias=True_aW_unfrozen'
 
 
     #########################
