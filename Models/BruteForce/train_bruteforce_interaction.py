@@ -220,13 +220,16 @@ if __name__ == '__main__':
     # testcase = str(sys.argv[1])+'_pretrain_unfrozen_a,theta_'
 
     ##### after thought checks
-    # testcase = str(sys.argv[1])+'_bias=True_frozen' (a exp)
-    # testcase = str(sys.argv[1])+'_bias=True_unfrozen' (b exp)
-    # testcase = str(sys.argv[1])+'_bias=True_aW_unfrozen' (c exp)
+    # testcase = str(sys.argv[1])+'_bias=True_frozen' #(a exp)
+    # testcase = str(sys.argv[1])+'_bias=True_unfrozen' #(b exp)
+    # testcase = str(sys.argv[1])+'_bias=True_aW_unfrozen' #(c exp)
 
     # testcase = str(sys.argv[1])+'_bias=True_scratch'
 
-    testcase = str(sys.argv[1])+'_dexpLOAD_bias=True_aW_unfrozen'
+    # testcase = str(sys.argv[1])+'_dexpLOAD_bias=True_aW_unfrozen'
+
+
+    testcase = str(sys.argv[1])+'_eq1p5_bias=True_aW_unfrozen' #(c exp)
 
     #########################
 
@@ -249,13 +252,13 @@ if __name__ == '__main__':
     pretrain_model = BruteForceDocking().to(device=0)
     optimizer_pretrain = optim.Adam(pretrain_model.parameters(), lr=lr)
 
-    # path_pretrain = 'Log/docking_pretrain_bruteforce_allLearnedWs_10epochs_end.th'
-    # pretrain_model.load_state_dict(torch.load(path_pretrain)['state_dict'])
+    path_pretrain = 'Log/docking_pretrain_bruteforce_allLearnedWs_10epochs_end.th'
+    pretrain_model.load_state_dict(torch.load(path_pretrain)['state_dict'])
     #### freezing all weights in pretrain model
     # BruteForceInteractionTrainer().freeze_weights(pretrain_model, None)
 
     #### freezing weights except for "a" weights
-    # BruteForceInteractionTrainer().freeze_weights(pretrain_model, 'W')
+    BruteForceInteractionTrainer().freeze_weights(pretrain_model, 'W')
 
     #### load d experiment (pretrained: IP CNN frozen, a00...a11 unfrozen) and retrain IP as unfrozen
     # path_pretrain = 'Log/docking_rep1_bias=True_aW_unfrozen1.th'
