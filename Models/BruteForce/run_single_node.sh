@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --partition=p_ccib_1
-#SBATCH --job-name=eq1p5_cexp_1rep
+#SBATCH --job-name=eq1p5_cexp_3rep
 #SBATCH --nodes=1
 ##SBATCH --ntasks=1
 #SBATCH --tasks-per-node=1
@@ -8,8 +8,8 @@
 #SBATCH --gres=gpu:2 # Number of GPUs
 #SBATCH --constraint=volta
 #SBATCH --time=48:00:00
-#SBATCH --output=slurm_log/slurm.%N.eq1p5_cexp_1rep.out
-#SBATCH --error=slurm_log/slurm.%N.eq1p5_cexp_1rep.err
+#SBATCH --output=slurm_log/slurm.%N.eq1p5_cexp_3rep.out
+#SBATCH --error=slurm_log/slurm.%N.eq1p5_cexp_3rep.err
 #SBATCH --export=ALL
 
 pwd
