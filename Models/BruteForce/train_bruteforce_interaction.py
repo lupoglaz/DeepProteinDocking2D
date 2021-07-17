@@ -20,7 +20,9 @@ from DeepProteinDocking2D.Models.BruteForce.utility_functions import plot_assemb
 
 class BruteForceInteractionTrainer:
     def __init__(self):
+
         self.replicate = str(sys.argv[1])
+
         # self.testcase = 'rep1_bias=True_frozen' #a exp
         # self.testcase = 'rep1_bias=True_unfrozen' #b exp
         # self.testcase = 'rep1_bias=True_aW_unfrozen' #c exp
@@ -86,7 +88,7 @@ class BruteForceInteractionTrainer:
         #### Loss functions
         BCEloss = torch.nn.BCELoss()
         loss = BCEloss(pred_interact, gt_interact)
-        print(pred_interact.item(), gt_interact.item())
+        # print(pred_interact.item(), gt_interact.item())
 
         if train:
             self.pretrain_model.zero_grad()
