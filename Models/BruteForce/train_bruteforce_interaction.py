@@ -21,7 +21,10 @@ from DeepProteinDocking2D.Models.BruteForce.utility_functions import plot_assemb
 class BruteForceInteractionTrainer:
     def __init__(self):
 
-        self.replicate = str(sys.argv[1])
+        if len(sys.argv) > 1:
+            self.replicate = str(sys.argv[1])
+        else:
+            self.replicate = 'single_rep'
 
         # self.testcase = 'rep1_bias=True_frozen' #a exp
         # self.testcase = 'rep1_bias=True_unfrozen' #b exp
