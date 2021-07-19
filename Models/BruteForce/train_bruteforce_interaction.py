@@ -24,13 +24,13 @@ class BruteForceInteractionTrainer:
     else:
         replicate = 'single_rep'
 
-    # self.testcase = 'rep1_bias=True_frozen' #a exp
-    # self.testcase = 'rep1_bias=True_unfrozen' #b exp
-    # self.testcase = 'rep1_bias=True_aW_unfrozen' #c exp
+    testcase = 'rep1_bias=True_frozen' #a exp
+    # testcase = 'rep1_bias=True_unfrozen' #b exp
+    # testcase = 'rep1_bias=True_aW_unfrozen' #c exp
 
-    testcase = replicate + '_eq1p5_bias=True_aW_unfrozen'  # c exp
+    # testcase = replicate + '_eq1p5_bias=True_aW_unfrozen'  # c exp
 
-    # self.testcase = 'rep1_dexpLOAD_bias=True_aW_unfrozen' #d exp
+    # testcase = 'rep1_dexpLOAD_bias=True_aW_unfrozen' #d exp
 
     train_epochs = 1
     check_epoch = 1
@@ -164,14 +164,14 @@ class BruteForceInteractionTrainer:
 
             checkpoint_dict = {
                 'epoch': epoch,
-                'state_dict': model.state_dict(),
-                'optimizer': optimizer.state_dict(),
+                'state_dict': self.model.state_dict(),
+                'optimizer': self.optimizer.state_dict(),
             }
 
             pretrain_checkpoint_dict = {
                 'epoch': epoch,
-                'state_dict': pretrain_model.state_dict(),
-                'optimizer': optimizer_pretrain.state_dict(),
+                'state_dict': self.pretrain_model.state_dict(),
+                'optimizer': self.optimizer_pretrain.state_dict(),
             }
 
 
