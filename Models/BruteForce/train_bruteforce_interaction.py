@@ -276,7 +276,7 @@ if __name__ == '__main__':
     test_stream = get_interaction_stream_balanced(testset + '.pkl', batch_size=1)
 
     ##################### Train model
-    BruteForceInteractionTrainer().train()
+    # BruteForceInteractionTrainer().train()
 
     # give time to save models
     # time.sleep(60)
