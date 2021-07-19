@@ -19,48 +19,53 @@ from DeepProteinDocking2D.Models.BruteForce.utility_functions import plot_assemb
 
 
 class BruteForceInteractionTrainer:
+    if len(sys.argv) > 1:
+        replicate = str(sys.argv[1])
+    else:
+        replicate = 'single_rep'
+
+    # self.testcase = 'rep1_bias=True_frozen' #a exp
+    # self.testcase = 'rep1_bias=True_unfrozen' #b exp
+    # self.testcase = 'rep1_bias=True_aW_unfrozen' #c exp
+
+    testcase = replicate + '_eq1p5_bias=True_aW_unfrozen'  # c exp
+
+    # self.testcase = 'rep1_dexpLOAD_bias=True_aW_unfrozen' #d exp
+
+    train_epochs = 1
+    check_epoch = 1
+    test_freq = 1
+    save_freq = 1
+
+    ##### load blank models and optimizers, once
+    lr = 10 ** -4
+    model = BruteForceInteraction().to(device=0)
+    optimizer = optim.Adam(model.parameters(), lr=lr)
+
+    pretrain_model = BruteForceDocking().to(device=0)
+    optimizer_pretrain = optim.Adam(pretrain_model.parameters(), lr=lr)
+
+    # print('SHOULD ONLY PRINT ONCE')
+
+    ###################### Load and freeze/unfreeze params (training no eval)
+    ## for exp a,b,c
+    path_pretrain = 'Log/docking_pretrain_bruteforce_allLearnedWs_10epochs_end.th'
+    pretrain_model.load_state_dict(torch.load(path_pretrain)['state_dict'])
+
+    # param_to_freeze = 'all'
+    # param_to_freeze = 'W'
+    param_to_freeze = None
+
+    #### load (pretrained: IP CNN frozen, a00...a11 unfrozen) and retrain IP as unfrozen (d exp)
+    # path_pretrain = 'Log/docking_rep1_bias=True_aW_unfrozen1.th'
+    # pretrain_model.load_state_dict(torch.load(path_pretrain)['state_dict'])
+
+    plotting = True
+
+    # self.plotting = False
+
     def __init__(self):
-
-        if len(sys.argv) > 1:
-            self.replicate = str(sys.argv[1])
-        else:
-            self.replicate = 'single_rep'
-
-        # self.testcase = 'rep1_bias=True_frozen' #a exp
-        # self.testcase = 'rep1_bias=True_unfrozen' #b exp
-        # self.testcase = 'rep1_bias=True_aW_unfrozen' #c exp
-
-        self.testcase = self.replicate+'_eq1p5_bias=True_aW_unfrozen' #c exp
-
-        # self.testcase = 'rep1_dexpLOAD_bias=True_aW_unfrozen' #d exp
-
-        self.train_epochs = 1
-        self.check_epoch = 1
-        self.test_freq = 1
-        self.save_freq = 1
-
-        self.lr = 10 ** -4
-        self.model = BruteForceInteraction().to(device=0)
-        self.optimizer = optim.Adam(self.model.parameters(), lr=self.lr)
-
-        self.pretrain_model = BruteForceDocking().to(device=0)
-        self.optimizer_pretrain = optim.Adam(self.pretrain_model.parameters(), lr=self.lr)
-
-        ###################### Load and freeze/unfreeze params (training no eval)
-        ## for exp a,b,c
-        self.path_pretrain = 'Log/docking_pretrain_bruteforce_allLearnedWs_10epochs_end.th'
-        self.pretrain_model.load_state_dict(torch.load(self.path_pretrain)['state_dict'])
-
-        # self.param_to_freeze = 'all'
-        self.param_to_freeze = 'W'
-        # self.param_to_freeze = None
-
-        #### load (pretrained: IP CNN frozen, a00...a11 unfrozen) and retrain IP as unfrozen (d exp)
-        # self.path_pretrain = 'Log/docking_rep1_bias=True_aW_unfrozen1.th'
-        # self.pretrain_model.load_state_dict(torch.load(self.path_pretrain)['state_dict'])
-
-        # self.plotting = True
-        self.plotting = False
+        pass
 
     def run_model(self, data, train=True):
         receptor, ligand, gt_interact = data
