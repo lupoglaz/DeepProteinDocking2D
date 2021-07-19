@@ -24,12 +24,13 @@ class BruteForceInteractionTrainer:
     else:
         replicate = 'single_rep'
 
-    testcase = 'rep1_bias=True_frozen' #a exp
+    # testcase = 'rep1_bias=True_frozen' #a exp
     # testcase = 'rep1_bias=True_unfrozen' #b exp
+
     # testcase = 'rep1_bias=True_aW_unfrozen' #c exp
+    testcase = 'rep2_bias=True_aW_unfrozen' #c exp
 
     # testcase = replicate + '_eq1p5_bias=True_aW_unfrozen'  # c exp
-
     # testcase = 'rep1_dexpLOAD_bias=True_aW_unfrozen' #d exp
 
     train_epochs = 1
@@ -53,8 +54,8 @@ class BruteForceInteractionTrainer:
     pretrain_model.load_state_dict(torch.load(path_pretrain)['state_dict'])
 
     # param_to_freeze = 'all'
-    # param_to_freeze = 'W'
-    param_to_freeze = None
+    param_to_freeze = 'W'
+    # param_to_freeze = None
 
     #### load (pretrained: IP CNN frozen, a00...a11 unfrozen) and retrain IP as unfrozen (d exp)
     # path_pretrain = 'Log/docking_rep1_bias=True_aW_unfrozen1.th'
@@ -126,8 +127,8 @@ class BruteForceInteractionTrainer:
 
         return loss.item(), pred_interact.item()
 
-    def train_model(self, model, optimizer, testcase, train_epochs, train_stream, valid_stream, resume_training=False,
-                    resume_epoch=0, plotting=False, pretrain_model=None, optimizer_pretrain=None):
+    def train_model(self, model, testcase, train_epochs, train_stream, valid_stream, resume_training=False,
+                    resume_epoch=0, plotting=False):
 
         if plotting:
             self.test_freq = 1
@@ -244,12 +245,12 @@ class BruteForceInteractionTrainer:
     def train(self, resume_epoch=0):
         BruteForceInteractionTrainer().train_model(self.model, self.optimizer, self.testcase, self.train_epochs, train_stream, valid_stream,
                                                    resume_training=False, resume_epoch=resume_epoch,
-                                                   pretrain_model=self.pretrain_model, optimizer_pretrain=self.optimizer_pretrain)
+                                                   )
 
     def plot_validation_set(self, plotting=True, eval_stream=None):
         BruteForceInteractionTrainer().train_model(self.model, self.optimizer, self.testcase, self.train_epochs, train_stream, eval_stream,
                                                    resume_training=True, resume_epoch=self.check_epoch, plotting=plotting,
-                                                   pretrain_model=self.pretrain_model, optimizer_pretrain=self.optimizer_pretrain)
+                                                  )
 
 
 if __name__ == '__main__':
@@ -281,7 +282,7 @@ if __name__ == '__main__':
     test_stream = get_interaction_stream_balanced(testset + '.pkl', batch_size=1)
 
     ##################### Train model
-    # BruteForceInteractionTrainer().train()
+    BruteForceInteractionTrainer().train()
 
     # give time to save models
     # time.sleep(60)
