@@ -24,14 +24,11 @@ class BruteForceInteractionTrainer:
     else:
         replicate = 'single_rep'
 
-    # testcase = 'rep1_bias=True_frozen'  # a exp
-    # testcase = 'rep1_bias=True_unfrozen' #b exp
-    # testcase = 'rep1_bias=True_aW_unfrozen' #c exp
-    testcase = 'rep2_bias=True_aW_unfrozen' #c exp
+    # testcase = 'newdata_frozen'  # a exp
+    # testcase = 'newdata_unfrozen' #b exp
+    testcase = 'newdata_aW_unfrozen' #c exp
 
-
-    # testcase = 'rep1_dexpLOAD_bias=True_aW_unfrozen' #d exp
-    # testcase = 'TESTING_eq1p5_bias=True_scratch' #e exp
+    # testcase = 'newdata_scratch' #e exp
 
     train_epochs = 1
     check_epoch = 1
