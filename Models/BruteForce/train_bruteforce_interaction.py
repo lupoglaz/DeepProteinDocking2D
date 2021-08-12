@@ -17,6 +17,17 @@ import matplotlib.pyplot as plt
 from DeepProteinDocking2D.Models.BruteForce.TorchDockingFilter import TorchDockingFilter
 from DeepProteinDocking2D.Models.BruteForce.utility_functions import plot_assembly
 
+# class deltaF_loss(torch.nn.Module):
+#     def __init__(self):
+#         super().__init__()
+#
+#     def forward(self, deltaF, F_0, GT_int):
+#         deltaP = deltaF - F_0
+#         if (GT_int == 1.0 and deltaP <= 0) or (GT_int == 0.0 and deltaP > 0):
+#             deltaF.grad = 0
+#         else:
+#             deltaF.grad = -deltaP
+#         return
 
 class BruteForceInteractionTrainer:
     if len(sys.argv) > 1:
@@ -199,7 +210,7 @@ class BruteForceInteractionTrainer:
     def checkAPR(self, check_epoch, datastream):
         log_format = '%f\t%f\t%f\t%f\t%f\n'
         log_header = 'Accuracy\tPrecision\tRecall\tF1score\tMCC\n'
-        Accuracy, Precision, Recall, F1score, MCC = APR().calcAPR(datastream, BruteForceInteractionTrainer, check_epoch)
+        Accuracy, Precision, Recall, F1score, MCC = APR().calcAPR(datastream, BruteForceInteractionTrainer(), check_epoch)
         # print(Accuracy, Precision, Recall)
         with open('Log/losses/log_validAPR_' + self.testcase + '.txt', 'a') as fout:
             fout.write(log_header)
@@ -287,7 +298,7 @@ if __name__ == '__main__':
     #### model and pretrain model
 
     ##################### Train model
-    BruteForceInteractionTrainer().train()
+    # BruteForceInteractionTrainer().train()
 
     # give time to save models
     # time.sleep(60)

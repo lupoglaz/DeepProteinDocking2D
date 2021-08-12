@@ -14,6 +14,8 @@ class BruteForceInteraction(nn.Module):
         self.dim = TorchDockingFilter().dim
         self.num_angles = TorchDockingFilter().num_angles
 
+        # self.F_0 = nn.Parameter(torch.rand(1))
+
         self.kernel = 5
         self.pad = self.kernel//2
         self.stride = 1
