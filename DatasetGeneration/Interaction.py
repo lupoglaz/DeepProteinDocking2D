@@ -57,8 +57,11 @@ class Interaction:
 		
 		return funnels, complexes
 
-	def est_binding(self, T):
-		return torch.log(torch.sum(torch.exp(-(1.0/T)*self.scores))).item()
+	def est_binding(self):
+		min = torch.min(self.scores).item()
+		Znorm = -torch.log(torch.sum(torch.exp(-(self.scores - min)))).item()
+		# U = torch.mean(self.scores).item()
+		return Znorm + min
 
 	def plot_funnels(self, num_funnels=2, cell_size=90, ax=None, im_offset=(70,25), plot_conformations=True):
 		mask_scores = self.scores < -10

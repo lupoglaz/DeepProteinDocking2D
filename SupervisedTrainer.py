@@ -132,8 +132,9 @@ class SupervisedTrainer:
 		ligand = ligand.to(device=self.device, dtype=torch.float32).unsqueeze(dim=1)
 		self.model.eval()
 		with torch.no_grad():
-			pred = self.model(receptor, ligand)
-			if self.model.type == 'int':
+			rec, lig = self.model(receptor, ligand)
+			if self.type == 'int':
+				pred = self.model.sigmoid(self.model.fc_int(torch.cat([rec,lig], dim=1)))
 				TP = 0
 				FP = 0
 				TN = 0
@@ -151,5 +152,6 @@ class SupervisedTrainer:
 						TN += 1
 				return TP, FP, TN, FN
 			else:
+				pred = self.fc_pos(torch.cat([rec,lig], dim=1))
 				loss = torch.mean(self.loss(ligand, pred[:,:2], pred[:,-1], translation, rotation))
 				return loss.item(), pred[:,:2], pred[:,-1]

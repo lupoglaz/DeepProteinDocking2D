@@ -67,23 +67,29 @@ class ToyInteractionDataset(Dataset):
 
 		self.interactome = torch.from_numpy(self.interactome).to(dtype=torch.float32)
 		self.num_proteins = len(list(self.proteins))
-		self.dataset_size = self.num_proteins**2
-		
+				
 		self.weights = []
 		self.indexes = []
-		weight = float(self.dataset_size)/float(torch.sum(self.interactome).item())
+		weight = float(self.num_proteins*self.num_proteins)/float(torch.sum(self.interactome).item())
+		N_pos = 0
+		N_neg = 0
 		for i in range(self.num_proteins):
 			for j in range(self.num_proteins):
+				if i>j: continue
 				self.indexes.append((i,j))
 				if self.interactome[i,j] == 1:
 					self.weights.append(1.0)
+					N_pos += 1
 				else:
 					self.weights.append(1.0/float(weight))
+					N_neg += 1
 
+		self.dataset_size = len(self.indexes)
 
 		print ("Dataset file: ", self.path)
 		print ("Dataset size: ", self.dataset_size)
-		print ("Positive weight: ", weight)
+		print ("Number of proteins: ", len(self.proteins))
+		print ("Positive weight: ", weight, "Number of pos/neg:", N_pos, N_neg)
 		
 	def __getitem__(self, index):
 		r"""

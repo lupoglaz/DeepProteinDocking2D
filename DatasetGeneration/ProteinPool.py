@@ -49,17 +49,29 @@ class ParamDistribution:
 		return np.random.choice(vals, p=prob)
 
 
-class InteractionCriteria:
-	def __init__(self, score_cutoff=-70, funnel_gap_cutoff=10):
-		self.score_cutoff = score_cutoff
+class InteractionCriteriaGandGap:
+	def __init__(self, funnel_gap_cutoff=10, free_energy_cutoff=20):
 		self.funnel_gap_cutoff = funnel_gap_cutoff
+		self.free_energy_cutoff = free_energy_cutoff
 	
 	def __call__(self, interaction):
 		G, score, gap = interaction
-		if score < self.score_cutoff and gap>self.funnel_gap_cutoff:
+		if G > self.free_energy_cutoff and gap > self.funnel_gap_cutoff:
 			return True
 		else:
 			return False
+
+class InteractionCriteriaG:
+	def __init__(self, free_energy_cutoff=20):
+		self.free_energy_cutoff = free_energy_cutoff
+	
+	def __call__(self, interaction):
+		G, score, gap = interaction
+		if G > self.free_energy_cutoff:
+			return True
+		else:
+			return False
+
 
 
 
@@ -101,7 +113,7 @@ class ProteinPool:
 				funnel_gap = torch.min(funnels[1][1]).item() - torch.min(funnels[0][1]).item()
 			else:
 				funnel_gap = 0.0
-			self.interactions[(i,j)] = (interaction.est_binding(2.0), interaction.min_score, funnel_gap)
+			self.interactions[(i,j)] = (interaction.est_binding(), interaction.min_score, funnel_gap)
 
 	def create_complexes(self, params):
 		new_proteins = []
@@ -207,7 +219,7 @@ class ProteinPool:
 		cell_size = 90
 		canvas_best = np.zeros((cell_size, cell_size*num_plots))
 		canvas_worst = np.zeros((cell_size, cell_size*num_plots))
-		sorted_inter = sorted(list(self.interactions.items()), key=lambda x: x[1][1])
+		sorted_inter = sorted(list(self.interactions.items()), key=lambda x: x[1][0])
 		
 		plot_num = 0
 		min_scores = []
@@ -216,7 +228,7 @@ class ProteinPool:
 			scores = docker.dock_global(rec, lig)
 			min_score, cplx, ind = docker.get_conformation(scores, rec, lig)
 			canvas_best[:,plot_num*cell_size:(plot_num+1)*cell_size] = cplx.get_canvas(cell_size)
-			min_scores.append(min_score)
+			min_scores.append(G)
 			plot_num += 1
 
 		plot_num = 0
@@ -226,7 +238,7 @@ class ProteinPool:
 			scores = docker.dock_global(rec, lig)
 			max_score, cplx, ind = docker.get_conformation(scores, rec, lig)
 			canvas_worst[:,plot_num*cell_size:(plot_num+1)*cell_size] = cplx.get_canvas(cell_size)
-			max_scores.append(max_score)
+			max_scores.append(G)
 			plot_num += 1
 		
 		ax = plt.subplot(2,1,1)

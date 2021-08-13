@@ -103,31 +103,69 @@ class EQInteraction(nn.Module):
 			self.coords = torch.cat([a,x,y], dim=0).unsqueeze(dim=0)
 		
 		with torch.no_grad():
-			norm = torch.abs(torch.mean(scores))+1E-5
-			print(norm)
-
-		scores = torch.clamp(scores, -10.0, 10.0)
-		P = torch.exp(-scores)
-		coords = torch.sum(self.coords * P.unsqueeze(dim=1), dim=(2,3,4))/(torch.sum(P, dim=(1,2,3)).unsqueeze(dim=1))
+			norm, _ = torch.min(scores.view(batch_size, num_angles*L*L), dim=1)
+			norm = norm.unsqueeze(dim=1).unsqueeze(dim=2).unsqueeze(dim=3)
 		
-		#Change to RMSD
+		P = torch.exp(-scores+norm)
+		coords = torch.sum(self.coords * P.unsqueeze(dim=1), dim=(2,3,4))/(torch.sum(P, dim=(1,2,3)).unsqueeze(dim=1))
+				
 		rmsd = self.indicator(ligand, coords[:,1:], coords[:,0], self.coords)
 		indicator = torch.exp( -rmsd/9.0 )
-		print(coords[0,:])
-		# f = plt.figure()
-		# plt.imshow(scores[0,180,:,:].detach().cpu())
-		# plt.imshow(indicator[0,180,:,:].detach().cpu())
-		# plt.show()
-		# sys.exit()	
-		#When computing this integral add 2 pi r dr
-		# print(torch.sum(indicator * P, dim=(1,2,3)))
-		dK = torch.sum( (-1.0/9.0) * rmsd * indicator * P, dim=(1,2,3))/torch.sum(P, dim=(1,2,3))
-		# K = torch.sum( indicator * P, dim=(1,2,3))/torch.sum(P, dim=(1,2,3))
-		# interaction = self.sigmoid(-torch.log(K) + self.G0)
-		interaction = self.sigmoid(dK + self.G0)
-		print(interaction)
 		
+		interaction = torch.sum( indicator * P, dim=(1,2,3))/torch.sum( P, dim=(1,2,3))
 		return interaction
+
+class SharpLoss(nn.Module):
+	def __init__(self, trivial_penalty=0.01):
+		super(SharpLoss, self).__init__()
+		self.relu = nn.ReLU()
+		self.trivial_penalty = trivial_penalty
+		self.sigma = 0.1
+	
+	def forward(self, pred, target):
+		pred = pred.squeeze()
+		target = target.squeeze()
+		# assert pred.ndimension() == 1
+		# assert target.ndimension() == 1
+		
+		label = 2*(target - 0.5)
+		loss_pos = self.relu(pred) * (-self.relu(label))
+		loss_neg = self.relu(-pred) * (-self.relu(-label))
+		# print(pred)
+		# print(label)
+		# print(loss_pos)
+		# print(loss_neg)
+		# sys.exit()
+		loss_trivial = 1.0/(pred*pred + 1)*self.trivial_penalty
+		loss = loss_pos+loss_neg+loss_trivial
+		return loss.mean()
+
+class EQInteractionF(nn.Module):
+	def __init__(self, model):
+		super(EQInteractionF, self).__init__()
+		self.repr = model.repr
+		self.scorer = model.scorer
+		self.conv = ProteinConv2D()
+		self.sigmoid = nn.Sigmoid()
+		self.batchnorm = nn.BatchNorm1d(1)
+		self.F0 = nn.Parameter(torch.tensor([0.0], dtype=torch.float32))
+		
+	def forward(self, scores, angles, ligand=None):
+		assert scores.ndimension()==4
+		batch_size = scores.size(0)
+		num_angles = scores.size(1)
+		L = scores.size(2)
+
+		with torch.no_grad():
+			norm, _ = torch.min(scores.view(batch_size, num_angles*L*L), dim=1)
+			norm = norm.unsqueeze(dim=1).unsqueeze(dim=2).unsqueeze(dim=3)
+		
+		P = torch.exp(-(scores-norm))
+		F = -torch.log(torch.mean(P, dim=(1,2,3))+1E-5) + norm.squeeze()
+		# x = -F
+		# x = x.unsqueeze(dim=1).unsqueeze(dim=2)
+		# x = self.batchnorm(x)
+		return F - self.F0
 
 class SidInteraction(nn.Module):
 	def __init__(self, model):

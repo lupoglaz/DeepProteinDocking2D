@@ -18,7 +18,7 @@ class DockingTrainer:
 		if type == 'pos':
 			self.loss = nn.CrossEntropyLoss()
 		elif type == 'int':
-			self.loss = nn.MSELoss()
+			self.loss = nn.BCELoss()
 		else:
 			raise(Exception('Type unknown:', type))
 		
@@ -128,11 +128,16 @@ class DockingTrainer:
 			loss = self.loss(logprobs, flat_idx)
 		elif self.type == 'int':
 			pred = self.model(scores, self.angles, ligand)
-			loss = self.loss(pred, target.squeeze())
-		
+			loss = self.loss(pred, target)
 		loss.backward()
 		self.optimizer.step()
 		
+		# for p in self.model.parameters():
+		# 	if p.grad is None: continue
+		# 	print(p.grad.sum())
+		# 	# break
+		# print(self.model.F0.grad)
+		# sys.exit()
 		return loss.item()
 
 	def eval(self, data, threshold=0.5):
@@ -150,7 +155,8 @@ class DockingTrainer:
 			translations = self.dock_global(rec_repr.tensor, lig_repr.tensor)
 			scores = -self.score(translations)
 			pred = self.model(scores, self.angles, ligand)
-			
+			# print(pred, target)
+			# sys.exit()
 			if self.type == 'int':
 				TP = 0
 				FP = 0
