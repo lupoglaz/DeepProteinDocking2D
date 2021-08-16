@@ -99,7 +99,7 @@ class APR:
             Recall = float(TP) / float(TP + FN)
         else:
             Recall = 0.0
-        F1score = TP / (TP + 0.5*(FP + FN))
+        F1score = TP / (TP + 0.5*(FP + FN)+1E-5)
 
         MCC = ((TP * TN) - (FP * FN)) / (np.sqrt((TP+FP)*(TP+FN)*(TN+FP)*(TN+FN))+1E-5)
 
