@@ -30,15 +30,15 @@ class SharpLoss(nn.Module):
         # assert pred.ndimension() == 1
         # assert target.ndimension() == 1
         label = 2*(target - 0.5) # labels now +1 or -1
-        loss = self.relu(pred * label)
+        loss = self.relu(pred * label)**2
         # print(pred, label)
         # print('precodition loss', loss)
         if pred < 0.0 and label == 1.0:
-            loss += pred * label
+            loss += (pred * label)**2
             # print('interaction correctly predicted', loss)
 
         elif pred > 0.0 and label == -1.0:
-            loss += pred * label
+            loss += (pred * label)**2
             # print('noninteraction correctly predicted', loss)
         # print(pred,label)
         # print(loss_pos+loss_neg)

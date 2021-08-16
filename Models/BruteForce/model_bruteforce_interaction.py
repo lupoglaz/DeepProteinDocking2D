@@ -66,13 +66,11 @@ class BruteForceInteraction(nn.Module):
         # U = torch.sum(P * torch.sum(E))
         # U = torch.mean(P) * torch.mean(E)
         # print(torch.mean(P))
-        U = torch.mean(torch.exp(-E))/2*np.pi
+        U = torch.sum(torch.exp(-E))/(self.num_angles*self.dim**2)
         print(U)
-        # pred_interact = -self.T * torch.log(U)
-
         pred_interact = -self.T * torch.log(U)
+        # pred_interact = -self.T * U
         return pred_interact #- self.F_0
-
 
         # print(expU)
         # print(integral)
