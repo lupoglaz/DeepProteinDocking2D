@@ -17,17 +17,55 @@ import matplotlib.pyplot as plt
 from DeepProteinDocking2D.Models.BruteForce.TorchDockingFilter import TorchDockingFilter
 from DeepProteinDocking2D.Models.BruteForce.utility_functions import plot_assembly
 
+
+class SharpLoss(nn.Module):
+    def __init__(self, trivial_penalty=0.01):
+        super(SharpLoss, self).__init__()
+        self.relu = nn.ReLU()
+        self.trivial_penalty = trivial_penalty
+        # self.sigma = 0.1
+    def forward(self, pred, target):
+        pred = pred.squeeze()
+        target = target.squeeze()
+        # assert pred.ndimension() == 1
+        # assert target.ndimension() == 1
+        label = 2*(target - 0.5) # labels now +1 or -1
+        loss = self.relu(pred * label)
+        # print(pred, label)
+        # print('precodition loss', loss)
+        if pred < 0.0 and label == 1.0:
+            loss += pred * label
+            # print('interaction correctly predicted', loss)
+
+        elif pred > 0.0 and label == -1.0:
+            loss += pred * label
+            # print('noninteraction correctly predicted', loss)
+        # print(pred,label)
+        # print(loss_pos+loss_neg)
+        # sys.exit()
+        # loss_trivial = 1.0/(pred*pred + 1)*self.trivial_penalty
+        # loss = loss_pos+loss_neg#+loss_trivial
+        return loss
+
 # class deltaF_loss(torch.nn.Module):
 #     def __init__(self):
 #         super().__init__()
 #
 #     def forward(self, deltaF, F_0, GT_int):
+#         deltaF.retain_grad()
 #         deltaP = deltaF - F_0
+#         # print(deltaF.grad)
 #         if (GT_int == 1.0 and deltaP <= 0) or (GT_int == 0.0 and deltaP > 0):
-#             deltaF.grad = 0
-#         else:
-#             deltaF.grad = -deltaP
-#         return
+#             print('deltaF zero grad')
+#             deltaF.grad = torch.zeros_like(deltaF)
+#             # deltaF.grad = nn.Parameter(torch.zeros_like(deltaF))
+#         # elif GT_int == 0.0 and deltaP < 0:
+#         #     # deltaF.grad = torch.ones_like(deltaF)*-deltaP
+#         #     deltaF.grad = nn.Parameter(torch.ones_like(deltaF))*-deltaP
+#         # elif GT_int == 1.0 and deltaP > 0:
+#         #     # deltaF.grad = torch.ones_like(deltaF)*deltaP
+#         #     deltaF.grad = nn.Parameter(torch.ones_like(deltaF))*deltaP
+#         return torch.abs(deltaP)
 
 class BruteForceInteractionTrainer:
     if len(sys.argv) > 1:
@@ -37,9 +75,18 @@ class BruteForceInteractionTrainer:
 
     # testcase = 'newdata_frozen'  # a exp
     # testcase = 'newdata_unfrozen' #b exp
-    testcase = 'newdata_aW_unfrozen' #c exp
+    # testcase = 'newdata_aW_unfrozen' #c exp
 
     # testcase = 'newdata_scratch' #e exp
+
+    # testcase = 'newdata_newloss_aW_unfrozen' #c exp
+
+    # testcase = 'eq16_newdata_newloss_scratch' #c exp
+    #
+    # testcase = 'newdata_eq15_newloss_scratch' #c exp
+
+    testcase = 'newdata_eq15_newloss_aW_unfrozen' #c exp
+
 
     train_epochs = 1
     check_epoch = 1
@@ -97,13 +144,18 @@ class BruteForceInteractionTrainer:
         pred_interact = self.model(FFT_score, plotting=self.plotting)
 
         ### check if pretrain weights are frozen or updating
-        # for n, p in pretrain_model.named_parameters():
+        # for n, p in self.pretrain_model.named_parameters():
+        #     if p.requires_grad:
+        #         print(n, p, p.grad)
+
+        # for n, p in self.model.named_parameters():
         #     if p.requires_grad:
         #         print(n, p, p.grad)
 
         #### Loss functions
-        BCEloss = torch.nn.BCELoss()
-        loss = BCEloss(pred_interact, gt_interact)
+        # BCEloss = torch.nn.BCELoss()
+        # loss = BCEloss(pred_interact, gt_interact)
+        loss = SharpLoss().forward(pred_interact, gt_interact)
         print(pred_interact.item(), gt_interact.item())
 
         if train:
@@ -182,7 +234,6 @@ class BruteForceInteractionTrainer:
                 'state_dict': self.pretrain_model.state_dict(),
                 'optimizer': self.optimizer_pretrain.state_dict(),
             }
-
 
             if epoch % self.test_freq == 0 and epoch > 1:
                 BruteForceInteractionTrainer().checkAPR(epoch, valid_stream)
@@ -289,7 +340,7 @@ if __name__ == '__main__':
     torch.backends.cudnn.determininistic = True
     torch.cuda.set_device(0)
     # CUDA_LAUNCH_BLOCKING = 1
-    # torch.autograd.set_detect_anomaly(True)
+    torch.autograd.set_detect_anomaly(True)
 
     train_stream = get_interaction_stream_balanced(trainset + '.pkl', batch_size=1)
     valid_stream = get_interaction_stream_balanced(validset + '.pkl', batch_size=1)
@@ -298,7 +349,7 @@ if __name__ == '__main__':
     #### model and pretrain model
 
     ##################### Train model
-    # BruteForceInteractionTrainer().train()
+    BruteForceInteractionTrainer().train()
 
     # give time to save models
     # time.sleep(60)
