@@ -19,32 +19,24 @@ from DeepProteinDocking2D.Models.BruteForce.utility_functions import plot_assemb
 
 
 class SharpLoss(nn.Module):
-    def __init__(self, trivial_penalty=0.01):
+    def __init__(self):
         super(SharpLoss, self).__init__()
         self.relu = nn.ReLU()
-        self.trivial_penalty = trivial_penalty
-        # self.sigma = 0.1
+        self.trivial_penalty = torch.rand(1, requires_grad=True).cuda()*1e-2
     def forward(self, pred, target):
         pred = pred.squeeze()
         target = target.squeeze()
-        # assert pred.ndimension() == 1
-        # assert target.ndimension() == 1
+
         label = 2*(target - 0.5) # labels now +1 or -1
-        loss = self.relu(pred * label)**2
+        loss = self.relu(pred * label) * self.trivial_penalty
         # print(pred, label)
         # print('precodition loss', loss)
         if pred < 0.0 and label == 1.0:
-            loss += (pred * label)**2
+            loss -= self.relu(pred * label)
             # print('interaction correctly predicted', loss)
-
-        elif pred > 0.0 and label == -1.0:
-            loss += (pred * label)**2
+        elif pred >= 0.0 and label == -1.0:
+            loss -= self.relu(pred * label)
             # print('noninteraction correctly predicted', loss)
-        # print(pred,label)
-        # print(loss_pos+loss_neg)
-        # sys.exit()
-        # loss_trivial = 1.0/(pred*pred + 1)*self.trivial_penalty
-        # loss = loss_pos+loss_neg#+loss_trivial
         return loss
 
 # class deltaF_loss(torch.nn.Module):
@@ -85,7 +77,9 @@ class BruteForceInteractionTrainer:
     #
     # testcase = 'newdata_eq15_newloss_scratch' #c exp
 
-    testcase = 'newdata_eq15_newloss_aW_unfrozen' #c exp
+    # testcase = 'newdata_eq15_newloss_aW_unfrozen' #c exp
+
+    testcase = 'TEST_newdata_eq15_newloss_aW_unfrozen' #c exp
 
 
     train_epochs = 1

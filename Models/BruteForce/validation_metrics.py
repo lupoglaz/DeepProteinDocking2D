@@ -101,7 +101,7 @@ class APR:
             Recall = 0.0
         F1score = TP / (TP + 0.5*(FP + FN))
 
-        MCC = ((TP * TN) - (FP * FN)) / (np.sqrt((TP+FP)*(TP+FN)*(TN+FP)*(TN+FN)))
+        MCC = ((TP * TN) - (FP * FN)) / (np.sqrt((TP+FP)*(TP+FN)*(TN+FP)*(TN+FN))+1E-5)
 
         print(f'Epoch {epoch} Acc: {Accuracy} Prec: {Precision} Rec: {Recall} F1: {F1score} MCC: {MCC}')
 
