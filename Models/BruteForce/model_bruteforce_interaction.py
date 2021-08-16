@@ -72,6 +72,7 @@ class BruteForceInteraction(nn.Module):
         # pred_interact = -self.T * U
         return pred_interact #- self.F_0
 
+
         # print(expU)
         # print(integral)
 
