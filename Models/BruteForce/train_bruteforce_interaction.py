@@ -32,10 +32,10 @@ class SharpLoss(nn.Module):
         # print(pred, label)
         # print('precodition loss', loss)
         if pred < 0.0 and label == 1.0:
-            loss -= self.relu(pred * label)
+            loss += pred * label
             # print('interaction correctly predicted', loss)
         elif pred >= 0.0 and label == -1.0:
-            loss -= self.relu(pred * label)
+            loss += pred * label
             # print('noninteraction correctly predicted', loss)
         return loss
 
