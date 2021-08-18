@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --partition=p_ccib_1
-#SBATCH --job-name=newloss_eq15_expC
+#SBATCH --job-name=minE_expC
 #SBATCH --nodes=1
 ##SBATCH --ntasks=1
 #SBATCH --tasks-per-node=1
@@ -8,8 +8,8 @@
 #SBATCH --gres=gpu:2 # Number of GPUs
 #SBATCH --constraint=volta
 #SBATCH --time=48:00:00
-#SBATCH --output=slurm_log/slurm.%N.newloss_eq15_expC.out
-#SBATCH --error=slurm_log/slurm.%N.newloss_eq15_expC.err
+#SBATCH --output=slurm_log/slurm.%N.minE_expC.out
+#SBATCH --error=slurm_log/slurm.%N.minE_expC.err
 #SBATCH --export=ALL
 
 pwd

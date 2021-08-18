@@ -14,8 +14,7 @@ class BruteForceInteraction(nn.Module):
         self.dim = TorchDockingFilter().dim
         self.num_angles = TorchDockingFilter().num_angles
 
-        self.T = nn.Parameter(torch.rand(1))
-        self.F_0 = nn.Parameter(torch.rand(1))
+        self.F_0 = nn.Parameter(-torch.rand(1)*10.0)
         #
         # self.kernel = 5
         # self.pad = self.kernel//2
@@ -45,42 +44,52 @@ class BruteForceInteraction(nn.Module):
         # eP = torch.sum(B * P) / (torch.sum((1-B)*P))
         # pred_interact = eP / (eP + 1) ## eq 7 substituted
 
-        ### eq16
-        # U = torch.exp(-E)
-        # U = P * E
-        # # U = P
-        # print(torch.sum(U))
-        # pred_interact = 1.0 + torch.log(torch.mean(U))
-        # # pred_interact = -self.T * torch.log(torch.mean(U))
-        # return -torch.sigmoid(pred_interact) #- self.F_0
-
-        # U = P * E
-        # U = torch.mean(P) * U
-        # print(torch.sum(U))
-
-
-        # U = torch.sum((P) * torch.sum(torch.exp(-E)))
-        # U = torch.mean((P) * torch.sum(torch.exp(-E)))
-        # pred_interact = -self.T * torch.log(U)
-
-        # U = torch.sum(P * torch.sum(E))
-        # U = torch.mean(P) * torch.mean(E)
-        # print(torch.mean(P))
+        # ## georgy code
+        # with torch.no_grad():
+        #     minE, _ = torch.min(E.view(1, self.num_angles*self.dim*self.dim), dim=1)
+        #     minE = minE.unsqueeze(dim=1).unsqueeze(dim=2).unsqueeze(dim=3)
+        #
+        # shifted_E = -E + minE #shifts all "scores" to be <= 0
+        # U = torch.exp(shifted_E)
+        # # print(torch.min(-E), torch.min(shifted_E))
+        # pred_interact = -torch.log(torch.mean(U))
+        # # print(pred_interact.item(), norm.squeeze().item(), self.F_0.item())
+        # return pred_interact - self.F_0
 
 
-        # U = torch.sum(torch.exp(-E)/(self.num_angles*self.dim**2))
-        # pred_interact = -self.T * torch.log(U)
-        # print(U, torch.log(U))
-        # return pred_interact #- self.F_0
+        minE = -torch.sum(-E * P)
+        print(minE.item(), self.F_0.item())
+        return minE - self.F_0
 
-        U = torch.sum(P * torch.sum(torch.exp(-E)/(self.num_angles*self.dim**2)))
-        pred_interact = -torch.log(U)
-        print(U, -torch.log(U))
-        return pred_interact #- self.F_0
+        # minE = -torch.sum(-E * P)
+        #
+        # interaction_threshold = self.F_0
+        #
+        # pred_interact = 1.0 - torch.exp(-minE * interaction_threshold)
+        #
+        # print(interaction_threshold.item())
+        #
+        # return pred_interact
 
 
-        # print(expU)
-        # print(integral)
+        # with torch.no_grad():
+        #     EP = -E * P
+        #     maxEP, _ = torch.max(EP.view(1, self.num_angles*self.dim*self.dim), dim=1)
+        #     maxEP = maxEP.unsqueeze(dim=1).unsqueeze(dim=2).unsqueeze(dim=3)
+
+
+        # shiftedEP = EP #- maxEP #shifts all "scores" to be <= 0
+        # U = torch.exp(shiftedEP)
+        # U = shiftedEP
+        # pred_interact = -torch.log(torch.mean(U))
+
+        # sumPE = torch.sum(P*-E)
+        # pred_interact = -(sumPE)
+        #
+        # # print(torch.max(shiftedEP).item(), torch.max(U).item()) # prints 0 for max of shifted down dist, and 1 for max of
+        # # print(pred_interact.item(), self.F_0.item())
+        # return pred_interact - (torch.mean(E))
+        # # return pred_interact - (self.F_0 + -torch.log(torch.mean(torch.exp(-E))))
 
 
         # if eval and plotting:

@@ -39,6 +39,29 @@ class SharpLoss(nn.Module):
             # print('noninteraction correctly predicted', loss)
         return loss
 
+# class SharpLoss(nn.Module):
+#     def __init__(self, trivial_penalty=0.01):
+#         super(SharpLoss, self).__init__()
+#         self.relu = nn.ReLU()
+#         self.trivial_penalty = trivial_penalty
+#         self.sigma = 0.1
+#     def forward(self, pred, target):
+#         pred = pred.squeeze()
+#         target = target.squeeze()
+#         # assert pred.ndimension() == 1
+#         # assert target.ndimension() == 1
+#         label = 2*(target - 0.5)
+#         loss_pos = self.relu(pred) * (-self.relu(label))
+#         loss_neg = self.relu(-pred) * (-self.relu(-label))
+#         # print(pred)
+#         # print(label)
+#         # print(loss_pos)
+#         # print(loss_neg)
+#         # sys.exit()
+#         loss_trivial = 1.0/(pred*pred + 1)*self.trivial_penalty
+#         loss = loss_pos+loss_neg+loss_trivial
+#         return loss.mean()
+
 # class deltaF_loss(torch.nn.Module):
 #     def __init__(self):
 #         super().__init__()
@@ -79,7 +102,9 @@ class BruteForceInteractionTrainer:
 
     # testcase = 'newdata_eq15_newloss_aW_unfrozen' #c exp
 
-    testcase = 'TEST_newdata_eq15_newloss_aW_unfrozen' #c exp
+    # testcase = 'TEST_newdata_eq15_newloss_aW_unfrozen' #c exp
+    testcase = 'TEST_newdata_eq15_newloss_scratch' #e exp
+    # testcase = 'TEST_newdata_eq15_newloss_ allfrozen' #a exp
 
 
     train_epochs = 1
@@ -99,12 +124,12 @@ class BruteForceInteractionTrainer:
 
     ###################### Load and freeze/unfreeze params (training no eval)
     ## for exp a,b,c
-    path_pretrain = 'Log/docking_pretrain_bruteforce_allLearnedWs_10epochs_end.th'
-    pretrain_model.load_state_dict(torch.load(path_pretrain)['state_dict'])
+    # path_pretrain = 'Log/docking_pretrain_bruteforce_allLearnedWs_10epochs_end.th'
+    # pretrain_model.load_state_dict(torch.load(path_pretrain)['state_dict'])
 
     # param_to_freeze = 'all'
-    param_to_freeze = 'W'
-    # param_to_freeze = None
+    # param_to_freeze = 'W'
+    param_to_freeze = None
 
     #### load (pretrained: IP CNN frozen, a00...a11 unfrozen) and retrain IP as unfrozen (d exp)
     # path_pretrain = 'Log/docking_rep1_bias=True_aW_unfrozen1.th'
@@ -150,7 +175,7 @@ class BruteForceInteractionTrainer:
         # BCEloss = torch.nn.BCELoss()
         # loss = BCEloss(pred_interact, gt_interact)
         loss = SharpLoss().forward(pred_interact, gt_interact)
-        print(pred_interact.item(), gt_interact.item())
+        print('\n', pred_interact.item(), gt_interact.item())
 
         if train:
             self.pretrain_model.zero_grad()
