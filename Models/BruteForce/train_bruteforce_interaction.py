@@ -104,7 +104,7 @@ class BruteForceInteractionTrainer:
 
     # testcase = 'TEST_newdata_eq15_newloss_aW_unfrozen' #c exp
     testcase = 'TEST_newdata_eq15_newloss_scratch' #e exp
-    # testcase = 'TEST_newdata_eq15_newloss_ allfrozen' #a exp
+    # testcase = 'TEST_newdata_eq15_newloss_allfrozen' #a exp
 
 
     train_epochs = 1

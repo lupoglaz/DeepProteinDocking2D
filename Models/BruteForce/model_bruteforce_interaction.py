@@ -14,7 +14,7 @@ class BruteForceInteraction(nn.Module):
         self.dim = TorchDockingFilter().dim
         self.num_angles = TorchDockingFilter().num_angles
 
-        self.F_0 = nn.Parameter(-torch.rand(1)*10.0)
+        self.F_0 = nn.Parameter(torch.rand(1)*10)
         #
         # self.kernel = 5
         # self.pad = self.kernel//2
@@ -57,9 +57,24 @@ class BruteForceInteraction(nn.Module):
         # return pred_interact - self.F_0
 
 
-        minE = -torch.sum(-E * P)
-        print(minE.item(), self.F_0.item())
-        return minE - self.F_0
+        # minE = -torch.sum(-E * P)
+        # threshold = torch.mean(-E) * -self.F_0
+        # print(torch.mean(-E).item(), -self.F_0.item())
+        # print(minE.item(), threshold.item())
+        # return minE - threshold
+
+
+        # blah = torch.sum(P * torch.mean(torch.exp(E)))
+        U = P * torch.sum(-E)
+        pred_interact = -torch.log(torch.mean(U))
+        # print(pred_interact.item(), self.F_0.item())
+        return pred_interact - self.F_0
+
+
+        # minE = torch.sum(E * P)
+        # threshold = -torch.log(torch.sum(-E)) #- self.F_0
+        # print(minE.item(), threshold.item())
+        # return minE #- threshold
 
         # minE = -torch.sum(-E * P)
         #
