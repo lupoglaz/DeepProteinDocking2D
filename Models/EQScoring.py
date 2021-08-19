@@ -15,12 +15,12 @@ import seaborn as sea
 sea.set_style("whitegrid")
 
 class EQScoringModel(nn.Module):
-	def __init__(self, num_features=1, prot_field_size=50):
+	def __init__(self, num_features=1, prot_field_size=50, bias=False):
 		super(EQScoringModel, self).__init__()
 		self.prot_field_size = prot_field_size
 				
 		self.mult = ImageCrossMultiply()	
-		self.repr = EQRepresentation()
+		self.repr = EQRepresentation(bias=bias)
 
 		self.scorer = nn.Sequential(
 			nn.Linear(4,1, bias=False)

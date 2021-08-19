@@ -56,7 +56,7 @@ class InteractionCriteriaGandGap:
 	
 	def __call__(self, interaction):
 		G, score, gap = interaction
-		if G > self.free_energy_cutoff and gap > self.funnel_gap_cutoff:
+		if (G < self.free_energy_cutoff) and (gap > self.funnel_gap_cutoff):
 			return True
 		else:
 			return False
@@ -67,7 +67,7 @@ class InteractionCriteriaG:
 	
 	def __call__(self, interaction):
 		G, score, gap = interaction
-		if G > self.free_energy_cutoff:
+		if (G < self.free_energy_cutoff):
 			return True
 		else:
 			return False
@@ -159,7 +159,7 @@ class ProteinPool:
 		
 		return proteins_sel.copy(), mat.copy()
 
-	def plot_interaction_dist(self, perc=0.8):
+	def plot_interaction_dist(self, perc=80):
 		assert not(self.interactions is None)
 			
 		dG, scores, gaps = zip(*[v for k, v in self.interactions.items()])
@@ -170,8 +170,8 @@ class ProteinPool:
 			GMat[j,i], SMat[j,i], FMat[j,i] = dg, score, gap
 		
 		Gdist, Sdist, Fdist = [], [], []
-		print(np.percentile(dG, perc), np.percentile(scores, 100-perc), np.percentile(gaps, perc))
-		GInt = GMat>np.percentile(dG, perc)
+		print(np.percentile(dG, 100-perc), np.percentile(scores, 100-perc), np.percentile(gaps, perc))
+		GInt = GMat<np.percentile(dG, 100-perc)
 		SInt = SMat<np.percentile(scores, 100-perc)
 		FInt = FMat>np.percentile(gaps, perc)
 		for i in range(len(self.proteins)):

@@ -54,9 +54,9 @@ def extract_interaction_dataset(interaction_criteria, savefile,
 
 def visualize(docker, savefile):
 	pool = ProteinPool.load(savefile)
-	pool.plot_interaction_dist(perc=80)
-	pool.plot_interactions(docker, filename='examples.png', num_plots=10)
-	pool.plot_sample_funnels(docker, filename='funnels.png', range=[(-200, -150), (-200, -100), (-100, -20)])
+	pool.plot_interaction_dist(perc=90)
+	# pool.plot_interactions(docker, filename='examples.png', num_plots=10)
+	# pool.plot_sample_funnels(docker, filename='funnels.png', range=[(-200, -150), (-200, -100), (-100, -20)])
 	# pool.plot_params()
 
 def generate_set(	num_proteins, params, interaction_criteria_dock, interaction_criteria_inter,
@@ -64,7 +64,7 @@ def generate_set(	num_proteins, params, interaction_criteria_dock, interaction_c
 	#Structures
 	# generate_shapes(params, savefile, num_proteins)
 	#Interaction
-	generate_interactions(docker, savefile)
+	# generate_interactions(docker, savefile)
 	if training_set:
 		#Docking dataset
 		extract_docking_dataset(docker, interaction_criteria_dock, savefile,
@@ -96,8 +96,8 @@ if __name__ == '__main__':
 	parser.add_argument('-a10', default=-0.3, type=float)
 	parser.add_argument('-a11', default=2.5, type=float)
 	parser.add_argument('-score_cutoff', default=-100, type=float)
-	parser.add_argument('-funnel_gap_cutoff', default=10, type=float)
-	parser.add_argument('-free_energy_cutoff', default=-90, type=float)
+	parser.add_argument('-funnel_gap_cutoff', default=15, type=float)
+	parser.add_argument('-free_energy_cutoff', default=-100, type=float)
 
 	args = parser.parse_args()
 	

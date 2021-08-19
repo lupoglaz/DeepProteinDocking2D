@@ -120,7 +120,7 @@ class SharpLoss(nn.Module):
 		super(SharpLoss, self).__init__()
 		self.relu = nn.ReLU()
 		self.trivial_penalty = trivial_penalty
-		self.sigma = 0.1
+		self.sigma = 1E-5
 	
 	def forward(self, pred, target):
 		pred = pred.squeeze()
@@ -132,13 +132,68 @@ class SharpLoss(nn.Module):
 		loss_pos = self.relu(pred) * (-self.relu(label))
 		loss_neg = self.relu(-pred) * (-self.relu(-label))
 		# print(pred)
-		# print(label)
+		print('Label:', label.squeeze().cpu())
 		# print(loss_pos)
 		# print(loss_neg)
 		# sys.exit()
-		loss_trivial = 1.0/(pred*pred + 1)*self.trivial_penalty
-		loss = loss_pos+loss_neg+loss_trivial
+		loss_trivial = 1.0/(pred*pred + 1.0)*self.trivial_penalty
+		loss = loss_pos + loss_neg #+ loss_trivial #+ self.sigma*pred*pred
 		return loss.mean()
+
+class RankingLoss(nn.Module):
+	def __init__(self):
+		super(RankingLoss, self).__init__()
+		self.relu = nn.ReLU()
+		
+		self.F0 = 0.0
+		self.num_samples = 0
+		self.delta = 0.0
+		
+	def resetF0(self):
+		if not self.num_samples == 0:
+			F0 = self.F0/float(self.num_samples)
+			self.F0 = 0.0
+			self.num_samples = 0
+			return F0
+
+	def forward(self, pred, target):
+		pred = pred.squeeze()
+		target = target.squeeze()
+		# assert pred.ndimension() == 1
+		# assert target.ndimension() == 1
+		# print(pred, target)
+		batch_size = pred.size(0)
+		loss = None
+		N = 0
+		for i in range(batch_size):
+			for j in range(batch_size):
+				# print(target[i].item(), target[j].item(), (pred[j] - pred[i]).item())
+				if target[i]==0 and target[j]==1:
+					if loss is None:
+						loss = self.relu(self.delta - (pred[i] - pred[j]))
+					else:
+						loss += self.relu(self.delta - (pred[i] - pred[j]))
+					self.F0 += (pred[j] + pred[i])/2.0
+					self.num_samples += 1
+					N = N + 1
+
+				elif target[i]==1 and target[j]==0:
+					if loss is None:
+						loss = self.relu(self.delta - (pred[j] - pred[i]))
+					else:
+						loss += self.relu(self.delta - (pred[j] - pred[i]))
+					self.F0 += (pred[j] + pred[i])/2.0
+					self.num_samples += 1
+					N = N + 1
+				
+		loss_trivial = (1.0/(pred*pred + 1e-5)).mean()
+
+		if N>0:
+			return loss_trivial + loss/float(N) 
+		else:
+			return None
+
+
 
 class EQInteractionF(nn.Module):
 	def __init__(self, model):
@@ -148,24 +203,22 @@ class EQInteractionF(nn.Module):
 		self.conv = ProteinConv2D()
 		self.sigmoid = nn.Sigmoid()
 		self.batchnorm = nn.BatchNorm1d(1)
-		self.F0 = nn.Parameter(torch.tensor([0.0], dtype=torch.float32))
+		# self.F0 = nn.Parameter(torch.tensor([0.0], dtype=torch.float32))
 		
 	def forward(self, scores, angles, ligand=None):
 		assert scores.ndimension()==4
 		batch_size = scores.size(0)
 		num_angles = scores.size(1)
 		L = scores.size(2)
-
+		
 		with torch.no_grad():
 			norm, _ = torch.min(scores.view(batch_size, num_angles*L*L), dim=1)
 			norm = norm.unsqueeze(dim=1).unsqueeze(dim=2).unsqueeze(dim=3)
 		
-		P = torch.exp(-(scores-norm))
+		P = torch.exp(-scores + norm)
 		F = -torch.log(torch.mean(P, dim=(1,2,3))+1E-5) + norm.squeeze()
-		# x = -F
-		# x = x.unsqueeze(dim=1).unsqueeze(dim=2)
-		# x = self.batchnorm(x)
-		return F - self.F0
+		
+		return F
 
 class SidInteraction(nn.Module):
 	def __init__(self, model):

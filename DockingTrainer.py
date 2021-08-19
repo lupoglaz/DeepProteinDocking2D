@@ -10,7 +10,7 @@ from math import cos, sin
 import numpy as np
 
 class DockingTrainer:
-	def __init__(self, model, optimizer, num_angles=360, device='cuda', type='pos'):
+	def __init__(self, model, optimizer, num_angles=360, device='cuda', type='pos', accum=0):
 		self.model = model
 		self.optimizer = optimizer
 		self.device = device
@@ -26,6 +26,9 @@ class DockingTrainer:
 		self.conv = ProteinConv2D()
 		self.angles = torch.from_numpy(np.linspace(-np.pi, np.pi, num=num_angles)).to(device='cuda', dtype=torch.float32)
 		self.sigmoid = nn.Sigmoid()
+
+		self.zero_input = None
+		self.accum = accum
 
 	def load_checkpoint(self, path):
 		raw_model = self.model.module if hasattr(self.model, "module") else self.model
@@ -115,12 +118,20 @@ class DockingTrainer:
 			target = target.to(device=self.device).unsqueeze(dim=1)
 				
 		self.model.train()
-		self.model.zero_grad()
+		
+		# if self.accum == 0:
+		# 	self.model.zero_grad()
+
+		if self.zero_input is None:
+			self.zero_input = torch.zeros_like(receptor)
 
 		rec_repr = self.model.repr(receptor)
 		lig_repr = self.model.repr(ligand)
 		translations = self.dock_global(rec_repr.tensor, lig_repr.tensor)
 		scores = -self.score(translations)
+
+		# zeros = self.model.repr(self.zero_input).tensor
+		# zeros_loss = (zeros*zeros).sum()
 
 		if self.type == 'pos':
 			flat_idx = self.conf_idx(rotation, translation, scores)
@@ -129,8 +140,19 @@ class DockingTrainer:
 		elif self.type == 'int':
 			pred = self.model(scores, self.angles, ligand)
 			loss = self.loss(pred, target)
-		loss.backward()
-		self.optimizer.step()
+		# print('Zeros loss:', zeros_loss.item())
+		# loss = loss + 100.0*zeros_loss
+		# sys.exit()
+		if not loss is None:
+			loss.backward()
+			if self.accum == 0:
+				self.optimizer.step()
+				self.model.zero_grad()
+			else:
+				self.accum -= 1
+			return loss.item()
+		else:
+			return 0.0
 		
 		# for p in self.model.parameters():
 		# 	if p.grad is None: continue
@@ -149,6 +171,7 @@ class DockingTrainer:
 		receptor = receptor.to(device=self.device, dtype=torch.float32).unsqueeze(dim=1)
 		ligand = ligand.to(device=self.device, dtype=torch.float32).unsqueeze(dim=1)
 		self.model.eval()
+		threshold = -threshold
 		with torch.no_grad():
 			rec_repr = self.model.repr(receptor)
 			lig_repr = self.model.repr(ligand)
@@ -163,15 +186,15 @@ class DockingTrainer:
 				TN = 0
 				FN = 0
 				for i in range(pred.size(0)):
-					p = pred[i].item()
+					p = -pred[i].item()
 					a = target[i].item()
-					if p>=threshold and a>=threshold:
+					if p>=threshold and a>=0.5:
 						TP += 1
-					elif p>=threshold and a<threshold:
+					elif p>=threshold and a<0.5:
 						FP += 1
-					elif p<threshold and a>=threshold:
+					elif p<threshold and a>=0.5:
 						FN += 1
-					elif p<threshold and a<threshold:
+					elif p<threshold and a<0.5:
 						TN += 1
 				return TP, FP, TN, FN
 			else:

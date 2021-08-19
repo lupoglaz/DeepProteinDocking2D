@@ -12,7 +12,7 @@ def init_weights(module):
 		module.bias.data.zero_()
 
 class EQRepresentation(nn.Module):
-	def __init__(self):
+	def __init__(self, bias=False):
 		super(EQRepresentation, self).__init__()
 
 		r2_act = gspaces.Rot2dOnR2(N=-1, maximum_frequency=5)
@@ -21,16 +21,16 @@ class EQRepresentation(nn.Module):
 		self.feat_type_out = e2nn.FieldType(r2_act, 2*[r2_act.trivial_repr])
 		
 		self.repr = nn.Sequential(
-			e2nn.R2Conv(self.feat_type_in, self.feat_type_hid, kernel_size=5, padding=2, bias=False),
+			e2nn.R2Conv(self.feat_type_in, self.feat_type_hid, kernel_size=5, padding=2, bias=bias),
 			e2nn.NormNonLinearity(self.feat_type_hid, bias=False),
 
-			e2nn.R2Conv(self.feat_type_hid, self.feat_type_hid, kernel_size=5, padding=2, bias=False),
+			e2nn.R2Conv(self.feat_type_hid, self.feat_type_hid, kernel_size=5, padding=2, bias=bias),
 			e2nn.NormNonLinearity(self.feat_type_hid, bias=False),
 
-			e2nn.R2Conv(self.feat_type_hid, self.feat_type_hid, kernel_size=5, padding=2, bias=False),
+			e2nn.R2Conv(self.feat_type_hid, self.feat_type_hid, kernel_size=5, padding=2, bias=bias),
 			e2nn.NormNonLinearity(self.feat_type_hid, bias=False),
 			
-			e2nn.R2Conv(self.feat_type_hid, self.feat_type_out, kernel_size=5, padding=2, bias=False),
+			e2nn.R2Conv(self.feat_type_hid, self.feat_type_out, kernel_size=5, padding=2, bias=bias),
 		)
 		with torch.no_grad():
 			self.repr.apply(init_weights)
