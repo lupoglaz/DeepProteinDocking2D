@@ -159,7 +159,7 @@ class BruteForceDockingTrainer:
 
                 avg_testloss = np.average(testloss, axis=0)[0, :]
                 print('\nEpoch', epoch, 'TEST LOSS:', avg_testloss)
-                with open('Log/losses/log_test_' + testcase + '.txt', 'a') as fout:
+                with open('Log/losses/log_eval_' + testcase + '.txt', 'a') as fout:
                     fout.write(log_format % (epoch, avg_testloss[0], avg_testloss[1]))
 
             trainloss = []
@@ -232,19 +232,19 @@ if __name__ == '__main__':
                                                resume_training=resume_training, resume_epoch=resume_epoch)
 
 
-    def plot_validation_set(check_epoch, datastream=valid_stream, plotting=False):
+    def plot_evaluation_set(check_epoch, datastream=valid_stream, train_epochs=1, plotting=False):
         BruteForceDockingTrainer().train_model(model, optimizer, testcase, train_epochs, train_stream, datastream,
                                                resume_training=True, resume_epoch=check_epoch, plotting=plotting)
 
     ######################
-    epoch = 10
+    epoch = 30
 
-    # train()
+    train()
     # train(True, epoch)
 
     # epoch = 'end'
 
     plotting = False
-    plot_validation_set(check_epoch=epoch, datastream=valid_stream, plotting=plotting)
-    # plot_validation_set(check_epoch=epoch, datastream=test_stream, plotting=plotting)
+    plot_evaluation_set(check_epoch=epoch, datastream=valid_stream, plotting=plotting)
+    plot_evaluation_set(check_epoch=epoch, datastream=test_stream, plotting=plotting)
 
