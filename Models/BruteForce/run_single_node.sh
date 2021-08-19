@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --partition=p_ccib_1
-#SBATCH --job-name=minE_scratch
+#SBATCH --job-name=bugfix_expC
 #SBATCH --nodes=1
 ##SBATCH --ntasks=1
 #SBATCH --tasks-per-node=1
@@ -8,8 +8,8 @@
 #SBATCH --gres=gpu:2 # Number of GPUs
 #SBATCH --constraint=volta
 #SBATCH --time=48:00:00
-#SBATCH --output=slurm_log/slurm.%N.minE_scratch.out
-#SBATCH --error=slurm_log/slurm.%N.minE_scratch.err
+#SBATCH --output=slurm_log/slurm.%N.bugfix_expC.out
+#SBATCH --error=slurm_log/slurm.%N.bugfix_expC.err
 #SBATCH --export=ALL
 
 pwd
