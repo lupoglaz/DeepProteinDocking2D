@@ -39,6 +39,7 @@ class BruteForceDockingTrainer:
         ##### call model
         FFT_score = model(receptor, ligand, plotting=plotting)
         FFT_score = FFT_score.flatten()
+
         with torch.no_grad():
             target_flatindex = TorchDockingFilter().encode_transform(gt_rot, gt_txy)
             pred_rot, pred_txy = TorchDockingFilter().extract_transform(FFT_score)
@@ -46,6 +47,7 @@ class BruteForceDockingTrainer:
             # print('extracted predicted indices', pred_rot, pred_txy)
             # print('gt indices', gt_rot, gt_txy)
             # print('RMSD', rmsd_out.item())
+            # print('Lowest energy', -FFT_score.flatten()[target_flatindex])
 
         #### Loss functions
         CE_loss = torch.nn.CrossEntropyLoss()
@@ -119,6 +121,7 @@ class BruteForceDockingTrainer:
 
         if plotting:
             test_freq = 1
+            breakout = True
 
         log_header = 'Epoch\tLoss\trmsd\n'
         log_format = '%d\t%f\t%f\n'
@@ -127,7 +130,7 @@ class BruteForceDockingTrainer:
         if resume_training:
             ckp_path = 'Log/' + testcase + str(resume_epoch) + '.th'
             model, optimizer, start_epoch = BruteForceDockingTrainer().load_ckp(ckp_path, model, optimizer)
-            start_epoch += 1
+            # start_epoch += 1
 
             print(model)
             print(list(model.named_parameters()))
@@ -182,7 +185,7 @@ if __name__ == '__main__':
     # import sys
     # print(sys.path)
     trainset = 'toy_concave_data/docking_data_train'
-    testset = 'toy_concave_data/docking_data_valid'
+    validset = 'toy_concave_data/docking_data_valid'
     # testcase = 'newdata_BruteForce_training_check'
     # testcase = 'newdata_twoCTweights_alllearnedWs_BruteForce_training_check'
 
@@ -191,12 +194,14 @@ if __name__ == '__main__':
 
     # testcase = 'docking_pretrain_bruteforce_allLearnedWs_10epochs_'
 
-    testcase = 'docking_debug_10epochs_'
+    # testcase = 'docking_debug_10epochs_'
+
+    testcase = 'newdata_bugfix_docking_10epochs_'
 
 
     #########################
     ### testing set
-    # testset = 'toy_concave_data/docking_data_test'
+    testset = 'toy_concave_data/docking_data_test'
 
     #### initialization torch settings
     np.random.seed(42)
@@ -215,7 +220,8 @@ if __name__ == '__main__':
     # print(list(model.parameters()))
 
     train_stream = get_dataset_stream(trainset + '.pkl', batch_size=1)
-    valid_stream = get_dataset_stream(testset + '.pkl', batch_size=1)
+    valid_stream = get_dataset_stream(validset + '.pkl', batch_size=1)
+    test_stream = get_dataset_stream(testset + '.pkl', batch_size=1)
 
     ######################
     train_epochs = 10
@@ -226,17 +232,19 @@ if __name__ == '__main__':
                                                resume_training=resume_training, resume_epoch=resume_epoch)
 
 
-    def plot_validation_set(check_epoch):
-        BruteForceDockingTrainer().train_model(model, optimizer, testcase, train_epochs, train_stream, valid_stream,
-                                               resume_training=True, resume_epoch=check_epoch, plotting=True)
+    def plot_validation_set(check_epoch, datastream=valid_stream, plotting=False):
+        BruteForceDockingTrainer().train_model(model, optimizer, testcase, train_epochs, train_stream, datastream,
+                                               resume_training=True, resume_epoch=check_epoch, plotting=plotting)
 
     ######################
-    train()
-
     epoch = 10
+
+    # train()
+    # train(True, epoch)
 
     # epoch = 'end'
 
-    plot_validation_set(check_epoch=epoch)
+    plotting = False
+    plot_validation_set(check_epoch=epoch, datastream=valid_stream, plotting=plotting)
+    # plot_validation_set(check_epoch=epoch, datastream=test_stream, plotting=plotting)
 
-    # train(True, epoch)

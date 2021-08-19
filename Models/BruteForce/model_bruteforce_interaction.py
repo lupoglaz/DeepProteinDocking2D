@@ -64,17 +64,25 @@ class BruteForceInteraction(nn.Module):
         # return minE - threshold
 
 
+        # avgE = -torch.sum(-E * P)
+        # deltaF =
+        # threshold = torch.mean(-E) * -self.F_0
+        # print(torch.mean(-E).item(), -self.F_0.item())
+        # print(minE.item(), threshold.item())
+        # return minE - threshold
+
+
+
         # blah = torch.sum(P * torch.mean(torch.exp(E)))
-        U = P * torch.sum(-E)
-        pred_interact = -torch.log(torch.mean(U))
+        # U = P * -E
+        # pred_interact = -torch.log(torch.mean(U))
         # print(pred_interact.item(), self.F_0.item())
-        return pred_interact - self.F_0
+        # return pred_interact - self.F_0
 
-
-        # minE = torch.sum(E * P)
+        minE = torch.sum(E * P)
         # threshold = -torch.log(torch.sum(-E)) #- self.F_0
         # print(minE.item(), threshold.item())
-        # return minE #- threshold
+        return minE #- threshold
 
         # minE = -torch.sum(-E * P)
         #
