@@ -189,23 +189,13 @@ if __name__ == '__main__':
     # print(sys.path)
     trainset = 'toy_concave_data/docking_data_train'
     validset = 'toy_concave_data/docking_data_valid'
-    # testcase = 'newdata_BruteForce_training_check'
-    # testcase = 'newdata_twoCTweights_alllearnedWs_BruteForce_training_check'
-
-    # testcase = 'pretrain_bruteforcedocking_alllearnedWs_10epochs'
-    # testcase = 'pretrain_shiftedorigin_bruteforcedocking_alllearnedWs_10epochs'
-
-    # testcase = 'docking_pretrain_bruteforce_allLearnedWs_10epochs_'
-
-    # testcase = 'docking_debug_10epochs_'
-
-    testcase = 'newdata_bugfix_docking_10epochs_'
-
-
-    #########################
     ### testing set
     testset = 'toy_concave_data/docking_data_test'
 
+
+    testcase = 'newdata_bugfix_docking_'
+
+    #########################
     #### initialization torch settings
     np.random.seed(42)
     torch.manual_seed(42)
@@ -240,9 +230,9 @@ if __name__ == '__main__':
                                                resume_training=True, resume_epoch=check_epoch, plotting=plotting)
 
     ######################
-    epoch = 30
+    epoch = train_epochs
 
-    train()
+    # train()
     # train(True, epoch)
 
     # epoch = 'end'

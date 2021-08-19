@@ -14,25 +14,43 @@ class BruteForceInteraction(nn.Module):
         self.dim = TorchDockingFilter().dim
         self.num_angles = TorchDockingFilter().num_angles
 
-        self.F_0 = nn.Parameter(torch.rand(1)*10)
+        # self.register_parameter('F_0', nn.Parameter(torch.rand(1)))
+        # self.register_parameter('F_0', None)
+        self.register_buffer('F_0', None)
+        self.dummy = nn.Parameter(torch.ones(1))
 
-        self.kernel = 5
-        self.pad = self.kernel//2
-        self.stride = 1
-        self.dilation = 1
-        self.conv3D = nn.Sequential(
-            nn.Conv3d(1, 4, kernel_size=self.kernel, padding=self.pad, stride=self.stride, dilation=self.dilation, bias=True),
-            nn.ReLU(),
-            nn.Conv3d(4, 1, kernel_size=self.kernel, padding=self.pad, stride=self.stride, dilation=self.dilation, bias=True),
-            nn.Sigmoid(),
-        )
+        # self.F_0 = nn.Parameter(torch.ones(1))
+
+        # self.kernel = 5
+        # self.pad = self.kernel//2
+        # self.stride = 1
+        # self.dilation = 1
+        # self.conv3D = nn.Sequential(
+        #     nn.Conv3d(1, 4, kernel_size=self.kernel, padding=self.pad, stride=self.stride, dilation=self.dilation, bias=True),
+        #     nn.ReLU(),
+        #     nn.Conv3d(4, 1, kernel_size=self.kernel, padding=self.pad, stride=self.stride, dilation=self.dilation, bias=True),
+        #     nn.Sigmoid(),
+        # )
 
 
     def forward(self, FFT_score, plotting=False):
         E = -FFT_score
 
-        Pflatsm = self.softmax(-E.flatten()).squeeze()
-        P = Pflatsm.reshape(self.num_angles, self.dim, self.dim)
+        ## to try
+        if not self.F_0:
+            self.F_0 = nn.Parameter(-torch.log(torch.mean(torch.exp(-E))))
+            print('One time initialization of F_0 * mean(E)')
+            print(self.F_0)
+
+        U = torch.exp(-E)
+        deltaF = -torch.log(torch.mean(U))
+        pred_interact = torch.div(torch.exp(-deltaF + self.F_0), ((torch.exp(-deltaF + self.F_0) + 1.0)))
+        print(pred_interact.item(), self.F_0.item())
+        return pred_interact.squeeze()
+
+
+        # Pflatsm = self.softmax(-E.flatten()).squeeze()
+        # P = Pflatsm.reshape(self.num_angles, self.dim, self.dim)
         # print(P.shape, torch.sum(Pflatsm))
 
         ### eq 1.5
@@ -47,16 +65,17 @@ class BruteForceInteraction(nn.Module):
         # return pred_interact
 
         ## georgy code
-        with torch.no_grad():
-            minE, _ = torch.min(E.view(1, self.num_angles*self.dim*self.dim), dim=1)
-            minE = minE.unsqueeze(dim=1).unsqueeze(dim=2).unsqueeze(dim=3)
+        # with torch.no_grad():
+        #     minE, _ = torch.min(E.view(1, self.num_angles*self.dim*self.dim), dim=1)
+        #     minE = minE.unsqueeze(dim=1).unsqueeze(dim=2).unsqueeze(dim=3)
 
-        shifted_E = -E + minE #shifts all "scores" to be <= 0
-        U = torch.exp(shifted_E)
-        # print(torch.min(-E), torch.min(shifted_E))
-        pred_interact = -torch.log(torch.mean(U))
-        # print(pred_interact.item(), norm.squeeze().item(), self.F_0.item())
-        return pred_interact - self.F_0
+
+        # shifted_E = -E + minE #shifts all "scores" to be <= 0
+        # U = torch.exp(shifted_E)
+        # # print(torch.min(-E), torch.min(shifted_E))
+        # pred_interact = -torch.log(torch.mean(U))
+        # # print(pred_interact.item(), norm.squeeze().item(), self.F_0.item())
+        # return pred_interact - self.F_0
 
 
         # minE = -torch.sum(-E * P)

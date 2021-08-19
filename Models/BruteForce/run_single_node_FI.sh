@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --partition=p_ccib_1
-#SBATCH --job-name=nd_eq10_expC
+#SBATCH --job-name=nd_eq10sig_expC
 #SBATCH --nodes=1
 ##SBATCH --ntasks=1
 #SBATCH --tasks-per-node=1
@@ -8,8 +8,8 @@
 #SBATCH --gres=gpu:2 # Number of GPUs
 #SBATCH --constraint=volta
 #SBATCH --time=48:00:00
-#SBATCH --output=slurm_log/slurm.%N.nd_eq10_expC.out
-#SBATCH --error=slurm_log/slurm.%N.nd_eq10_expC.err
+#SBATCH --output=slurm_log/slurm.%N.nd_eq10sig_expC.out
+#SBATCH --error=slurm_log/slurm.%N.nd_eq10sig_expC.err
 #SBATCH --export=ALL
 
 pwd

@@ -18,26 +18,26 @@ from DeepProteinDocking2D.Models.BruteForce.TorchDockingFilter import TorchDocki
 from DeepProteinDocking2D.Models.BruteForce.utility_functions import plot_assembly
 
 
-class SharpLoss(nn.Module):
-    def __init__(self):
-        super(SharpLoss, self).__init__()
-        self.relu = nn.ReLU()
-        self.trivial_penalty = torch.rand(1, requires_grad=True).cuda()*1e-2
-    def forward(self, pred, target):
-        pred = pred.squeeze()
-        target = target.squeeze()
-
-        label = 2*(target - 0.5) # labels now +1 or -1
-        loss = self.relu(pred * label) + self.trivial_penalty
-        # print(pred, label)
-        # print('precodition loss', loss)
-        if pred < 0.0 and label == 1.0:
-            loss -= self.relu(pred * label)
-            # print('interaction correctly predicted', loss)
-        elif pred >= 0.0 and label == -1.0:
-            loss -= self.relu(pred * label)
-            # print('noninteraction correctly predicted', loss)
-        return loss
+# class SharpLoss(nn.Module):
+#     def __init__(self):
+#         super(SharpLoss, self).__init__()
+#         self.relu = nn.ReLU()
+#         self.trivial_penalty = torch.rand(1, requires_grad=True).cuda()*1e-2
+#     def forward(self, pred, target):
+#         pred = pred.squeeze()
+#         target = target.squeeze()
+#
+#         label = 2*(target - 0.5) # labels now +1 or -1
+#         loss = self.relu(pred * label) + self.trivial_penalty
+#         # print(pred, label)
+#         # print('precodition loss', loss)
+#         if pred < 0.0 and label == 1.0:
+#             loss -= self.relu(pred * label)
+#             # print('interaction correctly predicted', loss)
+#         elif pred >= 0.0 and label == -1.0:
+#             loss -= self.relu(pred * label)
+#             # print('noninteraction correctly predicted', loss)
+#         return loss
 
 # class SharpLoss(nn.Module):
 #     def __init__(self, trivial_penalty=0.01):
@@ -73,7 +73,7 @@ class BruteForceInteractionTrainer:
     # testcase = 'TEST_newdata_eq15_newloss_scratch' #e exp
     # testcase = 'TEST_newdata_eq15_newloss_allfrozen' #a exp
 
-    testcase = 'newdata_eq10_aW_unfrozen' #c exp
+    testcase = 'newdata_eq15sigmoid_aW_unfrozen' #c exp
 
     train_epochs = 1
     check_epoch = 1
@@ -140,9 +140,9 @@ class BruteForceInteractionTrainer:
         #         print(n, p, p.grad)
 
         #### Loss functions
-        # BCEloss = torch.nn.BCELoss()
-        # loss = BCEloss(pred_interact, gt_interact)
-        loss = SharpLoss().forward(pred_interact, gt_interact)
+        BCEloss = torch.nn.BCELoss()
+        loss = BCEloss(pred_interact, gt_interact)
+        # loss = SharpLoss().forward(pred_interact, gt_interact)
         print('\n', pred_interact.item(), gt_interact.item())
 
         if train:
