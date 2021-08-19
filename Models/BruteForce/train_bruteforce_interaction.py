@@ -7,8 +7,8 @@ import sys
 sys.path.append('/home/sb1638/')
 
 import numpy as np
-from DeepProteinDocking2D.torchDataset import get_interaction_stream_balanced, get_interaction_stream
 from tqdm import tqdm
+from DeepProteinDocking2D.torchDataset import get_interaction_stream_balanced, get_interaction_stream
 from DeepProteinDocking2D.Models.BruteForce.model_bruteforce_interaction import BruteForceInteraction
 from DeepProteinDocking2D.Models.BruteForce.validation_metrics import APR
 from DeepProteinDocking2D.Models.BruteForce.model_bruteforce_docking import BruteForceDocking

@@ -4,8 +4,9 @@ from torch import nn
 from torch import optim
 
 import numpy as np
-from DeepProteinDocking2D.Models.BruteForce.torchDataset import get_dataset_stream
 from tqdm import tqdm
+from torchDataset import get_dataset_stream
+# from DeepProteinDocking2D.torchDataset import get_docking_stream
 from DeepProteinDocking2D.Models.BruteForce.TorchDockingFilter import TorchDockingFilter
 from DeepProteinDocking2D.Models.BruteForce.model_bruteforce_docking import BruteForceDocking
 from DeepProteinDocking2D.Models.BruteForce.utility_functions import plot_assembly
@@ -121,7 +122,6 @@ class BruteForceDockingTrainer:
 
         if plotting:
             test_freq = 1
-            breakout = True
 
         log_header = 'Epoch\tLoss\trmsd\n'
         log_format = '%d\t%f\t%f\n'
