@@ -3,14 +3,17 @@ import torch
 from torch import nn
 from torch import optim
 
+import sys
+sys.path.append('/home/sb1638/')
+
 import numpy as np
 from tqdm import tqdm
-from torchDataset import get_dataset_stream
+from DeepProteinDocking2D.Models.BruteForce.torchDataset import get_dataset_stream
 # from DeepProteinDocking2D.torchDataset import get_docking_stream
-from TorchDockingFilter import TorchDockingFilter
-from model_bruteforce_docking import BruteForceDocking
-from utility_functions import plot_assembly
-from validation_metrics import RMSD
+from DeepProteinDocking2D.Models.BruteForce.TorchDockingFilter import TorchDockingFilter
+from DeepProteinDocking2D.Models.BruteForce.model_bruteforce_docking import BruteForceDocking
+from DeepProteinDocking2D.Models.BruteForce.utility_functions import plot_assembly
+from DeepProteinDocking2D.Models.BruteForce.validation_metrics import RMSD
 
 import matplotlib.pyplot as plt
 
