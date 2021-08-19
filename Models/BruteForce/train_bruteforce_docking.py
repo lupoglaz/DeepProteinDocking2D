@@ -66,15 +66,6 @@ class BruteForceDockingTrainer:
 
         if eval and plotting:
             with torch.no_grad():
-                # plt.close()
-                # maxind = torch.argmax(FFT_score)
-                # plot_index = int(((maxind / self.dim ** 2) * np.pi / 180.0) - np.pi)
-                # plotE = FFT_score.reshape(self.num_angles, self.dim, self.dim).squeeze()[plot_index, :, :].detach().cpu()
-                # plt.imshow(plotE)
-                # plt.title('FFT best rotation x, y')
-                # plt.colorbar()
-                # plt.show()
-
                 plt.close()
                 plt.figure(figsize=(8, 8))
                 pred_rot, pred_txy = TorchDockingFilter().extract_transform(FFT_score)
@@ -193,7 +184,7 @@ if __name__ == '__main__':
     testset = 'toy_concave_data/docking_data_test'
 
 
-    testcase = 'newdata_bugfix_docking_'
+    testcase = 'newdata_bugfix_docking_30epochs_'
 
     #########################
     #### initialization torch settings
@@ -219,7 +210,6 @@ if __name__ == '__main__':
     ######################
     train_epochs = 10
 
-
     def train(resume_training=False, resume_epoch=0):
         BruteForceDockingTrainer().train_model(model, optimizer, testcase, train_epochs, train_stream, valid_stream,
                                                resume_training=resume_training, resume_epoch=resume_epoch)
@@ -232,7 +222,7 @@ if __name__ == '__main__':
     ######################
     epoch = train_epochs
 
-    # train()
+    train()
     # train(True, epoch)
 
     # epoch = 'end'
