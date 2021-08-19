@@ -14,18 +14,18 @@ class BruteForceInteraction(nn.Module):
         self.dim = TorchDockingFilter().dim
         self.num_angles = TorchDockingFilter().num_angles
 
-        self.F_0 = nn.Parameter(torch.rand(1)*10)
-        #
-        # self.kernel = 5
-        # self.pad = self.kernel//2
-        # self.stride = 1
-        # self.dilation = 1
-        # self.conv3D = nn.Sequential(
-        #     nn.Conv3d(1, 4, kernel_size=self.kernel, padding=self.pad, stride=self.stride, dilation=self.dilation, bias=True),
-        #     nn.ReLU(),
-        #     nn.Conv3d(4, 1, kernel_size=self.kernel, padding=self.pad, stride=self.stride, dilation=self.dilation, bias=True),
-        #     nn.Sigmoid(),
-        # )
+        # self.F_0 = nn.Parameter(torch.rand(1)*10)
+
+        self.kernel = 5
+        self.pad = self.kernel//2
+        self.stride = 1
+        self.dilation = 1
+        self.conv3D = nn.Sequential(
+            nn.Conv3d(1, 4, kernel_size=self.kernel, padding=self.pad, stride=self.stride, dilation=self.dilation, bias=True),
+            nn.ReLU(),
+            nn.Conv3d(4, 1, kernel_size=self.kernel, padding=self.pad, stride=self.stride, dilation=self.dilation, bias=True),
+            nn.Sigmoid(),
+        )
 
 
     def forward(self, FFT_score, plotting=False):
@@ -39,10 +39,12 @@ class BruteForceInteraction(nn.Module):
         # B = self.conv3D(E.unsqueeze(0).unsqueeze(0)).squeeze()
         # pred_interact = torch.sum(B * P) / (torch.sum(P))
 
-        # ### eq 10
-        # B = self.conv3D(E.unsqueeze(0).unsqueeze(0)).squeeze()
-        # eP = torch.sum(B * P) / (torch.sum((1-B)*P))
-        # pred_interact = eP / (eP + 1) ## eq 7 substituted
+        ### eq 10
+        B = self.conv3D(E.unsqueeze(0).unsqueeze(0)).squeeze()
+        eP = torch.sum(B * P) / (torch.sum((1-B)*P))
+        pred_interact = eP / (eP + 1) ## eq 7 substituted
+
+        return pred_interact
 
         # ## georgy code
         # with torch.no_grad():
@@ -72,17 +74,16 @@ class BruteForceInteraction(nn.Module):
         # return minE - threshold
 
 
-
         # blah = torch.sum(P * torch.mean(torch.exp(E)))
         # U = P * -E
         # pred_interact = -torch.log(torch.mean(U))
         # print(pred_interact.item(), self.F_0.item())
         # return pred_interact - self.F_0
 
-        minE = torch.sum(E * P)
+        # minE = torch.sum(E * P)
         # threshold = -torch.log(torch.sum(-E)) #- self.F_0
         # print(minE.item(), threshold.item())
-        return minE #- threshold
+        # return minE #- threshold
 
         # minE = -torch.sum(-E * P)
         #

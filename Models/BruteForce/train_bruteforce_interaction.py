@@ -18,26 +18,26 @@ from DeepProteinDocking2D.Models.BruteForce.TorchDockingFilter import TorchDocki
 from DeepProteinDocking2D.Models.BruteForce.utility_functions import plot_assembly
 
 
-class SharpLoss(nn.Module):
-    def __init__(self):
-        super(SharpLoss, self).__init__()
-        self.relu = nn.ReLU()
-        self.trivial_penalty = torch.rand(1, requires_grad=True).cuda()*1e-2
-    def forward(self, pred, target):
-        pred = pred.squeeze()
-        target = target.squeeze()
-
-        label = 2*(target - 0.5) # labels now +1 or -1
-        loss = self.relu(pred * label) * self.trivial_penalty
-        # print(pred, label)
-        # print('precodition loss', loss)
-        if pred < 0.0 and label == 1.0:
-            loss -= self.relu(pred * label)
-            # print('interaction correctly predicted', loss)
-        elif pred >= 0.0 and label == -1.0:
-            loss -= self.relu(pred * label)
-            # print('noninteraction correctly predicted', loss)
-        return loss
+# class SharpLoss(nn.Module):
+#     def __init__(self):
+#         super(SharpLoss, self).__init__()
+#         self.relu = nn.ReLU()
+#         self.trivial_penalty = torch.rand(1, requires_grad=True).cuda()*1e-2
+#     def forward(self, pred, target):
+#         pred = pred.squeeze()
+#         target = target.squeeze()
+#
+#         label = 2*(target - 0.5) # labels now +1 or -1
+#         loss = self.relu(pred * label) * self.trivial_penalty
+#         # print(pred, label)
+#         # print('precodition loss', loss)
+#         if pred < 0.0 and label == 1.0:
+#             loss -= self.relu(pred * label)
+#             # print('interaction correctly predicted', loss)
+#         elif pred >= 0.0 and label == -1.0:
+#             loss -= self.relu(pred * label)
+#             # print('noninteraction correctly predicted', loss)
+#         return loss
 
 # class SharpLoss(nn.Module):
 #     def __init__(self, trivial_penalty=0.01):
@@ -62,25 +62,6 @@ class SharpLoss(nn.Module):
 #         loss = loss_pos+loss_neg+loss_trivial
 #         return loss.mean()
 
-# class deltaF_loss(torch.nn.Module):
-#     def __init__(self):
-#         super().__init__()
-#
-#     def forward(self, deltaF, F_0, GT_int):
-#         deltaF.retain_grad()
-#         deltaP = deltaF - F_0
-#         # print(deltaF.grad)
-#         if (GT_int == 1.0 and deltaP <= 0) or (GT_int == 0.0 and deltaP > 0):
-#             print('deltaF zero grad')
-#             deltaF.grad = torch.zeros_like(deltaF)
-#             # deltaF.grad = nn.Parameter(torch.zeros_like(deltaF))
-#         # elif GT_int == 0.0 and deltaP < 0:
-#         #     # deltaF.grad = torch.ones_like(deltaF)*-deltaP
-#         #     deltaF.grad = nn.Parameter(torch.ones_like(deltaF))*-deltaP
-#         # elif GT_int == 1.0 and deltaP > 0:
-#         #     # deltaF.grad = torch.ones_like(deltaF)*deltaP
-#         #     deltaF.grad = nn.Parameter(torch.ones_like(deltaF))*deltaP
-#         return torch.abs(deltaP)
 
 class BruteForceInteractionTrainer:
     if len(sys.argv) > 1:
@@ -88,24 +69,11 @@ class BruteForceInteractionTrainer:
     else:
         replicate = 'single_rep'
 
-    # testcase = 'newdata_frozen'  # a exp
-    # testcase = 'newdata_unfrozen' #b exp
-    # testcase = 'newdata_aW_unfrozen' #c exp
-
-    # testcase = 'newdata_scratch' #e exp
-
-    # testcase = 'newdata_newloss_aW_unfrozen' #c exp
-
-    # testcase = 'eq16_newdata_newloss_scratch' #c exp
-    #
-    # testcase = 'newdata_eq15_newloss_scratch' #c exp
-
-    # testcase = 'newdata_eq15_newloss_aW_unfrozen' #c exp
-
     # testcase = 'TEST_newdata_eq15_newloss_aW_unfrozen' #c exp
-    testcase = 'TEST_newdata_eq15_newloss_scratch' #e exp
+    # testcase = 'TEST_newdata_eq15_newloss_scratch' #e exp
     # testcase = 'TEST_newdata_eq15_newloss_allfrozen' #a exp
 
+    testcase = 'newdata_eq10_aW_unfrozen' #c exp
 
     train_epochs = 1
     check_epoch = 1
@@ -128,7 +96,7 @@ class BruteForceInteractionTrainer:
     pretrain_model.load_state_dict(torch.load(path_pretrain)['state_dict'])
 
     # param_to_freeze = 'all'
-    param_to_freeze = 'W'
+    param_to_freeze = 'W' ##freeze all but "a" weights
     # param_to_freeze = None
 
     #### load (pretrained: IP CNN frozen, a00...a11 unfrozen) and retrain IP as unfrozen (d exp)
@@ -172,9 +140,9 @@ class BruteForceInteractionTrainer:
         #         print(n, p, p.grad)
 
         #### Loss functions
-        # BCEloss = torch.nn.BCELoss()
-        # loss = BCEloss(pred_interact, gt_interact)
-        loss = SharpLoss().forward(pred_interact, gt_interact)
+        BCEloss = torch.nn.BCELoss()
+        loss = BCEloss(pred_interact, gt_interact)
+        # loss = SharpLoss().forward(pred_interact, gt_interact)
         print('\n', pred_interact.item(), gt_interact.item())
 
         if train:
