@@ -208,7 +208,7 @@ if __name__ == '__main__':
     test_stream = get_dataset_stream(testset + '.pkl', batch_size=1)
 
     ######################
-    train_epochs = 10
+    train_epochs = 30
 
     def train(resume_training=False, resume_epoch=0):
         BruteForceDockingTrainer().train_model(model, optimizer, testcase, train_epochs, train_stream, valid_stream,
