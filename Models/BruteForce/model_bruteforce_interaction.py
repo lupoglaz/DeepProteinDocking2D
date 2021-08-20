@@ -17,10 +17,6 @@ class BruteForceInteraction(nn.Module):
         # self.dummy = nn.Parameter(None)
         # self.register_parameter('F_0', self.dummy)
 
-        # self.register_parameter('F_0', self.dummy)
-
-        # self.register_parameter('F_0', self.dummy)
-
         # self.F_0 = nn.Parameter(torch.empty(0))
 
         # self.dummy = nn.Parameter(None)
@@ -28,7 +24,7 @@ class BruteForceInteraction(nn.Module):
 
         # self.register_buffer('F_0', None)
 
-        self.F_0 = nn.Parameter(torch.rand(1)*-27.0)
+        self.F_0 = nn.Parameter(torch.ones(1)*-25.0)
 
     def forward(self, FFT_score, plotting=False):
         E = -FFT_score
