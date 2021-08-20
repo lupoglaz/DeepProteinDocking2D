@@ -14,33 +14,34 @@ class BruteForceInteraction(nn.Module):
         self.dim = TorchDockingFilter().dim
         self.num_angles = TorchDockingFilter().num_angles
 
-        # self.register_parameter('F_0', nn.Parameter(torch.rand(1)))
+        # self.dummy = nn.Parameter(None)
+        # self.register_parameter('F_0', self.dummy)
+
+        # self.register_parameter('F_0', self.dummy)
+
+        # self.register_parameter('F_0', self.dummy)
+
+        # self.F_0 = nn.Parameter(torch.empty(0))
+
+        # self.dummy = nn.Parameter(None)
         # self.register_parameter('F_0', None)
-        self.register_buffer('F_0', None)
-        self.dummy = nn.Parameter(torch.ones(1))
 
-        # self.F_0 = nn.Parameter(torch.ones(1))
+        # self.register_buffer('F_0', None)
 
-        # self.kernel = 5
-        # self.pad = self.kernel//2
-        # self.stride = 1
-        # self.dilation = 1
-        # self.conv3D = nn.Sequential(
-        #     nn.Conv3d(1, 4, kernel_size=self.kernel, padding=self.pad, stride=self.stride, dilation=self.dilation, bias=True),
-        #     nn.ReLU(),
-        #     nn.Conv3d(4, 1, kernel_size=self.kernel, padding=self.pad, stride=self.stride, dilation=self.dilation, bias=True),
-        #     nn.Sigmoid(),
-        # )
-
+        self.F_0 = nn.Parameter(torch.rand(1)*-27.0)
 
     def forward(self, FFT_score, plotting=False):
         E = -FFT_score
-
+        # print(self.F_0)
+        # print(self.F_0.nelement())
         ## to try
-        if not self.F_0:
-            self.F_0 = nn.Parameter(-torch.log(torch.mean(torch.exp(-E))))
-            print('One time initialization of F_0 * mean(E)')
-            print(self.F_0)
+        # if self.F_0 is None:
+        #     print("X"*100)
+        #     U_0 = torch.mean(torch.exp(-E))
+        #     self.F_0 = nn.Parameter(-torch.log(U_0)).cuda()
+        #     # self.F_0 = -torch.log(torch.mean(torch.exp(-E)))
+        #     print('One time initialization of F_0 * mean(E)')
+        #     print(self.F_0)
 
         U = torch.exp(-E)
         deltaF = -torch.log(torch.mean(U))

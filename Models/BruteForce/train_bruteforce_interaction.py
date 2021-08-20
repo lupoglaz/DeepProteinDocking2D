@@ -301,10 +301,6 @@ class BruteForceInteractionTrainer:
 
 if __name__ == '__main__':
     #################################################################################
-    # import sys
-    # print(sys.path)
-    import time
-
     trainset = 'toy_concave_data/interaction_data_train'
     validset = 'toy_concave_data/interaction_data_valid'
     # ### testing set
