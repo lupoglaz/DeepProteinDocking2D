@@ -185,6 +185,7 @@ if __name__ == '__main__':
 
 
     testcase = 'newdata_bugfix_docking_30epochs_'
+    # testcase = 'docking_newdata_eq15sigmoid_aW_unfrozen1'
 
     #########################
     #### initialization torch settings
@@ -222,7 +223,7 @@ if __name__ == '__main__':
     ######################
     epoch = train_epochs
 
-    train()
+    # train()
     # train(True, epoch)
 
     # epoch = 'end'

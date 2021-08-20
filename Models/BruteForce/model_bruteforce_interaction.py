@@ -24,7 +24,7 @@ class BruteForceInteraction(nn.Module):
 
         # self.register_buffer('F_0', None)
 
-        self.F_0 = nn.Parameter(torch.rand(1)*-25.0)
+        self.F_0 = nn.Parameter(torch.ones(1)*-25.0)
 
     def forward(self, FFT_score, plotting=False):
         E = -FFT_score
@@ -41,6 +41,7 @@ class BruteForceInteraction(nn.Module):
 
         U = torch.exp(-E)
         deltaF = -torch.log(torch.mean(U))
+        # print('deltaF')
         pred_interact = torch.div(torch.exp(-deltaF + self.F_0), ((torch.exp(-deltaF + self.F_0) + 1.0)))
         # print(pred_interact.item(), self.F_0.item())
         return pred_interact.squeeze()

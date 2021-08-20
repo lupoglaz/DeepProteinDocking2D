@@ -92,7 +92,8 @@ class BruteForceInteractionTrainer:
 
     ###################### Load and freeze/unfreeze params (training no eval)
     ## for exp a,b,c
-    path_pretrain = 'Log/docking_pretrain_bruteforce_allLearnedWs_10epochs_end.th'
+    # path_pretrain = 'Log/docking_pretrain_bruteforce_allLearnedWs_10epochs_end.th'
+    path_pretrain = 'Log/newdata_bugfix_docking_30epochs_end.th'
     pretrain_model.load_state_dict(torch.load(path_pretrain)['state_dict'])
 
     # param_to_freeze = 'all'
