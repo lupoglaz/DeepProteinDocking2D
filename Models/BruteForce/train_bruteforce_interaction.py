@@ -30,7 +30,9 @@ class BruteForceInteractionTrainer:
     # testcase = 'ndp_eq15sigmoid_aW_unfrozen' #c exp
     # testcase = 'ndp_randinit_eq15sigmoid_aW_unfrozen' #c exp
 
-    testcase = 'ndp_simpleexp_eq15sigmoid_aW_unfrozen' #c exp
+    # testcase = 'ndp_simpleexp_eq15sigmoid_aW_unfrozen' #c exp
+    testcase = 'ndp_simpleexp_eq15sigmoid_frozen' #c exp
+
 
     train_epochs = 1
     check_epoch = 1
@@ -52,8 +54,8 @@ class BruteForceInteractionTrainer:
     path_pretrain = 'Log/newdata_bugfix_docking_30epochs_end.th'
     pretrain_model.load_state_dict(torch.load(path_pretrain)['state_dict'])
 
-    # param_to_freeze = 'all'
-    param_to_freeze = 'W' ##freeze all but "a" weights
+    param_to_freeze = 'all'
+    # param_to_freeze = 'W' ##freeze all but "a" weights
     # param_to_freeze = None
 
     #### load (pretrained: IP CNN frozen, a00...a11 unfrozen) and retrain IP as unfrozen (d exp)
