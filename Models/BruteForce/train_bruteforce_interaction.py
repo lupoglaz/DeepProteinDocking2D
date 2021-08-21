@@ -74,7 +74,9 @@ class BruteForceInteractionTrainer:
     # testcase = 'TEST_newdata_eq15_newloss_allfrozen' #a exp
 
     # testcase = 'newdata_eq15sigmoid_aW_unfrozen' #c exp
-    testcase = 'newdata_pretrain_eq15sigmoid_aW_unfrozen' #c exp
+    # testcase = 'newdata_pretrain_eq15sigmoid_aW_unfrozen' #c exp
+
+    testcase = 'ndp_eq15sigmoid_scratch' #e exp
 
 
     train_epochs = 1
@@ -95,12 +97,12 @@ class BruteForceInteractionTrainer:
     ###################### Load and freeze/unfreeze params (training no eval)
     ## for exp a,b,c
     # path_pretrain = 'Log/docking_pretrain_bruteforce_allLearnedWs_10epochs_end.th'
-    path_pretrain = 'Log/newdata_bugfix_docking_30epochs_end.th'
-    pretrain_model.load_state_dict(torch.load(path_pretrain)['state_dict'])
+    # path_pretrain = 'Log/newdata_bugfix_docking_30epochs_end.th'
+    # pretrain_model.load_state_dict(torch.load(path_pretrain)['state_dict'])
 
     # param_to_freeze = 'all'
-    param_to_freeze = 'W' ##freeze all but "a" weights
-    # param_to_freeze = None
+    # param_to_freeze = 'W' ##freeze all but "a" weights
+    param_to_freeze = None
 
     #### load (pretrained: IP CNN frozen, a00...a11 unfrozen) and retrain IP as unfrozen (d exp)
     # path_pretrain = 'Log/docking_rep1_bias=True_aW_unfrozen1.th'
@@ -326,7 +328,7 @@ if __name__ == '__main__':
     torch.backends.cudnn.determininistic = True
     torch.cuda.set_device(0)
     # CUDA_LAUNCH_BLOCKING = 1
-    torch.autograd.set_detect_anomaly(True)
+    # torch.autograd.set_detect_anomaly(True)
 
     train_stream = get_interaction_stream_balanced(trainset + '.pkl', batch_size=1)
     valid_stream = get_interaction_stream_balanced(validset + '.pkl', batch_size=1)

@@ -184,9 +184,12 @@ if __name__ == '__main__':
     testset = 'toy_concave_data/docking_data_test'
 
 
-    testcase = 'newdata_bugfix_docking_30epochs_'
+    # testcase = 'newdata_bugfix_docking_30epochs_'
+
+    # testcase = 'docking_newdata_eq15sigmoid_aW_unfrozen1'
     # testcase = 'docking_newdata_eq15sigmoid_aW_unfrozen1'
 
+    testcase = 'newdata_bugfix_docking_30epochs_end'
     #########################
     #### initialization torch settings
     np.random.seed(42)
@@ -202,14 +205,13 @@ if __name__ == '__main__':
     model = BruteForceDocking().to(device=0)
     optimizer = optim.Adam(model.parameters(), lr=lr)
 
-    # print(list(model.parameters()))
-
     train_stream = get_dataset_stream(trainset + '.pkl', batch_size=1)
     valid_stream = get_dataset_stream(validset + '.pkl', batch_size=1)
     test_stream = get_dataset_stream(testset + '.pkl', batch_size=1)
 
     ######################
-    train_epochs = 30
+    # train_epochs = 30
+    train_epochs = ''
 
     def train(resume_training=False, resume_epoch=0):
         BruteForceDockingTrainer().train_model(model, optimizer, testcase, train_epochs, train_stream, valid_stream,
@@ -228,7 +230,7 @@ if __name__ == '__main__':
 
     # epoch = 'end'
 
-    plotting = False
+    # plotting = False
+    plotting = True
     plot_evaluation_set(check_epoch=epoch, datastream=valid_stream, plotting=plotting)
     plot_evaluation_set(check_epoch=epoch, datastream=test_stream, plotting=plotting)
-
