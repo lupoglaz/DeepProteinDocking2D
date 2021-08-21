@@ -18,67 +18,19 @@ from DeepProteinDocking2D.Models.BruteForce.TorchDockingFilter import TorchDocki
 from DeepProteinDocking2D.Models.BruteForce.utility_functions import plot_assembly
 
 
-# class SharpLoss(nn.Module):
-#     def __init__(self):
-#         super(SharpLoss, self).__init__()
-#         self.relu = nn.ReLU()
-#         self.trivial_penalty = torch.rand(1, requires_grad=True).cuda()*1e-2
-#     def forward(self, pred, target):
-#         pred = pred.squeeze()
-#         target = target.squeeze()
-#
-#         label = 2*(target - 0.5) # labels now +1 or -1
-#         loss = self.relu(pred * label) + self.trivial_penalty
-#         # print(pred, label)
-#         # print('precodition loss', loss)
-#         if pred < 0.0 and label == 1.0:
-#             loss -= self.relu(pred * label)
-#             # print('interaction correctly predicted', loss)
-#         elif pred >= 0.0 and label == -1.0:
-#             loss -= self.relu(pred * label)
-#             # print('noninteraction correctly predicted', loss)
-#         return loss
-
-# class SharpLoss(nn.Module):
-#     def __init__(self, trivial_penalty=0.01):
-#         super(SharpLoss, self).__init__()
-#         self.relu = nn.ReLU()
-#         self.trivial_penalty = trivial_penalty
-#         self.sigma = 0.1
-#     def forward(self, pred, target):
-#         pred = pred.squeeze()
-#         target = target.squeeze()
-#         # assert pred.ndimension() == 1
-#         # assert target.ndimension() == 1
-#         label = 2*(target - 0.5)
-#         loss_pos = self.relu(pred) * (-self.relu(label))
-#         loss_neg = self.relu(-pred) * (-self.relu(-label))
-#         # print(pred)
-#         # print(label)
-#         # print(loss_pos)
-#         # print(loss_neg)
-#         # sys.exit()
-#         loss_trivial = 1.0/(pred*pred + 1)*self.trivial_penalty
-#         loss = loss_pos+loss_neg+loss_trivial
-#         return loss.mean()
-
-
 class BruteForceInteractionTrainer:
     if len(sys.argv) > 1:
         replicate = str(sys.argv[1])
     else:
         replicate = 'single_rep'
 
-    # testcase = 'TEST_newdata_eq15_newloss_aW_unfrozen' #c exp
-    # testcase = 'TEST_newdata_eq15_newloss_scratch' #e exp
-    # testcase = 'TEST_newdata_eq15_newloss_allfrozen' #a exp
-
-    # testcase = 'newdata_eq15sigmoid_aW_unfrozen' #c exp
     # testcase = 'newdata_pretrain_eq15sigmoid_aW_unfrozen' #c exp
 
-    # testcase = 'ndp_eq15sigmoid_scratch' #e exp
-    testcase = 'ndp_randinit_eq15sigmoid_aW_unfrozen' #c exp
+    # testcase = 'ndp_eq15sigmoid_scratch' #e exp ### BCE cuda assert
+    # testcase = 'ndp_eq15sigmoid_aW_unfrozen' #c exp
+    # testcase = 'ndp_randinit_eq15sigmoid_aW_unfrozen' #c exp
 
+    testcase = 'ndp_simpleexp_eq15sigmoid_aW_unfrozen' #c exp
 
     train_epochs = 1
     check_epoch = 1
@@ -137,10 +89,6 @@ class BruteForceInteractionTrainer:
 
         ### check if pretrain weights are frozen or updating
         # for n, p in self.pretrain_model.named_parameters():
-        #     if p.requires_grad:
-        #         print(n, p, p.grad)
-
-        # for n, p in self.model.named_parameters():
         #     if p.requires_grad:
         #         print(n, p, p.grad)
 
@@ -310,13 +258,6 @@ if __name__ == '__main__':
     validset = 'toy_concave_data/interaction_data_valid'
     # ### testing set
     testset = 'toy_concave_data/interaction_data_test'
-
-    # setsize = str(50)
-    # trainset = 'toy_concave_data/interaction_data_train'+setsize
-    # validset = 'toy_concave_data/interaction_data_valid'+setsize
-    ### testing set
-    # testset = 'toy_concave_data/interaction_data_test'+setsize
-
 
     #########################
 
