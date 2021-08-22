@@ -32,9 +32,12 @@ class BruteForceInteractionTrainer:
 
     # testcase = 'ndp_simpleexp_eq15sigmoid_aW_unfrozen' #c exp
     # testcase = 'ndp_simpleexp_eq15sigmoid_frozen'
-    testcase = 'ndp_5ep_simpleexp_eq15sigmoid_aW_unfrozen' #c exp
+    # testcase = 'ndp_5ep_simpleexp_eq15sigmoid_aW_unfrozen' #c exp
 
-    train_epochs = 5
+    testcase = 'ndp_2ep_simpleexp_eq15sigmoid_aW_unfrozen' #c exp
+
+
+    train_epochs = 2
     check_epoch = 1
     test_freq = 1
     save_freq = 1
@@ -128,7 +131,7 @@ class BruteForceInteractionTrainer:
 
         return loss.item(), pred_interact.item()
 
-    def train_model(self, model, testcase, train_epochs, train_stream, valid_stream, load_models=False,
+    def train_model(self, model, testcase, train_epochs, train_stream, valid_stream, test_stream, load_models=False,
                     resume_epoch=0, plotting=False):
 
         if plotting:
@@ -179,6 +182,7 @@ class BruteForceInteractionTrainer:
 
             if epoch % self.test_freq == 0 and epoch > 1:
                 BruteForceInteractionTrainer().checkAPR(epoch, valid_stream)
+                BruteForceInteractionTrainer().checkAPR(epoch, test_stream)
                 if self.train_epochs == 1:
                     break
 
@@ -245,7 +249,7 @@ class BruteForceInteractionTrainer:
             # torch.nn.init.kaiming_normal_(model.weight)
 
     def train(self, resume_epoch=0):
-        BruteForceInteractionTrainer().train_model(self.model, self.testcase, self.train_epochs, train_stream, valid_stream,
+        BruteForceInteractionTrainer().train_model(self.model, self.testcase, self.train_epochs, train_stream, valid_stream, test_stream,
                                                    load_models=False, resume_epoch=resume_epoch,
                                                    )
 
@@ -288,7 +292,7 @@ if __name__ == '__main__':
 
     ##################### Evaluate model
     ### loads relevant pretrained model under resume_training condition
-    BruteForceInteractionTrainer().plot_validation_set(eval_stream=valid_stream) ## also checks APR
-
-    BruteForceInteractionTrainer().plot_validation_set(eval_stream=test_stream)
+    # BruteForceInteractionTrainer().plot_validation_set(eval_stream=valid_stream) ## also checks APR
+    #
+    # BruteForceInteractionTrainer().plot_validation_set(eval_stream=test_stream)
 

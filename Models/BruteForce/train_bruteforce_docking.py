@@ -108,10 +108,14 @@ class BruteForceDockingTrainer:
             # torch.nn.init.kaiming_normal_(model.weight)
 
     @staticmethod
-    def train_model(model, optimizer, testcase, train_epochs, train_stream, valid_stream, resume_training=False,
+    def write_loss(losslist, testcase):
+        pass
+
+    @staticmethod
+    def train_model(model, optimizer, testcase, train_epochs, train_stream, valid_stream, test_stream, resume_training=False,
                     resume_epoch=0, plotting=False):
 
-        test_freq = 10
+        test_freq = 1
         save_freq = 1
 
         if plotting:
@@ -133,9 +137,15 @@ class BruteForceDockingTrainer:
             start_epoch = 1
             ### Loss log files
             with open('Log/losses/log_train_' + testcase + '.txt', 'w') as fout:
+                fout.write('Docking Training Loss:\n')
+                fout.write(log_header)
+            with open('Log/losses/log_valid_' + testcase + '.txt', 'w') as fout:
+                fout.write('Docking Validation Loss:\n')
                 fout.write(log_header)
             with open('Log/losses/log_test_' + testcase + '.txt', 'w') as fout:
+                fout.write('Docking Testing Loss:\n')
                 fout.write(log_header)
+
         num_epochs = start_epoch + train_epochs
 
         for epoch in range(start_epoch, num_epochs):
@@ -146,14 +156,24 @@ class BruteForceDockingTrainer:
                 'optimizer': optimizer.state_dict(),
             }
             if epoch % test_freq == 0 or epoch == 1:
-                testloss = []
+                valid_loss = []
                 for data in tqdm(valid_stream):
-                    test_output = [BruteForceDockingTrainer().run_model(data, model, train=False, plotting=plotting)]
-                    testloss.append(test_output)
+                    valid_output = [BruteForceDockingTrainer().run_model(data, model, train=False, plotting=plotting)]
+                    valid_loss.append(valid_output)
 
-                avg_testloss = np.average(testloss, axis=0)[0, :]
+                avg_validloss = np.average(valid_loss, axis=0)[0, :]
+                print('\nEpoch', epoch, 'VALID LOSS:', avg_validloss)
+                with open('Log/losses/log_valid_' + testcase + '.txt', 'a') as fout:
+                    fout.write(log_format % (epoch, avg_validloss[0], avg_validloss[1]))
+
+                test_loss = []
+                for data in tqdm(test_stream):
+                    test_output = [BruteForceDockingTrainer().run_model(data, model, train=False, plotting=plotting)]
+                    test_loss.append(test_output)
+
+                avg_testloss = np.average(test_loss, axis=0)[0, :]
                 print('\nEpoch', epoch, 'TEST LOSS:', avg_testloss)
-                with open('Log/losses/log_eval_' + testcase + '.txt', 'a') as fout:
+                with open('Log/losses/log_test_' + testcase + '.txt', 'a') as fout:
                     fout.write(log_format % (epoch, avg_testloss[0], avg_testloss[1]))
 
             trainloss = []
@@ -176,20 +196,13 @@ class BruteForceDockingTrainer:
 
 if __name__ == '__main__':
     #################################################################################
-    # import sys
-    # print(sys.path)
     trainset = 'toy_concave_data/docking_data_train'
     validset = 'toy_concave_data/docking_data_valid'
     ### testing set
     testset = 'toy_concave_data/docking_data_test'
 
+    testcase = 'newdata_bugfix_docking_100epochs_'
 
-    # testcase = 'newdata_bugfix_docking_30epochs_'
-
-    # testcase = 'docking_newdata_eq15sigmoid_aW_unfrozen1'
-    # testcase = 'docking_newdata_eq15sigmoid_aW_unfrozen1'
-
-    testcase = 'newdata_bugfix_docking_30epochs_end'
     #########################
     #### initialization torch settings
     np.random.seed(42)
@@ -210,27 +223,26 @@ if __name__ == '__main__':
     test_stream = get_dataset_stream(testset + '.pkl', batch_size=1)
 
     ######################
-    # train_epochs = 30
-    train_epochs = ''
+    train_epochs = 100
+    # train_epochs = ''
 
     def train(resume_training=False, resume_epoch=0):
-        BruteForceDockingTrainer().train_model(model, optimizer, testcase, train_epochs, train_stream, valid_stream,
+        BruteForceDockingTrainer().train_model(model, optimizer, testcase, train_epochs, train_stream, valid_stream, test_stream,
                                                resume_training=resume_training, resume_epoch=resume_epoch)
 
 
-    def plot_evaluation_set(check_epoch, datastream=valid_stream, train_epochs=1, plotting=False):
-        BruteForceDockingTrainer().train_model(model, optimizer, testcase, train_epochs, train_stream, datastream,
+    def plot_evaluation_set(check_epoch, train_epochs=1, plotting=False):
+        BruteForceDockingTrainer().train_model(model, optimizer, testcase, train_epochs, train_stream, valid_stream, test_stream,
                                                resume_training=True, resume_epoch=check_epoch, plotting=plotting)
 
     ######################
-    epoch = train_epochs
+    # epoch = train_epochs
+    train()
 
-    # train()
     # train(True, epoch)
 
     # epoch = 'end'
-
+    #
     # plotting = False
-    plotting = True
-    plot_evaluation_set(check_epoch=epoch, datastream=valid_stream, plotting=plotting)
-    plot_evaluation_set(check_epoch=epoch, datastream=test_stream, plotting=plotting)
+    # # # plotting = True
+    # plot_evaluation_set(check_epoch=epoch, plotting=plotting)
