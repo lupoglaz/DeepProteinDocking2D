@@ -35,7 +35,7 @@ class BruteForceInteractionTrainer:
     testcase = 'ndp_5ep_simpleexp_eq15sigmoid_aW_unfrozen' #c exp
 
     train_epochs = 5
-    check_epoch = train_epochs
+    check_epoch = 1
     test_freq = 1
     save_freq = 1
 
@@ -179,7 +179,8 @@ class BruteForceInteractionTrainer:
 
             if epoch % self.test_freq == 0 and epoch > 1:
                 BruteForceInteractionTrainer().checkAPR(epoch, valid_stream)
-                break
+                if self.train_epochs == 1:
+                    break
 
             trainloss = []
             for data in tqdm(train_stream):
