@@ -57,7 +57,8 @@ class BruteForceInteractionTrainer:
     param_to_freeze = None
 
     #### load (pretrained: IP CNN frozen, a00...a11 unfrozen) and retrain IP as unfrozen (d exp)
-    path_pretrain = 'Log/docking_ndp_simpleexp_eq15sigmoid_aW_unfrozen1.th'
+    # path_pretrain = 'Log/docking_ndp_simpleexp_eq15sigmoid_aW_unfrozen1.th' # pretrained on expC only
+    path_pretrain = 'Log/docking_WM_f25_lr4_1ep_allUnfrozen_expD1.th' ### post training expD
     pretrain_model.load_state_dict(torch.load(path_pretrain)['state_dict'])
 
     # plotting = True
@@ -91,6 +92,12 @@ class BruteForceInteractionTrainer:
         # for n, p in self.pretrain_model.named_parameters():
         #     if p.requires_grad:
         #         print(n, p, p.grad)
+
+        ### check if pretrain weights are frozen or updating
+        # for n, p in self.model.named_parameters():
+        #     if p.requires_grad:
+        #         print(n, p, p.grad)
+
 
         #### Loss functions
         BCEloss = torch.nn.BCELoss()
@@ -174,12 +181,6 @@ class BruteForceInteractionTrainer:
                 'optimizer': self.optimizer_pretrain.state_dict(),
             }
 
-            if epoch % self.test_freq == 0 and epoch > 1:
-                BruteForceInteractionTrainer().checkAPR(epoch, valid_stream)
-                BruteForceInteractionTrainer().checkAPR(epoch, test_stream)
-                if self.train_epochs == 1:
-                    break
-
             trainloss = []
             for data in tqdm(train_stream):
                 train_output = [BruteForceInteractionTrainer().run_model(data, self.model)]
@@ -189,6 +190,10 @@ class BruteForceInteractionTrainer:
             print('\nEpoch', epoch, 'Train Loss:', avg_trainloss)
             with open('Log/losses/log_train_' + testcase + '.txt', 'a') as fout:
                 fout.write(log_format % (epoch, avg_trainloss[0], avg_trainloss[1]))
+
+            if epoch % self.test_freq == 0 and epoch > 1:
+                BruteForceInteractionTrainer().checkAPR(epoch, valid_stream)
+                BruteForceInteractionTrainer().checkAPR(epoch, test_stream)
 
             #### saving model while training
             if epoch % self.save_freq == 0:
@@ -278,14 +283,16 @@ if __name__ == '__main__':
     #### model and pretrain model
 
     ##################### Train model
-    # BruteForceInteractionTrainer().train()
-
+    BruteForceInteractionTrainer().train()
+    #
     # give time to save models
     # time.sleep(60)
 
     ##################### Evaluate model
     ### loads relevant pretrained model under resume_training condition
-    BruteForceInteractionTrainer().plot_validation_set(eval_stream=valid_stream) ## also checks APR
-    #
-    BruteForceInteractionTrainer().plot_validation_set(eval_stream=test_stream)
+    # BruteForceInteractionTrainer().plot_validation_set(eval_stream=valid_stream) ## also checks APR
 
+    # BruteForceInteractionTrainer().plot_validation_set(eval_stream=test_stream)
+
+
+    # BruteForceInteractionTrainer().train(1)
