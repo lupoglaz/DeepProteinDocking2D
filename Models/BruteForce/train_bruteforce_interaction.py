@@ -25,17 +25,17 @@ class BruteForceInteractionTrainer:
         replicate = 'single_rep'
 
     # testcase = 'WM_f22_lr2_2ep_aW_unfrozen' #c exp
-    testcase = 'WM_f25_lr3_2ep_aW_unfrozen' #c exp
+    # testcase = 'WM_f25_lr3_2ep_aW_unfrozen' #c exp
 
+    testcase = 'WM_f25_lr4_1ep_allUnfrozen_expD' #d exp
 
-    train_epochs = 2
+    train_epochs = 1
     check_epoch = 1
     test_freq = 1
     save_freq = 1
 
     ##### load blank models and optimizers, oncewa
-    # lr = 10 ** -4
-    lr = 10 ** -3
+    lr = 10 ** -4
     model = BruteForceInteraction().to(device=0)
     optimizer = optim.Adam(model.parameters(), lr=lr)
 
@@ -46,16 +46,16 @@ class BruteForceInteractionTrainer:
 
     ###################### Load and freeze/unfreeze params (training no eval)
     ## for exp a,b,c
-    path_pretrain = 'Log/newdata_bugfix_docking_100epochs_19.th'
-    pretrain_model.load_state_dict(torch.load(path_pretrain)['state_dict'])
+    # path_pretrain = 'Log/newdata_bugfix_docking_100epochs_19.th'
+    # pretrain_model.load_state_dict(torch.load(path_pretrain)['state_dict'])
 
     # param_to_freeze = 'all'
-    param_to_freeze = 'W' ##freeze all but "a" weights
-    # param_to_freeze = None
+    # param_to_freeze = 'W' ##freeze all but "a" weights
+    param_to_freeze = None
 
     #### load (pretrained: IP CNN frozen, a00...a11 unfrozen) and retrain IP as unfrozen (d exp)
-    # path_pretrain = 'Log/docking_rep1_bias=True_aW_unfrozen1.th'
-    # pretrain_model.load_state_dict(torch.load(path_pretrain)['state_dict'])
+    path_pretrain = 'Log/docking_ndp_simpleexp_eq15sigmoid_aW_unfrozen1.th'
+    pretrain_model.load_state_dict(torch.load(path_pretrain)['state_dict'])
 
     # plotting = True
     plotting = False
