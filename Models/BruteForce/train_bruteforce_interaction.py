@@ -24,26 +24,16 @@ class BruteForceInteractionTrainer:
     else:
         replicate = 'single_rep'
 
-    # testcase = 'newdata_pretrain_eq15sigmoid_aW_unfrozen' #c exp
-
-    # testcase = 'ndp_eq15sigmoid_scratch' #e exp ### BCE cuda assert
-    # testcase = 'ndp_eq15sigmoid_aW_unfrozen' #c exp
-    # testcase = 'ndp_randinit_eq15sigmoid_aW_unfrozen' #c exp
-
-    # testcase = 'ndp_simpleexp_eq15sigmoid_aW_unfrozen' #c exp
-    # testcase = 'ndp_simpleexp_eq15sigmoid_frozen'
-    # testcase = 'ndp_5ep_simpleexp_eq15sigmoid_aW_unfrozen' #c exp
-
-    testcase = 'ndp_2ep_simpleexp_eq15sigmoid_aW_unfrozen' #c exp
-
+    testcase = 'WM_f22_lr2_2ep_aW_unfrozen' #c exp
 
     train_epochs = 2
     check_epoch = 1
     test_freq = 1
     save_freq = 1
 
-    ##### load blank models and optimizers, once
-    lr = 10 ** -4
+    ##### load blank models and optimizers, oncewa
+    # lr = 10 ** -4
+    lr = 10 ** -2
     model = BruteForceInteraction().to(device=0)
     optimizer = optim.Adam(model.parameters(), lr=lr)
 
@@ -54,7 +44,7 @@ class BruteForceInteractionTrainer:
 
     ###################### Load and freeze/unfreeze params (training no eval)
     ## for exp a,b,c
-    path_pretrain = 'Log/newdata_bugfix_docking_30epochs_end.th'
+    path_pretrain = 'Log/newdata_bugfix_docking_100epochs_19.th'
     pretrain_model.load_state_dict(torch.load(path_pretrain)['state_dict'])
 
     # param_to_freeze = 'all'
@@ -125,7 +115,6 @@ class BruteForceInteractionTrainer:
                     FN += 1
                 elif p < threshold and a < threshold:
                     TN += 1
-
                 # print('returning', TP, FP, TN, FN)
                 return TP, FP, TN, FN
 
@@ -258,7 +247,6 @@ class BruteForceInteractionTrainer:
                                                    load_models=True, resume_epoch=self.check_epoch, plotting=plotting,
                                                    )
 
-
 if __name__ == '__main__':
     #################################################################################
     trainset = 'toy_concave_data/interaction_data_train'
@@ -267,11 +255,11 @@ if __name__ == '__main__':
     testset = 'toy_concave_data/interaction_data_test'
 
     #########################
-
     #### initialization torch settings
     np.random.seed(42)
     torch.manual_seed(42)
     random.seed(42)
+    torch.cuda.manual_seed(42)
     torch.cuda.manual_seed(42)
     torch.backends.cudnn.determininistic = True
     torch.cuda.set_device(0)
