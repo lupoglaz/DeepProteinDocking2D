@@ -7,7 +7,7 @@ class BruteForceInteraction(nn.Module):
     def __init__(self):
         super(BruteForceInteraction, self).__init__()
 
-        self.F_0 = nn.Parameter(torch.ones(1)*-22.0)
+        self.F_0 = nn.Parameter(torch.ones(1)*-25.0)
 
     def forward(self, FFT_score, plotting=False):
         E = -FFT_score

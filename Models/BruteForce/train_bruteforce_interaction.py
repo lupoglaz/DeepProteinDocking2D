@@ -24,7 +24,9 @@ class BruteForceInteractionTrainer:
     else:
         replicate = 'single_rep'
 
-    testcase = 'WM_f22_lr2_2ep_aW_unfrozen' #c exp
+    # testcase = 'WM_f22_lr2_2ep_aW_unfrozen' #c exp
+    testcase = 'WM_f25_lr3_2ep_aW_unfrozen' #c exp
+
 
     train_epochs = 2
     check_epoch = 1
@@ -33,7 +35,7 @@ class BruteForceInteractionTrainer:
 
     ##### load blank models and optimizers, oncewa
     # lr = 10 ** -4
-    lr = 10 ** -2
+    lr = 10 ** -3
     model = BruteForceInteraction().to(device=0)
     optimizer = optim.Adam(model.parameters(), lr=lr)
 
