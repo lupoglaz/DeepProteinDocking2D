@@ -22,7 +22,8 @@ test_rmsd = ax[0].plot(test['Epoch'].to_numpy(), test['rmsd'].to_numpy())
 ax[0].legend(('train rmsd', 'valid rmsd', 'test rmsd'))
 
 ax[0].set_title('Loss: '+testcase)
-ax[1].grid()
+ax[0].set_ylabel('rmsd')
+ax[0].grid()
 
 train_loss = ax[1].plot(train['Epoch'].to_numpy(), train['Loss'].to_numpy())
 valid_loss = ax[1].plot(valid['Epoch'].to_numpy(), valid['Loss'].to_numpy())

@@ -29,6 +29,9 @@ class BruteForceInteractionTrainer:
 
     testcase = 'WM_f25_lr4_1ep_allUnfrozen_expD' #d exp
 
+    # testcase = 'WM_f50_expC' #d exp
+
+
     train_epochs = 1
     check_epoch = 1
     test_freq = 1
@@ -275,14 +278,14 @@ if __name__ == '__main__':
     #### model and pretrain model
 
     ##################### Train model
-    BruteForceInteractionTrainer().train()
+    # BruteForceInteractionTrainer().train()
 
     # give time to save models
     # time.sleep(60)
 
     ##################### Evaluate model
     ### loads relevant pretrained model under resume_training condition
-    # BruteForceInteractionTrainer().plot_validation_set(eval_stream=valid_stream) ## also checks APR
+    BruteForceInteractionTrainer().plot_validation_set(eval_stream=valid_stream) ## also checks APR
     #
-    # BruteForceInteractionTrainer().plot_validation_set(eval_stream=test_stream)
+    BruteForceInteractionTrainer().plot_validation_set(eval_stream=test_stream)
 
