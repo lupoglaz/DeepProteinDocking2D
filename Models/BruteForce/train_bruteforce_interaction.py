@@ -185,13 +185,15 @@ class BruteForceInteractionTrainer:
             for data in tqdm(train_stream):
                 train_output = [BruteForceInteractionTrainer().run_model(data, self.model)]
                 trainloss.append(train_output)
+                break
 
             avg_trainloss = np.average(trainloss, axis=0)[0, :]
             print('\nEpoch', epoch, 'Train Loss:', avg_trainloss)
             with open('Log/losses/log_train_' + testcase + '.txt', 'a') as fout:
                 fout.write(log_format % (epoch, avg_trainloss[0], avg_trainloss[1]))
 
-            if epoch % self.test_freq == 0 and epoch > 1:
+            ### evaluate on training and valid set
+            if epoch % self.test_freq == 0:
                 BruteForceInteractionTrainer().checkAPR(epoch, valid_stream)
                 BruteForceInteractionTrainer().checkAPR(epoch, test_stream)
 
