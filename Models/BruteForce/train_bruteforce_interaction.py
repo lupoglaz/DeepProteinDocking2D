@@ -190,7 +190,6 @@ class BruteForceInteractionTrainer:
             for data in tqdm(train_stream):
                 train_output = [BruteForceInteractionTrainer().run_model(data, self.model)]
                 trainloss.append(train_output)
-                break
 
             avg_trainloss = np.average(trainloss, axis=0)[0, :]
             print('\nEpoch', epoch, 'Train Loss:', avg_trainloss)
