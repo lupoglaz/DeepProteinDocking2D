@@ -27,10 +27,15 @@ class BruteForceInteractionTrainer:
     # testcase = 'WM_f22_lr2_2ep_aW_unfrozen' #c exp
     # testcase = 'WM_f25_lr3_2ep_aW_unfrozen' #c exp
 
-    testcase = 'WM_f25_lr4_1ep_allUnfrozen_expD' #d exp
+    # testcase = 'WM_f25_lr4_1ep_allUnfrozen_expD' #d exp
 
     # testcase = 'WM_f50_expC' #d exp
 
+    # testcase = 'evalNOTRAIN_WM_f25_lr4_1ep_allUnfrozen_expD' #d exp
+
+    # testcase = 'inittesting'
+
+    testcase = 'WM_expB' #b exp
 
     train_epochs = 1
     check_epoch = 1
@@ -49,17 +54,17 @@ class BruteForceInteractionTrainer:
 
     ###################### Load and freeze/unfreeze params (training no eval)
     ## for exp a,b,c
-    # path_pretrain = 'Log/newdata_bugfix_docking_100epochs_19.th'
-    # pretrain_model.load_state_dict(torch.load(path_pretrain)['state_dict'])
+    path_pretrain = 'Log/newdata_bugfix_docking_100epochs_19.th'
+    pretrain_model.load_state_dict(torch.load(path_pretrain)['state_dict'])
 
     # param_to_freeze = 'all'
     # param_to_freeze = 'W' ##freeze all but "a" weights
     param_to_freeze = None
 
     #### load (pretrained: IP CNN frozen, a00...a11 unfrozen) and retrain IP as unfrozen (d exp)
-    path_pretrain = 'Log/docking_ndp_simpleexp_eq15sigmoid_aW_unfrozen1.th' # pretrained on expC only
+    # path_pretrain = 'Log/docking_ndp_simpleexp_eq15sigmoid_aW_unfrozen1.th' # pretrained on expC only
     # path_pretrain = 'Log/docking_WM_f25_lr4_1ep_allUnfrozen_expD1.th' ### post training expD
-    pretrain_model.load_state_dict(torch.load(path_pretrain)['state_dict'])
+    # pretrain_model.load_state_dict(torch.load(path_pretrain)['state_dict'])
 
     # plotting = True
     plotting = False
@@ -297,4 +302,4 @@ if __name__ == '__main__':
     # BruteForceInteractionTrainer().plot_validation_set(eval_stream=test_stream)
 
 
-    # BruteForceInteractionTrainer().train(1)
+    # BruteForceInteractionTrainer().train(3)
