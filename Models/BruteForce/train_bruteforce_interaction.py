@@ -25,7 +25,8 @@ class BruteForceInteractionTrainer:
         replicate = 'single_rep'
 
     # testcase = 'WM_expB' #b exp
-    testcase = 'WM_expD' #b exp
+    # testcase = 'WM_expD' #b exp
+    testcase = 'WM_scratch' #scratch exp
 
     # testcase = 'evalNOTRAIN_WM_f25_lr4_1ep_allUnfrozen_expD' #d exp
 
@@ -55,8 +56,8 @@ class BruteForceInteractionTrainer:
 
     ## for exp d
     #### load (pretrained: IP CNN frozen, a00...a11 unfrozen) and retrain IP as unfrozen (d exp)
-    path_pretrain = 'Log/docking_ndp_simpleexp_eq15sigmoid_aW_unfrozen1.th' # pretrained on expC only
-    pretrain_model.load_state_dict(torch.load(path_pretrain)['state_dict'])
+    # path_pretrain = 'Log/docking_ndp_simpleexp_eq15sigmoid_aW_unfrozen1.th' # pretrained on expC only
+    # pretrain_model.load_state_dict(torch.load(path_pretrain)['state_dict'])
 
     # plotting = True
     plotting = False
