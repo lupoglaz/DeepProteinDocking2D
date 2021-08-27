@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --partition=p_ccib_1
-#SBATCH --job-name=WM_expD
+#SBATCH --job-name=WM_expD_3ep
 #SBATCH --nodes=1
 ##SBATCH --ntasks=1
 #SBATCH --tasks-per-node=1
@@ -8,8 +8,8 @@
 #SBATCH --gres=gpu:2 # Number of GPUs
 #SBATCH --constraint=volta
 #SBATCH --time=48:00:00
-#SBATCH --output=slurm_log/slurm.%N.WM_expD.out
-#SBATCH --error=slurm_log/slurm.%N.WM_expD.err
+#SBATCH --output=slurm_log/slurm.%N.WM_expD_3ep.out
+#SBATCH --error=slurm_log/slurm.%N.WM_expD_3ep.err
 #SBATCH --export=ALL
 
 pwd
