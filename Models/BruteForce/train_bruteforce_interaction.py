@@ -24,13 +24,13 @@ class BruteForceInteractionTrainer:
     else:
         replicate = 'single_rep'
 
-    # testcase = 'WM_expB' #b exp
-    # testcase = 'WM_expD' #b exp
-
-    # testcase = 'evalNOTRAIN_WM_f25_lr4_1ep_allUnfrozen_expD' #d exp
+    testcase = 'WM_expB_3ep' #b exp
+    # testcase = 'WM_expD' #d exp
 
     # testcase = 'WM_expD_3ep' #b exp
-    testcase = 'WM_scratch' #scratch exp
+    # testcase = 'SE_expD' #b exp
+    # testcase = 'WM_scratch' #scratch exp
+    # testcase = 'SE_expC' #b exp
 
     train_epochs = 3
     check_epoch = 1
@@ -49,8 +49,8 @@ class BruteForceInteractionTrainer:
 
     ###################### Load and freeze/unfreeze params (training no eval)
     ## for exp a,b,c
-    # path_pretrain = 'Log/newdata_bugfix_docking_100epochs_19.th'
-    # pretrain_model.load_state_dict(torch.load(path_pretrain)['state_dict'])
+    path_pretrain = 'Log/newdata_bugfix_docking_100epochs_19.th'
+    pretrain_model.load_state_dict(torch.load(path_pretrain)['state_dict'])
 
     # param_to_freeze = 'all'
     # param_to_freeze = 'W' ##freeze all but "a" weights
