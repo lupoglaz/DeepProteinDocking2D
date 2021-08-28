@@ -33,17 +33,19 @@ class BruteForceInteractionTrainer:
 
     # testcase = 'SE_expC' #c exp
 
-    testcase = 'f0_expC' #c exp
+    # testcase = 'f0_expC' #c exp
 
+    testcase = 'f0_expB_3ep' #b exp
 
-    train_epochs = 1
+    train_epochs = 3
     check_epoch = 1
     test_freq = 1
     save_freq = 1
 
     ##### load blank models and optimizers, oncewa
-    lr_docking = 10 ** -4
     lr_interaction = 10 ** -1
+    lr_docking = 10 ** -4
+
     model = BruteForceInteraction().to(device=0)
     optimizer = optim.Adam(model.parameters(), lr=lr_interaction)
 
@@ -58,8 +60,8 @@ class BruteForceInteractionTrainer:
     pretrain_model.load_state_dict(torch.load(path_pretrain)['state_dict'])
 
     # param_to_freeze = 'all'
-    param_to_freeze = 'W' ##freeze all but "a" weights
-    # param_to_freeze = None
+    # param_to_freeze = 'W' ##freeze all but "a" weights
+    param_to_freeze = None
 
     ## for exp d
     #### load (pretrained: IP CNN frozen, a00...a11 unfrozen) and retrain IP as unfrozen (d exp)
