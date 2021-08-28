@@ -24,8 +24,8 @@ class BruteForceInteractionTrainer:
     else:
         replicate = 'single_rep'
 
-    testcase = 'WM_expB_3ep' #b exp
-    # testcase = 'WM_expD' #d exp
+    # testcase = 'WM_expB_3ep' #b exp
+    testcase = 'WM_expD_3ep' #d exp
 
     # testcase = 'WM_expD_3ep' #b exp
     # testcase = 'SE_expD' #b exp
@@ -49,8 +49,8 @@ class BruteForceInteractionTrainer:
 
     ###################### Load and freeze/unfreeze params (training no eval)
     ## for exp a,b,c
-    path_pretrain = 'Log/newdata_bugfix_docking_100epochs_19.th'
-    pretrain_model.load_state_dict(torch.load(path_pretrain)['state_dict'])
+    # path_pretrain = 'Log/newdata_bugfix_docking_100epochs_19.th'
+    # pretrain_model.load_state_dict(torch.load(path_pretrain)['state_dict'])
 
     # param_to_freeze = 'all'
     # param_to_freeze = 'W' ##freeze all but "a" weights
@@ -58,8 +58,8 @@ class BruteForceInteractionTrainer:
 
     ## for exp d
     #### load (pretrained: IP CNN frozen, a00...a11 unfrozen) and retrain IP as unfrozen (d exp)
-    # path_pretrain = 'Log/docking_ndp_simpleexp_eq15sigmoid_aW_unfrozen1.th' # pretrained on expC only
-    # pretrain_model.load_state_dict(torch.load(path_pretrain)['state_dict'])
+    path_pretrain = 'Log/docking_ndp_simpleexp_eq15sigmoid_aW_unfrozen1.th' # pretrained on expC only
+    pretrain_model.load_state_dict(torch.load(path_pretrain)['state_dict'])
 
     # plotting = True
     plotting = False
