@@ -25,41 +25,46 @@ class BruteForceInteractionTrainer:
         replicate = 'single_rep'
 
     # testcase = 'WM_expB_3ep' #b exp
-    testcase = 'WM_expD_3ep' #d exp
+    # testcase = 'WM_expD_3ep' #d exp
 
     # testcase = 'WM_expD_3ep' #b exp
-    # testcase = 'SE_expD' #b exp
+    # testcase = 'SE_expD' #d exp
     # testcase = 'WM_scratch' #scratch exp
-    # testcase = 'SE_expC' #b exp
 
-    train_epochs = 3
+    # testcase = 'SE_expC' #c exp
+
+    testcase = 'f0_expC' #c exp
+
+
+    train_epochs = 1
     check_epoch = 1
     test_freq = 1
     save_freq = 1
 
     ##### load blank models and optimizers, oncewa
-    lr = 10 ** -4
+    lr_docking = 10 ** -4
+    lr_interaction = 10 ** -1
     model = BruteForceInteraction().to(device=0)
-    optimizer = optim.Adam(model.parameters(), lr=lr)
+    optimizer = optim.Adam(model.parameters(), lr=lr_interaction)
 
     pretrain_model = BruteForceDocking().to(device=0)
-    optimizer_pretrain = optim.Adam(pretrain_model.parameters(), lr=lr)
+    optimizer_pretrain = optim.Adam(pretrain_model.parameters(), lr=lr_docking)
 
     print('SHOULD ONLY PRINT ONCE')
 
     ###################### Load and freeze/unfreeze params (training no eval)
     ## for exp a,b,c
-    # path_pretrain = 'Log/newdata_bugfix_docking_100epochs_19.th'
-    # pretrain_model.load_state_dict(torch.load(path_pretrain)['state_dict'])
+    path_pretrain = 'Log/newdata_bugfix_docking_100epochs_19.th'
+    pretrain_model.load_state_dict(torch.load(path_pretrain)['state_dict'])
 
     # param_to_freeze = 'all'
-    # param_to_freeze = 'W' ##freeze all but "a" weights
-    param_to_freeze = None
+    param_to_freeze = 'W' ##freeze all but "a" weights
+    # param_to_freeze = None
 
     ## for exp d
     #### load (pretrained: IP CNN frozen, a00...a11 unfrozen) and retrain IP as unfrozen (d exp)
-    path_pretrain = 'Log/docking_ndp_simpleexp_eq15sigmoid_aW_unfrozen1.th' # pretrained on expC only
-    pretrain_model.load_state_dict(torch.load(path_pretrain)['state_dict'])
+    # path_pretrain = 'Log/docking_ndp_simpleexp_eq15sigmoid_aW_unfrozen1.th' # pretrained on expC only
+    # pretrain_model.load_state_dict(torch.load(path_pretrain)['state_dict'])
 
     # plotting = True
     plotting = False
