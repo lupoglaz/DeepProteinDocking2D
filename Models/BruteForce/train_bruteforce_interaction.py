@@ -35,11 +35,11 @@ class BruteForceInteractionTrainer:
 
     # testcase = 'f0_expC' #c exp
 
-    testcase = 'f0_expB_3ep' #b exp
+    # testcase = 'f0_expB_3ep' #b exp
 
-    # testcase = 'SE_f0_expC' #c exp
+    testcase = 'SE_f0_expC' #c exp
 
-    train_epochs = 3
+    train_epochs = 1
     check_epoch = 1
     test_freq = 1
     save_freq = 1

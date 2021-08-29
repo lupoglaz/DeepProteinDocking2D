@@ -21,20 +21,20 @@ class BruteForceInteraction(nn.Module):
         # P = Pflatsm.reshape(self.num_angles, self.dim, self.dim)
         # norm = torch.sum(P * -E)
 
-        #### normalize E? ### NO GRADIENT
-        # with torch.no_grad():
-        #     norm, _ = torch.max(-E.view(1, 360*100*100), dim=1)
-        #     norm = norm.unsqueeze(dim=1).unsqueeze(dim=2).unsqueeze(dim=3)
-        # shiftedE = -E - norm
-        # E = -shiftedE
-        # U = torch.exp(-E) + norm.squeeze()
-        # deltaF = -torch.log(torch.mean(U))
-        # pred_interact = -torch.div(1.0, (torch.exp(-deltaF + self.F_0) + 1.0)) + 1.0
-
-        ### unshifted free energy
-        U = torch.exp(-E)
+        #### normalize E?
+        with torch.no_grad():
+            norm, _ = torch.max(-E.view(1, 360*100*100), dim=1)
+            norm = norm.unsqueeze(dim=1).unsqueeze(dim=2).unsqueeze(dim=3)
+        shiftedE = -E - norm
+        E = -shiftedE
+        U = torch.exp(-E) + norm.squeeze()
         deltaF = -torch.log(torch.mean(U))
         pred_interact = -torch.div(1.0, (torch.exp(-deltaF + self.F_0) + 1.0)) + 1.0
+
+        ### unshifted free energy
+        # U = torch.exp(-E)
+        # deltaF = -torch.log(torch.mean(U))
+        # pred_interact = -torch.div(1.0, (torch.exp(-deltaF + self.F_0) + 1.0)) + 1.0
 
         # print(deltaF)
         print(self.F_0.item())
