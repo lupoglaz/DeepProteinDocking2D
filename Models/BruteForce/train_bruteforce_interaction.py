@@ -24,22 +24,15 @@ class BruteForceInteractionTrainer:
     else:
         replicate = 'single_rep'
 
-    # testcase = 'WM_expB_3ep' #b exp
-    # testcase = 'WM_expD_3ep' #d exp
-
-    # testcase = 'WM_expD_3ep' #b exp
-    # testcase = 'SE_expD' #d exp
-    # testcase = 'WM_scratch' #scratch exp
-
-    # testcase = 'SE_expC' #c exp
-
-    # testcase = 'f0_expC' #c exp
-
     # testcase = 'f0_expB_3ep' #b exp
 
-    testcase = 'SE_f0_expC' #c exp
+    # testcase = 'SE_f0_expC' #c exp
 
-    train_epochs = 1
+    # testcase = 'SE_log+norm_f0_expC' #c exp
+
+    testcase = 'f0_expB_3ep' #b exp
+
+    train_epochs = 3
     check_epoch = 1
     test_freq = 1
     save_freq = 1
@@ -220,6 +213,7 @@ class BruteForceInteractionTrainer:
         Accuracy, Precision, Recall, F1score, MCC = APR().calcAPR(datastream, BruteForceInteractionTrainer(), check_epoch)
         # print(Accuracy, Precision, Recall)
         with open('Log/losses/log_validAPR_' + self.testcase + '.txt', 'a') as fout:
+            fout.write(str(check_epoch))
             fout.write(log_header)
             fout.write(log_format % (Accuracy, Precision, Recall, F1score, MCC))
         fout.close()
@@ -293,7 +287,7 @@ if __name__ == '__main__':
     #### model and pretrain model
 
     ##################### Train model
-    BruteForceInteractionTrainer().train()
+    # BruteForceInteractionTrainer().train()
     #
     # give time to save models
     # time.sleep(60)
@@ -305,4 +299,4 @@ if __name__ == '__main__':
     # BruteForceInteractionTrainer().plot_validation_set(eval_stream=test_stream)
 
 
-    # BruteForceInteractionTrainer().train(3)
+    BruteForceInteractionTrainer().train(3)
