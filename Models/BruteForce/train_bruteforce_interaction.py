@@ -32,7 +32,11 @@ class BruteForceInteractionTrainer:
 
     testcase = 'f0_expB_3ep' #b exp
 
-    train_epochs = 3
+    # testcase = 'SE_f0_expC' #c exp
+
+    # testcase = 'newEQ_sum_f0_expC' #c exp
+
+    train_epochs = 6
     check_epoch = 1
     test_freq = 1
     save_freq = 1
@@ -55,8 +59,8 @@ class BruteForceInteractionTrainer:
     pretrain_model.load_state_dict(torch.load(path_pretrain)['state_dict'])
 
     # param_to_freeze = 'all'
-    # param_to_freeze = 'W' ##freeze all but "a" weights
-    param_to_freeze = None
+    param_to_freeze = 'W' ##freeze all but "a" weights
+    # param_to_freeze = None
 
     ## for exp d
     #### load (pretrained: IP CNN frozen, a00...a11 unfrozen) and retrain IP as unfrozen (d exp)
@@ -287,7 +291,7 @@ if __name__ == '__main__':
     #### model and pretrain model
 
     ##################### Train model
-    # BruteForceInteractionTrainer().train()
+    BruteForceInteractionTrainer().train()
     #
     # give time to save models
     # time.sleep(60)
@@ -299,4 +303,4 @@ if __name__ == '__main__':
     # BruteForceInteractionTrainer().plot_validation_set(eval_stream=test_stream)
 
 
-    BruteForceInteractionTrainer().train(3)
+    # BruteForceInteractionTrainer().train(3)
