@@ -30,7 +30,7 @@ class BruteForceInteractionTrainer:
 
     # testcase = 'SE_log+norm_f0_expC' #c exp
 
-    testcase = 'f0_expB_3ep' #b exp
+    testcase = 'f0_expB_6ep' #b exp
 
     # testcase = 'SE_f0_expC' #c exp
 
