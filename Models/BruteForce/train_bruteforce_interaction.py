@@ -24,25 +24,24 @@ class BruteForceInteractionTrainer:
     else:
         replicate = 'single_rep'
 
-    # testcase = 'f0_expB_3ep' #b exp
-
-    # testcase = 'SE_f0_expC' #c exp
-
-    # testcase = 'SE_log+norm_f0_expC' #c exp
-
-    testcase = 'f0_expB_6ep' #b exp
+    # testcase = 'f0_expB_6ep' #b exp
 
     # testcase = 'SE_f0_expC' #c exp
 
     # testcase = 'newEQ_sum_f0_expC' #c exp
+    # testcase = 'newEQ_sum_f25_expA' #a exp
+    # testcase = 'newEQ_lr0_sum_f0_expA' #a exp
 
-    train_epochs = 6
+    # testcase = 'shiftednewEQ_lr0_sum_f0_scratch' #a exp
+    testcase = 'shiftednewEQ_lr0_sum_f0_scratch' #a exp
+
+    train_epochs = 3
     check_epoch = 1
     test_freq = 1
     save_freq = 1
 
     ##### load blank models and optimizers, oncewa
-    lr_interaction = 10 ** -1
+    lr_interaction = 10 ** 0
     lr_docking = 10 ** -4
 
     model = BruteForceInteraction().to(device=0)
@@ -55,12 +54,12 @@ class BruteForceInteractionTrainer:
 
     ###################### Load and freeze/unfreeze params (training no eval)
     ## for exp a,b,c
-    path_pretrain = 'Log/newdata_bugfix_docking_100epochs_19.th'
-    pretrain_model.load_state_dict(torch.load(path_pretrain)['state_dict'])
+    # path_pretrain = 'Log/newdata_bugfix_docking_100epochs_19.th'
+    # pretrain_model.load_state_dict(torch.load(path_pretrain)['state_dict'])
 
     # param_to_freeze = 'all'
-    param_to_freeze = 'W' ##freeze all but "a" weights
-    # param_to_freeze = None
+    # param_to_freeze = 'W' ##freeze all but "a" weights
+    param_to_freeze = None
 
     ## for exp d
     #### load (pretrained: IP CNN frozen, a00...a11 unfrozen) and retrain IP as unfrozen (d exp)
