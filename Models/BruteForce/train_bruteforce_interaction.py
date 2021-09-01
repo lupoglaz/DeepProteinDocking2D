@@ -33,9 +33,12 @@ class BruteForceInteractionTrainer:
     # testcase = 'newEQ_lr0_sum_f0_expA' #a exp
 
     # testcase = 'shiftednewEQ_lr0_sum_f0_scratch' #a exp
-    testcase = 'shiftednewEQ_lr0_sum_f0_scratch' #a exp
+    # testcase = 'shiftednewEQ_lr0_sum_f0_scratch' #a exp
 
-    train_epochs = 3
+    testcase = 'shiftednewEQ_lr0_sum_f0_expC' #c exp
+
+
+    train_epochs = 1
     check_epoch = 1
     test_freq = 1
     save_freq = 1
@@ -54,12 +57,12 @@ class BruteForceInteractionTrainer:
 
     ###################### Load and freeze/unfreeze params (training no eval)
     ## for exp a,b,c
-    # path_pretrain = 'Log/newdata_bugfix_docking_100epochs_19.th'
-    # pretrain_model.load_state_dict(torch.load(path_pretrain)['state_dict'])
+    path_pretrain = 'Log/newdata_bugfix_docking_100epochs_19.th'
+    pretrain_model.load_state_dict(torch.load(path_pretrain)['state_dict'])
 
     # param_to_freeze = 'all'
-    # param_to_freeze = 'W' ##freeze all but "a" weights
-    param_to_freeze = None
+    param_to_freeze = 'W' ##freeze all but "a" weights
+    # param_to_freeze = None
 
     ## for exp d
     #### load (pretrained: IP CNN frozen, a00...a11 unfrozen) and retrain IP as unfrozen (d exp)
@@ -216,7 +219,7 @@ class BruteForceInteractionTrainer:
         Accuracy, Precision, Recall, F1score, MCC = APR().calcAPR(datastream, BruteForceInteractionTrainer(), check_epoch)
         # print(Accuracy, Precision, Recall)
         with open('Log/losses/log_validAPR_' + self.testcase + '.txt', 'a') as fout:
-            fout.write(str(check_epoch))
+            fout.write(str(check_epoch)+'\n')
             fout.write(log_header)
             fout.write(log_format % (Accuracy, Precision, Recall, F1score, MCC))
         fout.close()
