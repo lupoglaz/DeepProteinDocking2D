@@ -29,6 +29,7 @@ singularity run -B $ALPHAFOLD_DATA_PATH:/data -B .:/etc --pwd /app/alphafold --n
     --obsolete_pdbs_path=/data/pdb_mmcif/obsolete.dat \
     --preset=full_dbs \
     --fasta_paths=/scratch/pgarias/fastafiles/sarscovid2.fasta \
-    --output_dir=/scratch/pgarias/outputdir \
+#    --output_dir=/scratch/pgarias/outputdir \
+    --output_dir=/home/sb1638/alphafold_test \
     --model_names=model_1,model_2,model_3,model_4,model_5 \
     --max_template_date=2020-01-01
