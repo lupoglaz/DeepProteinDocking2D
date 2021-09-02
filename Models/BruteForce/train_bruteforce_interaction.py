@@ -35,7 +35,11 @@ class BruteForceInteractionTrainer:
     # testcase = 'shiftednewEQ_lr0_sum_f0_scratch' #a exp
     # testcase = 'shiftednewEQ_lr0_sum_f0_scratch' #a exp
 
-    testcase = 'shiftednewEQ_lr0_sum_f0_expC' #c exp
+    # testcase = 'shiftednewEQ_lr0_sum_f0_expC' #c exp
+
+    # testcase = 'f0_expB_6ep'
+
+    testcase = 'scratch_init_test'
 
 
     train_epochs = 1
@@ -57,12 +61,13 @@ class BruteForceInteractionTrainer:
 
     ###################### Load and freeze/unfreeze params (training no eval)
     ## for exp a,b,c
-    path_pretrain = 'Log/newdata_bugfix_docking_100epochs_19.th'
-    pretrain_model.load_state_dict(torch.load(path_pretrain)['state_dict'])
+    # path_pretrain = 'Log/newdata_bugfix_docking_100epochs_19.th'
+    # path_pretrain = 'Log/docking_f0_expB_6ep3.th'
+    # pretrain_model.load_state_dict(torch.load(path_pretrain)['state_dict'])
 
     # param_to_freeze = 'all'
-    param_to_freeze = 'W' ##freeze all but "a" weights
-    # param_to_freeze = None
+    # param_to_freeze = 'W' ##freeze all but "a" weights
+    param_to_freeze = None
 
     ## for exp d
     #### load (pretrained: IP CNN frozen, a00...a11 unfrozen) and retrain IP as unfrozen (d exp)
@@ -219,7 +224,7 @@ class BruteForceInteractionTrainer:
         Accuracy, Precision, Recall, F1score, MCC = APR().calcAPR(datastream, BruteForceInteractionTrainer(), check_epoch)
         # print(Accuracy, Precision, Recall)
         with open('Log/losses/log_validAPR_' + self.testcase + '.txt', 'a') as fout:
-            fout.write(str(check_epoch)+'\n')
+            fout.write('Epoch '+str(check_epoch)+'\n')
             fout.write(log_header)
             fout.write(log_format % (Accuracy, Precision, Recall, F1score, MCC))
         fout.close()
@@ -262,9 +267,9 @@ class BruteForceInteractionTrainer:
                                                    load_models=False, resume_epoch=resume_epoch,
                                                    )
 
-    def plot_validation_set(self, plotting=True, eval_stream=None):
-        BruteForceInteractionTrainer().train_model(self.model, self.testcase, self.train_epochs, train_stream, eval_stream,
-                                                   load_models=True, resume_epoch=self.check_epoch, plotting=plotting,
+    def plot_validation_set(self, plotting=True, eval_stream=None, resume_epoch=1):
+        BruteForceInteractionTrainer().train_model(self.model, self.testcase, self.train_epochs, train_stream, eval_stream, test_stream,
+                                                   load_models=True, resume_epoch=resume_epoch, plotting=plotting,
                                                    )
 
 if __name__ == '__main__':
@@ -300,9 +305,9 @@ if __name__ == '__main__':
 
     ##################### Evaluate model
     ### loads relevant pretrained model under resume_training condition
-    # BruteForceInteractionTrainer().plot_validation_set(eval_stream=valid_stream) ## also checks APR
+    # BruteForceInteractionTrainer().plot_validation_set(eval_stream=valid_stream, resume_epoch=3) ## also checks APR
 
-    # BruteForceInteractionTrainer().plot_validation_set(eval_stream=test_stream)
+    # BruteForceInteractionTrainer().plot_validation_set(eval_stream=test_stream, resume_epoch=3)
 
 
     # BruteForceInteractionTrainer().train(3)
