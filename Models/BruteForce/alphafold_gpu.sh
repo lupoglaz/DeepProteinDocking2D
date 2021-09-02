@@ -32,5 +32,5 @@ singularity run -B $ALPHAFOLD_DATA_PATH:/data -B .:/etc --pwd /app/alphafold --n
 #    --output_dir=/scratch/pgarias/outputdir \
 #    --output_dir=/home/sb1638/alphafold_test \
 #    --output_dir=/scratch/sb1638/af2_output \
-    --model_names=model_1,model_2,model_3,model_4,model_5 \
+#    --model_names=model_1,model_2,model_3,model_4,model_5 \
     --max_template_date=2020-01-01
