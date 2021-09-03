@@ -10,7 +10,7 @@
 #SBATCH --gres=gpu:1                 # Number of GPUs
 ##SBATCH --mem=32000                  # Real memory (RAM) required (MB), 0 is the whole-node memory
 #SBATCH --mem=0
-#SBATCH --time=08:00:00              # Total run time limit (HH:MM:SS)
+#SBATCH --time=24:00:00              # Total run time limit (HH:MM:SS)
 #SBATCH --output=slurm.%N.%j.out     # STDOUT output file
 #SBATCH --error=slurm.%N.%j.err      # STDERR output file (optional)
 #SBATCH --export=ALL                 # Export you current env to the job env
