@@ -41,7 +41,7 @@ class BruteForceInteractionTrainer:
 
     # testcase = 'scratch_init_test'
 
-    testcase = 'lse_sig_expC'
+    testcase = 'nlse_sig_expC'
 
     train_epochs = 1
     check_epoch = 1

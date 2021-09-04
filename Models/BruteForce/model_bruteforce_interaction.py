@@ -18,9 +18,9 @@ class BruteForceInteraction(nn.Module):
         E = -FFT_score
 
         # print(E.shape)
-        deltaF = torch.logsumexp(-E, dim=(0,1,2)) - self.F_0
-        # pred_interact = -torch.sigmoid(deltaF) + 1.0
-        pred_interact = -torch.div(1.0, (torch.exp(-deltaF) + 1.0)) + 1.0
+        deltaF = -torch.logsumexp(-E, dim=(0,1,2)) - self.F_0
+        pred_interact = -torch.sigmoid(deltaF) + 1.0
+        # pred_interact = -torch.div(1.0, (torch.exp(-deltaF) + 1.0)) + 1.0
 
         # print(pred_interact.shape)
         # U = torch.exp(-E)
