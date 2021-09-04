@@ -43,7 +43,7 @@ class BruteForceInteractionTrainer:
 
     testcase = 'nlse_sig_expC'
 
-    train_epochs = 1
+    train_epochs = 3
     check_epoch = 1
     test_freq = 1
     save_freq = 1
