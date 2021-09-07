@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --partition=p_ccib_1
-#SBATCH --job-name=lr0_nlse_sig_expB
+#SBATCH --job-name=oldeq_nlse_sig_expB
 #SBATCH --nodes=1
 ##SBATCH --ntasks=1
 #SBATCH --tasks-per-node=1
@@ -8,8 +8,8 @@
 #SBATCH --gres=gpu:2 # Number of GPUs
 #SBATCH --constraint=volta
 #SBATCH --time=48:00:00
-#SBATCH --output=slurm_log/slurm.%N.lr0_nlse_sig_expB.out
-#SBATCH --error=slurm_log/slurm.%N.lr0_nlse_sig_expB.err
+#SBATCH --output=slurm_log/slurm.%N.oldeq_nlse_sig_expB.out
+#SBATCH --error=slurm_log/slurm.%N.oldeq_nlse_sig_expB.err
 #SBATCH --export=ALL
 
 pwd
