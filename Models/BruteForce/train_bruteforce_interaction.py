@@ -44,7 +44,7 @@ class BruteForceInteractionTrainer:
     # testcase = 'nlse_sig_expC'
 
     # testcase = 'nlse_sig_scratch'
-    testcase = 'nlse_sig_expB'
+    testcase = 'lr1_nlse_sig_expB'
 
     train_epochs = 6
     check_epoch = 1
@@ -52,7 +52,7 @@ class BruteForceInteractionTrainer:
     save_freq = 1
 
     ##### load blank models and optimizers, oncewa
-    lr_interaction = 10 ** 0
+    lr_interaction = 10 ** -1
     lr_docking = 10 ** -4
 
     model = BruteForceInteraction().to(device=0)
