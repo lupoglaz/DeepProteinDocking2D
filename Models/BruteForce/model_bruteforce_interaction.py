@@ -17,25 +17,23 @@ class BruteForceInteraction(nn.Module):
     def forward(self, FFT_score, plotting=False):
         E = -FFT_score
 
+        ### Latest equation using built-in logsumexp()
         # print(E.shape)
-        # deltaF = -torch.logsumexp(-E, dim=(0,1,2)) - self.F_0
-        # pred_interact = -torch.sigmoid(deltaF) + 1.0
+        deltaF = -torch.logsumexp(-E, dim=(0,1,2)) - self.F_0
+        pred_interact = -torch.sigmoid(deltaF) + 1.0
         # pred_interact = -torch.div(1.0, (torch.exp(-deltaF) + 1.0)) + 1.0
 
+        ###### Equation matching manuscript, not using built-in
+        # ### new equation, unshifted free energy
+        # U = torch.exp(-E)
+        # deltaF = -torch.log(torch.sum(U)) - self.F_0
+        # pred_interact = -torch.div(1.0, (torch.exp(-deltaF) + 1.0)) + 1.0
+
+        ###### previous numerically unstable version
         # print(pred_interact.shape)
         # U = torch.exp(-E)
         # deltaF = -torch.log(torch.mean(U))
         # pred_interact = -torch.div(1.0, (torch.exp(-deltaF + self.F_0) + 1.0)) + 1.0
-
-        # ### unshifted free energy
-        # U = torch.exp(-E)
-        # deltaF = -torch.log(torch.mean(U))
-        # pred_interact = -torch.div(1.0, (torch.exp(-deltaF + self.F_0) + 1.0)) + 1.0
-
-        # ### new equation, unshifted free energy
-        U = torch.exp(-E)
-        deltaF = -torch.log(torch.sum(U)) - self.F_0
-        pred_interact = -torch.div(1.0, (torch.exp(-deltaF) + 1.0)) + 1.0
 
         # print(deltaF)
         print(self.F_0.item())
