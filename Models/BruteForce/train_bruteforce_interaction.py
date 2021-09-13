@@ -25,7 +25,7 @@ class BruteForceInteractionTrainer:
         replicate = 'single_rep'
 
     # testcase = 'nlse_sig_expB'
-    testcase = 'nlse_sig_expC'
+    testcase = '1epoch_nlse_sig_expC'
 
     train_epochs = 1
     check_epoch = 1
