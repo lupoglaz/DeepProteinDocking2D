@@ -24,8 +24,9 @@ class BruteForceInteractionTrainer:
     else:
         replicate = 'single_rep'
 
-    # testcase = 'nlse_sig_expB'
-    testcase = '1ep_expC_nlse_sig'
+    # testcase = '1ep_expC_nlse_sig'
+    testcase = '1ep_expB_nlse_sig'
+
 
     train_epochs = 1
     check_epoch = 1
@@ -50,8 +51,8 @@ class BruteForceInteractionTrainer:
     pretrain_model.load_state_dict(torch.load(path_pretrain)['state_dict'])
 
     # param_to_freeze = 'all'
-    param_to_freeze = 'W' ##freeze all but "a" weights
-    # param_to_freeze = None
+    # param_to_freeze = 'W' ##freeze all but "a" weights
+    param_to_freeze = None
 
     ## for exp d
     #### load (pretrained: IP CNN frozen, a00...a11 unfrozen) and retrain IP as unfrozen (d exp)
