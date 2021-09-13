@@ -24,11 +24,7 @@ class BruteForceInteractionTrainer:
     else:
         replicate = 'single_rep'
 
-    # testcase = '1ep_expC_nlse_sig'
-    testcase = '1ep_expB_nlse_sig'
-
-
-    train_epochs = 1
+    train_epochs = 2
     check_epoch = 1
     test_freq = 1
     save_freq = 1
@@ -44,6 +40,9 @@ class BruteForceInteractionTrainer:
     optimizer_pretrain = optim.Adam(pretrain_model.parameters(), lr=lr_docking)
 
     print('SHOULD ONLY PRINT ONCE')
+    ##############################################################################
+    testcase = '2ep_expC_nlse_sig'
+    # testcase = '1ep_expB_nlse_sig'
 
     ###################### Load and freeze/unfreeze params (training no eval)
     ## for exp a,b,c
@@ -51,8 +50,8 @@ class BruteForceInteractionTrainer:
     pretrain_model.load_state_dict(torch.load(path_pretrain)['state_dict'])
 
     # param_to_freeze = 'all'
-    # param_to_freeze = 'W' ##freeze all but "a" weights
-    param_to_freeze = None
+    param_to_freeze = 'W' ##freeze all but "a" weights
+    # param_to_freeze = None
 
     ## for exp d
     #### load (pretrained: IP CNN frozen, a00...a11 unfrozen) and retrain IP as unfrozen (d exp)
