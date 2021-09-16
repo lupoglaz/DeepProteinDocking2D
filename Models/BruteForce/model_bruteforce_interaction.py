@@ -11,8 +11,9 @@ class BruteForceInteraction(nn.Module):
         self.dim = TorchDockingFilter().dim
         self.num_angles = TorchDockingFilter().num_angles
 
-        self.threshold = 0.0
-        self.F_0 = nn.Parameter(torch.ones(1) * self.threshold)
+        # self.threshold = 0.0
+        # self.F_0 = nn.Parameter(torch.ones(1) * self.threshold)
+        self.F_0 = nn.Parameter(torch.zeros(1, requires_grad=True))
 
     def forward(self, FFT_score, plotting=False):
         E = -FFT_score
@@ -20,8 +21,13 @@ class BruteForceInteraction(nn.Module):
         ### Latest equation using built-in logsumexp()
         # print(E.shape)
         deltaF = -torch.logsumexp(-E, dim=(0,1,2)) - self.F_0
-        # pred_interact = torch.sigmoid(-deltaF)
-        pred_interact = -torch.sigmoid(deltaF) + 1.0
+        pred_interact = torch.sigmoid(-deltaF)
+
+        # print('one')
+        # print(pred_interact1)
+        # print('two')
+        # print(pred_interact)
+
         # pred_interact = -torch.div(1.0, (torch.exp(-deltaF) + 1.0)) + 1.0
 
         ###### Equation matching manuscript, not using built-in
@@ -36,11 +42,11 @@ class BruteForceInteraction(nn.Module):
         # deltaF = -torch.log(torch.mean(U))
         # pred_interact = -torch.div(1.0, (torch.exp(-deltaF + self.F_0) + 1.0)) + 1.0
 
-        print(deltaF)
-        print(self.F_0.item())
+        print('\ndeltaF', deltaF.item())
+        print('F_0', self.F_0.item())
         # print(pred_interact)
 
-        return pred_interact.squeeze()
+        return pred_interact.squeeze(), deltaF.squeeze()
 
 if __name__ == '__main__':
     print('works')

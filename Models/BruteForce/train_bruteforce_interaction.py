@@ -42,11 +42,15 @@ class BruteForceInteractionTrainer:
     print('SHOULD ONLY PRINT ONCE')
     ##############################################################################
     # testcase = '2ep_expC_nlse_nsig'
-    testcase = '2ep_expB_nlse_nsig'
+    # testcase = '2ep_expB_nlse_nsig'
 
     # testcase = '2ep_expC_nlse_sig_nx'
     # testcase = '2ep_expB_nlse_sig_nx'
 
+    # testcase = 'all_unfrozen_test'
+
+    # testcase = '2ep_expC_nlse_sig_nx'
+    # testcase = '2ep_expB_nlse_sig_nx'
 
     ###################### Load and freeze/unfreeze params (training no eval)
     ## for exp a,b,c
@@ -87,7 +91,9 @@ class BruteForceInteractionTrainer:
         ### run model and loss calculation
         ##### call model(s)
         FFT_score = self.pretrain_model(receptor, ligand, plotting=self.plotting)
-        pred_interact = self.model(FFT_score, plotting=self.plotting)
+        pred_interact, deltaF = self.model(FFT_score, plotting=self.plotting)
+
+
 
         ### check if pretrain weights are frozen or updating
         # for n, p in self.pretrain_model.named_parameters():
@@ -102,8 +108,10 @@ class BruteForceInteractionTrainer:
 
         #### Loss functions
         BCEloss = torch.nn.BCELoss()
-        loss = BCEloss(pred_interact, gt_interact)
-        # loss = SharpLoss().forward(pred_interact, gt_interact)
+        l1_loss = torch.nn.L1Loss()
+        w = 1e-5
+        L_ref = w * l1_loss(deltaF, torch.zeros(1).cuda())
+        loss = BCEloss(pred_interact, gt_interact) + L_ref
         print('\n', pred_interact.item(), gt_interact.item())
 
         if train:
