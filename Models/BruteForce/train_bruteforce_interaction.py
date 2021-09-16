@@ -50,7 +50,7 @@ class BruteForceInteractionTrainer:
     # testcase = 'all_unfrozen_test'
 
     # testcase = '2ep_expC_nlse_sig_nx'
-    # testcase = '2ep_expB_nlse_sig_nx'
+    testcase = '2ep_expB_reg_deltaF'
 
     ###################### Load and freeze/unfreeze params (training no eval)
     ## for exp a,b,c
