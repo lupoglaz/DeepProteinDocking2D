@@ -41,13 +41,13 @@ class BruteForceInteractionTrainer:
 
     print('SHOULD ONLY PRINT ONCE')
     ##############################################################################
-    testcase = '6ep_scratch_reg_deltaF'
-    # testcase = '6ep_expB_reg_deltaF'
+    # testcase = '6ep_scratch_reg_deltaF'
+    testcase = '6ep_expB_reg_deltaF'
 
     ###################### Load and freeze/unfreeze params (training no eval)
     ## for exp a,b,c
-    # path_pretrain = 'Log/newdata_bugfix_docking_100epochs_19.th'
-    # pretrain_model.load_state_dict(torch.load(path_pretrain)['state_dict'])
+    path_pretrain = 'Log/newdata_bugfix_docking_100epochs_19.th'
+    pretrain_model.load_state_dict(torch.load(path_pretrain)['state_dict'])
 
     # param_to_freeze = 'all'
     # param_to_freeze = 'W' ##freeze all but "a" weights
