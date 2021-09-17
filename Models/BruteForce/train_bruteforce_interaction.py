@@ -42,7 +42,7 @@ class BruteForceInteractionTrainer:
     print('SHOULD ONLY PRINT ONCE')
     ##############################################################################
     testcase = '6ep_scratch_reg_deltaF'
-    # testcase = '2ep_expB_reg_deltaF'
+    # testcase = '6ep_expB_reg_deltaF'
 
     ###################### Load and freeze/unfreeze params (training no eval)
     ## for exp a,b,c
