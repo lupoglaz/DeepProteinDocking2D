@@ -24,7 +24,7 @@ class BruteForceInteractionTrainer:
     else:
         replicate = 'single_rep'
 
-    train_epochs = 2
+    train_epochs = 6
     check_epoch = 1
     test_freq = 1
     save_freq = 1
@@ -41,15 +41,7 @@ class BruteForceInteractionTrainer:
 
     print('SHOULD ONLY PRINT ONCE')
     ##############################################################################
-    # testcase = '2ep_expC_nlse_nsig'
-    # testcase = '2ep_expB_nlse_nsig'
-
-    # testcase = '2ep_expC_nlse_sig_nx'
-    # testcase = '2ep_expB_nlse_sig_nx'
-
-    # testcase = 'all_unfrozen_test'
-
-    testcase = 'scratch_reg_deltaF'
+    testcase = '6ep_scratch_reg_deltaF'
     # testcase = '2ep_expB_reg_deltaF'
 
     ###################### Load and freeze/unfreeze params (training no eval)
