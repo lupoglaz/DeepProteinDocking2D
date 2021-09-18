@@ -60,8 +60,11 @@ class BruteForceDocking(nn.Module):
 
         if eval and plotting:
             with torch.no_grad():
-                print('Learned scoring coefficients')
-                print(self.boundW, self.crosstermW1, self.crosstermW2, self.bulkW)
+                print('\nLearned scoring coefficients')
+                print('bound',str(self.boundW.item())[:6])
+                print('crossterm1', str(self.crosstermW1.item())[:6])
+                print('crossterm2', str(self.crosstermW2.item())[:6])
+                print('bulk',str(self.bulkW.item())[:6])
                 plt.close()
                 plt.figure(figsize=(8, 8))
                 if rec_feat.shape[-1] < receptor.shape[-1]:
@@ -83,7 +86,7 @@ class BruteForceDocking(nn.Module):
                 plt.imshow(np.vstack((rec_plot, lig_plot)))
                 plt.title('Input                   F1_bulk                    F2_bound')
                 plt.colorbar()
-                plt.savefig('figs/Feats_BruteForceTorchFFT_SE2Conv2D_++-Score_feats_'+str(torch.argmax(FFT_score))+'.png')
+                plt.savefig('figs/Feats_BruteForceTorchFFT_SE2Conv2D_++-Score_feats_'+str(torch.argmax(FFT_score).item())+'.png')
                 plt.show()
 
         return FFT_score

@@ -41,8 +41,8 @@ class BruteForceInteractionTrainer:
 
     print('SHOULD ONLY PRINT ONCE')
     ##############################################################################
-    # testcase = '6ep_scratch_reg_deltaF'
-    testcase = '6ep_expB_reg_deltaF'
+    testcase = '6ep_scratch_reg_deltaF'
+    # testcase = '6ep_expB_reg_deltaF'
 
     ###################### Load and freeze/unfreeze params (training no eval)
     ## for exp a,b,c
@@ -53,13 +53,8 @@ class BruteForceInteractionTrainer:
     # param_to_freeze = 'W' ##freeze all but "a" weights
     param_to_freeze = None
 
-    ## for exp d
-    #### load (pretrained: IP CNN frozen, a00...a11 unfrozen) and retrain IP as unfrozen (d exp)
-    # path_pretrain = 'Log/docking_ndp_simpleexp_eq15sigmoid_aW_unfrozen1.th' # pretrained on expC only
-    # pretrain_model.load_state_dict(torch.load(path_pretrain)['state_dict'])
-
-    # plotting = True
-    plotting = False
+    plotting = True
+    # plotting = False
 
     def __init__(self):
         pass
@@ -102,7 +97,7 @@ class BruteForceInteractionTrainer:
         BCEloss = torch.nn.BCELoss()
         l1_loss = torch.nn.L1Loss()
         w = 1e-5
-        L_ref = w * l1_loss(deltaF, torch.zeros(1).cuda())
+        L_ref = w * l1_loss(deltaF, torch.zeros(1).squeeze().cuda())
         loss = BCEloss(pred_interact, gt_interact) + L_ref
         print('\n', pred_interact.item(), gt_interact.item())
 
@@ -286,7 +281,7 @@ if __name__ == '__main__':
     #### model and pretrain model
 
     ##################### Train model
-    BruteForceInteractionTrainer().train()
+    # BruteForceInteractionTrainer().train()
     #
     # give time to save models
     # time.sleep(60)
@@ -295,7 +290,7 @@ if __name__ == '__main__':
     ### loads relevant pretrained model under resume_training condition
     # BruteForceInteractionTrainer().plot_validation_set(eval_stream=valid_stream, resume_epoch=3) ## also checks APR
 
-    # BruteForceInteractionTrainer().plot_validation_set(eval_stream=test_stream, resume_epoch=3)
+    BruteForceInteractionTrainer().plot_validation_set(eval_stream=test_stream, resume_epoch=3)
 
 
     # BruteForceInteractionTrainer().train(3)
