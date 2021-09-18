@@ -25,8 +25,8 @@ class BruteForceInteractionTrainer:
     test_freq = 1
     save_freq = 1
 
-    ##### load blank models and optimizers, oncewa
-    lr_interaction = 10 ** -1
+    ##### load blank models and optimizers, once
+    lr_interaction = 10 ** 0
     lr_docking = 10 ** -4
 
     model = BruteForceInteraction().to(device=0)
@@ -43,7 +43,7 @@ class BruteForceInteractionTrainer:
     # testcase = 'F0lr1_scratch_reg_deltaF'
     # testcase = 'F0lr1_expB_reg_deltaF'
 
-    testcase = 'improve_scratch_reg_deltaF'
+    testcase = 'F0lr0_scratch_reg_deltaF'
 
     ###################### Load and freeze/unfreeze params (training no eval)
     ## for exp a,b,c
@@ -81,10 +81,8 @@ class BruteForceInteractionTrainer:
         pred_interact, deltaF = self.model(FFT_score, plotting=self.plotting)
 
         ### check parameters and gradients
-        ### check if pretrain weights are frozen or updating
+        ### if weights are frozen or updating
         # BruteForceInteractionTrainer().check_gradients(self.pretrain_model)
-
-        ### check if model weights are frozen or updating
         # BruteForceInteractionTrainer().check_gradients(self.model)
 
         #### Loss functions
