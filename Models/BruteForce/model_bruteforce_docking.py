@@ -13,10 +13,10 @@ class BruteForceDocking(nn.Module):
 
     def __init__(self):
         super(BruteForceDocking, self).__init__()
-        self.boundW = nn.Parameter(torch.rand(1))
-        self.crosstermW1 = nn.Parameter(torch.rand(1))
-        self.crosstermW2 = nn.Parameter(torch.rand(1))
-        self.bulkW = nn.Parameter(torch.rand(1))
+        self.boundW = nn.Parameter(torch.ones(1, requires_grad=True))
+        self.crosstermW1 = nn.Parameter(torch.ones(1, requires_grad=True))
+        self.crosstermW2 = nn.Parameter(torch.ones(1, requires_grad=True))
+        self.bulkW = nn.Parameter(torch.ones(1, requires_grad=True))
 
         self.scal = 1
         self.vec = 7
@@ -58,6 +58,7 @@ class BruteForceDocking(nn.Module):
             weight_bulk=self.bulkW
         )
 
+        #### Plot shape features
         if eval and plotting:
             with torch.no_grad():
                 print('\nLearned scoring coefficients')
@@ -73,14 +74,14 @@ class BruteForceDocking(nn.Module):
                         rec_feat = F.pad(rec_feat, pad=([pad_size, pad_size, pad_size, pad_size]), mode='constant', value=0)
                         lig_feat = F.pad(lig_feat, pad=([pad_size, pad_size, pad_size, pad_size]), mode='constant', value=0)
                     else:
-                        rec_feat = F.pad(rec_feat, pad=([pad_size, pad_size + 1, pad_size, pad_size + 1]), mode='constant',
-                                         value=0)
-                        lig_feat = F.pad(lig_feat, pad=([pad_size, pad_size + 1, pad_size, pad_size + 1]), mode='constant',
-                                       value=0)
+                        rec_feat = F.pad(rec_feat, pad=([pad_size, pad_size + 1, pad_size, pad_size + 1]), mode='constant', value=0)
+                        lig_feat = F.pad(lig_feat, pad=([pad_size, pad_size + 1, pad_size, pad_size + 1]), mode='constant', value=0)
                     # print('padded shape', rec_feat.shape)
-                rec_plot = np.hstack((receptor.squeeze().detach().cpu(), rec_feat[0].squeeze().detach().cpu(),
+                rec_plot = np.hstack((receptor.squeeze().detach().cpu(),
+                                      rec_feat[0].squeeze().detach().cpu(),
                                       rec_feat[1].squeeze().detach().cpu()))
-                lig_plot = np.hstack((ligand.squeeze().detach().cpu(), lig_feat[0].squeeze().detach().cpu(),
+                lig_plot = np.hstack((ligand.squeeze().detach().cpu(),
+                                      lig_feat[0].squeeze().detach().cpu(),
                                       lig_feat[1].squeeze().detach().cpu()))
                 # plt.imshow(np.vstack((rec_plot, lig_plot)), vmin=0, vmax=1)
                 plt.imshow(np.vstack((rec_plot, lig_plot)))

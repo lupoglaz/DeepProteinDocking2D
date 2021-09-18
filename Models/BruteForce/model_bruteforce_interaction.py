@@ -11,8 +11,6 @@ class BruteForceInteraction(nn.Module):
         self.dim = TorchDockingFilter().dim
         self.num_angles = TorchDockingFilter().num_angles
 
-        # self.threshold = 0.0
-        # self.F_0 = nn.Parameter(torch.ones(1) * self.threshold)
         self.F_0 = nn.Parameter(torch.zeros(1, requires_grad=True))
 
     def forward(self, FFT_score, plotting=False):
@@ -23,7 +21,6 @@ class BruteForceInteraction(nn.Module):
 
         print('\ndeltaF', deltaF.item())
         print('F_0', self.F_0.item())
-        # print(pred_interact)
 
         return pred_interact.squeeze(), deltaF.squeeze()
 

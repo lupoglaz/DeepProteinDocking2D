@@ -39,21 +39,20 @@ class BruteForceInteractionTrainer:
     pretrain_model = BruteForceDocking().to(device=0)
     optimizer_pretrain = optim.Adam(pretrain_model.parameters(), lr=lr_docking)
 
-    print('SHOULD ONLY PRINT ONCE')
+    print('SHOULD ONLY PRINT ONCE PER TRAINING')
     ##############################################################################
-    # testcase = '6ep_scratch_reg_deltaF'
+    testcase = '6ep_scratch_reg_deltaF'
     # testcase = '6ep_expB_reg_deltaF'
 
     # testcase = 'F0lr1_scratch_reg_deltaF'
-    testcase = 'F0lr1_expB_reg_deltaF'
+    # testcase = 'F0lr1_expB_reg_deltaF'
 
     ###################### Load and freeze/unfreeze params (training no eval)
     ## for exp a,b,c
-    path_pretrain = 'Log/newdata_bugfix_docking_100epochs_19.th'
-    pretrain_model.load_state_dict(torch.load(path_pretrain)['state_dict'])
+    # path_pretrain = 'Log/newdata_bugfix_docking_100epochs_19.th'
+    # pretrain_model.load_state_dict(torch.load(path_pretrain)['state_dict'])
 
     # param_to_freeze = 'all'
-    # param_to_freeze = 'W' ##freeze all but "a" weights
     param_to_freeze = None
 
     # plotting = True
@@ -83,15 +82,12 @@ class BruteForceInteractionTrainer:
         FFT_score = self.pretrain_model(receptor, ligand, plotting=self.plotting)
         pred_interact, deltaF = self.model(FFT_score, plotting=self.plotting)
 
+        ### check parameters and gradients
         ### check if pretrain weights are frozen or updating
-        # for n, p in self.pretrain_model.named_parameters():
-        #     if p.requires_grad:
-        #         print(n, p, p.grad)
+        # BruteForceInteractionTrainer().check_gradients(self.pretrain_model)
 
         ### check if pretrain weights are frozen or updating
-        # for n, p in self.model.named_parameters():
-        #     if p.requires_grad:
-        #         print(n, p, p.grad)
+        # BruteForceInteractionTrainer().check_gradients(self.model)
 
         #### Loss functions
         BCEloss = torch.nn.BCELoss()
@@ -99,7 +95,7 @@ class BruteForceInteractionTrainer:
         w = 1e-5
         L_reg = w * l1_loss(deltaF, torch.zeros(1).squeeze().cuda())
         loss = BCEloss(pred_interact, gt_interact) + L_reg
-        print('\n', pred_interact.item(), gt_interact.item())
+        print('\n predicted', str(pred_interact.item())[:6], '; ground truth', gt_interact.item())
 
         if train:
             self.pretrain_model.zero_grad()
@@ -155,7 +151,14 @@ class BruteForceInteractionTrainer:
 
             start_epoch += 1
 
-            print(model)
+            print('\ndocking model:\n', model)
+            ## print model and params being loaded
+            BruteForceInteractionTrainer().check_gradients(self.pretrain_model)
+
+            print('\ninteraction model:\n', model)
+            ## print model and params being loaded
+            BruteForceInteractionTrainer().check_gradients(self.model)
+
             print('\nLOADING MODEL AT EPOCH', start_epoch, '\n')
         else:
             start_epoch = 1
@@ -183,7 +186,6 @@ class BruteForceInteractionTrainer:
             if training:
                 trainloss = []
                 for data in tqdm(train_stream):
-                    print('training.........')
                     train_output = [BruteForceInteractionTrainer().run_model(data, self.model)]
                     trainloss.append(train_output)
 
@@ -250,6 +252,12 @@ class BruteForceInteractionTrainer:
             torch.nn.init.kaiming_uniform_(model.weight)
             # torch.nn.init.kaiming_normal_(model.weight)
 
+    @staticmethod
+    def check_gradients(model):
+        for n, p in model.named_parameters():
+            if p.requires_grad:
+                print(n, p, p.grad)
+
     def train(self, resume_epoch=0, load_models=False):
         BruteForceInteractionTrainer().train_model(self.model, self.testcase, self.train_epochs, train_stream, valid_stream, test_stream,
                                                    load_models=load_models, resume_epoch=resume_epoch,
@@ -273,7 +281,6 @@ if __name__ == '__main__':
     torch.manual_seed(42)
     random.seed(42)
     torch.cuda.manual_seed(42)
-    torch.cuda.manual_seed(42)
     torch.backends.cudnn.determininistic = True
     torch.cuda.set_device(0)
     # CUDA_LAUNCH_BLOCKING = 1
@@ -284,7 +291,7 @@ if __name__ == '__main__':
     test_stream = get_interaction_stream_balanced(testset + '.pkl', batch_size=1)
 
     ##################### Train model
-    BruteForceInteractionTrainer().train()
+    # BruteForceInteractionTrainer().train()
 
     ##################### Evaluate model
     ### loads relevant pretrained model under resume_training condition
@@ -293,4 +300,4 @@ if __name__ == '__main__':
     # BruteForceInteractionTrainer().plot_evaluation_set(eval_stream=test_stream, resume_epoch=3)
 
     ##################### Resume training model
-    # BruteForceInteractionTrainer().train(3, load_models=True)
+    BruteForceInteractionTrainer().train(3, load_models=True)
