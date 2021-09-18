@@ -101,6 +101,7 @@ class BruteForceDockingTrainer:
         return model, optimizer, checkpoint['epoch']
 
     @staticmethod
+    ## Unused SE2 net has own Kaiming He weight initialization.
     def weights_init(model):
         if isinstance(model, torch.nn.Conv2d):
             print('updating convnet weights to kaiming uniform initialization')

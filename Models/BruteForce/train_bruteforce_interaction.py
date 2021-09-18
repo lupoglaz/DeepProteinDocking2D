@@ -1,9 +1,9 @@
 import random
 import torch
-from torch import nn
 from torch import optim
 
 import sys
+## path for cluster
 sys.path.append('/home/sb1638/')
 
 import numpy as np
@@ -12,10 +12,6 @@ from DeepProteinDocking2D.torchDataset import get_interaction_stream_balanced, g
 from DeepProteinDocking2D.Models.BruteForce.model_bruteforce_interaction import BruteForceInteraction
 from DeepProteinDocking2D.Models.BruteForce.validation_metrics import APR
 from DeepProteinDocking2D.Models.BruteForce.model_bruteforce_docking import BruteForceDocking
-
-import matplotlib.pyplot as plt
-from DeepProteinDocking2D.Models.BruteForce.TorchDockingFilter import TorchDockingFilter
-from DeepProteinDocking2D.Models.BruteForce.utility_functions import plot_assembly
 
 
 class BruteForceInteractionTrainer:
@@ -41,11 +37,13 @@ class BruteForceInteractionTrainer:
 
     print('SHOULD ONLY PRINT ONCE PER TRAINING')
     ##############################################################################
-    testcase = '6ep_scratch_reg_deltaF'
+    # testcase = '6ep_scratch_reg_deltaF'
     # testcase = '6ep_expB_reg_deltaF'
 
     # testcase = 'F0lr1_scratch_reg_deltaF'
     # testcase = 'F0lr1_expB_reg_deltaF'
+
+    testcase = 'improve_scratch_reg_deltaF'
 
     ###################### Load and freeze/unfreeze params (training no eval)
     ## for exp a,b,c
@@ -86,7 +84,7 @@ class BruteForceInteractionTrainer:
         ### check if pretrain weights are frozen or updating
         # BruteForceInteractionTrainer().check_gradients(self.pretrain_model)
 
-        ### check if pretrain weights are frozen or updating
+        ### check if model weights are frozen or updating
         # BruteForceInteractionTrainer().check_gradients(self.model)
 
         #### Loss functions
@@ -207,7 +205,6 @@ class BruteForceInteractionTrainer:
                 BruteForceInteractionTrainer().save_checkpoint(checkpoint_dict, 'Log/' + testcase + str(epoch) + '.th', self.model)
                 print('saving interaction model ' + 'Log/' + testcase + str(epoch) + '.th')
 
-
     def checkAPR(self, check_epoch, datastream):
         log_format = '%f\t%f\t%f\t%f\t%f\n'
         log_header = 'Accuracy\tPrecision\tRecall\tF1score\tMCC\n'
@@ -244,13 +241,6 @@ class BruteForceInteractionTrainer:
         model.load_state_dict(checkpoint['state_dict'], strict=True)
         optimizer.load_state_dict(checkpoint['optimizer'])
         return model, optimizer, checkpoint['epoch']
-
-    @staticmethod
-    def weights_init(model):
-        if isinstance(model, torch.nn.Conv2d):
-            print('updating convnet weights to kaiming uniform initialization')
-            torch.nn.init.kaiming_uniform_(model.weight)
-            # torch.nn.init.kaiming_normal_(model.weight)
 
     @staticmethod
     def check_gradients(model):
@@ -291,7 +281,7 @@ if __name__ == '__main__':
     test_stream = get_interaction_stream_balanced(testset + '.pkl', batch_size=1)
 
     ##################### Train model
-    # BruteForceInteractionTrainer().train()
+    BruteForceInteractionTrainer().train()
 
     ##################### Evaluate model
     ### loads relevant pretrained model under resume_training condition
@@ -300,4 +290,4 @@ if __name__ == '__main__':
     # BruteForceInteractionTrainer().plot_evaluation_set(eval_stream=test_stream, resume_epoch=3)
 
     ##################### Resume training model
-    BruteForceInteractionTrainer().train(3, load_models=True)
+    # BruteForceInteractionTrainer().train(3, load_models=True)
