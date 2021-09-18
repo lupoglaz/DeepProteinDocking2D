@@ -20,7 +20,7 @@ class BruteForceInteractionTrainer:
     else:
         replicate = 'single_rep'
 
-    train_epochs = 3
+    train_epochs = 10
     check_epoch = 1
     test_freq = 1
     save_freq = 1
@@ -43,7 +43,7 @@ class BruteForceInteractionTrainer:
     # testcase = 'F0lr1_scratch_reg_deltaF'
     # testcase = 'F0lr1_expB_reg_deltaF'
 
-    testcase = 'F0lr0_scratch_reg_deltaF'
+    testcase = '10ep_F0lr0_scratch_reg_deltaF'
 
     ###################### Load and freeze/unfreeze params (training no eval)
     ## for exp a,b,c
