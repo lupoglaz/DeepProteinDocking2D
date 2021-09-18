@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --partition=p_ccib_1
-#SBATCH --job-name=6ep_expB_reg_deltaF
+#SBATCH --job-name=F0lr1_scratch_reg_deltaF
 #SBATCH --nodes=1
 ##SBATCH --ntasks=1
 #SBATCH --tasks-per-node=1
@@ -8,8 +8,8 @@
 #SBATCH --gres=gpu:2 # Number of GPUs
 #SBATCH --constraint=volta
 #SBATCH --time=48:00:00
-#SBATCH --output=slurm_log/slurm.%N.6ep_expB_reg_deltaF.out
-#SBATCH --error=slurm_log/slurm.%N.6ep_expB_reg_deltaF.err
+#SBATCH --output=slurm_log/slurm.%N.F0lr1_scratch_reg_deltaF.out
+#SBATCH --error=slurm_log/slurm.%N.F0lr1_scratch_reg_deltaF.err
 #SBATCH --export=ALL
 
 pwd

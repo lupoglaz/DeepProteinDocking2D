@@ -24,13 +24,13 @@ class BruteForceInteractionTrainer:
     else:
         replicate = 'single_rep'
 
-    train_epochs = 6
+    train_epochs = 3
     check_epoch = 1
     test_freq = 1
     save_freq = 1
 
     ##### load blank models and optimizers, oncewa
-    lr_interaction = 10 ** 0
+    lr_interaction = 10 ** -1
     lr_docking = 10 ** -4
 
     model = BruteForceInteraction().to(device=0)
@@ -41,20 +41,23 @@ class BruteForceInteractionTrainer:
 
     print('SHOULD ONLY PRINT ONCE')
     ##############################################################################
-    testcase = '6ep_scratch_reg_deltaF'
+    # testcase = '6ep_scratch_reg_deltaF'
     # testcase = '6ep_expB_reg_deltaF'
+
+    testcase = 'F0lr1_scratch_reg_deltaF'
+    # testcase = 'F0lr-1_expB_reg_deltaF'
 
     ###################### Load and freeze/unfreeze params (training no eval)
     ## for exp a,b,c
-    path_pretrain = 'Log/newdata_bugfix_docking_100epochs_19.th'
-    pretrain_model.load_state_dict(torch.load(path_pretrain)['state_dict'])
+    # path_pretrain = 'Log/newdata_bugfix_docking_100epochs_19.th'
+    # pretrain_model.load_state_dict(torch.load(path_pretrain)['state_dict'])
 
     # param_to_freeze = 'all'
     # param_to_freeze = 'W' ##freeze all but "a" weights
     param_to_freeze = None
 
-    plotting = True
-    # plotting = False
+    # plotting = True
+    plotting = False
 
     def __init__(self):
         pass
@@ -80,8 +83,6 @@ class BruteForceInteractionTrainer:
         FFT_score = self.pretrain_model(receptor, ligand, plotting=self.plotting)
         pred_interact, deltaF = self.model(FFT_score, plotting=self.plotting)
 
-
-
         ### check if pretrain weights are frozen or updating
         # for n, p in self.pretrain_model.named_parameters():
         #     if p.requires_grad:
@@ -92,13 +93,12 @@ class BruteForceInteractionTrainer:
         #     if p.requires_grad:
         #         print(n, p, p.grad)
 
-
         #### Loss functions
         BCEloss = torch.nn.BCELoss()
         l1_loss = torch.nn.L1Loss()
         w = 1e-5
-        L_ref = w * l1_loss(deltaF, torch.zeros(1).squeeze().cuda())
-        loss = BCEloss(pred_interact, gt_interact) + L_ref
+        L_reg = w * l1_loss(deltaF, torch.zeros(1).squeeze().cuda())
+        loss = BCEloss(pred_interact, gt_interact) + L_reg
         print('\n', pred_interact.item(), gt_interact.item())
 
         if train:
@@ -128,11 +128,14 @@ class BruteForceInteractionTrainer:
 
         return loss.item(), pred_interact.item()
 
-    def train_model(self, model, testcase, train_epochs, train_stream, valid_stream, test_stream, load_models=False,
+    def train_model(self, model, testcase, train_epochs, train_stream, valid_stream, test_stream, load_models,
                     resume_epoch=0, plotting=False):
+
+        training = True
 
         if plotting:
             self.test_freq = 1
+            training = False
 
         log_header = 'Epoch\tLoss\trmsd\n'
         log_format = '%d\t%f\t%f\n'
@@ -177,15 +180,17 @@ class BruteForceInteractionTrainer:
                 'optimizer': self.optimizer_pretrain.state_dict(),
             }
 
-            trainloss = []
-            for data in tqdm(train_stream):
-                train_output = [BruteForceInteractionTrainer().run_model(data, self.model)]
-                trainloss.append(train_output)
+            if training:
+                trainloss = []
+                for data in tqdm(train_stream):
+                    print('training.........')
+                    train_output = [BruteForceInteractionTrainer().run_model(data, self.model)]
+                    trainloss.append(train_output)
 
-            avg_trainloss = np.average(trainloss, axis=0)[0, :]
-            print('\nEpoch', epoch, 'Train Loss:', avg_trainloss)
-            with open('Log/losses/log_train_' + testcase + '.txt', 'a') as fout:
-                fout.write(log_format % (epoch, avg_trainloss[0], avg_trainloss[1]))
+                avg_trainloss = np.average(trainloss, axis=0)[0, :]
+                print('\nEpoch', epoch, 'Train Loss:', avg_trainloss)
+                with open('Log/losses/log_train_' + testcase + '.txt', 'a') as fout:
+                    fout.write(log_format % (epoch, avg_trainloss[0], avg_trainloss[1]))
 
             ### evaluate on training and valid set
             if epoch % self.test_freq == 0:
@@ -245,12 +250,12 @@ class BruteForceInteractionTrainer:
             torch.nn.init.kaiming_uniform_(model.weight)
             # torch.nn.init.kaiming_normal_(model.weight)
 
-    def train(self, resume_epoch=0):
+    def train(self, resume_epoch=0, load_models=False):
         BruteForceInteractionTrainer().train_model(self.model, self.testcase, self.train_epochs, train_stream, valid_stream, test_stream,
-                                                   load_models=False, resume_epoch=resume_epoch,
+                                                   load_models=load_models, resume_epoch=resume_epoch,
                                                    )
 
-    def plot_validation_set(self, plotting=True, eval_stream=None, resume_epoch=1):
+    def plot_evaluation_set(self, plotting=True, eval_stream=None, resume_epoch=1):
         BruteForceInteractionTrainer().train_model(self.model, self.testcase, self.train_epochs, train_stream, eval_stream, test_stream,
                                                    load_models=True, resume_epoch=resume_epoch, plotting=plotting,
                                                    )
@@ -278,19 +283,14 @@ if __name__ == '__main__':
     valid_stream = get_interaction_stream_balanced(validset + '.pkl', batch_size=1)
     test_stream = get_interaction_stream_balanced(testset + '.pkl', batch_size=1)
 
-    #### model and pretrain model
-
     ##################### Train model
-    # BruteForceInteractionTrainer().train()
-    #
-    # give time to save models
-    # time.sleep(60)
+    BruteForceInteractionTrainer().train()
 
     ##################### Evaluate model
     ### loads relevant pretrained model under resume_training condition
-    # BruteForceInteractionTrainer().plot_validation_set(eval_stream=valid_stream, resume_epoch=3) ## also checks APR
+    # BruteForceInteractionTrainer().plot_evaluation_set(eval_stream=valid_stream, resume_epoch=3) ## also checks APR
+    #
+    # BruteForceInteractionTrainer().plot_evaluation_set(eval_stream=test_stream, resume_epoch=3)
 
-    BruteForceInteractionTrainer().plot_validation_set(eval_stream=test_stream, resume_epoch=3)
-
-
-    # BruteForceInteractionTrainer().train(3)
+    ##################### Resume training model
+    # BruteForceInteractionTrainer().train(3, load_models=True)
