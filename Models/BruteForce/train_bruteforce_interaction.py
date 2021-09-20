@@ -44,9 +44,9 @@ class BruteForceInteractionTrainer:
     # testcase = 'F0lr1_expB_reg_deltaF'
 
     # testcase = '10ep_F0lr0_scratch_reg_deltaF'
-    # testcase = '10ep_F0lr0_expB_reg_deltaF'
 
-    testcase = 'zerosinit_scratch_reg_deltaF'
+    # testcase = 'zerosinit_scratch_reg_deltaF
+
 
     ###################### Load and freeze/unfreeze params (training no eval)
     ## for exp a,b,c
@@ -282,14 +282,14 @@ if __name__ == '__main__':
     test_stream = get_interaction_stream_balanced(testset + '.pkl', batch_size=1)
 
     ##################### Train model
-    BruteForceInteractionTrainer().train()
+    # BruteForceInteractionTrainer().train()
 
     ##################### Evaluate model
-    # resume_epoch = 2
+    resume_epoch = 6
     ### loads relevant pretrained model under resume_training condition
     # BruteForceInteractionTrainer().plot_evaluation_set(eval_stream=valid_stream, resume_epoch=resume_epoch) ## also checks APR
     #
-    # BruteForceInteractionTrainer().plot_evaluation_set(eval_stream=test_stream, resume_epoch=resume_epoch)
+    BruteForceInteractionTrainer().plot_evaluation_set(eval_stream=test_stream, resume_epoch=resume_epoch)
 
     ##################### Resume training model
     # BruteForceInteractionTrainer().train(resume_epoch, load_models=True)

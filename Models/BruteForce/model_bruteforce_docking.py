@@ -47,7 +47,6 @@ class BruteForceDocking(nn.Module):
         invariant_map = enn.NormPool(self.feat_type_out_final)
         rec_feat = invariant_map(R).tensor.squeeze()
         lig_feat = invariant_map(L).tensor.squeeze()
-        # print(rec_feat.shape)
 
         FFT_score = TorchDockingFilter().dock_global(
             rec_feat,
@@ -76,15 +75,15 @@ class BruteForceDocking(nn.Module):
                     else:
                         rec_feat = F.pad(rec_feat, pad=([pad_size, pad_size + 1, pad_size, pad_size + 1]), mode='constant', value=0)
                         lig_feat = F.pad(lig_feat, pad=([pad_size, pad_size + 1, pad_size, pad_size + 1]), mode='constant', value=0)
-                    # print('padded shape', rec_feat.shape)
+
                 rec_plot = np.hstack((receptor.squeeze().detach().cpu(),
                                       rec_feat[0].squeeze().detach().cpu(),
                                       rec_feat[1].squeeze().detach().cpu()))
                 lig_plot = np.hstack((ligand.squeeze().detach().cpu(),
                                       lig_feat[0].squeeze().detach().cpu(),
                                       lig_feat[1].squeeze().detach().cpu()))
-                # plt.imshow(np.vstack((rec_plot, lig_plot)), vmin=0, vmax=1)
-                plt.imshow(np.vstack((rec_plot, lig_plot)))
+                plt.imshow(np.vstack((rec_plot, lig_plot)), vmin=0, vmax=1) # plot scale limits
+                # plt.imshow(np.vstack((rec_plot, lig_plot)))
                 plt.title('Input                   F1_bulk                    F2_bound')
                 plt.colorbar()
                 plt.savefig('figs/Feats_BruteForceTorchFFT_SE2Conv2D_++-Score_feats_'+str(torch.argmax(FFT_score).item())+'.png')
