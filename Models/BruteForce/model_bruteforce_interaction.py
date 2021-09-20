@@ -9,7 +9,7 @@ class BruteForceInteraction(nn.Module):
         self.softmax = torch.nn.Softmax(dim=0)
         self.F_0 = nn.Parameter(torch.zeros(1, requires_grad=True))
 
-    def forward(self, FFT_score):
+    def forward(self, FFT_score, plotting=False):
         E = -FFT_score
 
         deltaF = -torch.logsumexp(-E, dim=(0, 1, 2)) - self.F_0
