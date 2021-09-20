@@ -239,11 +239,14 @@ if __name__ == '__main__':
                                                resume_training=True, resume_epoch=check_epoch, plotting=plotting)
 
     ######################
+    ### Train model from beginning
     # epoch = train_epochs
     # train()
 
+    ### Resume training model at chosen epoch
     # train(True, epoch)
 
+    ### Evaluate model at chosen epoch
     # epoch = 'end'
     epoch = ''
     # plotting = True
