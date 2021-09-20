@@ -91,6 +91,7 @@ class BruteForceDocking(nn.Module):
 
         return FFT_score
 
+
 if __name__ == '__main__':
     print('works')
     print(BruteForceDocking())
