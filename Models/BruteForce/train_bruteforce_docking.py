@@ -203,7 +203,8 @@ if __name__ == '__main__':
     testset = 'toy_concave_data/docking_data_test'
 
     # testcase = 'newdata_bugfix_docking_100epochs_'
-    testcase = 'docking_newdata_pretrain_eq15sigmoid_aW_unfrozen1'
+    # testcase = 'docking_newdata_pretrain_eq15sigmoid_aW_unfrozen1'
+    testcase = 'docking_10ep_F0lr0_scratch_reg_deltaF6'
 
     #########################
     #### initialization torch settings
@@ -243,9 +244,8 @@ if __name__ == '__main__':
 
     # train(True, epoch)
 
-    epoch = 'end'
-    # epoch = ''
-    # epoch = 19
-    plotting = True
-    # plotting = False
+    # epoch = 'end'
+    epoch = ''
+    # plotting = True
+    plotting = False
     plot_evaluation_set(check_epoch=epoch, plotting=plotting)
