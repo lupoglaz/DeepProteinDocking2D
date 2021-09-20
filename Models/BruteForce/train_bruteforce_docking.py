@@ -243,8 +243,9 @@ if __name__ == '__main__':
 
     # train(True, epoch)
 
-    # epoch = 'end'
-    epoch = ''
-    # plotting = False
+    epoch = 'end'
+    # epoch = ''
+    # epoch = 19
     plotting = True
+    # plotting = False
     plot_evaluation_set(check_epoch=epoch, plotting=plotting)
