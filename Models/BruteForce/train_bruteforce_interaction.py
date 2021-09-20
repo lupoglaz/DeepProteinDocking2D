@@ -44,20 +44,18 @@ class BruteForceInteractionTrainer:
     # testcase = 'F0lr1_expB_reg_deltaF'
 
     # testcase = '10ep_F0lr0_scratch_reg_deltaF'
-
-    # testcase = 'zerosinit_scratch_reg_deltaF
-
+    testcase = '10ep_F0lr0_expB_reg_deltaF'
 
     ###################### Load and freeze/unfreeze params (training no eval)
     ## for exp a,b,c
-    # path_pretrain = 'Log/newdata_bugfix_docking_100epochs_19.th'
-    # pretrain_model.load_state_dict(torch.load(path_pretrain)['state_dict'])
+    path_pretrain = 'Log/newdata_bugfix_docking_100epochs_19.th'
+    pretrain_model.load_state_dict(torch.load(path_pretrain)['state_dict'])
 
     # param_to_freeze = 'all'
     param_to_freeze = None
 
-    plotting = True
-    # plotting = False
+    # plotting = True
+    plotting = False
 
     def __init__(self):
         pass
