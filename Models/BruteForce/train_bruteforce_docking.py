@@ -109,10 +109,6 @@ class BruteForceDockingTrainer:
             # torch.nn.init.kaiming_normal_(model.weight)
 
     @staticmethod
-    def write_loss(losslist, testcase):
-        pass
-
-    @staticmethod
     def train_model(model, optimizer, testcase, train_epochs, train_stream, valid_stream, test_stream, resume_training=False,
                     resume_epoch=0, plotting=False):
 
@@ -129,7 +125,7 @@ class BruteForceDockingTrainer:
         if resume_training:
             ckp_path = 'Log/' + testcase + str(resume_epoch) + '.th'
             model, optimizer, start_epoch = BruteForceDockingTrainer().load_ckp(ckp_path, model, optimizer)
-            # start_epoch += 1
+            start_epoch += 1
 
             print(model)
             print(list(model.named_parameters()))
@@ -233,7 +229,7 @@ if __name__ == '__main__':
     test_stream = get_docking_stream(testset + '.pkl', batch_size=1)
 
     ######################
-    train_epochs = 20
+    train_epochs = 1
     # train_epochs = ''
 
     def train(resume_training=False, resume_epoch=0):
@@ -248,14 +244,14 @@ if __name__ == '__main__':
     ######################
     ### Train model from beginning
     # epoch = train_epochs
-    train()
+    # train()
 
     ### Resume training model at chosen epoch
-    # train(True, epoch)
+    train(True, resume_epoch=40)
 
-    ### Evaluate model at chosen epoch
+    ### Evaluate model only and plot, at chosen epoch
     # plotting = True
     plotting = False
     # epoch = 'end'
-    epoch = ''
-    plot_evaluation_set(check_epoch=epoch, plotting=plotting)
+    # epoch = ''
+    # plot_evaluation_set(check_epoch=epoch, plotting=plotting)

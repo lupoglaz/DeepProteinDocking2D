@@ -6,7 +6,9 @@ import sys
 fullplot = True
 # fullplot = False
 
-testcase = 'newdata_bugfix_docking_100epochs_'
+# testcase = 'newdata_bugfix_docking_100epochs_'
+testcase = 'test_datastream'
+
 
 #LOSS WITH ROTATION
 train = pd.read_csv("Log/losses/log_train_"+ testcase +".txt", sep='\t', header=1, names=['Epoch',	'Loss',	'rmsd'])
@@ -42,5 +44,7 @@ ax[1].grid()
 ax[1].set_xticks(np.arange(0, num_epochs, 10))
 
 plt.xlabel('Epochs')
+ax[0].set_ylim([0,20])
+ax[1].set_ylim([0,20])
 plt.savefig('figs/'+testcase+'.png')
 plt.show()
