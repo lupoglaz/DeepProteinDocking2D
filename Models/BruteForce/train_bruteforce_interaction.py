@@ -42,9 +42,10 @@ class BruteForceInteractionTrainer:
 
     # testcase = '2reps_6ep_scratch_final'
     # testcase = 'expB_w1e2_2reps_6ep_final'
-    testcase = 'expB_w1e2_6ep'
+    # testcase = 'expB_w1e2_6ep'
 
     # testcase = 'test_F0_lr_expB'
+    testcase = 'expC_w1e2_final'
 
     ###################### Load and freeze/unfreeze params (training no eval)
     ## for exp a,b,c
@@ -52,7 +53,8 @@ class BruteForceInteractionTrainer:
     pretrain_model.load_state_dict(torch.load(path_pretrain)['state_dict'])
 
     # param_to_freeze = 'all'
-    param_to_freeze = None
+    param_to_freeze = 'netSE2'  # freeze everything but the "a" scoring coefficients
+    # param_to_freeze = None
 
     # plotting = True
     plotting = False
@@ -60,7 +62,7 @@ class BruteForceInteractionTrainer:
     def __init__(self):
         pass
 
-    def run_model(self, data, train=True):
+    def run_model(self, data, train=True, debug=False):
         receptor, ligand, gt_interact = data
 
         receptor = receptor.squeeze()
@@ -83,8 +85,9 @@ class BruteForceInteractionTrainer:
 
         ### check parameters and gradients
         ### if weights are frozen or updating
-        # BruteForceInteractionTrainer().check_gradients(self.pretrain_model)
-        # BruteForceInteractionTrainer().check_gradients(self.model)
+        if debug:
+            BruteForceInteractionTrainer().check_gradients(self.pretrain_model)
+            BruteForceInteractionTrainer().check_gradients(self.model)
 
         #### Loss functions
         BCEloss = torch.nn.BCELoss()
@@ -219,15 +222,15 @@ class BruteForceInteractionTrainer:
     @staticmethod
     def freeze_weights(model, param_to_freeze=None):
         if not param_to_freeze:
-            print('All params unfrozen')
+            print('All docking model params unfrozen')
             return
         for name, param in model.named_parameters():
             if param_to_freeze is not None and param_to_freeze in name:
-                print('Unfreezing Weights', name)
-                param.requires_grad = True
-            else:
-                print('Freezing docking model weights', name)
+                print('Freezing Weights', name)
                 param.requires_grad = False
+            else:
+                print('Unfreezing docking model weights', name)
+                param.requires_grad = True
 
     @staticmethod
     def save_checkpoint(state, filename, model):
