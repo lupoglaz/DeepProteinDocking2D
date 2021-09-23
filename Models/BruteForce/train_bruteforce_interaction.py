@@ -20,7 +20,7 @@ class BruteForceInteractionTrainer:
     else:
         replicate = 'single_rep'
 
-    train_epochs = 10
+    train_epochs = 6
     check_epoch = 1
     test_freq = 1
     save_freq = 1
@@ -37,19 +37,17 @@ class BruteForceInteractionTrainer:
 
     print('SHOULD ONLY PRINT ONCE PER TRAINING')
     ##############################################################################
-    # testcase = '6ep_scratch_reg_deltaF'
-    # testcase = '6ep_expB_reg_deltaF'
-
-    # testcase = 'F0lr1_scratch_reg_deltaF'
-    # testcase = 'F0lr1_expB_reg_deltaF'
-
     # testcase = '10ep_F0lr0_scratch_reg_deltaF'
-    testcase = '10ep_F0lr0_expB_reg_deltaF'
+    # testcase = '10ep_F0lr0_expB_reg_deltaF'
+
+    testcase = '2reps_6ep_scratch_final'
+
+    # testcase = 'test_F0_lr_expB'
 
     ###################### Load and freeze/unfreeze params (training no eval)
     ## for exp a,b,c
-    path_pretrain = 'Log/newdata_bugfix_docking_100epochs_19.th'
-    pretrain_model.load_state_dict(torch.load(path_pretrain)['state_dict'])
+    # path_pretrain = 'Log/newdata_bugfix_docking_100epochs_19.th'
+    # pretrain_model.load_state_dict(torch.load(path_pretrain)['state_dict'])
 
     # param_to_freeze = 'all'
     param_to_freeze = None
