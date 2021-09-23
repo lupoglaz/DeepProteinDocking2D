@@ -37,8 +37,8 @@ class BruteForceInteractionTrainer:
 
     print('SHOULD ONLY PRINT ONCE PER TRAINING')
     ##############################################################################
-    testcase = 'expB_w1e2_final'
-    # testcase = 'expC_w1e2_final'
+    # testcase = 'expB_w1e2_final'
+    testcase = 'expC_w1e2_final'
     # testcase = 'scratch_w1e2_final'
 
     ###################### Load and freeze/unfreeze params (training no eval)
