@@ -8,8 +8,8 @@ sys.path.append('/home/sb1638/')
 
 import numpy as np
 from tqdm import tqdm
-from DeepProteinDocking2D.Models.BruteForce.torchDataset import get_dataset_stream
-# from DeepProteinDocking2D.torchDataset import get_docking_stream
+# from DeepProteinDocking2D.Models.BruteForce.torchDataset import get_dataset_stream
+from DeepProteinDocking2D.torchDataset import get_docking_stream
 from DeepProteinDocking2D.Models.BruteForce.TorchDockingFilter import TorchDockingFilter
 from DeepProteinDocking2D.Models.BruteForce.model_bruteforce_docking import BruteForceDocking
 from DeepProteinDocking2D.Models.BruteForce.utility_functions import plot_assembly
@@ -24,7 +24,7 @@ class BruteForceDockingTrainer:
         self.num_angles = TorchDockingFilter().num_angles
 
     def run_model(self, data, model, train=True, plotting=False):
-        receptor, ligand, gt_rot, gt_txy = data
+        receptor, ligand, gt_txy, gt_rot, _ = data
 
         receptor = receptor.squeeze()
         ligand = ligand.squeeze()
@@ -204,7 +204,10 @@ if __name__ == '__main__':
 
     # testcase = 'newdata_bugfix_docking_100epochs_'
     # testcase = 'docking_newdata_pretrain_eq15sigmoid_aW_unfrozen1'
-    testcase = 'docking_10ep_F0lr0_scratch_reg_deltaF6'
+    # testcase = 'docking_10ep_F0lr0_scratch_reg_deltaF6'
+
+    testcase = 'test_datastream'
+
 
     #########################
     #### initialization torch settings
@@ -221,12 +224,16 @@ if __name__ == '__main__':
     model = BruteForceDocking().to(device=0)
     optimizer = optim.Adam(model.parameters(), lr=lr)
 
-    train_stream = get_dataset_stream(trainset + '.pkl', batch_size=1)
-    valid_stream = get_dataset_stream(validset + '.pkl', batch_size=1)
-    test_stream = get_dataset_stream(testset + '.pkl', batch_size=1)
+    # train_stream = get_dataset_stream(trainset + '.pkl', batch_size=1)
+    # valid_stream = get_dataset_stream(validset + '.pkl', batch_size=1)
+    # test_stream = get_dataset_stream(testset + '.pkl', batch_size=1)
+
+    train_stream = get_docking_stream(trainset + '.pkl', batch_size=1)
+    valid_stream = get_docking_stream(validset + '.pkl', batch_size=1)
+    test_stream = get_docking_stream(testset + '.pkl', batch_size=1)
 
     ######################
-    train_epochs = 100
+    train_epochs = 20
     # train_epochs = ''
 
     def train(resume_training=False, resume_epoch=0):
@@ -241,14 +248,14 @@ if __name__ == '__main__':
     ######################
     ### Train model from beginning
     # epoch = train_epochs
-    # train()
+    train()
 
     ### Resume training model at chosen epoch
     # train(True, epoch)
 
     ### Evaluate model at chosen epoch
-    # epoch = 'end'
-    epoch = ''
     # plotting = True
     plotting = False
+    # epoch = 'end'
+    epoch = ''
     plot_evaluation_set(check_epoch=epoch, plotting=plotting)
