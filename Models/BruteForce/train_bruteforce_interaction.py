@@ -47,8 +47,8 @@ class BruteForceInteractionTrainer:
     pretrain_model.load_state_dict(torch.load(path_pretrain)['state_dict'])
 
     # param_to_freeze = 'all'
-    # param_to_freeze = 'netSE2'  # freeze everything but the "a" scoring coefficients
-    param_to_freeze = None
+    param_to_freeze = 'netSE2'  # freeze everything but the "a" scoring coefficients
+    # param_to_freeze = None
 
     # plotting = True
     plotting = False
