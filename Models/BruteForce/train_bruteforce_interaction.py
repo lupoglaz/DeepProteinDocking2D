@@ -41,7 +41,8 @@ class BruteForceInteractionTrainer:
     # testcase = '10ep_F0lr0_expB_reg_deltaF'
 
     # testcase = '2reps_6ep_scratch_final'
-    testcase = 'expB_2reps_6ep_final'
+    # testcase = 'expB_w1e2_2reps_6ep_final'
+    testcase = 'expB_w1e2_6ep'
 
     # testcase = 'test_F0_lr_expB'
 
@@ -88,7 +89,8 @@ class BruteForceInteractionTrainer:
         #### Loss functions
         BCEloss = torch.nn.BCELoss()
         l1_loss = torch.nn.L1Loss()
-        w = 1e-5
+        # w = 1e-5
+        w = 1e-2
         L_reg = w * l1_loss(deltaF, torch.zeros(1).squeeze().cuda())
         loss = BCEloss(pred_interact, gt_interact) + L_reg
         print('\n predicted', str(pred_interact.item())[:6], '; ground truth', gt_interact.item())

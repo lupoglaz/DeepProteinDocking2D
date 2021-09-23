@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --partition=p_ccib_1
-#SBATCH --job-name=expB_2reps_6ep_final
+#SBATCH --job-name=expB_w1e2_6ep
 #SBATCH --nodes=1
 ##SBATCH --ntasks=1
 #SBATCH --tasks-per-node=1
@@ -8,8 +8,8 @@
 #SBATCH --gres=gpu:2 # Number of GPUs
 #SBATCH --constraint=volta
 #SBATCH --time=48:00:00
-#SBATCH --output=slurm_log/slurm.%N.expB_2reps_6ep_final.out
-#SBATCH --error=slurm_log/slurm.%N.expB_2reps_6ep_final.err
+#SBATCH --output=slurm_log/slurm.%N.expB_w1e2_6ep.out
+#SBATCH --error=slurm_log/slurm.%N.expB_w1e2_6ep.err
 #SBATCH --export=ALL
 
 pwd
@@ -17,7 +17,7 @@ export OMP_NUM_THREADS=$SLURM_CPUS_PER_TASK
 
 srun -N1 -n1 python train_bruteforce_interaction.py rep1;
 
-srun -N1 -n1 python train_bruteforce_interaction.py rep2;
+#srun -N1 -n1 python train_bruteforce_interaction.py rep2;
 
 #srun -N1 -n1 python train_bruteforce_interaction.py rep3;
 
