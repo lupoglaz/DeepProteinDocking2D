@@ -41,7 +41,7 @@ class BruteForceInteractionTrainer:
     # testcase = '10ep_F0lr0_expB_reg_deltaF'
 
     # testcase = '2reps_6ep_scratch_final'
-    testcase = '2reps_6ep_expB_final'
+    testcase = 'expB_2reps_6ep_final'
 
     # testcase = 'test_F0_lr_expB'
 
