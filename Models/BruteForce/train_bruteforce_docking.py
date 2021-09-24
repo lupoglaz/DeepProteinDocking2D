@@ -8,7 +8,6 @@ sys.path.append('/home/sb1638/')
 
 import numpy as np
 from tqdm import tqdm
-# from DeepProteinDocking2D.Models.BruteForce.torchDataset import get_dataset_stream
 from DeepProteinDocking2D.torchDataset import get_docking_stream
 from DeepProteinDocking2D.Models.BruteForce.TorchDockingFilter import TorchDockingFilter
 from DeepProteinDocking2D.Models.BruteForce.model_bruteforce_docking import BruteForceDocking
@@ -23,7 +22,7 @@ class BruteForceDockingTrainer:
         self.dim = TorchDockingFilter().dim
         self.num_angles = TorchDockingFilter().num_angles
 
-    def run_model(self, data, model, train=True, plotting=False):
+    def run_model(self, data, model, train=True, plotting=False, debug=False):
         receptor, ligand, gt_txy, gt_rot, _ = data
 
         receptor = receptor.squeeze()
@@ -56,6 +55,11 @@ class BruteForceDockingTrainer:
         #### Loss functions
         CE_loss = torch.nn.CrossEntropyLoss()
         loss = CE_loss(FFT_score.squeeze().unsqueeze(0), target_flatindex.unsqueeze(0))
+
+        ### check parameters and gradients
+        ### if weights are frozen or updating
+        if debug:
+            BruteForceDockingTrainer().check_gradients(model)
 
         if train:
             model.zero_grad()
@@ -101,6 +105,12 @@ class BruteForceDockingTrainer:
         return model, optimizer, checkpoint['epoch']
 
     @staticmethod
+    def check_gradients(model):
+        for n, p in model.named_parameters():
+            if p.requires_grad:
+                print(n, p, p.grad)
+
+    @staticmethod
     ## Unused SE2 net has own Kaiming He weight initialization.
     def weights_init(model):
         if isinstance(model, torch.nn.Conv2d):
@@ -110,7 +120,7 @@ class BruteForceDockingTrainer:
 
     @staticmethod
     def train_model(model, optimizer, testcase, train_epochs, train_stream, valid_stream, test_stream, resume_training=False,
-                    resume_epoch=0, plotting=False):
+                    resume_epoch=0, plotting=False, debug=False):
 
         test_freq = 1
         save_freq = 1
@@ -155,7 +165,7 @@ class BruteForceDockingTrainer:
             if epoch % test_freq == 0 or epoch == 1:
                 valid_loss = []
                 for data in tqdm(valid_stream):
-                    valid_output = [BruteForceDockingTrainer().run_model(data, model, train=False, plotting=plotting)]
+                    valid_output = [BruteForceDockingTrainer().run_model(data, model, train=False, plotting=plotting, debug=False)]
                     valid_loss.append(valid_output)
 
                 avg_validloss = np.average(valid_loss, axis=0)[0, :]
@@ -165,7 +175,7 @@ class BruteForceDockingTrainer:
 
                 test_loss = []
                 for data in tqdm(test_stream):
-                    test_output = [BruteForceDockingTrainer().run_model(data, model, train=False, plotting=plotting)]
+                    test_output = [BruteForceDockingTrainer().run_model(data, model, train=False, plotting=plotting, debug=False)]
                     test_loss.append(test_output)
 
                 avg_testloss = np.average(test_loss, axis=0)[0, :]
@@ -175,7 +185,7 @@ class BruteForceDockingTrainer:
 
             trainloss = []
             for data in tqdm(train_stream):
-                train_output = [BruteForceDockingTrainer().run_model(data, model, train=True)]
+                train_output = [BruteForceDockingTrainer().run_model(data, model, train=True, debug=debug)]
                 trainloss.append(train_output)
 
             avg_trainloss = np.average(trainloss, axis=0)[0, :]
@@ -201,7 +211,9 @@ if __name__ == '__main__':
     # testcase = 'docking_10ep_F0lr0_scratch_reg_deltaF6'
     # testcase = 'test_datastream'
 
-    testcase = 'docking_model_final_epoch36'
+    # testcase = 'docking_model_final_epoch36'
+
+    testcase = 'debug_test'
 
     #########################
     #### initialization torch settings
@@ -218,10 +230,6 @@ if __name__ == '__main__':
     model = BruteForceDocking().to(device=0)
     optimizer = optim.Adam(model.parameters(), lr=lr)
 
-    # train_stream = get_dataset_stream(trainset + '.pkl', batch_size=1)
-    # valid_stream = get_dataset_stream(validset + '.pkl', batch_size=1)
-    # test_stream = get_dataset_stream(testset + '.pkl', batch_size=1)
-
     train_stream = get_docking_stream(trainset + '.pkl', batch_size=1)
     valid_stream = get_docking_stream(validset + '.pkl', batch_size=1)
     test_stream = get_docking_stream(testset + '.pkl', batch_size=1)
@@ -230,19 +238,19 @@ if __name__ == '__main__':
     train_epochs = 40
     # train_epochs = ''
 
-    def train(resume_training=False, resume_epoch=0):
+    def train(resume_training=False, resume_epoch=0, debug=False):
         BruteForceDockingTrainer().train_model(model, optimizer, testcase, train_epochs, train_stream, valid_stream, test_stream,
-                                               resume_training=resume_training, resume_epoch=resume_epoch)
+                                               resume_training=resume_training, resume_epoch=resume_epoch, debug=debug)
 
 
     def plot_evaluation_set(check_epoch, train_epochs=1, plotting=False):
         BruteForceDockingTrainer().train_model(model, optimizer, testcase, train_epochs, train_stream, valid_stream, test_stream,
-                                               resume_training=True, resume_epoch=check_epoch, plotting=plotting)
+                                               resume_training=True, resume_epoch=check_epoch, plotting=plotting, debug=False)
 
     ######################
     ### Train model from beginning
     # epoch = train_epochs
-    # train()
+    train(debug=False)
 
     ### Resume training model at chosen epoch
     # train(True, resume_epoch=40)
@@ -250,6 +258,5 @@ if __name__ == '__main__':
     ### Evaluate model only and plot, at chosen epoch
     # plotting = True
     plotting = False
-    # epoch = 'end'
     epoch = ''
     plot_evaluation_set(check_epoch=epoch, plotting=plotting)
