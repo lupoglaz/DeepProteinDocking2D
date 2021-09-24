@@ -15,10 +15,14 @@ from DeepProteinDocking2D.Models.BruteForce.model_bruteforce_docking import Brut
 
 
 class BruteForceInteractionTrainer:
+    ## run replicates from sbatch script args
     if len(sys.argv) > 1:
         replicate = str(sys.argv[1])
     else:
         replicate = 'single_rep'
+
+    # plotting = True
+    plotting = False
 
     train_epochs = 6
     check_epoch = 1
@@ -37,26 +41,32 @@ class BruteForceInteractionTrainer:
 
     print('SHOULD ONLY PRINT ONCE PER TRAINING')
     ##############################################################################
-    # testcase = 'expB_w1e2_final'
-    # testcase = 'expC_w1e2_final'
-    # testcase = 'scratch_w1e2_final'
+    case = 'hypparm'
+    # exp = 'A'
+    # exp = 'B'
+    # exp = 'C'
+    exp = 'scratch'
 
-    # testcase = 'expA_hypparm'
-    testcase = 'expC_hypparm'
-    # testcase = 'expB_hypparm_'
-    # testcase = 'scr_hypparm'
+    testcase = 'exp' + exp + '_' + case
 
-    ###################### Load and freeze/unfreeze params (training no eval)
-    ## for exp a,b,c
-    path_pretrain = 'Log/docking_model_final_epoch36.th'
-    pretrain_model.load_state_dict(torch.load(path_pretrain)['state_dict'])
-
-    # param_to_freeze = 'all'
-    param_to_freeze = 'netSE2'  # freeze everything but the "a" scoring coefficients
-    # param_to_freeze = None
-
-    # plotting = True
-    plotting = False
+    ###################### Load and freeze/unfreeze params (training, no eval)
+    # train with docking model frozen
+    if exp == 'frozen':
+        path_pretrain = 'Log/best_docking_model_epoch37.th'
+        pretrain_model.load_state_dict(torch.load(path_pretrain)['state_dict'])
+        param_to_freeze = 'all'
+    # train with docking model unfrozen
+    if exp == 'B':
+        path_pretrain = 'Log/best_docking_model_epoch37.th'
+        pretrain_model.load_state_dict(torch.load(path_pretrain)['state_dict'])
+        param_to_freeze = None
+    # train with docking model SE2 CNN frozen
+    if exp == 'C':
+        param_to_freeze = 'netSE2'  # freeze everything in docking model, except the "a" scoring coefficients
+    # train everything from scratch
+    if exp == 'scratch':
+        testcase = exp + '_' + case
+        param_to_freeze = None
 
     def __init__(self):
         pass
@@ -222,7 +232,7 @@ class BruteForceInteractionTrainer:
     @staticmethod
     def freeze_weights(model, param_to_freeze=None):
         if not param_to_freeze:
-            print('All docking model params unfrozen')
+            print('\nAll docking model params unfrozen\n')
             return
         for name, param in model.named_parameters():
             if param_to_freeze == 'all':
