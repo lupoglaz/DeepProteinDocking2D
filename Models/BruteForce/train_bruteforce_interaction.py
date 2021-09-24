@@ -41,8 +41,8 @@ class BruteForceInteractionTrainer:
     # testcase = 'expC_w1e2_final'
     # testcase = 'scratch_w1e2_final'
 
-    testcase = 'expA_hypparm'
-    # testcase = 'expC_hypparm'
+    # testcase = 'expA_hypparm'
+    testcase = 'expC_hypparm'
     # testcase = 'expB_hypparm_'
     # testcase = 'scr_hypparm'
 
@@ -51,8 +51,8 @@ class BruteForceInteractionTrainer:
     path_pretrain = 'Log/docking_model_final_epoch36.th'
     pretrain_model.load_state_dict(torch.load(path_pretrain)['state_dict'])
 
-    param_to_freeze = 'all'
-    # param_to_freeze = 'netSE2'  # freeze everything but the "a" scoring coefficients
+    # param_to_freeze = 'all'
+    param_to_freeze = 'netSE2'  # freeze everything but the "a" scoring coefficients
     # param_to_freeze = None
 
     # plotting = True
