@@ -37,14 +37,14 @@ class BruteForceInteractionTrainer:
 
     print('SHOULD ONLY PRINT ONCE PER TRAINING')
     ##############################################################################
-    # testcase = 'expB_w1e2_final'
+    testcase = 'expB_w1e2_final'
     # testcase = 'expC_w1e2_final'
-    testcase = 'scratch_w1e2_final'
+    # testcase = 'scratch_w1e2_final'
 
     ###################### Load and freeze/unfreeze params (training no eval)
     ## for exp a,b,c
-    # path_pretrain = 'Log/docking_model_final_epoch36.th'
-    # pretrain_model.load_state_dict(torch.load(path_pretrain)['state_dict'])
+    path_pretrain = 'Log/docking_model_final_epoch36.th'
+    pretrain_model.load_state_dict(torch.load(path_pretrain)['state_dict'])
 
     # param_to_freeze = 'all'
     # param_to_freeze = 'netSE2'  # freeze everything but the "a" scoring coefficients
