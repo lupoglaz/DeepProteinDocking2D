@@ -39,16 +39,21 @@ class BruteForceInteractionTrainer:
     ##############################################################################
     # testcase = 'expB_w1e2_final'
     # testcase = 'expC_w1e2_final'
-    testcase = 'scratch_w1e2_final'
+    # testcase = 'scratch_w1e2_final'
+
+    testcase = 'expA_hypparm'
+    # testcase = 'expC_hypparm'
+    # testcase = 'expB_hypparm_'
+    # testcase = 'scr_hypparm'
 
     ###################### Load and freeze/unfreeze params (training no eval)
     ## for exp a,b,c
-    # path_pretrain = 'Log/docking_model_final_epoch36.th'
-    # pretrain_model.load_state_dict(torch.load(path_pretrain)['state_dict'])
+    path_pretrain = 'Log/docking_model_final_epoch36.th'
+    pretrain_model.load_state_dict(torch.load(path_pretrain)['state_dict'])
 
-    # param_to_freeze = 'all'
+    param_to_freeze = 'all'
     # param_to_freeze = 'netSE2'  # freeze everything but the "a" scoring coefficients
-    param_to_freeze = None
+    # param_to_freeze = None
 
     # plotting = True
     plotting = False
@@ -86,8 +91,9 @@ class BruteForceInteractionTrainer:
         #### Loss functions
         BCEloss = torch.nn.BCELoss()
         l1_loss = torch.nn.L1Loss()
-        # w = 1e-5
-        w = 1e-2
+        w = 1e-5
+        # w = 1e-2
+        # w = 1e-6
         L_reg = w * l1_loss(deltaF, torch.zeros(1).squeeze().cuda())
         loss = BCEloss(pred_interact, gt_interact) + L_reg
         print('\n predicted', str(pred_interact.item())[:6], '; ground truth', gt_interact.item())
@@ -120,7 +126,7 @@ class BruteForceInteractionTrainer:
         return loss.item(), pred_interact.item()
 
     def train_model(self, model, testcase, train_epochs, train_stream, valid_stream, test_stream, load_models,
-                    resume_epoch=0, plotting=False):
+                    resume_epoch=0, plotting=False, debug=False):
 
         training = True
 
@@ -181,7 +187,7 @@ class BruteForceInteractionTrainer:
             if training:
                 trainloss = []
                 for data in tqdm(train_stream):
-                    train_output = [BruteForceInteractionTrainer().run_model(data, self.model)]
+                    train_output = [BruteForceInteractionTrainer().run_model(data, self.model, debug=debug)]
                     trainloss.append(train_output)
 
                 avg_trainloss = np.average(trainloss, axis=0)[0, :]
@@ -219,11 +225,14 @@ class BruteForceInteractionTrainer:
             print('All docking model params unfrozen')
             return
         for name, param in model.named_parameters():
-            if param_to_freeze is not None and param_to_freeze in name:
-                print('Freezing Weights', name)
+            if param_to_freeze == 'all':
+                print('Freeze ALL Weights', name)
+                param.requires_grad = False
+            elif param_to_freeze in name:
+                print('Freeze Weights', name)
                 param.requires_grad = False
             else:
-                print('Unfreezing docking model weights', name)
+                print('Unfreeze docking model weights', name)
                 param.requires_grad = True
 
     @staticmethod
@@ -245,14 +254,14 @@ class BruteForceInteractionTrainer:
             if p.requires_grad:
                 print(n, p, p.grad)
 
-    def train(self, resume_epoch=0, load_models=False):
+    def train(self, resume_epoch=0, load_models=False, debug=False):
         BruteForceInteractionTrainer().train_model(self.model, self.testcase, self.train_epochs, train_stream, valid_stream, test_stream,
-                                                   load_models=load_models, resume_epoch=resume_epoch,
+                                                   load_models=load_models, resume_epoch=resume_epoch, debug=debug
                                                    )
 
     def plot_evaluation_set(self, plotting=True, eval_stream=None, resume_epoch=1):
         BruteForceInteractionTrainer().train_model(self.model, self.testcase, self.train_epochs, train_stream, eval_stream, test_stream,
-                                                   load_models=True, resume_epoch=resume_epoch, plotting=plotting,
+                                                   load_models=True, resume_epoch=resume_epoch, plotting=plotting, debug=False
                                                    )
 
 if __name__ == '__main__':
@@ -278,7 +287,7 @@ if __name__ == '__main__':
     test_stream = get_interaction_stream_balanced(testset + '.pkl', batch_size=1)
 
     ##################### Train model
-    BruteForceInteractionTrainer().train()
+    BruteForceInteractionTrainer().train(debug=False)
 
     ##################### Evaluate model
     # resume_epoch = 6
