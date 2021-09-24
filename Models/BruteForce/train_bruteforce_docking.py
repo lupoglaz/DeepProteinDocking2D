@@ -198,12 +198,10 @@ if __name__ == '__main__':
     ### testing set
     testset = 'toy_concave_data/docking_data_test'
 
-    # testcase = 'newdata_bugfix_docking_100epochs_'
-    # testcase = 'docking_newdata_pretrain_eq15sigmoid_aW_unfrozen1'
     # testcase = 'docking_10ep_F0lr0_scratch_reg_deltaF6'
+    # testcase = 'test_datastream'
 
-    testcase = 'test_datastream'
-
+    testcase = 'docking_model_final_epoch36'
 
     #########################
     #### initialization torch settings
@@ -229,7 +227,7 @@ if __name__ == '__main__':
     test_stream = get_docking_stream(testset + '.pkl', batch_size=1)
 
     ######################
-    train_epochs = 1
+    train_epochs = 40
     # train_epochs = ''
 
     def train(resume_training=False, resume_epoch=0):
@@ -247,11 +245,11 @@ if __name__ == '__main__':
     # train()
 
     ### Resume training model at chosen epoch
-    train(True, resume_epoch=40)
+    # train(True, resume_epoch=40)
 
     ### Evaluate model only and plot, at chosen epoch
     # plotting = True
     plotting = False
     # epoch = 'end'
-    # epoch = ''
-    # plot_evaluation_set(check_epoch=epoch, plotting=plotting)
+    epoch = ''
+    plot_evaluation_set(check_epoch=epoch, plotting=plotting)
