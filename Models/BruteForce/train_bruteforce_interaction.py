@@ -31,7 +31,7 @@ class BruteForceInteractionTrainer:
 
     ##### load blank models and optimizers, once
     lr_interaction = 10 ** 0
-    lr_docking = 10 ** -4
+    lr_docking = 10 ** -5
 
     model = BruteForceInteraction().to(device=0)
     optimizer = optim.Adam(model.parameters(), lr=lr_interaction)
@@ -43,15 +43,15 @@ class BruteForceInteractionTrainer:
     ##############################################################################
     case = 'hypparm'
     # exp = 'A'
-    # exp = 'B'
+    exp = 'B'
     # exp = 'C'
-    exp = 'scratch'
+    # exp = 'scratch'
 
     testcase = 'exp' + exp + '_' + case
 
     ###################### Load and freeze/unfreeze params (training, no eval)
     # train with docking model frozen
-    if exp == 'frozen':
+    if exp == 'A':
         path_pretrain = 'Log/best_docking_model_epoch37.th'
         pretrain_model.load_state_dict(torch.load(path_pretrain)['state_dict'])
         param_to_freeze = 'all'
@@ -62,7 +62,7 @@ class BruteForceInteractionTrainer:
         param_to_freeze = None
     # train with docking model SE2 CNN frozen
     if exp == 'C':
-        param_to_freeze = 'netSE2'  # freeze everything in docking model, except the "a" scoring coefficients
+        param_to_freeze = 'netSE2'  # leave "a" scoring coefficients unfrozen
     # train everything from scratch
     if exp == 'scratch':
         testcase = exp + '_' + case
