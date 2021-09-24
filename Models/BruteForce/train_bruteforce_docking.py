@@ -213,7 +213,9 @@ if __name__ == '__main__':
 
     # testcase = 'docking_model_final_epoch36'
 
-    testcase = 'debug_test'
+    # testcase = 'debug_test'
+
+    testcase = 'best_docking_model_epoch'
 
     #########################
     #### initialization torch settings
@@ -258,5 +260,5 @@ if __name__ == '__main__':
     ### Evaluate model only and plot, at chosen epoch
     # plotting = True
     plotting = False
-    epoch = ''
-    plot_evaluation_set(check_epoch=epoch, plotting=plotting)
+    # epoch = ''
+    # plot_evaluation_set(check_epoch=epoch, plotting=plotting)
