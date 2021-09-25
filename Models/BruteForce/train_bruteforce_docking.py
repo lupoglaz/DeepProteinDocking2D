@@ -215,7 +215,9 @@ if __name__ == '__main__':
 
     # testcase = 'debug_test'
 
-    testcase = 'best_docking_model_epoch'
+    # testcase = 'best_docking_model_epoch'
+
+    testcase = 'randinit_best_docking_model_epoch'
 
     #########################
     #### initialization torch settings
