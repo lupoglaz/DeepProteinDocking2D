@@ -13,10 +13,10 @@ class BruteForceDocking(nn.Module):
 
     def __init__(self):
         super(BruteForceDocking, self).__init__()
-        self.boundW = nn.Parameter(torch.zeros(1, requires_grad=True))
-        self.crosstermW1 = nn.Parameter(torch.zeros(1, requires_grad=True))
-        self.crosstermW2 = nn.Parameter(torch.zeros(1, requires_grad=True))
-        self.bulkW = nn.Parameter(torch.zeros(1, requires_grad=True))
+        self.boundW = nn.Parameter(torch.rand(1, requires_grad=True))
+        self.crosstermW1 = nn.Parameter(torch.rand(1, requires_grad=True))
+        self.crosstermW2 = nn.Parameter(torch.rand(1, requires_grad=True))
+        self.bulkW = nn.Parameter(torch.rand(1, requires_grad=True))
 
         self.scal = 1
         self.vec = 7
