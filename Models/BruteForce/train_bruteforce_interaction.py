@@ -31,7 +31,7 @@ class BruteForceInteractionTrainer:
 
     ##### load blank models and optimizers, once
     lr_interaction = 10 ** 0
-    lr_docking = 10 ** -5
+    lr_docking = 10 ** -4
 
     model = BruteForceInteraction().to(device=0)
     optimizer = optim.Adam(model.parameters(), lr=lr_interaction)
@@ -41,11 +41,12 @@ class BruteForceInteractionTrainer:
 
     print('SHOULD ONLY PRINT ONCE PER TRAINING')
     ##############################################################################
-    case = 'hypparm'
+    # case = 'hypparm'
+    case = 'lr4_final'
     # exp = 'A'
-    exp = 'B'
+    # exp = 'B'
     # exp = 'C'
-    # exp = 'scratch'
+    exp = 'scratch'
 
     testcase = 'exp' + exp + '_' + case
 
