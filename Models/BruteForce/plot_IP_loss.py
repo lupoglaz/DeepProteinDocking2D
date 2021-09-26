@@ -6,7 +6,7 @@ import sys
 # testcase = 'newdata_bugfix_docking_100epochs_'
 # testcase = 'test_datastream'
 # testcase = 'best_docking_model_epoch'
-testcase = 'onesinit_docking_model_epoch'
+testcase = 'randinit_best_docking_model_epoch'
 
 
 #LOSS WITH ROTATION
