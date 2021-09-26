@@ -30,8 +30,8 @@ class BruteForceInteractionTrainer:
     save_freq = 1
 
     ##### load blank models and optimizers, once
-    lr_interaction = 10 ** 0
-    lr_docking = 10 ** -4
+    lr_interaction = 1e0
+    lr_docking = 1e-5
 
     model = BruteForceInteraction().to(device=0)
     optimizer = optim.Adam(model.parameters(), lr=lr_interaction)
@@ -42,7 +42,8 @@ class BruteForceInteractionTrainer:
     print('SHOULD ONLY PRINT ONCE PER TRAINING')
     ##############################################################################
     # case = 'hypparm'
-    case = 'lr4_final'
+    # case = 'lr5_final'
+    case = 'final'
     # exp = 'A'
     # exp = 'B'
     # exp = 'C'
@@ -51,23 +52,32 @@ class BruteForceInteractionTrainer:
     testcase = 'exp' + exp + '_' + case
 
     ###################### Load and freeze/unfreeze params (training, no eval)
+    # path to pretrained docking model
+    path_pretrain = 'Log/randinit_best_docking_model_epoch11.th'
     # train with docking model frozen
     if exp == 'A':
-        path_pretrain = 'Log/best_docking_model_epoch37.th'
-        pretrain_model.load_state_dict(torch.load(path_pretrain)['state_dict'])
+        print('Training expA')
         param_to_freeze = 'all'
+        pretrain_model.load_state_dict(torch.load(path_pretrain)['state_dict'])
     # train with docking model unfrozen
     if exp == 'B':
-        path_pretrain = 'Log/best_docking_model_epoch37.th'
-        pretrain_model.load_state_dict(torch.load(path_pretrain)['state_dict'])
+        print('Training expB')
+        lr_docking = 1e-5
+        print('Docking learning rate changed to', lr_docking)
+        pretrain_model = BruteForceDocking().to(device=0)
+        optimizer_pretrain = optim.Adam(pretrain_model.parameters(), lr=lr_docking)
         param_to_freeze = None
+        pretrain_model.load_state_dict(torch.load(path_pretrain)['state_dict'])
     # train with docking model SE2 CNN frozen
     if exp == 'C':
+        print('Training expC')
         param_to_freeze = 'netSE2'  # leave "a" scoring coefficients unfrozen
+        pretrain_model.load_state_dict(torch.load(path_pretrain)['state_dict'])
     # train everything from scratch
     if exp == 'scratch':
-        testcase = exp + '_' + case
+        print('Training from scratch')
         param_to_freeze = None
+        testcase = exp + '_' + case
 
     def __init__(self):
         pass
@@ -102,9 +112,7 @@ class BruteForceInteractionTrainer:
         #### Loss functions
         BCEloss = torch.nn.BCELoss()
         l1_loss = torch.nn.L1Loss()
-        w = 1e-5
-        # w = 1e-2
-        # w = 1e-6
+        w = 1e-6
         L_reg = w * l1_loss(deltaF, torch.zeros(1).squeeze().cuda())
         loss = BCEloss(pred_interact, gt_interact) + L_reg
         print('\n predicted', str(pred_interact.item())[:6], '; ground truth', gt_interact.item())
@@ -263,7 +271,7 @@ class BruteForceInteractionTrainer:
     def check_gradients(model):
         for n, p in model.named_parameters():
             if p.requires_grad:
-                print(n, p, p.grad)
+                print('Name', n, '\nParam', p, '\nGradient', p.grad)
 
     def train(self, resume_epoch=0, load_models=False, debug=False):
         BruteForceInteractionTrainer().train_model(self.model, self.testcase, self.train_epochs, train_stream, valid_stream, test_stream,
