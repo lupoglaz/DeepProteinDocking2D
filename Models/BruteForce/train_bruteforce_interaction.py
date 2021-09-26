@@ -44,10 +44,11 @@ class BruteForceInteractionTrainer:
     # case = 'hypparm'
     # case = 'lr5_final'
     case = 'final'
-    # exp = 'A'
+
+    exp = 'A'
     # exp = 'B'
     # exp = 'C'
-    exp = 'scratch'
+    # exp = 'scratch'
 
     testcase = 'exp' + exp + '_' + case
 
