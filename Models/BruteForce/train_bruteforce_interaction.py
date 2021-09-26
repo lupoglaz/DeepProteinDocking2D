@@ -30,8 +30,8 @@ class BruteForceInteractionTrainer:
     save_freq = 1
 
     ##### load blank models and optimizers, once
-    lr_interaction = 1e0
-    lr_docking = 1e-5
+    lr_interaction = 10**0
+    lr_docking = 10**-4
 
     model = BruteForceInteraction().to(device=0)
     optimizer = optim.Adam(model.parameters(), lr=lr_interaction)
@@ -41,12 +41,10 @@ class BruteForceInteractionTrainer:
 
     print('SHOULD ONLY PRINT ONCE PER TRAINING')
     ##############################################################################
-    # case = 'hypparm'
-    # case = 'lr5_final'
     case = 'final'
 
-    # exp = 'A'
-    exp = 'B'
+    exp = 'A'
+    # exp = 'B'
     # exp = 'C'
     # exp = 'scratch'
 
@@ -63,7 +61,7 @@ class BruteForceInteractionTrainer:
     # train with docking model unfrozen
     if exp == 'B':
         print('Training expB')
-        lr_docking = 1e-5
+        lr_docking = 10**-5
         print('Docking learning rate changed to', lr_docking)
         pretrain_model = BruteForceDocking().to(device=0)
         optimizer_pretrain = optim.Adam(pretrain_model.parameters(), lr=lr_docking)
@@ -113,7 +111,7 @@ class BruteForceInteractionTrainer:
         #### Loss functions
         BCEloss = torch.nn.BCELoss()
         l1_loss = torch.nn.L1Loss()
-        w = 1e-6
+        w = 10**-5
         L_reg = w * l1_loss(deltaF, torch.zeros(1).squeeze().cuda())
         loss = BCEloss(pred_interact, gt_interact) + L_reg
         print('\n predicted', str(pred_interact.item())[:6], '; ground truth', gt_interact.item())
