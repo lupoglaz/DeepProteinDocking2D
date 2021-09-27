@@ -45,9 +45,9 @@ class BruteForceInteractionTrainer:
     case = 'final_ones'
 
     # exp = 'A'
-    # exp = 'B'
+    exp = 'B'
     # exp = 'C'
-    exp = 'scratch'
+    # exp = 'scratch'
 
     testcase = 'exp' + exp + '_' + case
 
