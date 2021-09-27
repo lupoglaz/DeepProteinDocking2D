@@ -41,7 +41,8 @@ class BruteForceInteractionTrainer:
 
     print('SHOULD ONLY PRINT ONCE PER TRAINING')
     ##############################################################################
-    case = 'final'
+    # case = 'final'
+    case = 'final_ones'
 
     # exp = 'A'
     # exp = 'B'
@@ -114,7 +115,13 @@ class BruteForceInteractionTrainer:
         w = 10**-5
         L_reg = w * l1_loss(deltaF, torch.zeros(1).squeeze().cuda())
         loss = BCEloss(pred_interact, gt_interact) + L_reg
-        print('\n predicted', str(pred_interact.item())[:6], '; ground truth', gt_interact.item())
+        print('\n predicted', pred_interact.item(), '; ground truth', gt_interact.item())
+
+        # with torch.no_grad():
+        #     if str(pred_interact.item())[0] != '1' or str(pred_interact.item())[0] != '0':
+        #         print('PROBLEM...')
+        #         print('bad prediction', pred_interact.item())
+
 
         if train:
             self.pretrain_model.zero_grad()
