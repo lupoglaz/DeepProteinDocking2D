@@ -64,8 +64,8 @@ class BruteForceInteractionTrainer:
     # train with docking model unfrozen
     if exp == 'B':
         print('Training expB')
-        lr_docking = 10**-5
-        print('Docking learning rate changed to', lr_docking)
+        # lr_docking = 10**-5
+        # print('Docking learning rate changed to', lr_docking)
         pretrain_model = BruteForceDocking().to(device=0)
         optimizer_pretrain = optim.Adam(pretrain_model.parameters(), lr=lr_docking)
         param_to_freeze = None
