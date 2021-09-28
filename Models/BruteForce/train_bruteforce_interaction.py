@@ -24,7 +24,7 @@ class BruteForceInteractionTrainer:
     # plotting = True
     plotting = False
 
-    train_epochs = 6
+    train_epochs = 10
     check_epoch = 1
     test_freq = 1
     save_freq = 1
