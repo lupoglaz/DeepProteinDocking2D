@@ -31,7 +31,7 @@ class BruteForceInteractionTrainer:
 
     ##### load blank models and optimizers, once
     lr_interaction = 10**0
-    lr_docking = 10**-5
+    lr_docking = 10**-4
 
     model = BruteForceInteraction().to(device=0)
     optimizer = optim.Adam(model.parameters(), lr=lr_interaction)
