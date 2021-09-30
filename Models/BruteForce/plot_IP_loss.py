@@ -6,8 +6,8 @@ import sys
 # testcase = 'newdata_bugfix_docking_100epochs_'
 # testcase = 'test_datastream'
 # testcase = 'best_docking_model_epoch'
-testcase = 'randinit_best_docking_model_epoch'
-
+# testcase = 'randinit_best_docking_model_epoch'
+testcase = 'onesinit_lr4_best_docking_model_epoch'
 
 #LOSS WITH ROTATION
 train = pd.read_csv("Log/losses/log_train_"+ testcase +".txt", sep='\t', header=1, names=['Epoch',	'Loss',	'rmsd'])
