@@ -46,8 +46,8 @@ class BruteForceInteractionTrainer:
     # case = 'final_lr5_ones'
     case = 'final_lr4_ones'
 
-    # exp = 'A'
-    exp = 'B'
+    exp = 'A'
+    # exp = 'B'
     # exp = 'C'
     # exp = 'scratch'
 
@@ -314,14 +314,14 @@ if __name__ == '__main__':
     test_stream = get_interaction_stream_balanced(testset + '.pkl', batch_size=1)
 
     ##################### Train model
-    # BruteForceInteractionTrainer().train(debug=False)
+    BruteForceInteractionTrainer().train(debug=False)
 
     ##################### Evaluate model
-    resume_epoch = 10
+    # resume_epoch = 10
     ### loads relevant pretrained model under resume_training condition
     # BruteForceInteractionTrainer().plot_evaluation_set(eval_stream=valid_stream, resume_epoch=resume_epoch) ## also checks APR
     #
     # BruteForceInteractionTrainer().plot_evaluation_set(eval_stream=test_stream, resume_epoch=resume_epoch)
 
     ##################### Resume training model
-    BruteForceInteractionTrainer().train(resume_epoch, load_models=True)
+    # BruteForceInteractionTrainer().train(resume_epoch, load_models=True)
