@@ -216,7 +216,9 @@ if __name__ == '__main__':
     # testcase = 'randinit_best_docking_model_epoch'
     # testcase = 'docking_scratch_final_lr5_ones10'
 
-    testcase = 'onesinit_lr5_best_docking_model_epoch'
+    # testcase = 'onesinit_lr5_best_docking_model_epoch'
+
+    testcase = 'onesinit_lr4_best_docking_model_epoch'
 
     #########################
     #### initialization torch settings
@@ -229,7 +231,7 @@ if __name__ == '__main__':
     torch.cuda.set_device(0)
     # torch.autograd.set_detect_anomaly(True)
     ######################
-    lr = 10 ** -5
+    lr = 10 ** -4
     model = BruteForceDocking().to(device=0)
     optimizer = optim.Adam(model.parameters(), lr=lr)
 
