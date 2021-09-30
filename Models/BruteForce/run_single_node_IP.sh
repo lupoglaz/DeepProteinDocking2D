@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --partition=p_ccib_1
-#SBATCH --job-name=randinit_IP_40ep
+#SBATCH --job-name=onesinit_IP_lr5_200ep
 #SBATCH --nodes=1
 ##SBATCH --ntasks=1
 #SBATCH --tasks-per-node=1
@@ -8,8 +8,8 @@
 #SBATCH --gres=gpu:2 # Number of GPUs
 #SBATCH --constraint=volta
 #SBATCH --time=48:00:00
-#SBATCH --output=slurm_log/slurm.%N.randinit_IP_40ep.out
-#SBATCH --error=slurm_log/slurm.%N.randinit_IP_40ep.err
+#SBATCH --output=slurm_log/slurm.%N.onesinit_IP_lr5_200ep.out
+#SBATCH --error=slurm_log/slurm.%N.onesinit_IP_lr5_200ep.err
 #SBATCH --export=ALL
 
 pwd

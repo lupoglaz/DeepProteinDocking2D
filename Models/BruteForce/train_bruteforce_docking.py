@@ -210,14 +210,13 @@ if __name__ == '__main__':
 
     # testcase = 'docking_10ep_F0lr0_scratch_reg_deltaF6'
     # testcase = 'test_datastream'
-
     # testcase = 'docking_model_final_epoch36'
-
     # testcase = 'debug_test'
-
     # testcase = 'best_docking_model_epoch'
+    # testcase = 'randinit_best_docking_model_epoch'
+    # testcase = 'docking_scratch_final_lr5_ones10'
 
-    testcase = 'randinit_best_docking_model_epoch'
+    testcase = 'onesinit_lr5_best_docking_model_epoch'
 
     #########################
     #### initialization torch settings
@@ -230,7 +229,7 @@ if __name__ == '__main__':
     torch.cuda.set_device(0)
     # torch.autograd.set_detect_anomaly(True)
     ######################
-    lr = 10 ** -4
+    lr = 10 ** -5
     model = BruteForceDocking().to(device=0)
     optimizer = optim.Adam(model.parameters(), lr=lr)
 
@@ -239,7 +238,7 @@ if __name__ == '__main__':
     test_stream = get_docking_stream(testset + '.pkl', batch_size=1)
 
     ######################
-    train_epochs = 40
+    train_epochs = 200
     # train_epochs = ''
 
     def train(resume_training=False, resume_epoch=0, debug=False):
@@ -261,6 +260,7 @@ if __name__ == '__main__':
 
     ### Evaluate model only and plot, at chosen epoch
     # plotting = True
-    plotting = False
-    # epoch = ''
+    # plotting = False
+    # epoch = '' # when loading FI trained docking model state_dict explicitly.
+    # epoch = 11 # best epoch from 'randinit_best_docking_model_epoch'
     # plot_evaluation_set(check_epoch=epoch, plotting=plotting)
