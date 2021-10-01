@@ -47,9 +47,9 @@ class BruteForceInteractionTrainer:
     case = 'final_lr4_ones'
 
     # exp = 'A'
-    # exp = 'B'
+    exp = 'B'
     # exp = 'C'
-    exp = 'scratch'
+    # exp = 'scratch'
 
     testcase = 'exp' + exp + '_' + case
 
@@ -64,8 +64,8 @@ class BruteForceInteractionTrainer:
     # train with docking model unfrozen
     if exp == 'B':
         print('Training expB')
-        # lr_docking = 10**-5
-        # print('Docking learning rate changed to', lr_docking)
+        lr_docking = 10**-5
+        print('Docking learning rate changed to', lr_docking)
         pretrain_model = BruteForceDocking().to(device=0)
         optimizer_pretrain = optim.Adam(pretrain_model.parameters(), lr=lr_docking)
         param_to_freeze = None
@@ -193,8 +193,8 @@ class BruteForceInteractionTrainer:
             ### Loss log files
             with open('Log/losses/log_train_' + self.testcase + '.txt', 'w') as fout:
                 fout.write(log_header)
-            with open('Log/losses/log_test_' + self.testcase + '.txt', 'w') as fout:
-                fout.write(log_header)
+            # with open('Log/losses/log_test_' + self.testcase + '.txt', 'w') as fout:
+            #     fout.write(log_header)
         num_epochs = start_epoch + train_epochs
 
         for epoch in range(start_epoch, num_epochs):
