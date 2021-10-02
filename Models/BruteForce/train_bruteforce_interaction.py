@@ -47,8 +47,8 @@ class BruteForceInteractionTrainer:
     case = 'final_lr4_ones'
 
     # exp = 'A'
-    exp = 'B'
-    # exp = 'C'
+    # exp = 'B'
+    exp = 'C'
     # exp = 'scratch'
 
     testcase = 'exp' + exp + '_' + case
@@ -66,6 +66,7 @@ class BruteForceInteractionTrainer:
         print('Training expB')
         lr_docking = 10**-5
         print('Docking learning rate changed to', lr_docking)
+        testcase = 'exp' + exp + '_lr5change_' + case
         pretrain_model = BruteForceDocking().to(device=0)
         optimizer_pretrain = optim.Adam(pretrain_model.parameters(), lr=lr_docking)
         param_to_freeze = None
