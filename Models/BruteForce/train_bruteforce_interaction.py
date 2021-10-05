@@ -44,7 +44,8 @@ class BruteForceInteractionTrainer:
     # case = 'final'
     # case = 'final_ones'
     # case = 'final_lr5_ones'
-    case = 'final_lr4_ones'
+    # case = 'final_lr4_ones'
+    case = 'rep1_ones'
 
     # exp = 'A'
     # exp = 'B'
@@ -119,12 +120,6 @@ class BruteForceInteractionTrainer:
         L_reg = w * l1_loss(deltaF, torch.zeros(1).squeeze().cuda())
         loss = BCEloss(pred_interact, gt_interact) + L_reg
         print('\n predicted', pred_interact.item(), '; ground truth', gt_interact.item())
-
-        # with torch.no_grad():
-        #     if str(pred_interact.item())[0] != '1' or str(pred_interact.item())[0] != '0':
-        #         print('PROBLEM...')
-        #         print('bad prediction', pred_interact.item())
-
 
         if train:
             self.pretrain_model.zero_grad()
@@ -315,14 +310,14 @@ if __name__ == '__main__':
     test_stream = get_interaction_stream_balanced(testset + '.pkl', batch_size=1)
 
     ##################### Train model
-    # BruteForceInteractionTrainer().train(debug=False)
+    BruteForceInteractionTrainer().train(debug=False)
 
     ##################### Evaluate model
-    resume_epoch = 10
+    # resume_epoch = 10
     ### loads relevant pretrained model under resume_training condition
     # BruteForceInteractionTrainer().plot_evaluation_set(eval_stream=valid_stream, resume_epoch=resume_epoch) ## also checks APR
     #
     # BruteForceInteractionTrainer().plot_evaluation_set(eval_stream=test_stream, resume_epoch=resume_epoch)
 
     ##################### Resume training model
-    BruteForceInteractionTrainer().train(resume_epoch, load_models=True)
+    # BruteForceInteractionTrainer().train(resume_epoch, load_models=True)
