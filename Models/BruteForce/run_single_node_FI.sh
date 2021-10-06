@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --partition=p_ccib_1
-#SBATCH --job-name=r_ep20_scratch_ones
+#SBATCH --job-name=scratch_rep2_ones
 #SBATCH --nodes=1
 ##SBATCH --ntasks=1
 #SBATCH --tasks-per-node=1
@@ -8,8 +8,8 @@
 #SBATCH --gres=gpu:2 # Number of GPUs
 #SBATCH --constraint=volta
 #SBATCH --time=48:00:00
-#SBATCH --output=slurm_log/slurm.%N.r_ep20_scratch_ones.out
-#SBATCH --error=slurm_log/slurm.%N.r_ep20_scratch_ones.err
+#SBATCH --output=slurm_log/slurm.%N.scratch_rep2_ones.out
+#SBATCH --error=slurm_log/slurm.%N.scratch_rep2_ones.err
 #SBATCH --export=ALL
 
 pwd

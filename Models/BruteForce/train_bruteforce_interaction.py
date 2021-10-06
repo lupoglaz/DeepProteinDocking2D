@@ -24,7 +24,7 @@ class BruteForceInteractionTrainer:
     # plotting = True
     plotting = False
 
-    train_epochs = 10
+    train_epochs = 6
     check_epoch = 1
     test_freq = 1
     save_freq = 1
@@ -44,8 +44,9 @@ class BruteForceInteractionTrainer:
     # case = 'final'
     # case = 'final_ones'
     # case = 'final_lr5_ones'
-    case = 'final_lr4_ones'
+    # case = 'final_lr4_ones'
     # case = 'rep1_ones'
+    case = 'rep2_ones'
 
     # exp = 'A'
     # exp = 'B'
