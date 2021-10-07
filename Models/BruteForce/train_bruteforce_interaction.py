@@ -45,8 +45,7 @@ class BruteForceInteractionTrainer:
     # case = 'final_ones'
     # case = 'final_lr5_ones'
     # case = 'final_lr4_ones'
-    # case = 'rep1_ones'
-    case = 'rep2_ones'
+    case = '3reps_ones'
 
     # exp = 'A'
     # exp = 'B'
@@ -82,7 +81,7 @@ class BruteForceInteractionTrainer:
     if exp == 'scratch':
         print('Training from scratch')
         param_to_freeze = None
-        testcase = exp + '_' + case
+        testcase = case + '_' + exp
 
     def __init__(self):
         pass
