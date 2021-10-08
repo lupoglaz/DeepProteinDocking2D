@@ -9,7 +9,7 @@ sys.path.append('/home/sb1638/')
 import numpy as np
 from tqdm import tqdm
 from DeepProteinDocking2D.torchDataset import get_docking_stream
-from DeepProteinDocking2D.Models.BruteForce.TorchDockingFilter import TorchDockingFilter
+from DeepProteinDocking2D.Models.BruteForce.TorchDockingFFT import TorchDockingFilter
 from DeepProteinDocking2D.Models.BruteForce.model_bruteforce_docking import BruteForceDocking
 from DeepProteinDocking2D.Models.BruteForce.utility_functions import plot_assembly
 from DeepProteinDocking2D.Models.BruteForce.validation_metrics import RMSD
@@ -221,7 +221,7 @@ if __name__ == '__main__':
     # testcase = 'onesinit_lr4_best_docking_model_epoch'
     # testcase = '16scalar_init_lr4_epoch'
 
-    testcase = '16scalar32vector_init_lr4_epoch'
+    testcase = '16scalar32vector_docking_epoch'
 
 
     #########################
@@ -230,7 +230,7 @@ if __name__ == '__main__':
     torch.manual_seed(42)
     random.seed(42)
     torch.cuda.manual_seed(42)
-    torch.backends.cudnn.determininistic = True
+    torch.backends.cudnn.deterministic = True
 
     torch.cuda.set_device(0)
     # torch.autograd.set_detect_anomaly(True)
@@ -244,7 +244,7 @@ if __name__ == '__main__':
     test_stream = get_docking_stream(testset + '.pkl', batch_size=1)
 
     ######################
-    train_epochs = 200
+    train_epochs = 100
     # train_epochs = ''
 
     def train(resume_training=False, resume_epoch=0, debug=False):

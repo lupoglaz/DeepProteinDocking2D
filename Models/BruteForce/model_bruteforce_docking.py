@@ -4,7 +4,7 @@ import torch.nn.functional as F
 import numpy as np
 
 import matplotlib.pyplot as plt
-from DeepProteinDocking2D.Models.BruteForce.TorchDockingFilter import TorchDockingFilter
+from DeepProteinDocking2D.Models.BruteForce.TorchDockingFFT import TorchDockingFilter
 from e2cnn import nn as enn
 from e2cnn import gspaces
 
