@@ -46,7 +46,8 @@ class BruteForceInteractionTrainer:
     # case = 'final_lr5_ones'
     # case = 'final_lr4_ones'
     # case = '3reps_ones'
-    case = '2reps_ones'
+    # case = '2reps_ones'
+    case = '16scalar32vector_'
 
 
     # exp = 'A'
@@ -302,7 +303,7 @@ if __name__ == '__main__':
     torch.manual_seed(42)
     random.seed(42)
     torch.cuda.manual_seed(42)
-    torch.backends.cudnn.determininistic = True
+    torch.backends.cudnn.deterministic = True
     torch.cuda.set_device(0)
     # CUDA_LAUNCH_BLOCKING = 1
     # torch.autograd.set_detect_anomaly(True)

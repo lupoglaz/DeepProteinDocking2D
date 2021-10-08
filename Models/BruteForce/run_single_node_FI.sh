@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --partition=p_ccib_1
-#SBATCH --job-name=2reps_ones_scratch
+#SBATCH --job-name=15s32v_scratch
 #SBATCH --nodes=1
 ##SBATCH --ntasks=1
 #SBATCH --tasks-per-node=1
@@ -8,8 +8,8 @@
 #SBATCH --gres=gpu:2 # Number of GPUs
 #SBATCH --constraint=volta
 #SBATCH --time=48:00:00
-#SBATCH --output=slurm_log/slurm.%N.2reps_ones_scratch.out
-#SBATCH --error=slurm_log/slurm.%N.2reps_ones_scratch.err
+#SBATCH --output=slurm_log/slurm.%N.15s32v_scratch.out
+#SBATCH --error=slurm_log/slurm.%N.15s32v_scratch.err
 #SBATCH --export=ALL
 
 pwd
@@ -17,7 +17,7 @@ export OMP_NUM_THREADS=$SLURM_CPUS_PER_TASK
 
 srun -N1 -n1 python train_bruteforce_interaction.py rep1;
 
-srun -N1 -n1 python train_bruteforce_interaction.py rep2;
+#srun -N1 -n1 python train_bruteforce_interaction.py rep2;
 
 #srun -N1 -n1 python train_bruteforce_interaction.py rep3;
 

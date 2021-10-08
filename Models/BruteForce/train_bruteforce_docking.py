@@ -218,7 +218,11 @@ if __name__ == '__main__':
 
     # testcase = 'onesinit_lr5_best_docking_model_epoch'
 
-    testcase = 'onesinit_lr4_best_docking_model_epoch'
+    # testcase = 'onesinit_lr4_best_docking_model_epoch'
+    # testcase = '16scalar_init_lr4_epoch'
+
+    testcase = '16scalar32vector_init_lr4_epoch'
+
 
     #########################
     #### initialization torch settings
@@ -255,7 +259,7 @@ if __name__ == '__main__':
     ######################
     ### Train model from beginning
     # epoch = train_epochs
-    # train(debug=False)
+    train(debug=False)
 
     ### Resume training model at chosen epoch
     # train(True, resume_epoch=40)
@@ -265,5 +269,5 @@ if __name__ == '__main__':
     plotting = False
     # epoch = '' # when loading FI trained docking model state_dict explicitly.
     # epoch = 11 # best epoch from 'randinit_best_docking_model_epoch'
-    epoch = 75 # best epoch from 'onesinit_lr4_best_docking_model_epoch'
-    plot_evaluation_set(check_epoch=epoch, plotting=plotting)
+    # epoch = 75 # best epoch from 'onesinit_lr4_best_docking_model_epoch'
+    # plot_evaluation_set(check_epoch=epoch, plotting=plotting)
