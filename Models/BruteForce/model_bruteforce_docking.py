@@ -20,8 +20,8 @@ class BruteForceDocking(nn.Module):
 
         # self.scal = 1
         # self.vec = 7
-        self.scal = 16
-        self.vec = 32
+        self.scal = 2
+        self.vec = 16
         self.SO2 = gspaces.Rot2dOnR2(N=-1, maximum_frequency=4)
         self.feat_type_in1 = enn.FieldType(self.SO2, 1 * [self.SO2.trivial_repr])
         self.feat_type_out1 = enn.FieldType(self.SO2, self.scal * [self.SO2.irreps['irrep_0']] + self.vec * [self.SO2.irreps['irrep_1']])
