@@ -221,7 +221,9 @@ if __name__ == '__main__':
     # testcase = 'onesinit_lr4_best_docking_model_epoch'
     # testcase = '16scalar_init_lr4_epoch'
 
-    testcase = '16scalar32vector_docking_epoch'
+    # testcase = '16scalar32vector_docking_epoch'
+
+    testcase = '1s4v_docking_epoch'
 
 
     #########################
