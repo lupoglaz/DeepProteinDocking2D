@@ -50,8 +50,9 @@ class BruteForceInteractionTrainer:
     case = '16s32v'
 
 
-    exp = 'A'
-    # exp = 'B'
+    # exp = 'A'
+    exp = 'B'
+    # exp = 'C'
     # exp = 'C'
     # exp = 'scratch'
 
