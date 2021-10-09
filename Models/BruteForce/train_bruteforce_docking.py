@@ -261,10 +261,10 @@ if __name__ == '__main__':
     ######################
     ### Train model from beginning
     # epoch = train_epochs
-    train(debug=False)
+    # train(debug=False)
 
     ### Resume training model at chosen epoch
-    # train(True, resume_epoch=40)
+    train(True, resume_epoch=100)
 
     ### Evaluate model only and plot, at chosen epoch
     # plotting = True

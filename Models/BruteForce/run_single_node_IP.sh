@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --partition=p_ccib_1
-#SBATCH --job-name=IP_1s4v_100ep
+#SBATCH --job-name=IP_1s4v_200ep
 #SBATCH --nodes=1
 ##SBATCH --ntasks=1
 #SBATCH --tasks-per-node=1
@@ -8,8 +8,8 @@
 #SBATCH --gres=gpu:2 # Number of GPUs
 #SBATCH --constraint=volta
 #SBATCH --time=48:00:00
-#SBATCH --output=slurm_log/slurm.%N.IP_1s4v_100ep.out
-#SBATCH --error=slurm_log/slurm.%N.IP_1s4v_100ep.err
+#SBATCH --output=slurm_log/slurm.%N.IP_1s4v_200ep.out
+#SBATCH --error=slurm_log/slurm.%N.IP_1s4v_200ep.err
 #SBATCH --export=ALL
 
 pwd
