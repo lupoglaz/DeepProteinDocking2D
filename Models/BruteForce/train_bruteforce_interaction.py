@@ -52,17 +52,16 @@ class BruteForceInteractionTrainer:
     # case = '2s2v'
     case = '1s4v'
 
-
-    # exp = 'A'
+    exp = 'A'
     # exp = 'B'
     # exp = 'C'
-    exp = 'scratch'
+    # exp = 'scratch'
 
     testcase = 'exp' + exp + '_' + case
 
     ###################### Load and freeze/unfreeze params (training, no eval)
     # path to pretrained docking model
-    path_pretrain = 'Log/onesinit_lr4_best_docking_model_epoch75.th'
+    path_pretrain = 'Log/1s4v_docking_epoch200.th'
     # train with docking model frozen
     if exp == 'A':
         print('Training expA')

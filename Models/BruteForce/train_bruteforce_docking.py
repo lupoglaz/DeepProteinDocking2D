@@ -223,7 +223,9 @@ if __name__ == '__main__':
 
     # testcase = '16scalar32vector_docking_epoch'
 
-    testcase = '1s4v_docking_epoch'
+    # testcase = '1s4v_docking_epoch'
+
+    testcase = '1s2v_IP_epoch'
 
 
     #########################
@@ -246,8 +248,7 @@ if __name__ == '__main__':
     test_stream = get_docking_stream(testset + '.pkl', batch_size=1)
 
     ######################
-    train_epochs = 100
-    # train_epochs = ''
+    train_epochs = 200
 
     def train(resume_training=False, resume_epoch=0, debug=False):
         BruteForceDockingTrainer().train_model(model, optimizer, testcase, train_epochs, train_stream, valid_stream, test_stream,
@@ -261,10 +262,10 @@ if __name__ == '__main__':
     ######################
     ### Train model from beginning
     # epoch = train_epochs
-    # train(debug=False)
+    train(debug=False)
 
     ### Resume training model at chosen epoch
-    train(True, resume_epoch=100)
+    # train(True, resume_epoch=100)
 
     ### Evaluate model only and plot, at chosen epoch
     # plotting = True
@@ -272,5 +273,5 @@ if __name__ == '__main__':
     # epoch = '' # when loading FI trained docking model state_dict explicitly.
     # epoch = 11 # best epoch from 'randinit_best_docking_model_epoch'
     # epoch = 75 # best epoch from 'onesinit_lr4_best_docking_model_epoch'
-    # epoch = 20 # best epoch from '16scalar32vector_docking_model_epoch'
+    # epoch = 200 # best epoch from '16scalar32vector_docking_model_epoch'
     # plot_evaluation_set(check_epoch=epoch, plotting=plotting)
