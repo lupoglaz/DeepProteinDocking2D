@@ -5,7 +5,7 @@ import numpy as np
 
 from .Multiplication import ImageCrossMultiply
 from .Convolution import ProteinConv2D
-from .EQRepresentation import EQRepresentation
+from .EQRepresentation import EQRepresentation, EQRepresentationSid
 from e2cnn import gspaces
 from e2cnn import nn as e2nn
 from math import *
@@ -20,7 +20,8 @@ class EQScoringModel(nn.Module):
 		self.prot_field_size = prot_field_size
 				
 		self.mult = ImageCrossMultiply()	
-		self.repr = EQRepresentation(bias=bias)
+		# self.repr = EQRepresentation(bias=bias)
+		self.repr = EQRepresentationSid()
 
 		self.scorer = nn.Sequential(
 			nn.Linear(4,1, bias=False)

@@ -10,7 +10,7 @@ from math import cos, sin
 import numpy as np
 
 class DockingTrainer:
-	def __init__(self, model, optimizer, num_angles=360, device='cuda', type='pos', accum=0):
+	def __init__(self, model, optimizer, num_angles=360, device='cuda', type='pos', accum=0, omega=10E-2):
 		self.model = model
 		self.optimizer = optimizer
 		self.device = device
@@ -19,6 +19,7 @@ class DockingTrainer:
 			self.loss = nn.CrossEntropyLoss()
 		elif type == 'int':
 			self.loss = nn.BCELoss()
+			self.omega = omega
 		else:
 			raise(Exception('Type unknown:', type))
 		
@@ -118,84 +119,61 @@ class DockingTrainer:
 			target = target.to(device=self.device).unsqueeze(dim=1)
 				
 		self.model.train()
-		
-		# if self.accum == 0:
-		# 	self.model.zero_grad()
-
-		if self.zero_input is None:
-			self.zero_input = torch.zeros_like(receptor)
+		self.model.zero_grad()
 
 		rec_repr = self.model.repr(receptor)
 		lig_repr = self.model.repr(ligand)
 		translations = self.dock_global(rec_repr.tensor, lig_repr.tensor)
 		scores = -self.score(translations)
 
-		# zeros = self.model.repr(self.zero_input).tensor
-		# zeros_loss = (zeros*zeros).sum()
-
 		if self.type == 'pos':
 			flat_idx = self.conf_idx(rotation, translation, scores)
 			logprobs = scores.contiguous().flatten(start_dim=1)
 			loss = self.loss(logprobs, flat_idx)
-		elif self.type == 'int':
-			pred = self.model(scores, self.angles, ligand)
-			loss = self.loss(pred, target)
-		# print('Zeros loss:', zeros_loss.item())
-		# loss = loss + 100.0*zeros_loss
-		# sys.exit()
-		if not loss is None:
-			loss.backward()
-			if self.accum == 0:
-				self.optimizer.step()
-				self.model.zero_grad()
-			else:
-				self.accum -= 1
-			return loss.item()
-		else:
-			return 0.0
 		
-		# for p in self.model.parameters():
-		# 	if p.grad is None: continue
-		# 	print(p.grad.sum())
-		# 	# break
-		# print(self.model.F0.grad)
-		# sys.exit()
+		elif self.type == 'int':
+			pred, deltaP = self.model(scores, self.angles, ligand)
+			loss = self.loss(pred, target) + self.omega * torch.mean(torch.abs(deltaP))
+
+		loss.backward()
+		self.optimizer.step()
+		
 		return loss.item()
 
-	def eval(self, data, threshold=0.5):
+	def eval(self, data):
 		if self.type == 'int':
 			receptor, ligand, target = data
 		else:
 			raise(NotImplemented())
-
 		receptor = receptor.to(device=self.device, dtype=torch.float32).unsqueeze(dim=1)
 		ligand = ligand.to(device=self.device, dtype=torch.float32).unsqueeze(dim=1)
 		self.model.eval()
-		threshold = -threshold
 		with torch.no_grad():
 			rec_repr = self.model.repr(receptor)
 			lig_repr = self.model.repr(ligand)
 			translations = self.dock_global(rec_repr.tensor, lig_repr.tensor)
 			scores = -self.score(translations)
-			pred = self.model(scores, self.angles, ligand)
-			# print(pred, target)
-			# sys.exit()
-			if self.type == 'int':
-				TP = 0
-				FP = 0
-				TN = 0
-				FN = 0
-				for i in range(pred.size(0)):
-					p = -pred[i].item()
-					a = target[i].item()
-					if p>=threshold and a>=0.5:
-						TP += 1
-					elif p>=threshold and a<0.5:
-						FP += 1
-					elif p<threshold and a>=0.5:
-						FN += 1
-					elif p<threshold and a<0.5:
-						TN += 1
-				return TP, FP, TN, FN
-			else:
-				raise(NotImplemented())
+			pred, deltaP = self.model(scores, self.angles, ligand)
+		return pred, target
+
+	def eval_coef(self, data, threshold):
+		pred, target = self.eval(data)
+		if self.type == 'int':
+			TP = 0
+			FP = 0
+			TN = 0
+			FN = 0
+			for i in range(pred.size(0)):
+				p = pred[i].item()
+				a = target[i].item()
+				if p>=threshold and a>=0.5:
+					TP += 1
+				elif p>=threshold and a<0.5:
+					FP += 1
+				elif p<threshold and a>=0.5:
+					FN += 1
+				elif p<threshold and a<0.5:
+					TN += 1
+			return TP, FP, TN, FN
+		else:
+			raise(NotImplemented())

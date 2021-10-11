@@ -7,8 +7,8 @@
 
 #Brute-force interaction
 # python train_interaction.py -experiment BFInteraction -train -docker -pretrain BFDocking -batch_size 8 -num_epochs 100
-python train_interaction.py -experiment BFInteraction -train -docker -batch_size 8 -num_epochs 10
-python results.py -experiment BFInteraction -interaction -max_epoch 10
+python train_interaction.py -experiment BFInteraction -train -docker -batch_size 8 -num_epochs 100
+python results.py -experiment BFInteraction -interaction -max_epoch 100
 
 
 #Energy-based docking

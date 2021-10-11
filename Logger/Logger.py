@@ -160,7 +160,7 @@ class Logger:
 		f = plt.figure(figsize =(12,6))
 		plt.subplot(1,2,1)
 		plt.plot(train_x, train_y, label='train')
-		plt.ylim([0,10.0])
+		plt.ylim([0,20.0])
 
 		plt.subplot(1,2,2)
 		plt.plot(loss_valid[0], loss_valid[1], label='accuracy')

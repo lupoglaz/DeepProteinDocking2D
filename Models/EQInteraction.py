@@ -144,17 +144,7 @@ class RankingLoss(nn.Module):
 	def __init__(self):
 		super(RankingLoss, self).__init__()
 		self.relu = nn.ReLU()
-		
-		self.F0 = 0.0
-		self.num_samples = 0
 		self.delta = 0.0
-		
-	def resetF0(self):
-		if not self.num_samples == 0:
-			F0 = self.F0/float(self.num_samples)
-			self.F0 = 0.0
-			self.num_samples = 0
-			return F0
 
 	def forward(self, pred, target):
 		pred = pred.squeeze()
@@ -173,8 +163,6 @@ class RankingLoss(nn.Module):
 						loss = self.relu(self.delta - (pred[i] - pred[j]))
 					else:
 						loss += self.relu(self.delta - (pred[i] - pred[j]))
-					self.F0 += (pred[j] + pred[i])/2.0
-					self.num_samples += 1
 					N = N + 1
 
 				elif target[i]==1 and target[j]==0:
@@ -182,8 +170,6 @@ class RankingLoss(nn.Module):
 						loss = self.relu(self.delta - (pred[j] - pred[i]))
 					else:
 						loss += self.relu(self.delta - (pred[j] - pred[i]))
-					self.F0 += (pred[j] + pred[i])/2.0
-					self.num_samples += 1
 					N = N + 1
 				
 		loss_trivial = (1.0/(pred*pred + 1e-5)).mean()
@@ -203,22 +189,19 @@ class EQInteractionF(nn.Module):
 		self.conv = ProteinConv2D()
 		self.sigmoid = nn.Sigmoid()
 		self.batchnorm = nn.BatchNorm1d(1)
-		# self.F0 = nn.Parameter(torch.tensor([0.0], dtype=torch.float32))
+		self.F0 = nn.Parameter(torch.tensor([0.0], dtype=torch.float32))
 		
 	def forward(self, scores, angles, ligand=None):
 		assert scores.ndimension()==4
 		batch_size = scores.size(0)
 		num_angles = scores.size(1)
 		L = scores.size(2)
+				
 		
-		with torch.no_grad():
-			norm, _ = torch.min(scores.view(batch_size, num_angles*L*L), dim=1)
-			norm = norm.unsqueeze(dim=1).unsqueeze(dim=2).unsqueeze(dim=3)
-		
-		P = torch.exp(-scores + norm)
-		F = -torch.log(torch.mean(P, dim=(1,2,3))+1E-5) + norm.squeeze()
-		
-		return F
+		scores_flat = scores.view(batch_size, num_angles*L*L)
+		P = -torch.logsumexp(-scores_flat, dim=-1)
+		deltaP = P - self.F0
+		return self.sigmoid(-deltaP), deltaP
 
 class SidInteraction(nn.Module):
 	def __init__(self, model):
