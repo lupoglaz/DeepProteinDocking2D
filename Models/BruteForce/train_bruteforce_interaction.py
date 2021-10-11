@@ -52,7 +52,8 @@ class BruteForceInteractionTrainer:
     # case = '2s2v'
     # case = '1s4v'
     # case = 'rep_1s4v'
-    case = 'rep2_1s4v'
+    # case = 'rep2_1s4v'
+    case = 'rep3_1s4v'
 
     # exp = 'A'
     # exp = 'B'
