@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --partition=p_ccib_1
-#SBATCH --job-name=rs0_1s4v_scratch
+#SBATCH --job-name=rs0_1s2v_scratch
 #SBATCH --nodes=1
 ##SBATCH --ntasks=1
 #SBATCH --tasks-per-node=1
@@ -17,7 +17,7 @@ export OMP_NUM_THREADS=$SLURM_CPUS_PER_TASK
 
 srun -N1 -n1 python train_bruteforce_interaction.py rep1;
 
-#srun -N1 -n1 python train_bruteforce_interaction.py rep2;
+srun -N1 -n1 python train_bruteforce_interaction.py rep2;
 
 #srun -N1 -n1 python train_bruteforce_interaction.py rep3;
 
