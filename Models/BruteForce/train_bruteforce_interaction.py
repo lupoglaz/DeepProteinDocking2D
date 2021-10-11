@@ -53,7 +53,9 @@ class BruteForceInteractionTrainer:
     # case = '1s4v'
     # case = 'rep_1s4v'
     # case = 'rep2_1s4v'
-    case = '1s2v'
+    # case = '1s2v'
+    case = 'rs0_1s4v'
+
 
 
     # exp = 'A'
@@ -305,10 +307,11 @@ if __name__ == '__main__':
 
     #########################
     #### initialization torch settings
-    np.random.seed(42)
-    torch.manual_seed(42)
-    random.seed(42)
-    torch.cuda.manual_seed(42)
+    random_seed = 0
+    np.random.seed(random_seed)
+    torch.manual_seed(random_seed)
+    random.seed(random_seed)
+    torch.cuda.manual_seed(random_seed)
     torch.backends.cudnn.deterministic = True
     torch.cuda.set_device(0)
     # CUDA_LAUNCH_BLOCKING = 1
