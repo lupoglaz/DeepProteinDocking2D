@@ -227,8 +227,7 @@ if __name__ == '__main__':
 
     # testcase = '1s2v_IP_epoch'
 
-    testcase = 'IP_rotpad_200ep'
-
+    testcase = 'IP_rotpad_1s4v_200ep'
 
     #########################
     #### initialization torch settings

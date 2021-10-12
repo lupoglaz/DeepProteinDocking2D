@@ -81,7 +81,7 @@ class TorchDockingFFT:
         else:
             f_rec = F.pad(f_rec, pad=([pad_size, pad_size+1, pad_size, pad_size+1]), mode='constant', value=0)
             rot_lig = F.pad(rot_lig, pad=([pad_size, pad_size+1, pad_size, pad_size+1]), mode='constant', value=0)
-        # print('padded shape', receptor.shape)
+        # print('padded shape', f_rec.shape)
 
         # f_rec = receptor.unsqueeze(0).repeat(self.num_angles,1,1,1)
         # f_lig = ligand.unsqueeze(0).repeat(self.num_angles,1,1,1)
