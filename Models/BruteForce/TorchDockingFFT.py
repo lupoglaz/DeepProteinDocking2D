@@ -23,7 +23,7 @@ class TorchDockingFFT:
         deg_index_rot = (((gt_rot * 180.0/np.pi) + 180.0) % self.num_angles).type(torch.long)
         centered_txy = gt_txy.type(torch.long)
 
-        empty_3D[deg_index_rot, centered_txy[0], centered_txy[1]] = 1
+        empty_3D[deg_index_rot, centered_txy[0], centered_txy[1]] = -1
         target_flatindex = torch.argmin(empty_3D.flatten()).cuda()
         # print(gt_rot, gt_txy)
         # print(deg_index_rot, centered_txy)
@@ -174,8 +174,8 @@ class TorchDockingFFT:
         # score = weight_bound * trans_bound + weight_crossterm1 * trans_bulk_bound + weight_crossterm2 * trans_bound_bulk - weight_bulk * trans_bulk
 
         ## cross-term score minimizing
-        # score = weight_bound * trans_bound + weight_crossterm1 * trans_bulk_bound + weight_crossterm2 * trans_bound_bulk + weight_bulk * trans_bulk
-        score = weight_bound * -trans_bound + weight_crossterm1 * trans_bulk_bound + weight_crossterm2 * trans_bound_bulk + weight_bulk * trans_bulk
+        score = weight_bound * trans_bound + weight_crossterm1 * trans_bulk_bound + weight_crossterm2 * trans_bound_bulk + weight_bulk * trans_bulk
+        # score = weight_bound * -trans_bound + weight_crossterm1 * trans_bulk_bound + weight_crossterm2 * trans_bound_bulk + weight_bulk * trans_bulk
 
         # print(score.shape)
 
@@ -194,8 +194,8 @@ class TorchDockingFFT:
         print()
 
         plt.imshow(FFT_score[pred_rot.long(), :, :].detach().cpu())
+        plt.colorbar()
         plt.show()
-
 
         pair = plot_assembly(receptor.detach().cpu(), ligand.detach().cpu().numpy(), pred_rot.detach().cpu().numpy(),
                              pred_txy.detach().cpu().numpy(), gt_rot.detach().cpu().numpy(), gt_txy.detach().cpu().numpy())
