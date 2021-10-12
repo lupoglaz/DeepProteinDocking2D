@@ -23,7 +23,7 @@ class TorchDockingFFT:
         deg_index_rot = (((gt_rot * 180.0/np.pi) + 180.0) % self.num_angles).type(torch.long)
         centered_txy = gt_txy.type(torch.long)
 
-        empty_3D[deg_index_rot, centered_txy[0], centered_txy[1]] = -1
+        empty_3D[deg_index_rot, centered_txy[0]+self.dim//2, centered_txy[1]+self.dim//2] = -1
         target_flatindex = torch.argmin(empty_3D.flatten()).cuda()
         # print(gt_rot, gt_txy)
         # print(deg_index_rot, centered_txy)
