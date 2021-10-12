@@ -231,7 +231,8 @@ if __name__ == '__main__':
 
     # testcase = 'IP_min_rotpad_1s4v_200ep'
 
-    testcase = 'IP_FFTcheck_1s4v_200ep'
+    # testcase = 'IP_FFTcheck_1s4v_200ep'
+    testcase = 'IP_nbound_FFTcheck_1s4v_200ep'
 
 
     #########################
