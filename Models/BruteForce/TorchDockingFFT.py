@@ -21,20 +21,12 @@ class TorchDockingFFT:
     def encode_transform(self, gt_rot, gt_txy):
         empty_3D = torch.zeros([self.num_angles, self.dim, self.dim], dtype=torch.double).cuda()
         deg_index_rot = (((gt_rot * 180.0/np.pi) + 180.0) % self.num_angles).type(torch.long)
-        # centered_txy = gt_txy.type(torch.long) + self.dim//2
-        gt_X = gt_txy[0].type(torch.long) + self.dim//2
-        gt_Y = gt_txy[1].type(torch.long) + self.dim//2
+        centered_txy = gt_txy.type(torch.long)
 
-        # Just to make translations look nice
-        # if gt_X > self.dim//2:
-        #     gt_X = gt_X - self.dim
-        # if gt_Y > self.dim//2:
-        #     gt_Y = gt_Y - self.dim
-
-        empty_3D[deg_index_rot, gt_X, gt_Y] = -1
+        empty_3D[deg_index_rot, centered_txy[0], centered_txy[1]] = -1
         target_flatindex = torch.argmin(empty_3D.flatten()).cuda()
-        print(gt_rot, gt_txy)
-        print(deg_index_rot, gt_X, gt_Y)
+        # print(gt_rot, gt_txy)
+        # print(deg_index_rot, centered_txy)
         # print(ConcaveTrainer().extract_transform(empty_3D))
         return target_flatindex
 
@@ -43,8 +35,8 @@ class TorchDockingFFT:
         pred_rot = ((pred_argmin / self.dim ** 2) * np.pi / 180.0) - np.pi
 
         XYind = torch.remainder(pred_argmin, self.dim ** 2)
-        pred_X = XYind // self.dim + self.dim//2
-        pred_Y = XYind % self.dim + self.dim//2
+        pred_X = XYind // self.dim
+        pred_Y = XYind % self.dim
 
         # Just to make translations look nice
         if pred_X > self.dim//2:
@@ -53,20 +45,40 @@ class TorchDockingFFT:
             pred_Y = pred_Y - self.dim
         return pred_rot, torch.stack((pred_X, pred_Y), dim=0)
 
-    # def get_conformation(self, scores, receptor, ligand):
-    #     minval_y, ind_y = torch.min(scores, dim=2, keepdim=False)
-    #     minval_x, ind_x = torch.min(minval_y, dim=1)
-    #     minval_angle, ind_angle = torch.min(minval_x, dim=0)
-    #     x = ind_x[ind_angle].item()
-    #     y = ind_y[ind_angle, x].item()
+    # def encode_transform(self, gt_rot, gt_txy):
+    #     empty_3D = torch.zeros([self.num_angles, self.dim, self.dim], dtype=torch.double).cuda()
+    #     deg_index_rot = (((gt_rot * 180.0/np.pi) + 180.0) % self.num_angles).type(torch.long)
+    #     # centered_txy = gt_txy.type(torch.long) + self.dim//2
+    #     gt_X = gt_txy[0].type(torch.long) + self.dim//2
+    #     gt_Y = gt_txy[1].type(torch.long) + self.dim//2
     #
-    #     best_score = scores[ind_angle, x, y].item()
-    #     best_translation = [x - scores.size(1) / 2.0, y - scores.size(1) / 2.0]
-    #     best_rotation = self.angles[ind_angle].item()
+    #     # Just to make translations look nice
+    #     # if gt_X > self.dim//2:
+    #     #     gt_X = gt_X - self.dim
+    #     # if gt_Y > self.dim//2:
+    #     #     gt_Y = gt_Y - self.dim
     #
-    #     res_cplx = Complex(receptor, ligand, best_rotation, best_translation)
-
-        # return best_score, res_cplx, [ind_angle, x, y]
+    #     empty_3D[deg_index_rot, gt_X, gt_Y] = -1
+    #     target_flatindex = torch.argmin(empty_3D.flatten()).cuda()
+    #     print(gt_rot, gt_txy)
+    #     print(deg_index_rot, gt_X, gt_Y)
+    #     # print(ConcaveTrainer().extract_transform(empty_3D))
+    #     return target_flatindex
+    #
+    # def extract_transform(self, pred_score):
+    #     pred_argmin = torch.argmin(pred_score)
+    #     pred_rot = ((pred_argmin / self.dim ** 2) * np.pi / 180.0) - np.pi
+    #
+    #     XYind = torch.remainder(pred_argmin, self.dim ** 2)
+    #     pred_X = XYind // self.dim + self.dim//2
+    #     pred_Y = XYind % self.dim + self.dim//2
+    #
+    #     # Just to make translations look nice
+    #     if pred_X > self.dim//2:
+    #         pred_X = pred_X - self.dim
+    #     if pred_Y > self.dim//2:
+    #         pred_Y = pred_Y - self.dim
+    #     return pred_rot, torch.stack((pred_X, pred_Y), dim=0)
 
     @staticmethod
     def make_boundary(grid_shape):
@@ -126,7 +138,7 @@ class TorchDockingFFT:
                         plt.show()
 
         score = TorchDockingFFT().CE_dock_translations(f_rec, rot_lig, weight_bound, weight_crossterm1, weight_crossterm2, weight_bulk)
-        score = SwapQuadrants2DFunction.apply(score)
+        # score = SwapQuadrants2DFunction.apply(score)
 
         return score
 
@@ -202,8 +214,8 @@ class TorchDockingFFT:
         print()
 
         plt.imshow(FFT_score[pred_rot.long(), :, :].detach().cpu())
-        plt.colorbar()
         plt.show()
+
 
         pair = plot_assembly(receptor.detach().cpu(), ligand.detach().cpu().numpy(), pred_rot.detach().cpu().numpy(),
                              pred_txy.detach().cpu().numpy(), gt_rot.detach().cpu().numpy(), gt_txy.detach().cpu().numpy())

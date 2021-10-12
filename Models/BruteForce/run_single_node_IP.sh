@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --partition=p_ccib_1
-#SBATCH --job-name=IP_txyshift_nbound_FFTcheck_1s4v_200ep
+#SBATCH --job-name=IP_noswapquad_FFTcheck_1s4v_200ep
 #SBATCH --nodes=1
 ##SBATCH --ntasks=1
 #SBATCH --tasks-per-node=1
