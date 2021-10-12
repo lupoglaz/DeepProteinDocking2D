@@ -23,18 +23,18 @@ class TorchDockingFFT:
         deg_index_rot = (((gt_rot * 180.0/np.pi) + 180.0) % self.num_angles).type(torch.long)
         centered_txy = gt_txy.type(torch.long)
 
-        empty_3D[deg_index_rot, centered_txy[0], centered_txy[1]] = -1
-        target_flatindex = torch.argmin(empty_3D.flatten()).cuda()
+        empty_3D[deg_index_rot, centered_txy[0], centered_txy[1]] = 1
+        target_flatindex = torch.argmax(empty_3D.flatten()).cuda()
         # print(gt_rot, gt_txy)
         # print(deg_index_rot, centered_txy)
         # print(ConcaveTrainer().extract_transform(empty_3D))
         return target_flatindex
 
     def extract_transform(self, pred_score):
-        pred_argmin = torch.argmin(pred_score)
-        pred_rot = ((pred_argmin / self.dim ** 2) * np.pi / 180.0) - np.pi
+        pred_index = torch.argmax(pred_score)
+        pred_rot = ((pred_index / self.dim ** 2) * np.pi / 180.0) - np.pi
 
-        XYind = torch.remainder(pred_argmin, self.dim ** 2)
+        XYind = torch.remainder(pred_index, self.dim ** 2)
         pred_X = XYind // self.dim
         pred_Y = XYind % self.dim
 
@@ -107,7 +107,7 @@ class TorchDockingFFT:
 
     # weight_bound = 1.0, weight_crossterm1 = 1.0, weight_crossterm2 = 1.0, weight_bulk = 1.0,
     # weight_bound = 3.0, weight_crossterm1 = -0.3, weight_crossterm2 = -0.3, weight_bulk = 2.8,
-    def dock_global(self, receptor, ligand, weight_bound = -3.0, weight_crossterm1 = -0.3, weight_crossterm2 = -0.3, weight_bulk = 30.0, debug=False):
+    def dock_global(self, receptor, ligand, weight_bound = 3.0, weight_crossterm1 = -0.3, weight_crossterm2 = -0.3, weight_bulk = 30.0, debug=False):
         initbox_size = receptor.shape[-1]
         # print(receptor.shape)
         pad_size = initbox_size // 2
@@ -191,11 +191,11 @@ class TorchDockingFFT:
         trans_bound_bulk = torch.irfft(cconv, signal_dim, signal_sizes=(box_size, box_size))
 
         ## cross-term score maximizing
-        # score = weight_bound * trans_bound + weight_crossterm1 * trans_bulk_bound + weight_crossterm2 * trans_bound_bulk - weight_bulk * trans_bulk
+        score = weight_bound * trans_bound + weight_crossterm1 * trans_bulk_bound + weight_crossterm2 * trans_bound_bulk - weight_bulk * trans_bulk
 
         ## cross-term score minimizing
         # score = weight_bound * trans_bound + weight_crossterm1 * trans_bulk_bound + weight_crossterm2 * trans_bound_bulk + weight_bulk * trans_bulk
-        score = weight_bound * -trans_bound + weight_crossterm1 * trans_bulk_bound + weight_crossterm2 * trans_bound_bulk + weight_bulk * trans_bulk
+        # score = weight_bound * -trans_bound + weight_crossterm1 * trans_bulk_bound + weight_crossterm2 * trans_bound_bulk + weight_bulk * trans_bulk
 
         # print(score.shape)
 
