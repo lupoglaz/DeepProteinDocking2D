@@ -4,7 +4,7 @@ import torch.nn.functional as F
 import numpy as np
 
 import matplotlib.pyplot as plt
-from DeepProteinDocking2D.Models.BruteForce.TorchDockingFFT import TorchDockingFilter
+from DeepProteinDocking2D.Models.BruteForce.TorchDockingFFT import TorchDockingFFT
 from e2cnn import nn as enn
 from e2cnn import gspaces
 
@@ -50,7 +50,7 @@ class BruteForceDocking(nn.Module):
         rec_feat = invariant_map(R).tensor.squeeze()
         lig_feat = invariant_map(L).tensor.squeeze()
 
-        FFT_score = TorchDockingFilter().dock_global(
+        FFT_score = TorchDockingFFT().dock_global(
             rec_feat,
             lig_feat,
             weight_bound=self.boundW,

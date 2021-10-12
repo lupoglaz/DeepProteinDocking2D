@@ -10,7 +10,7 @@ from DeepProteinDocking2D.Models.BruteForce.validation_metrics import RMSD
 from DeepProteinDocking2D.Models.BruteForce.utility_functions import plot_assembly
 import numpy as np
 
-class TorchDockingFilter:
+class TorchDockingFFT:
     def __init__(self):
         self.dim = 100
         self.num_angles = 360
@@ -66,22 +66,26 @@ class TorchDockingFilter:
         curr_grid = F.affine_grid(R, size=repr.size(), align_corners=True).type(torch.float)
         return F.grid_sample(repr, curr_grid, align_corners=True)
 
-    def dock_global(self, receptor, ligand, weight_bulk=1.0, weight_bound=1.0, weight_crossterm1=1.0, weight_crossterm2=1.0, debug=False):
+    def dock_global(self, receptor, ligand, weight_bulk=2.8, weight_bound=3.0, weight_crossterm1=-0.3, weight_crossterm2=-0.3, debug=False):
         initbox_size = receptor.shape[-1]
         # print(receptor.shape)
         pad_size = initbox_size // 2
 
-        if initbox_size % 2 == 0:
-            receptor = F.pad(receptor, pad=([pad_size, pad_size, pad_size, pad_size]), mode='constant', value=0)
-            ligand = F.pad(ligand, pad=([pad_size, pad_size, pad_size, pad_size]), mode='constant', value=0)
-        else:
-            receptor = F.pad(receptor, pad=([pad_size, pad_size+1, pad_size, pad_size+1]), mode='constant', value=0)
-            ligand = F.pad(ligand, pad=([pad_size, pad_size+1, pad_size, pad_size+1]), mode='constant', value=0)
-        # print('padded shape', receptor.shape)
-
         f_rec = receptor.unsqueeze(0).repeat(self.num_angles,1,1,1)
         f_lig = ligand.unsqueeze(0).repeat(self.num_angles,1,1,1)
-        rot_lig = TorchDockingFilter().rotate(f_lig, self.angles)
+        rot_lig = TorchDockingFFT().rotate(f_lig, self.angles)
+
+        if initbox_size % 2 == 0:
+            f_rec = F.pad(f_rec, pad=([pad_size, pad_size, pad_size, pad_size]), mode='constant', value=0)
+            rot_lig = F.pad(rot_lig, pad=([pad_size, pad_size, pad_size, pad_size]), mode='constant', value=0)
+        else:
+            f_rec = F.pad(f_rec, pad=([pad_size, pad_size+1, pad_size, pad_size+1]), mode='constant', value=0)
+            rot_lig = F.pad(rot_lig, pad=([pad_size, pad_size+1, pad_size, pad_size+1]), mode='constant', value=0)
+        # print('padded shape', receptor.shape)
+
+        # f_rec = receptor.unsqueeze(0).repeat(self.num_angles,1,1,1)
+        # f_lig = ligand.unsqueeze(0).repeat(self.num_angles,1,1,1)
+        # rot_lig = TorchDockingFilter().rotate(f_lig, self.angles)
 
         if debug:
             with torch.no_grad():
@@ -92,12 +96,12 @@ class TorchDockingFilter:
                         plt.imshow(rot_lig[i,0,:,:].detach().cpu())
                         plt.show()
 
-        score = TorchDockingFilter().CE_dock_translations(f_rec, rot_lig, weight_bulk, weight_bound, weight_crossterm1, weight_crossterm2)
+        score = TorchDockingFFT().CE_dock_translations(f_rec, rot_lig, weight_bulk, weight_bound, weight_crossterm1, weight_crossterm2)
 
         return score
 
 
-    def CE_dock_translations(self, receptor, ligand, weight_bulk=2.8, weight_bound=3.0, weight_crossterm1=-0.3, weight_crossterm2=-0.3):
+    def CE_dock_translations(self, receptor, ligand, weight_bulk, weight_bound, weight_crossterm1, weight_crossterm2):
         box_size = receptor.shape[-1]
 
         receptor_bulk, receptor_bound = torch.chunk(receptor, chunks=2, dim=1)
@@ -152,14 +156,14 @@ class TorchDockingFilter:
         return score
 
     @staticmethod
-    def check_FFT_predictions(pred_score, receptor, ligand, gt_rot, gt_txy):
+    def check_FFT_predictions(FFT_score, receptor, ligand, gt_txy, gt_rot):
         print('*'*50)
 
         gt_rot = torch.tensor(gt_rot, dtype=torch.float).cuda()
         gt_txy = torch.tensor(gt_txy, dtype=torch.float).cuda()
         # print(gt_rot)
 
-        pred_rot, pred_txy = TorchDockingFilter().extract_transform(pred_score)
+        pred_rot, pred_txy = TorchDockingFFT().extract_transform(FFT_score)
         rmsd_out = RMSD(ligand, gt_rot, gt_txy, pred_rot, pred_txy).calc_rmsd()
         print('extracted predicted indices', pred_rot, pred_txy)
         print('gt indices', gt_rot, gt_txy)
@@ -173,21 +177,28 @@ class TorchDockingFilter:
 
 if __name__ == '__main__':
 
-    data = read_pkl('toy_concave_data/docking_data_train')
+    from DeepProteinDocking2D.torchDataset import get_docking_stream
+    from tqdm import tqdm
 
-    for i in range(len(data)):
-        receptor, ligand, gt_txy, gt_rot = data[i]
+    trainset = 'toy_concave_data/docking_data_train'
 
-        init_dim = receptor.shape[-1]
-        ### print(receptor.shape)
-        if init_dim > 51:
-            receptor = receptor[25:75, 25:75]
-            ligand = ligand[25:75, 25:75]
+    train_stream = get_docking_stream(trainset + '.pkl', batch_size=1)
 
-        receptor = torch.tensor(receptor, dtype=torch.float).cuda()
-        ligand = torch.tensor(ligand, dtype=torch.float).cuda()
-        receptor_stack = TorchDockingFilter().make_boundary(receptor)
-        ligand_stack = TorchDockingFilter().make_boundary(ligand)
-        pred_score = TorchDockingFilter().dock_global(receptor_stack, ligand_stack, debug=False)
+    for data in tqdm(train_stream):
+        receptor, ligand, gt_txy, gt_rot, _ = data
 
-        TorchDockingFilter().check_FFT_predictions(pred_score, receptor, ligand, gt_rot, gt_txy)
+        receptor = receptor.squeeze()
+        ligand = ligand.squeeze()
+        gt_txy = gt_txy.squeeze()
+        gt_rot = gt_rot.squeeze()
+
+        receptor = receptor.to(device='cuda', dtype=torch.float)
+        ligand = ligand.to(device='cuda', dtype=torch.float)
+        gt_rot = gt_rot.to(device='cuda', dtype=torch.float)
+        gt_txy = gt_txy.to(device='cuda', dtype=torch.float)
+
+        receptor_stack = TorchDockingFFT().make_boundary(receptor)
+        ligand_stack = TorchDockingFFT().make_boundary(ligand)
+        FFT_score = TorchDockingFFT().dock_global(receptor_stack, ligand_stack, debug=False)
+
+        TorchDockingFFT().check_FFT_predictions(FFT_score, receptor, ligand, gt_txy, gt_rot)

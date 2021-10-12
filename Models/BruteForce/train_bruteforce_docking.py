@@ -9,7 +9,7 @@ sys.path.append('/home/sb1638/')
 import numpy as np
 from tqdm import tqdm
 from DeepProteinDocking2D.torchDataset import get_docking_stream
-from DeepProteinDocking2D.Models.BruteForce.TorchDockingFFT import TorchDockingFilter
+from DeepProteinDocking2D.Models.BruteForce.TorchDockingFFT import TorchDockingFFT
 from DeepProteinDocking2D.Models.BruteForce.model_bruteforce_docking import BruteForceDocking
 from DeepProteinDocking2D.Models.BruteForce.utility_functions import plot_assembly
 from DeepProteinDocking2D.Models.BruteForce.validation_metrics import RMSD
@@ -19,8 +19,8 @@ import matplotlib.pyplot as plt
 
 class BruteForceDockingTrainer:
     def __init__(self):
-        self.dim = TorchDockingFilter().dim
-        self.num_angles = TorchDockingFilter().num_angles
+        self.dim = TorchDockingFFT().dim
+        self.num_angles = TorchDockingFFT().num_angles
 
     def run_model(self, data, model, train=True, plotting=False, debug=False):
         receptor, ligand, gt_txy, gt_rot, _ = data
@@ -44,8 +44,8 @@ class BruteForceDockingTrainer:
         FFT_score = FFT_score.flatten()
 
         with torch.no_grad():
-            target_flatindex = TorchDockingFilter().encode_transform(gt_rot, gt_txy)
-            pred_rot, pred_txy = TorchDockingFilter().extract_transform(FFT_score)
+            target_flatindex = TorchDockingFFT().encode_transform(gt_rot, gt_txy)
+            pred_rot, pred_txy = TorchDockingFFT().extract_transform(FFT_score)
             rmsd_out = RMSD(ligand, gt_rot, gt_txy, pred_rot, pred_txy).calc_rmsd()
             # print('extracted predicted indices', pred_rot, pred_txy)
             # print('gt indices', gt_rot, gt_txy)
@@ -72,7 +72,7 @@ class BruteForceDockingTrainer:
             with torch.no_grad():
                 plt.close()
                 plt.figure(figsize=(8, 8))
-                pred_rot, pred_txy = TorchDockingFilter().extract_transform(FFT_score)
+                pred_rot, pred_txy = TorchDockingFFT().extract_transform(FFT_score)
                 print('extracted predicted indices', pred_rot, pred_txy)
                 print('gt indices', gt_rot, gt_txy)
                 rmsd_out = RMSD(ligand, gt_rot, gt_txy, pred_rot, pred_txy).calc_rmsd()
@@ -225,7 +225,9 @@ if __name__ == '__main__':
 
     # testcase = '1s4v_docking_epoch'
 
-    testcase = '1s2v_IP_epoch'
+    # testcase = '1s2v_IP_epoch'
+
+    testcase = 'IP_rotpad_200ep'
 
 
     #########################
