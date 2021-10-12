@@ -240,7 +240,8 @@ if __name__ == '__main__':
 
     # testcase = 'IP_min_nbound_noswapquad_FFTcheck_1s4v_200ep'
 
-    testcase = 'IP_max_noswapquad_FFTcheck_1s4v_200ep'
+    # testcase = 'IP_max_noswapquad_FFTcheck_1s4v_200ep'
+    testcase = 'IP_normpool_check'
     #########################
     #### initialization torch settings
     np.random.seed(42)

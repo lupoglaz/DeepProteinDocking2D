@@ -37,6 +37,7 @@ class BruteForceDocking(nn.Module):
             enn.NormNonLinearity(self.feat_type_out1, function='n_relu', bias=False),
             enn.R2Conv(self.feat_type_out1, self.feat_type_out_final, kernel_size=self.kernel, stride=self.stride, dilation=self.dilation, padding=self.pad, bias=False),
             enn.NormNonLinearity(self.feat_type_out_final, function='n_relu', bias=False),
+            enn.NormPool(self.feat_type_out_final),
         )
 
     def forward(self, receptor, ligand, plotting=False):
@@ -44,11 +45,13 @@ class BruteForceDocking(nn.Module):
         receptor_geomT = enn.GeometricTensor(receptor.unsqueeze(0), self.feat_type_in1)
         ligand_geomT = enn.GeometricTensor(ligand.unsqueeze(0), self.feat_type_in1)
 
-        R = self.netSE2(receptor_geomT)
-        L = self.netSE2(ligand_geomT)
-        invariant_map = enn.NormPool(self.feat_type_out_final)
-        rec_feat = invariant_map(R).tensor.squeeze()
-        lig_feat = invariant_map(L).tensor.squeeze()
+        rec_feat = self.netSE2(receptor_geomT)
+        lig_feat = self.netSE2(ligand_geomT)
+        # R = self.netSE2(receptor_geomT)
+        # L = self.netSE2(ligand_geomT)
+        # invariant_map = enn.NormPool(self.feat_type_out_final)
+        # rec_feat = invariant_map(R).tensor.squeeze()
+        # lig_feat = invariant_map(L).tensor.squeeze()
 
         FFT_score = TorchDockingFFT().dock_global(
             rec_feat,
