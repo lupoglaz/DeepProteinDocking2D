@@ -21,12 +21,20 @@ class TorchDockingFFT:
     def encode_transform(self, gt_rot, gt_txy):
         empty_3D = torch.zeros([self.num_angles, self.dim, self.dim], dtype=torch.double).cuda()
         deg_index_rot = (((gt_rot * 180.0/np.pi) + 180.0) % self.num_angles).type(torch.long)
-        centered_txy = gt_txy.type(torch.long)
+        # centered_txy = gt_txy.type(torch.long) + self.dim//2
+        gt_X = gt_txy[0].type(torch.long) + self.dim//2
+        gt_Y = gt_txy[1].type(torch.long) + self.dim//2
 
-        empty_3D[deg_index_rot, centered_txy[0]+self.dim//2, centered_txy[1]+self.dim//2] = -1
+        # Just to make translations look nice
+        # if gt_X > self.dim//2:
+        #     gt_X = gt_X - self.dim
+        # if gt_Y > self.dim//2:
+        #     gt_Y = gt_Y - self.dim
+
+        empty_3D[deg_index_rot, gt_X, gt_Y] = -1
         target_flatindex = torch.argmin(empty_3D.flatten()).cuda()
-        # print(gt_rot, gt_txy)
-        # print(deg_index_rot, centered_txy)
+        print(gt_rot, gt_txy)
+        print(deg_index_rot, gt_X, gt_Y)
         # print(ConcaveTrainer().extract_transform(empty_3D))
         return target_flatindex
 
