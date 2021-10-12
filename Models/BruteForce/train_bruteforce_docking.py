@@ -236,7 +236,9 @@ if __name__ == '__main__':
 
     # testcase = 'IP_txyshift_nbound_FFTcheck_1s4v_200ep'
 
-    testcase = 'IP_noswapquad_FFTcheck_1s4v_200ep'
+    # testcase = 'IP_noswapquad_FFTcheck_1s4v_200ep'
+
+    testcase = 'IP_min_nbound_noswapquad_FFTcheck_1s4v_200ep'
 
     #########################
     #### initialization torch settings
