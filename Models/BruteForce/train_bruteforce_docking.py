@@ -229,7 +229,9 @@ if __name__ == '__main__':
 
     # testcase = 'IP_rotpad_1s4v_200ep'
 
-    testcase = 'IP_min_rotpad_1s4v_200ep'
+    # testcase = 'IP_min_rotpad_1s4v_200ep'
+
+    testcase = 'IP_max_rotpad_1s4v_200ep'
 
 
     #########################

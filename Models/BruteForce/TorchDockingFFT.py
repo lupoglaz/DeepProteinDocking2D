@@ -22,17 +22,17 @@ class TorchDockingFFT:
         centered_txy = gt_txy.type(torch.long)
 
         empty_3D[deg_index_rot, centered_txy[0], centered_txy[1]] = 1
-        target_flatindex = torch.argmin(empty_3D.flatten()).cuda()
+        target_flatindex = torch.argmax(empty_3D.flatten()).cuda()
         # print(gt_rot, gt_txy)
         # print(deg_index_rot, centered_txy)
         # print(ConcaveTrainer().extract_transform(empty_3D))
         return target_flatindex
 
     def extract_transform(self, pred_score):
-        pred_argmin = torch.argmin(pred_score)
-        pred_rot = ((pred_argmin / self.dim ** 2) * np.pi / 180.0) - np.pi
+        pred_argmax = torch.argmax(pred_score)
+        pred_rot = ((pred_argmax / self.dim ** 2) * np.pi / 180.0) - np.pi
 
-        XYind = torch.remainder(pred_argmin, self.dim ** 2)
+        XYind = torch.remainder(pred_argmax, self.dim ** 2)
         pred_X = XYind // self.dim
         pred_Y = XYind % self.dim
         if pred_X > self.dim//2:
@@ -148,7 +148,7 @@ class TorchDockingFFT:
         cconv = torch.stack([re, im], dim=3)
         trans_bound_bulk = torch.irfft(cconv, signal_dim, signal_sizes=(box_size, box_size))
 
-        ## cross-term score minimizing
+        ## cross-term score maximizing
         score = weight_bound * -trans_bound + weight_crossterm1 * trans_bulk_bound + weight_crossterm2 * trans_bound_bulk + weight_bulk * trans_bulk
 
         # print(score.shape)
