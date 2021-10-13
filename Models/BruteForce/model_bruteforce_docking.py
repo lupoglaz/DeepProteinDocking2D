@@ -45,8 +45,8 @@ class BruteForceDocking(nn.Module):
         receptor_geomT = enn.GeometricTensor(receptor.unsqueeze(0), self.feat_type_in1)
         ligand_geomT = enn.GeometricTensor(ligand.unsqueeze(0), self.feat_type_in1)
 
-        rec_feat = self.netSE2(receptor_geomT)
-        lig_feat = self.netSE2(ligand_geomT)
+        rec_feat = self.netSE2(receptor_geomT).tensor.squeeze()
+        lig_feat = self.netSE2(ligand_geomT).tensor.squeeze()
         # R = self.netSE2(receptor_geomT)
         # L = self.netSE2(ligand_geomT)
         # invariant_map = enn.NormPool(self.feat_type_out_final)
