@@ -36,8 +36,8 @@ class BruteForceDocking(nn.Module):
             enn.R2Conv(self.feat_type_in1, self.feat_type_out1, kernel_size=self.kernel, stride=self.stride, dilation=self.dilation, padding=self.pad , bias=False),
             enn.NormNonLinearity(self.feat_type_out1, function='n_relu', bias=False),
             enn.R2Conv(self.feat_type_out1, self.feat_type_out_final, kernel_size=self.kernel, stride=self.stride, dilation=self.dilation, padding=self.pad, bias=False),
-            enn.NormNonLinearity(self.feat_type_out_final, function='n_relu', bias=False),
-            # enn.NormPool(self.feat_type_out_final),
+            # enn.NormNonLinearity(self.feat_type_out_final, function='n_relu', bias=False),
+            enn.NormPool(self.feat_type_out_final),
         )
 
     def forward(self, receptor, ligand, plotting=False):
@@ -47,6 +47,8 @@ class BruteForceDocking(nn.Module):
 
         rec_feat = self.netSE2(receptor_geomT).tensor.squeeze()
         lig_feat = self.netSE2(ligand_geomT).tensor.squeeze()
+
+        # print(rec_feat.shape)
         # R = self.netSE2(receptor_geomT)
         # L = self.netSE2(ligand_geomT)
         # invariant_map = enn.NormPool(self.feat_type_out_final)

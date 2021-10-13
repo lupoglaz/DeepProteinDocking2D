@@ -57,8 +57,10 @@ class BruteForceInteractionTrainer:
     # case = 'rs0_1s4v'
     # case = 'rs0_1s2v'
     # case = 'FFTcheck_1s4v_scratch'
-
-    case = 'NOnormpool_1s4v_scratch'
+    # case = 'test_dF_1s4v_scratch'
+    # case = 'rs0_1s4v'
+    # case = 'rs0_checknormpool_1s4v'
+    case = 'rs0_NOnormnonlin_1s4v'
 
 
     # exp = 'A'
@@ -310,7 +312,7 @@ if __name__ == '__main__':
 
     #########################
     #### initialization torch settings
-    random_seed = 42
+    random_seed = 0
     np.random.seed(random_seed)
     torch.manual_seed(random_seed)
     random.seed(random_seed)
@@ -328,7 +330,7 @@ if __name__ == '__main__':
     BruteForceInteractionTrainer().train(debug=False)
 
     ##################### Evaluate model
-    # resume_epoch = 20
+    # resume_epoch = 5
     ### loads relevant pretrained model under resume_training condition
     # BruteForceInteractionTrainer().plot_evaluation_set(eval_stream=valid_stream, resume_epoch=resume_epoch) ## also checks APR
     #
