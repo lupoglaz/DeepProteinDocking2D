@@ -37,7 +37,7 @@ class BruteForceDocking(nn.Module):
             enn.NormNonLinearity(self.feat_type_out1, function='n_relu', bias=False),
             enn.R2Conv(self.feat_type_out1, self.feat_type_out_final, kernel_size=self.kernel, stride=self.stride, dilation=self.dilation, padding=self.pad, bias=False),
             enn.NormNonLinearity(self.feat_type_out_final, function='n_relu', bias=False),
-            enn.NormPool(self.feat_type_out_final),
+            # enn.NormPool(self.feat_type_out_final),
         )
 
     def forward(self, receptor, ligand, plotting=False):

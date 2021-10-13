@@ -56,7 +56,9 @@ class BruteForceInteractionTrainer:
     # case = '1s2v'
     # case = 'rs0_1s4v'
     # case = 'rs0_1s2v'
-    case = 'FFTcheck_1s4v_scratch'
+    # case = 'FFTcheck_1s4v_scratch'
+
+    case = 'NOnormpool_1s4v_scratch'
 
 
     # exp = 'A'
@@ -308,7 +310,7 @@ if __name__ == '__main__':
 
     #########################
     #### initialization torch settings
-    random_seed = 0
+    random_seed = 42
     np.random.seed(random_seed)
     torch.manual_seed(random_seed)
     random.seed(random_seed)

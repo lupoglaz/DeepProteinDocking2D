@@ -244,11 +244,13 @@ if __name__ == '__main__':
     testcase = 'IP_normpool_check'
     #########################
     #### initialization torch settings
-    np.random.seed(42)
-    torch.manual_seed(42)
-    random.seed(42)
-    torch.cuda.manual_seed(42)
+    random_seed = 42
+    np.random.seed(random_seed)
+    torch.manual_seed(random_seed)
+    random.seed(random_seed)
+    torch.cuda.manual_seed(random_seed)
     torch.backends.cudnn.deterministic = True
+    torch.cuda.set_device(0)
 
     torch.cuda.set_device(0)
     # torch.autograd.set_detect_anomaly(True)
