@@ -231,7 +231,7 @@ if __name__ == '__main__':
     # testcase = 'IP_max_noswapquad_FFTcheck_1s4v_200ep'
     # testcase = 'IP_NOnormnonlin_check'
 
-    testcase = '1s4v_docking_epoch'
+    testcase = 'IP_1s4v_docking_epoch'
 
     #########################
     #### initialization torch settings
