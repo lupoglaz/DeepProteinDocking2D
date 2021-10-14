@@ -24,7 +24,7 @@ class BruteForceInteractionTrainer:
     # plotting = True
     plotting = False
 
-    train_epochs = 6
+    train_epochs = 50
     check_epoch = 1
     test_freq = 1
     save_freq = 1
@@ -66,7 +66,9 @@ class BruteForceInteractionTrainer:
     # case = 'noretaingraph'
     # case = 'withretaingraph'
 
-    case = 'FI_scratch_50ex_3reps_rs42_1s4v'
+    case = 'FI_scratch_50ex_3reps_50ep_rs42_1s4v'
+    # case = 'FI_scratch_25ex_3reps_50ep_rs42_1s4v'
+
 
     # exp = 'A'
     # exp = 'B'
@@ -328,9 +330,10 @@ if __name__ == '__main__':
     # torch.autograd.set_detect_anomaly(True)
 
     max_size = 50
+    # max_size = 25
     train_stream = get_interaction_stream_balanced(trainset + '.pkl', batch_size=1, max_size=max_size)
-    valid_stream = get_interaction_stream_balanced(validset + '.pkl', batch_size=1, max_size=max_size)
-    test_stream = get_interaction_stream_balanced(testset + '.pkl', batch_size=1, max_size=max_size)
+    valid_stream = get_interaction_stream_balanced(validset + '.pkl', batch_size=1)
+    test_stream = get_interaction_stream_balanced(testset + '.pkl', batch_size=1)
 
     ##################### Train model
     BruteForceInteractionTrainer().train(debug=False)
