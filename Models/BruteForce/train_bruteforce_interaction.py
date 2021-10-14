@@ -62,18 +62,18 @@ class BruteForceInteractionTrainer:
     # case = 'rs0_checknormpool_1s4v'
     # case = 'rs0_NOnormnonlin_1s4v'
 
-    case = 'FI_rs42_1s4v'
+    case = 'rs42_1s4v'
 
     # exp = 'A'
-    exp = 'B'
+    # exp = 'B'
     # exp = 'C'
-    # exp = 'scratch'
+    exp = 'scratch'
 
-    testcase = 'exp' + exp + '_' + case
+    testcase = 'FI_exp' + exp + '_' + case
 
     ###################### Load and freeze/unfreeze params (training, no eval)
     # path to pretrained docking model
-    path_pretrain = 'Log/1s4v_docking_epoch200.th'
+    path_pretrain = 'Log/IP_1s4v_docking_epoch200.th'
     # train with docking model frozen
     if exp == 'A':
         print('Training expA')
