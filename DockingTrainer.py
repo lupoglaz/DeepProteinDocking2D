@@ -19,6 +19,8 @@ class DockingTrainer:
 			self.loss = nn.CrossEntropyLoss()
 		elif type == 'int':
 			self.loss = nn.BCELoss()
+			# self.reg = nn.MSELoss()
+			self.reg = nn.L1Loss()
 			self.omega = omega
 		else:
 			raise(Exception('Type unknown:', type))
@@ -130,15 +132,24 @@ class DockingTrainer:
 			flat_idx = self.conf_idx(rotation, translation, scores)
 			logprobs = scores.contiguous().flatten(start_dim=1)
 			loss = self.loss(logprobs, flat_idx)
+			log_dict = {"Loss": loss.item()}
 		
 		elif self.type == 'int':
-			pred, deltaP = self.model(scores, self.angles, ligand)
-			loss = self.loss(pred, target) + self.omega * torch.mean(torch.abs(deltaP))
+			pred, P = self.model(scores, self.angles, ligand)
+			loss_bce = self.loss(pred, target.squeeze())
+			loss_reg = self.omega * self.reg(P - self.model.F0, torch.zeros_like(P))
+			loss = loss_bce + loss_reg
+			log_dict = {"Loss": loss.item(),
+						"LossBCE": loss_bce.item(),
+						"LossReg": loss_reg.item(),
+						"P": P,
+						"F0": self.model.F0.item()}
 
 		loss.backward()
 		self.optimizer.step()
+		# print(self.model.F0.grad)
 		
-		return loss.item()
+		return log_dict
 
 	def eval(self, data):
 		if self.type == 'int':

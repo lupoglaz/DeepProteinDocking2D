@@ -54,8 +54,8 @@ def extract_interaction_dataset(interaction_criteria, savefile,
 
 def visualize(docker, savefile):
 	pool = ProteinPool.load(savefile)
-	pool.plot_interaction_dist(perc=90)
-	# pool.plot_interactions(docker, filename='examples.png', num_plots=10)
+	# pool.plot_interaction_dist(perc=90)
+	pool.plot_interactions(docker, filename='examples.png', num_plots=10)
 	# pool.plot_sample_funnels(docker, filename='funnels.png', range=[(-200, -150), (-200, -100), (-100, -20)])
 	# pool.plot_params()
 

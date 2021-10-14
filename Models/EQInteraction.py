@@ -198,10 +198,15 @@ class EQInteractionF(nn.Module):
 		L = scores.size(2)
 				
 		
-		scores_flat = scores.view(batch_size, num_angles*L*L)
+		scores_flat = scores.view(batch_size, num_angles*L*L)/200.0
 		P = -torch.logsumexp(-scores_flat, dim=-1)
 		deltaP = P - self.F0
-		return self.sigmoid(-deltaP), deltaP
+		# print(P)
+		# print(torch.min(scores_flat, dim=-1))
+		# print(self.F0)
+		# print(self.sigmoid(-deltaP))
+		# sys.exit()
+		return self.sigmoid(-deltaP), P
 
 class SidInteraction(nn.Module):
 	def __init__(self, model):

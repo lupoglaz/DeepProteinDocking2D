@@ -5,7 +5,7 @@ from pathlib import Path
 
 import numpy as np
 
-from Models import CNNInteractionModel, EQScoringModel, EQInteraction, SidInteraction, EQInteractionF, SharpLoss, RankingLoss, EQRepresentationSid
+from Models import CNNInteractionModel, EQScoringModel, EQInteraction, SidInteraction, EQInteractionF, SharpLoss, RankingLoss, EQRepresentationSid,EQRepresentation
 from torchDataset import get_interaction_stream, get_interaction_stream_balanced
 from tqdm import tqdm
 import random
@@ -14,7 +14,8 @@ from SupervisedTrainer import SupervisedTrainer
 from DockingTrainer import DockingTrainer
 
 from DatasetGeneration import Protein, Complex
-from Logger import Logger
+
+from torch.utils.tensorboard import SummaryWriter
 
 def test(stream, trainer, epoch=0, theshold=0.5):
 	TP, FP, TN, FN = 0, 0, 0, 0
@@ -37,7 +38,7 @@ def test(stream, trainer, epoch=0, theshold=0.5):
 	F1 = Precision*Recall/(Precision + Recall+1E-5)
 	MCC = (TP*TN - FP*FN)/np.sqrt((TP+FP)*(TP+FN)*(TN+FP)*(TN+FN)+1E-5)
 	print(f'Epoch {epoch} Acc: {Accuracy} Prec: {Precision} Rec: {Recall} F1: {F1} MCC: {MCC}')
-	return Accuracy, Precision, Recall
+	return Accuracy, Precision, Recall, MCC
 
 def get_threshold(stream, trainer):
 	all_pred = []
@@ -88,7 +89,9 @@ if __name__=='__main__':
 		torch.cuda.set_device(args.gpu)
 
 	train_stream = get_interaction_stream_balanced('DatasetGeneration/interaction_data_train.pkl', batch_size=args.batch_size, max_size=25, shuffle=True)
-	valid_stream = get_interaction_stream('DatasetGeneration/interaction_data_valid.pkl', batch_size=args.batch_size, max_size=25)
+	valid_stream = get_interaction_stream('DatasetGeneration/interaction_data_train.pkl', batch_size=args.batch_size, max_size=25)
+	
+	logger = SummaryWriter(Path('Log')/Path(args.experiment))
 
 	if args.model() == 'resnet':
 		model = CNNInteractionModel().cuda()
@@ -96,34 +99,58 @@ if __name__=='__main__':
 		trainer = SupervisedTrainer(model, optimizer, type='int')
 
 	elif args.model() == 'docker':
-		scoring_model = EQScoringModel(bias=False)
+		repr = EQRepresentation(bias=False)
+		# repr = EQRepresentationSid()
+		scoring_model = EQScoringModel(repr=repr).to(device='cuda')
 		if not(args.pretrain is None):
 			trainer = DockingTrainer(scoring_model, None, type='pos')
 			trainer.load_checkpoint(Path('Log')/Path(args.pretrain)/Path('dock_ebm.th'))
 		
 		model = EQInteractionF(scoring_model).cuda()
-		optimizer = optim.Adam([{'params': scoring_model.parameters(), 'lr':1e-4},
-								{'params': model.F0, 'lr':1.0}])
-
-		trainer = DockingTrainer(model, optimizer, type='int', omega=1e-5)
-
-	logger = Logger.new(Path('Log')/Path(args.experiment))
-
+		optimizer = optim.Adam([{'params': scoring_model.parameters(), 'lr':0.0},
+								{'params': model.F0, 'lr':10.0}])
+		trainer = DockingTrainer(model, optimizer, type='int', omega=1.0)
+	
 	if args.cmd() == 'train':
+		iter = 0
 		for epoch in range(args.num_epochs):
 			losses = []
 			for data in tqdm(train_stream):
-				loss = trainer.step(data)
-				logger.log_train(loss)
-				losses.append(loss)
-				
+				log_dict = trainer.step(data)
+				logger.add_scalar("DockFI/Train/Loss", log_dict["Loss"], iter)
+				logger.add_scalars("DockFI/Train/F0", {"F0": log_dict["F0"], "<P>": torch.mean(log_dict["P"])}, iter)
+				logger.add_histogram("DockFI/Train/P", log_dict["P"], iter)
+				logger.add_scalar("DockFI/Train/Pstd", torch.std(log_dict["P"]).item(), iter)
+				logger.add_scalars("DockFI/Train/Losses", {"BCE": log_dict["LossBCE"], "Reg": log_dict["LossReg"]}, iter)
+				for i, param in enumerate(trainer.model.repr.parameters()):
+					if param.ndimension() > 0:
+						logger.add_histogram(f'DockFI/Model/{i}', param.detach().cpu(), iter)
+
+				iter += 1
+				losses.append(log_dict["Loss"])
+			
+			if torch.abs(torch.mean(log_dict["P"]) - log_dict["F0"])<torch.std(log_dict["P"]):
+				optimizer.param_groups[0]['lr'] = 0.0
+				optimizer.param_groups[1]['lr'] = 1e-2
+				trainer.omega = 1e-3
+			# else:
+			# 	trainer.omega = 1.0
+			# if iter>50:
+			# 	optimizer.param_groups[0]['lr'] = 1e-3
+			# 	optimizer.param_groups[1]['lr'] = 1e-3
+			
 			print(f'Loss {np.mean(losses)}')
 			print(model.F0.item())
-			Accuracy, Precision, Recall = test(valid_stream, trainer, epoch=epoch, theshold=0.5)
-			logger.log_valid_inter(Accuracy, Precision, Recall)
+			Accuracy, Precision, Recall, MCC = test(valid_stream, trainer, epoch=epoch, theshold=0.5)
+
+
+			logger.add_scalar("DockFI/Valid/acc", Accuracy, epoch)
+			logger.add_scalar("DockFI/Valid/prec", Precision, epoch)
+			logger.add_scalar("DockFI/Valid/rec", Recall, epoch)
+			logger.add_scalar("DockFI/Valid/MCC", MCC, epoch)
 			
-			
-			# torch.save(model.state_dict(), logger.log_dir / Path('model.th'))
+			torch.save(model.state_dict(), Path('Log')/Path(args.experiment)/Path('model.th'))
+		
 	
 	elif args.cmd() == 'test':
 		trainer.load_checkpoint(logger.log_dir / Path('model.th'))
