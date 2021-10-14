@@ -65,11 +65,11 @@ class BruteForceInteractionTrainer:
     case = 'FI_rs42_1s4v'
 
     # exp = 'A'
-    exp = 'B'
+    # exp = 'B'
     # exp = 'C'
-    # exp = 'scratch'
+    exp = 'scratch'
 
-    testcase = case + '_exp' + exp
+    testcase = 'exp' + exp + '_' + case
 
     ###################### Load and freeze/unfreeze params (training, no eval)
     # path to pretrained docking model
