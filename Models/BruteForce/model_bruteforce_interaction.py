@@ -25,3 +25,4 @@ class BruteForceInteraction(nn.Module):
 if __name__ == '__main__':
     print('works')
     print(BruteForceInteraction())
+    print(list(BruteForceInteraction().parameters()))

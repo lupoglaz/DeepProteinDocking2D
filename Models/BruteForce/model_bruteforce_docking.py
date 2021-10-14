@@ -20,8 +20,7 @@ class BruteForceDocking(nn.Module):
 
         self.scal = 1
         self.vec = 4
-        # self.scal = 1
-        # self.vec = 2
+
         self.SO2 = gspaces.Rot2dOnR2(N=-1, maximum_frequency=4)
         self.feat_type_in1 = enn.FieldType(self.SO2, 1 * [self.SO2.trivial_repr])
         self.feat_type_out1 = enn.FieldType(self.SO2, self.scal * [self.SO2.irreps['irrep_0']] + self.vec * [self.SO2.irreps['irrep_1']])
@@ -36,7 +35,7 @@ class BruteForceDocking(nn.Module):
             enn.R2Conv(self.feat_type_in1, self.feat_type_out1, kernel_size=self.kernel, stride=self.stride, dilation=self.dilation, padding=self.pad , bias=False),
             enn.NormNonLinearity(self.feat_type_out1, function='n_relu', bias=False),
             enn.R2Conv(self.feat_type_out1, self.feat_type_out_final, kernel_size=self.kernel, stride=self.stride, dilation=self.dilation, padding=self.pad, bias=False),
-            # enn.NormNonLinearity(self.feat_type_out_final, function='n_relu', bias=False),
+            enn.NormNonLinearity(self.feat_type_out_final, function='n_relu', bias=False),
             enn.NormPool(self.feat_type_out_final),
         )
 
@@ -47,13 +46,6 @@ class BruteForceDocking(nn.Module):
 
         rec_feat = self.netSE2(receptor_geomT).tensor.squeeze()
         lig_feat = self.netSE2(ligand_geomT).tensor.squeeze()
-
-        # print(rec_feat.shape)
-        # R = self.netSE2(receptor_geomT)
-        # L = self.netSE2(ligand_geomT)
-        # invariant_map = enn.NormPool(self.feat_type_out_final)
-        # rec_feat = invariant_map(R).tensor.squeeze()
-        # lig_feat = invariant_map(L).tensor.squeeze()
 
         FFT_score = TorchDockingFFT().dock_global(
             rec_feat,
