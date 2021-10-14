@@ -62,7 +62,11 @@ class BruteForceInteractionTrainer:
     # case = 'rs0_checknormpool_1s4v'
     # case = 'rs0_NOnormnonlin_1s4v'
 
-    case = 'rs42_1s4v'
+    # case = 'rs42_1s4v'
+    # case = 'noretaingraph'
+    # case = 'withretaingraph'
+
+    case = 'FI_scratch_50ex_3reps_rs42_1s4v'
 
     # exp = 'A'
     # exp = 'B'
@@ -323,9 +327,10 @@ if __name__ == '__main__':
     # CUDA_LAUNCH_BLOCKING = 1
     # torch.autograd.set_detect_anomaly(True)
 
-    train_stream = get_interaction_stream_balanced(trainset + '.pkl', batch_size=1)
-    valid_stream = get_interaction_stream_balanced(validset + '.pkl', batch_size=1)
-    test_stream = get_interaction_stream_balanced(testset + '.pkl', batch_size=1)
+    max_size = 50
+    train_stream = get_interaction_stream_balanced(trainset + '.pkl', batch_size=1, max_size=max_size)
+    valid_stream = get_interaction_stream_balanced(validset + '.pkl', batch_size=1, max_size=max_size)
+    test_stream = get_interaction_stream_balanced(testset + '.pkl', batch_size=1, max_size=max_size)
 
     ##################### Train model
     BruteForceInteractionTrainer().train(debug=False)

@@ -32,7 +32,7 @@ class BruteForceDocking(nn.Module):
         self.dilation = 1
 
         self.netSE2 = enn.SequentialModule(
-            enn.R2Conv(self.feat_type_in1, self.feat_type_out1, kernel_size=self.kernel, stride=self.stride, dilation=self.dilation, padding=self.pad , bias=False),
+            enn.R2Conv(self.feat_type_in1, self.feat_type_out1, kernel_size=self.kernel, stride=self.stride, dilation=self.dilation, padding=self.pad, bias=False),
             enn.NormNonLinearity(self.feat_type_out1, function='n_relu', bias=False),
             enn.R2Conv(self.feat_type_out1, self.feat_type_out_final, kernel_size=self.kernel, stride=self.stride, dilation=self.dilation, padding=self.pad, bias=False),
             enn.NormNonLinearity(self.feat_type_out_final, function='n_relu', bias=False),

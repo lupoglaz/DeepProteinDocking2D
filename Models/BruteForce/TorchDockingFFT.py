@@ -287,3 +287,8 @@ if __name__ == '__main__':
 
 
         TorchDockingFFT().check_FFT_predictions(FFT_score, receptor, ligand, gt_txy, gt_rot)
+
+        # FFT_score = TorchDockingFFT().dock_global(receptor_stack, ligand_stack, weight_bound=-0.3, weight_crossterm1=0.55, weight_crossterm2=0.55, weight_bulk=3.0, debug=False)
+        #
+        #
+        # TorchDockingFFT().check_FFT_predictions(-FFT_score, receptor, ligand, gt_txy, gt_rot)
