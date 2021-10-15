@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --partition=p_ccib_1
-#SBATCH --job-name=FI_expB_rs42_1s4v
+#SBATCH --job-name=FI_expA_rs42_1s4v
 #SBATCH --nodes=1
 ##SBATCH --ntasks=1
 #SBATCH --tasks-per-node=1
