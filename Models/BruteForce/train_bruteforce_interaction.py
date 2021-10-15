@@ -104,7 +104,7 @@ class BruteForceInteractionTrainer:
     if exp == 'scratch':
         print('Training from scratch')
         param_to_freeze = None
-        testcase = case + '_' + exp
+        testcase = exp + '_' + case
 
     def __init__(self):
         pass
