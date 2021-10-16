@@ -113,12 +113,13 @@ class SupervisedTrainer:
 			pred = self.model.sigmoid(self.model.fc_int(torch.cat([rec,lig], dim=1)))
 			loss = self.loss(pred, target)
 		elif self.type == 'pos':
-			pred = self.fc_pos(torch.cat([rec,lig], dim=1))
+			pred = self.model.fc_pos(torch.cat([rec,lig], dim=1))
 			loss = torch.mean(self.loss(ligand, pred[:,:2], pred[:,-1], translation, rotation))	
 
 		loss.backward()
 		self.optimizer.step()
-		return loss.item()
+		log_dict = {"Loss": loss.item()}
+		return log_dict
 
 	def eval(self, data, threshold=0.5):
 		if self.type == 'int':
@@ -150,8 +151,15 @@ class SupervisedTrainer:
 						FN += 1
 					elif p<threshold and a<threshold:
 						TN += 1
-				return TP, FP, TN, FN
+				
+				log_dict = {"TP": TP,
+							"FP": FP,
+							"FN": FN,
+							"TN": TN}
 			else:
-				pred = self.fc_pos(torch.cat([rec,lig], dim=1))
+				pred = self.model.fc_pos(torch.cat([rec,lig], dim=1))
 				loss = torch.mean(self.loss(ligand, pred[:,:2], pred[:,-1], translation, rotation))
-				return loss.item(), pred[:,:2], pred[:,-1]
+				log_dict = {"Loss": loss.item(),
+							"Translation": pred[:,:2],
+							"Rotation": pred[:,-1]}
+			return log_dict

@@ -150,7 +150,7 @@ class DockingTrainer:
 				
 		return log_dict
 
-	def eval(self, data):
+	def eval(self, data, threshold=None):
 		if self.type == 'int':
 			receptor, ligand, target = data
 		else:
@@ -164,35 +164,54 @@ class DockingTrainer:
 			translations = self.dock_global(rec_repr.tensor, lig_repr.tensor)
 			scores = -self.score(translations)
 			pred = self.model(scores, self.angles)
-			
-			best_score, best_rotation, best_translation = self.get_conformation(scores[0,:,:,:])
-			log_dict = {"Pred": pred,
-						"Target": target,
-						"Score": best_score,
-						"Rotation": best_rotation,
-						"Translation": best_translation,
-						"Repr": rec_repr.tensor[0,:,:,:].cpu()}
+			if threshold is None:
+				best_score, best_rotation, best_translation = self.get_conformation(scores[0,:,:,:])
+				log_dict = {"Pred": pred,
+							"Target": target,
+							"Score": best_score,
+							"Rotation": best_rotation,
+							"Translation": best_translation,
+							"Repr": rec_repr.tensor[0,:,:,:].cpu()}
+			else:
+				TP, FP, TN, FN = 0, 0, 0, 0
+				for i in range(pred.size(0)):
+					p = pred[i].item()
+					a = target[i].item()
+					if p<threshold and a>=0.5:
+						TP += 1
+					elif p<threshold and a<0.5:
+						FP += 1
+					elif p>=threshold and a>=0.5:
+						FN += 1
+					elif p>=threshold and a<0.5:
+						TN += 1
+				log_dict = {"TP": TP,
+							"FP": FP,
+							"FN": FN,
+							"TN": TN}
 
 		return log_dict
 
-	def eval_coef(self, data, threshold):
-		pred, target = self.eval(data)
-		if self.type == 'int':
-			TP = 0
-			FP = 0
-			TN = 0
-			FN = 0
-			for i in range(pred.size(0)):
-				p = pred[i].item()
-				a = target[i].item()
-				if p<threshold and a>=0.5:
-					TP += 1
-				elif p<threshold and a<0.5:
-					FP += 1
-				elif p>=threshold and a>=0.5:
-					FN += 1
-				elif p>=threshold and a<0.5:
-					TN += 1
-			return TP, FP, TN, FN
-		else:
-			raise(NotImplemented())
+	# def eval_coef(self, data, threshold):
+	# 	log_dict = self.eval(data)
+	# 	pred = log_dict["Pred"]
+	# 	target = log_dict["Target"]
+	# 	if self.type == 'int':
+	# 		TP = 0
+	# 		FP = 0
+	# 		TN = 0
+	# 		FN = 0
+	# 		for i in range(pred.size(0)):
+	# 			p = pred[i].item()
+	# 			a = target[i].item()
+	# 			if p<threshold and a>=0.5:
+	# 				TP += 1
+	# 			elif p<threshold and a<0.5:
+	# 				FP += 1
+	# 			elif p>=threshold and a>=0.5:
+	# 				FN += 1
+	# 			elif p>=threshold and a<0.5:
+	# 				TN += 1
+	# 		return TP, FP, TN, FN
+	# 	else:
+	# 		raise(NotImplemented())

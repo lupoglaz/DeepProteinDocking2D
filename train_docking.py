@@ -4,7 +4,7 @@ from pathlib import Path
 import numpy as np
 import argparse
 
-from Models import EQScoringModel, EQDockerGPU, CNNInteractionModel, EQRepresentation, EQRepresentationSid
+from Models import EQScoringModel, EQDockerGPU, CNNInteractionModel, EQRepresentation
 from torchDataset import get_docking_stream
 from tqdm import tqdm
 import random
@@ -61,15 +61,15 @@ def run_docking_model(data, docker, iter, logger=None):
 	return float(rmsd)
 
 def run_prediction_model(data, trainer, epoch=None):
-	loss, pred_trans, pred_rot = trainer.eval(data)
+	log_dict = trainer.eval(data)
 	receptor, ligand, translation, rotation, _ = data
 	log_data = {"receptors": receptor.unsqueeze(dim=1).cpu(),
 				"ligands": ligand.unsqueeze(dim=1).cpu(),
 				"rotation": rotation.squeeze().cpu(),
 				"translation": translation.squeeze().cpu(),
-				"pred_rotation": pred_rot.squeeze().cpu(),
-				"pred_translation": pred_trans.squeeze().cpu()}
-	return loss, log_data
+				"pred_rotation": log_dict["Rotation"].squeeze().cpu(),
+				"pred_translation": log_dict["Translation"].squeeze().cpu()}
+	return log_dict["Loss"], log_data
 
 if __name__=='__main__':
 	parser = argparse.ArgumentParser(description='Train deep protein docking')	
@@ -131,7 +131,6 @@ if __name__=='__main__':
 							global_step=False, add_positive=False)
 	elif args.model() == 'docker':
 		repr = EQRepresentation(bias=False)
-		# repr = EQRepresentationSid()
 		model = EQScoringModel(repr=repr).to(device='cuda')
 		optimizer = optim.Adam(model.parameters(), lr=1e-3, betas=(0.0, 0.999))
 		trainer = DockingTrainer(model, optimizer, type='pos')
@@ -153,7 +152,7 @@ if __name__=='__main__':
 		docker = EQDockerGPU(model, num_angles=360)
 		for i, data in tqdm(enumerate(valid_stream)):
 			if args.model() == 'resnet':
-				it_loss, it_log_data = run_prediction_model(data, trainer, logger, epoch=epoch)
+				it_loss, it_log_data = run_prediction_model(data, trainer, epoch=epoch)
 			elif args.model() == 'ebm' or args.model() == 'docker':
 				if i==0:
 					it_loss = run_docking_model(data, docker, iter, logger)

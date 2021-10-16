@@ -5,8 +5,8 @@ from pathlib import Path
 
 import numpy as np
 
-from Models import CNNInteractionModel, EQScoringModel, EQInteraction, SidInteraction, EQInteractionF
-from Models import SharpLoss, RankingLoss, EQRepresentationSid,EQRepresentation, EQInteractionS, EmptyBatch
+from Models import CNNInteractionModel, EQScoringModel, EQInteraction
+from Models import RankingLoss, EQRepresentation, EmptyBatch
 from torchDataset import get_interaction_stream, get_interaction_stream_balanced
 from tqdm import tqdm
 import random
@@ -21,14 +21,14 @@ import matplotlib.pylab as plt
 import seaborn as sea
 sea.set_style("whitegrid")
 
-def test(stream, trainer, epoch=0, theshold=0.5):
+def test(stream, trainer, epoch=0, threshold=0.5):
 	TP, FP, TN, FN = 0, 0, 0, 0
 	for data in tqdm(stream):
-		tp, fp, tn, fn = trainer.eval_coef(data, theshold)
-		TP += tp
-		FP += fp
-		TN += tn
-		FN += fn
+		log_dict = trainer.eval(data, threshold=threshold)
+		TP += log_dict["TP"]
+		FP += log_dict["FP"]
+		TN += log_dict["TN"]
+		FN += log_dict["FN"]
 	
 	Accuracy = float(TP + TN)/float(TP + TN + FP + FN)
 	if (TP+FP)>0:
@@ -41,7 +41,7 @@ def test(stream, trainer, epoch=0, theshold=0.5):
 		Recall = 0.0
 	F1 = Precision*Recall/(Precision + Recall+1E-5)
 	MCC = (TP*TN - FP*FN)/np.sqrt((TP+FP)*(TP+FN)*(TN+FP)*(TN+FN)+1E-5)
-	return Accuracy, Precision, Recall, MCC
+	return Accuracy, Precision, Recall, F1, MCC
 
 def test_threshold(stream, trainer, iter, logger=None):
 	all_pred = []
@@ -136,8 +136,6 @@ if __name__=='__main__':
 	parser.add_argument('-pretrain', default=None, type=str)
 	parser.add_argument('-gpu', default=1, type=int)
 
-
-
 	args = parser.parse_args()
 
 	if torch.cuda.device_count()>1:
@@ -149,7 +147,9 @@ if __name__=='__main__':
 		torch.cuda.set_device(args.gpu)
 
 	train_stream = get_interaction_stream_balanced('DatasetGeneration/interaction_data_train.pkl', batch_size=args.batch_size, max_size=100, shuffle=True)
-	valid_stream = get_interaction_stream('DatasetGeneration/interaction_data_train.pkl', batch_size=args.batch_size, max_size=50)
+	train_small_stream = get_interaction_stream('DatasetGeneration/interaction_data_train.pkl', batch_size=args.batch_size, max_size=50)
+	valid_stream = get_interaction_stream('DatasetGeneration/interaction_data_valid.pkl', batch_size=args.batch_size, max_size=50)
+	test_stream = get_interaction_stream('DatasetGeneration/interaction_data_test.pkl', batch_size=args.batch_size, max_size=50)
 	
 	logger = SummaryWriter(Path('Log')/Path(args.experiment))
 
@@ -169,9 +169,21 @@ if __name__=='__main__':
 		optimizer = optim.Adam(scoring_model.parameters(), lr=1e-3)
 		trainer = DockingTrainer(model, optimizer, type='int', omega=1.0)
 	
-		iter = 0
-		for epoch in range(args.num_epochs):
-			losses = []
+	#TRAINING 
+	iter = 0
+	for epoch in range(args.num_epochs):
+		losses = []
+		if args.model() == 'resnet':
+			for data in tqdm(train_stream):
+				log_dict = trainer.step(data)
+				logger.add_scalar("DockFI/Train/Loss", log_dict["Loss"], iter)
+				iter += 1
+				losses.append(log_dict["Loss"])
+
+			print(f'Loss {np.mean(losses)}')
+			threshold = 0.5
+
+		elif args.model() == 'docker':
 			for data in tqdm(train_stream):
 				try:
 					log_dict = trainer.step(data)
@@ -180,7 +192,7 @@ if __name__=='__main__':
 				logger.add_scalar("DockFI/Train/Loss", log_dict["LossRanking"], iter)
 				logger.add_scalar("DockFI/Train/ScoreMean", torch.mean(log_dict["P"]).item(), iter)
 				logger.add_scalar("DockFI/Train/ScoreStd", torch.std(log_dict["P"]).item(), iter)
-				logger.add_scalars("DockFI/Train/Missclass", log_dict["Loss"], iter)
+				logger.add_scalar("DockFI/Train/Missclass", log_dict["Loss"], iter)
 				for i, param in enumerate(trainer.model.parameters()):
 					if param.ndimension() > 0:
 						logger.add_histogram(f'DockFI/Model/{i}', param.detach().cpu(), iter)
@@ -189,7 +201,7 @@ if __name__=='__main__':
 				losses.append(log_dict["Loss"])
 						
 			print(f'Loss {np.mean(losses)}')
-			Accuracy, Precision, Recall, F1, MCC, threshold = test_threshold(valid_stream, trainer, iter, logger)
+			Accuracy, Precision, Recall, F1, MCC, threshold = test_threshold(train_small_stream, trainer, iter, logger)
 			print(f'Epoch {epoch} Acc: {Accuracy} Prec: {Precision} Rec: {Recall} F1: {F1} MCC: {MCC}')
 
 
@@ -197,15 +209,19 @@ if __name__=='__main__':
 			logger.add_scalar("DockFI/Valid/prec", Precision, epoch)
 			logger.add_scalar("DockFI/Valid/rec", Recall, epoch)
 			logger.add_scalar("DockFI/Valid/MCC", MCC, epoch)
-			
-			torch.save(model.state_dict(), Path('Log')/Path(args.experiment)/Path('model.th'))
+		
+		torch.save(model.state_dict(), Path('Log')/Path(args.experiment)/Path('model.th'))
 
-			Accuracy, Precision, Recall, MCC = test(valid_stream, trainer, epoch=epoch, theshold=threshold)
-			print(f'Threshold {threshold}')
-			print(f'Validation Epoch {epoch} Acc: {Accuracy} Prec: {Precision} Rec: {Recall} F1: {F1} MCC: {MCC}')
+	#TESTING
+	vAccuracy, vPrecision, vRecall, vF1, vMCC = test(valid_stream, trainer, epoch=epoch, threshold=threshold)
+	print(f'Threshold {threshold}')
+	print(f'Validation Epoch {epoch} Acc: {vAccuracy} Prec: {vPrecision} Rec: {vRecall} F1: {vF1} MCC: {vMCC}')
 
-	
-			trainer.load_checkpoint(logger.log_dir / Path('model.th'))
-			test_stream = get_interaction_stream('DatasetGeneration/interaction_data_test.pkl', batch_size=32, max_size=1000)
-			print('Test:')
-			Accuracy, Precision, Recall = test(test_stream, trainer, 0, theshold=threshold)
+	trainer.load_checkpoint(logger.log_dir / Path('model.th'))
+	print('Test:')
+	tAccuracy, tPrecision, tRecall, tF1, tMCC = test(test_stream, trainer, 0, threshold=threshold)
+	logger.add_hparams(	{'ModelType': args.model(), 'Pretrain': args.pretrain}, 
+						{'hparam/valid_acc': vAccuracy, 'hparam/valid_prec': vPrecision, 'hparam/valid_rec': vRecall, 
+						'hparam/valid_F1': vF1, 'hparam/valid_MCC': vMCC,
+						'hparam/test_acc': tAccuracy, 'hparam/test_prec': tPrecision, 'hparam/test_rec': tRecall, 
+						'hparam/test_F1': tF1, 'hparam/test_MCC': tMCC,})
