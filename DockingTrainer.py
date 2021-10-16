@@ -8,6 +8,7 @@ from tqdm import tqdm
 import random
 from math import cos, sin
 import numpy as np
+from Models import RankingLoss
 
 class DockingTrainer:
 	def __init__(self, model, optimizer, num_angles=360, device='cuda', type='pos', accum=0, omega=10E-2):
@@ -18,9 +19,11 @@ class DockingTrainer:
 		if type == 'pos':
 			self.loss = nn.CrossEntropyLoss()
 		elif type == 'int':
-			self.loss = nn.BCELoss()
+			# self.loss = nn.BCELoss()
 			# self.reg = nn.MSELoss()
-			self.reg = nn.L1Loss()
+			# self.loss = nn.MarginRankingLoss()
+			# self.reg = nn.L1Loss()
+			self.loss = RankingLoss()
 			self.omega = omega
 		else:
 			raise(Exception('Type unknown:', type))
@@ -125,7 +128,7 @@ class DockingTrainer:
 
 		rec_repr = self.model.repr(receptor)
 		lig_repr = self.model.repr(ligand)
-		translations = self.dock_global(rec_repr.tensor, lig_repr.tensor)
+		translations = self.dock_global(rec_repr.tensor + 1e-1, lig_repr.tensor + 1e-1)
 		scores = -self.score(translations)
 
 		if self.type == 'pos':
@@ -135,20 +138,16 @@ class DockingTrainer:
 			log_dict = {"Loss": loss.item()}
 		
 		elif self.type == 'int':
-			pred, P = self.model(scores, self.angles, ligand)
-			loss_bce = self.loss(pred, target.squeeze())
-			loss_reg = self.omega * self.reg(P - self.model.F0, torch.zeros_like(P))
-			loss = loss_bce + loss_reg
-			log_dict = {"Loss": loss.item(),
-						"LossBCE": loss_bce.item(),
-						"LossReg": loss_reg.item(),
-						"P": P,
-						"F0": self.model.F0.item()}
+			pred = self.model(scores, self.angles)
+			loss, acc = self.loss(pred, target.squeeze())
+			log_dict = {"Loss": acc.item(),
+						"LossRanking": loss.item(),
+						"P": pred
+						}
 
 		loss.backward()
 		self.optimizer.step()
-		# print(self.model.F0.grad)
-		
+				
 		return log_dict
 
 	def eval(self, data):
@@ -164,8 +163,17 @@ class DockingTrainer:
 			lig_repr = self.model.repr(ligand)
 			translations = self.dock_global(rec_repr.tensor, lig_repr.tensor)
 			scores = -self.score(translations)
-			pred, deltaP = self.model(scores, self.angles, ligand)
-		return pred, target
+			pred = self.model(scores, self.angles)
+			
+			best_score, best_rotation, best_translation = self.get_conformation(scores[0,:,:,:])
+			log_dict = {"Pred": pred,
+						"Target": target,
+						"Score": best_score,
+						"Rotation": best_rotation,
+						"Translation": best_translation,
+						"Repr": rec_repr.tensor[0,:,:,:].cpu()}
+
+		return log_dict
 
 	def eval_coef(self, data, threshold):
 		pred, target = self.eval(data)
@@ -177,13 +185,13 @@ class DockingTrainer:
 			for i in range(pred.size(0)):
 				p = pred[i].item()
 				a = target[i].item()
-				if p>=threshold and a>=0.5:
+				if p<threshold and a>=0.5:
 					TP += 1
-				elif p>=threshold and a<0.5:
-					FP += 1
-				elif p<threshold and a>=0.5:
-					FN += 1
 				elif p<threshold and a<0.5:
+					FP += 1
+				elif p>=threshold and a>=0.5:
+					FN += 1
+				elif p>=threshold and a<0.5:
 					TN += 1
 			return TP, FP, TN, FN
 		else:

@@ -5,7 +5,8 @@ from pathlib import Path
 
 import numpy as np
 
-from Models import CNNInteractionModel, EQScoringModel, EQInteraction, SidInteraction, EQInteractionF, SharpLoss, RankingLoss, EQRepresentationSid,EQRepresentation
+from Models import CNNInteractionModel, EQScoringModel, EQInteraction, SidInteraction, EQInteractionF
+from Models import SharpLoss, RankingLoss, EQRepresentationSid,EQRepresentation, EQInteractionS, EmptyBatch
 from torchDataset import get_interaction_stream, get_interaction_stream_balanced
 from tqdm import tqdm
 import random
@@ -16,6 +17,9 @@ from DockingTrainer import DockingTrainer
 from DatasetGeneration import Protein, Complex
 
 from torch.utils.tensorboard import SummaryWriter
+import matplotlib.pylab as plt
+import seaborn as sea
+sea.set_style("whitegrid")
 
 def test(stream, trainer, epoch=0, theshold=0.5):
 	TP, FP, TN, FN = 0, 0, 0, 0
@@ -37,29 +41,85 @@ def test(stream, trainer, epoch=0, theshold=0.5):
 		Recall = 0.0
 	F1 = Precision*Recall/(Precision + Recall+1E-5)
 	MCC = (TP*TN - FP*FN)/np.sqrt((TP+FP)*(TP+FN)*(TN+FP)*(TN+FN)+1E-5)
-	print(f'Epoch {epoch} Acc: {Accuracy} Prec: {Precision} Rec: {Recall} F1: {F1} MCC: {MCC}')
 	return Accuracy, Precision, Recall, MCC
 
-def get_threshold(stream, trainer):
+def test_threshold(stream, trainer, iter, logger=None):
 	all_pred = []
 	all_target = []
+
+	if not (logger is None):
+		cplxs = []
+		repr = None
+		max_num_log = 10
+		num_log = 0
+		
 	for data in tqdm(stream):
-		pred, target = trainer.eval(data)
-		all_pred.append(pred.clone())
-		all_target.append(target)
+		log_dict = trainer.eval(data)
+		all_pred.append(log_dict["Pred"].clone())
+		all_target.append(log_dict["Target"].clone())
+		
+		if not (logger is None) and num_log<max_num_log:
+			receptor, ligand, target = data
+			rec = Protein(receptor[0,:,:].clone().numpy())
+			lig = Protein(ligand[0,:,:].clone().numpy())
+			if num_log==0:
+				repr = log_dict["Repr"].clone()
+			rot = log_dict["Rotation"].clone().cpu().numpy()
+			tr = log_dict["Translation"].squeeze().clone().cpu().numpy()
+			cplxs.append(Complex(rec, lig, rot, tr))
+			num_log += 1
 
 	all_pred = torch.cat(all_pred, dim=0)
 	all_target = torch.cat(all_target, dim=0)
+
+	if not (logger is None):
+		cell_size=100
+		dock_image = np.zeros((cell_size, max_num_log*cell_size))
+		for i,cplx in enumerate(cplxs):
+			dock_image[:, cell_size*i:cell_size*(i+1)] = cplx.get_canvas(cell_size=cell_size)
+		logger.add_image("DockFI/Model/Dock", dock_image, iter, dataformats='HW')
+
+		repr_image = np.zeros((50, 100))
+		repr_image[:,:50] = repr[0,:,:]
+		repr_image[:,50:] = repr[1,:,:]
+		logger.add_image("DockFI/Model/Repr", repr_image, iter, dataformats='HW')
+
+		fig = plt.figure()
+		pos_sel = (all_target==1)
+		neg_sel = (all_target==0)
+		plt.scatter(torch.arange(0, pos_sel.sum().item()), all_pred[pos_sel].cpu(), color='red')
+		plt.scatter(torch.arange(0, neg_sel.sum().item()), all_pred[neg_sel].cpu(), color='blue')
+		logger.add_figure("DockFI/Model/Scatter", fig, iter)
+
 	sorted_pred, perm = torch.sort(all_pred)
 	sorted_target = all_target[perm]
 	target_true = (sorted_target == 1.0).to(dtype=torch.float32)
 	target_false = (sorted_target == 0.0).to(dtype=torch.float32)
-	cum_true = torch.cumsum(target_true, dim=0)
-	cum_false = torch.cumsum(target_false.flip(dims=(0,)), dim=0).flip(dims=(0,))
-	cum = cum_true + cum_false
-	m, idx = torch.max(cum, dim=0)
 	
-	return sorted_pred[idx].item()
+	cum_TP = torch.cumsum(target_true, dim=0)
+	cum_FN = torch.cumsum(target_false, dim=0)
+
+	cum_FP = torch.cumsum(target_true.flip(dims=(0,)), dim=0).flip(dims=(0,))
+	cum_TN = torch.cumsum(target_false.flip(dims=(0,)), dim=0).flip(dims=(0,))
+	
+	acc = (cum_TP + cum_TN).to(dtype=torch.float)/(cum_TP+cum_TN+cum_FP+cum_FN).to(dtype=torch.float)
+	Accuracy, idx = torch.max(acc, dim=0)
+	TP = cum_TP[idx]
+	FP = cum_FP[idx]
+	TN = cum_TN[idx]
+	FN = cum_FN[idx]
+	threshold = sorted_pred[idx]
+	if (TP+FP)>0:
+		Precision = float(TP)/float(TP + FP)
+	else:
+		Precision = 0.0
+	if (TP + FN)>0:
+		Recall = float(TP)/float(TP + FN)
+	else:
+		Recall = 0.0
+	F1 = Precision*Recall/(Precision + Recall+1E-5)
+	MCC = (TP*TN - FP*FN)/torch.sqrt((TP+FP)*(TP+FN)*(TN+FP)*(TN+FN)+1E-5).item()
+	return Accuracy.item(), Precision, Recall, F1, MCC, threshold
 
 if __name__=='__main__':
 	parser = argparse.ArgumentParser(description='Train deep protein docking')	
@@ -88,8 +148,8 @@ if __name__=='__main__':
 				print(i, torch.cuda.get_device_name(i), torch.cuda.get_device_capability(i))	
 		torch.cuda.set_device(args.gpu)
 
-	train_stream = get_interaction_stream_balanced('DatasetGeneration/interaction_data_train.pkl', batch_size=args.batch_size, max_size=25, shuffle=True)
-	valid_stream = get_interaction_stream('DatasetGeneration/interaction_data_train.pkl', batch_size=args.batch_size, max_size=25)
+	train_stream = get_interaction_stream_balanced('DatasetGeneration/interaction_data_train.pkl', batch_size=args.batch_size, max_size=100, shuffle=True)
+	valid_stream = get_interaction_stream('DatasetGeneration/interaction_data_train.pkl', batch_size=args.batch_size, max_size=50)
 	
 	logger = SummaryWriter(Path('Log')/Path(args.experiment))
 
@@ -100,48 +160,37 @@ if __name__=='__main__':
 
 	elif args.model() == 'docker':
 		repr = EQRepresentation(bias=False)
-		# repr = EQRepresentationSid()
 		scoring_model = EQScoringModel(repr=repr).to(device='cuda')
 		if not(args.pretrain is None):
 			trainer = DockingTrainer(scoring_model, None, type='pos')
 			trainer.load_checkpoint(Path('Log')/Path(args.pretrain)/Path('dock_ebm.th'))
-		
-		model = EQInteractionF(scoring_model).cuda()
-		optimizer = optim.Adam([{'params': scoring_model.parameters(), 'lr':0.0},
-								{'params': model.F0, 'lr':10.0}])
+
+		model = EQInteraction(scoring_model).cuda()
+		optimizer = optim.Adam(scoring_model.parameters(), lr=1e-3)
 		trainer = DockingTrainer(model, optimizer, type='int', omega=1.0)
 	
-	if args.cmd() == 'train':
 		iter = 0
 		for epoch in range(args.num_epochs):
 			losses = []
 			for data in tqdm(train_stream):
-				log_dict = trainer.step(data)
-				logger.add_scalar("DockFI/Train/Loss", log_dict["Loss"], iter)
-				logger.add_scalars("DockFI/Train/F0", {"F0": log_dict["F0"], "<P>": torch.mean(log_dict["P"])}, iter)
-				logger.add_histogram("DockFI/Train/P", log_dict["P"], iter)
-				logger.add_scalar("DockFI/Train/Pstd", torch.std(log_dict["P"]).item(), iter)
-				logger.add_scalars("DockFI/Train/Losses", {"BCE": log_dict["LossBCE"], "Reg": log_dict["LossReg"]}, iter)
-				for i, param in enumerate(trainer.model.repr.parameters()):
+				try:
+					log_dict = trainer.step(data)
+				except EmptyBatch:
+					continue
+				logger.add_scalar("DockFI/Train/Loss", log_dict["LossRanking"], iter)
+				logger.add_scalar("DockFI/Train/ScoreMean", torch.mean(log_dict["P"]).item(), iter)
+				logger.add_scalar("DockFI/Train/ScoreStd", torch.std(log_dict["P"]).item(), iter)
+				logger.add_scalars("DockFI/Train/Missclass", log_dict["Loss"], iter)
+				for i, param in enumerate(trainer.model.parameters()):
 					if param.ndimension() > 0:
 						logger.add_histogram(f'DockFI/Model/{i}', param.detach().cpu(), iter)
 
 				iter += 1
 				losses.append(log_dict["Loss"])
-			
-			if torch.abs(torch.mean(log_dict["P"]) - log_dict["F0"])<torch.std(log_dict["P"]):
-				optimizer.param_groups[0]['lr'] = 0.0
-				optimizer.param_groups[1]['lr'] = 1e-2
-				trainer.omega = 1e-3
-			# else:
-			# 	trainer.omega = 1.0
-			# if iter>50:
-			# 	optimizer.param_groups[0]['lr'] = 1e-3
-			# 	optimizer.param_groups[1]['lr'] = 1e-3
-			
+						
 			print(f'Loss {np.mean(losses)}')
-			print(model.F0.item())
-			Accuracy, Precision, Recall, MCC = test(valid_stream, trainer, epoch=epoch, theshold=0.5)
+			Accuracy, Precision, Recall, F1, MCC, threshold = test_threshold(valid_stream, trainer, iter, logger)
+			print(f'Epoch {epoch} Acc: {Accuracy} Prec: {Precision} Rec: {Recall} F1: {F1} MCC: {MCC}')
 
 
 			logger.add_scalar("DockFI/Valid/acc", Accuracy, epoch)
@@ -150,12 +199,13 @@ if __name__=='__main__':
 			logger.add_scalar("DockFI/Valid/MCC", MCC, epoch)
 			
 			torch.save(model.state_dict(), Path('Log')/Path(args.experiment)/Path('model.th'))
-		
+
+			Accuracy, Precision, Recall, MCC = test(valid_stream, trainer, epoch=epoch, theshold=threshold)
+			print(f'Threshold {threshold}')
+			print(f'Validation Epoch {epoch} Acc: {Accuracy} Prec: {Precision} Rec: {Recall} F1: {F1} MCC: {MCC}')
+
 	
-	elif args.cmd() == 'test':
-		trainer.load_checkpoint(logger.log_dir / Path('model.th'))
-		test_stream = get_interaction_stream('DatasetGeneration/interaction_data_test.pkl', batch_size=32, max_size=1000)
-		print('Validation:')
-		Accuracy, Precision, Recall = test(valid_stream, trainer, 0)
-		print('Test:')
-		Accuracy, Precision, Recall = test(test_stream, trainer, 0)
+			trainer.load_checkpoint(logger.log_dir / Path('model.th'))
+			test_stream = get_interaction_stream('DatasetGeneration/interaction_data_test.pkl', batch_size=32, max_size=1000)
+			print('Test:')
+			Accuracy, Precision, Recall = test(test_stream, trainer, 0, theshold=threshold)

@@ -1,22 +1,15 @@
 import torch
 from torch import nn
-from torch.autograd import Function
 import numpy as np
 
 from .Multiplication import ImageCrossMultiply
 from .Convolution import ProteinConv2D
-from .EQRepresentation import EQRepresentation, EQRepresentationSid
-from e2cnn import gspaces
-from e2cnn import nn as e2nn
 from math import *
-
-import matplotlib.pylab as plt
-import seaborn as sea
-sea.set_style("whitegrid")
 
 def init_weights(module):
 	if isinstance(module, torch.nn.Linear):
-		module.weight.data.fill_(1.0)
+		# module.weight.data.fill_(0.0)
+		pass
 
 class EQScoringModel(nn.Module):
 	def __init__(self, repr, num_features=1, prot_field_size=50):

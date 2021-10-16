@@ -1,7 +1,5 @@
 import torch
 from torch import nn
-from torch.autograd import Function
-import numpy as np
 from e2cnn import gspaces
 from e2cnn import nn as e2nn
 
@@ -29,7 +27,8 @@ class EQRepresentation(nn.Module):
 			e2nn.R2Conv(self.feat_type_hid, self.feat_type_hid, kernel_size=5, padding=2, bias=bias),
 			e2nn.NormNonLinearity(self.feat_type_hid, bias=False),
 			
-			e2nn.R2Conv(self.feat_type_hid, self.feat_type_out, kernel_size=5, padding=2, bias=bias),
+			e2nn.R2Conv(self.feat_type_hid, self.feat_type_out, kernel_size=5, padding=2, bias=bias)#,
+			# e2nn.NormNonLinearity(self.feat_type_out, bias=False)
 		)
 		with torch.no_grad():
 			self.repr.apply(init_weights)
@@ -37,33 +36,3 @@ class EQRepresentation(nn.Module):
 	def forward(self, protein):
 		x = e2nn.GeometricTensor(protein, self.feat_type_in)
 		return self.repr(x)
-
-class EQRepresentationSid(nn.Module):
-
-	def __init__(self):
-		super(EQRepresentationSid, self).__init__()
-		
-		self.scal = 1
-		self.vec = 3
-		self.SO2 = gspaces.Rot2dOnR2(N=-1, maximum_frequency=4)
-		self.feat_type_in1 = e2nn.FieldType(self.SO2, 1 * [self.SO2.trivial_repr])
-		self.feat_type_out1 = e2nn.FieldType(self.SO2, self.scal * [self.SO2.irreps['irrep_0']] + self.vec * [self.SO2.irreps['irrep_1']])
-		self.feat_type_out_final = e2nn.FieldType(self.SO2, 1 * [self.SO2.irreps['irrep_0']] + 1 * [self.SO2.irreps['irrep_1']])
-
-		self.kernel = 5
-		self.pad = self.kernel//2
-		self.stride = 1
-		self.dilation = 1
-
-		self.netSE2 = e2nn.SequentialModule(
-			e2nn.R2Conv(self.feat_type_in1, self.feat_type_out1, kernel_size=self.kernel, stride=self.stride, dilation=self.dilation, padding=self.pad , bias=False),
-			e2nn.NormNonLinearity(self.feat_type_out1, function='n_relu', bias=False),
-			e2nn.R2Conv(self.feat_type_out1, self.feat_type_out_final, kernel_size=self.kernel, stride=self.stride, dilation=self.dilation, padding=self.pad, bias=False),
-			e2nn.NormNonLinearity(self.feat_type_out_final, function='n_relu', bias=False),
-			e2nn.NormPool(self.feat_type_out_final)
-		)
-
-	def forward(self, protein):
-		proteinT = e2nn.GeometricTensor(protein, self.feat_type_in1)
-		feat = self.netSE2(proteinT)
-		return feat

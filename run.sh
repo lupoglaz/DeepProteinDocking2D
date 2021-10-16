@@ -1,11 +1,11 @@
 #Brute-force docking
-python train_docking.py -experiment BFDocking -docker -num_epochs 30 -batch_size 11 -gpu 0
+# python train_docking.py -experiment BFDocking -docker -num_epochs 30 -batch_size 11 -gpu 0
 # python results.py -experiment BFDocking -docking -max_epoch 10
 
 
 #Brute-force interaction
 # python train_interaction.py -experiment BFInteraction -train -docker -pretrain BFDocking -batch_size 8 -num_epochs 100
-# python train_interaction.py -experiment BFInteraction -train -docker -pretrain BFDocking -batch_size 8 -num_epochs 100
+python train_interaction.py -experiment BFInteraction -train -docker -batch_size 8 -num_epochs 100
 # python results.py -experiment BFInteraction -interaction -max_epoch 10
 
 
