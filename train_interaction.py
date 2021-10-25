@@ -125,8 +125,8 @@ if __name__=='__main__':
 	parser = argparse.ArgumentParser(description='Train deep protein docking')	
 	parser.add_argument('-experiment', default='Debug', type=str)
 	
-	parser.add_argument('-train', action='store_const', const=lambda:'train', dest='cmd')
-	parser.add_argument('-test', action='store_const', const=lambda:'test', dest='cmd')
+	# parser.add_argument('-train', action='store_const', const=lambda:'train', dest='cmd')
+	# parser.add_argument('-test', action='store_const', const=lambda:'test', dest='cmd')
 
 	parser.add_argument('-resnet', action='store_const', const=lambda:'resnet', dest='model')
 	parser.add_argument('-docker', action='store_const', const=lambda:'docker', dest='model')
@@ -146,10 +146,10 @@ if __name__=='__main__':
 				print(i, torch.cuda.get_device_name(i), torch.cuda.get_device_capability(i))	
 		torch.cuda.set_device(args.gpu)
 
-	train_stream = get_interaction_stream_balanced('DatasetGeneration/interaction_data_train.pkl', batch_size=args.batch_size, max_size=100, shuffle=True)
+	train_stream = get_interaction_stream_balanced('DatasetGeneration/interaction_data_train.pkl', batch_size=args.batch_size, max_size=1000, shuffle=True)
 	train_small_stream = get_interaction_stream('DatasetGeneration/interaction_data_train.pkl', batch_size=args.batch_size, max_size=50)
-	valid_stream = get_interaction_stream('DatasetGeneration/interaction_data_valid.pkl', batch_size=args.batch_size, max_size=50)
-	test_stream = get_interaction_stream('DatasetGeneration/interaction_data_test.pkl', batch_size=args.batch_size, max_size=50)
+	valid_stream = get_interaction_stream('DatasetGeneration/interaction_data_valid.pkl', batch_size=args.batch_size, max_size=1000)
+	test_stream = get_interaction_stream('DatasetGeneration/interaction_data_test.pkl', batch_size=args.batch_size, max_size=1000)
 	
 	logger = SummaryWriter(Path('Log')/Path(args.experiment))
 

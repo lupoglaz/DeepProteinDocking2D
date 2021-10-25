@@ -128,7 +128,10 @@ class DockingTrainer:
 
 		rec_repr = self.model.repr(receptor)
 		lig_repr = self.model.repr(ligand)
-		translations = self.dock_global(rec_repr.tensor + 1e-1, lig_repr.tensor + 1e-1)
+		if self.type == 'pos':
+			translations = self.dock_global(rec_repr.tensor, lig_repr.tensor)
+		elif self.type == 'int':
+			translations = self.dock_global(rec_repr.tensor + 1e-1, lig_repr.tensor + 1e-1)
 		scores = -self.score(translations)
 
 		if self.type == 'pos':
