@@ -80,6 +80,7 @@ if __name__=='__main__':
 	parser.add_argument('-no_pos_samples', action='store_const', const=lambda:'no_pos_samples', dest='ablation')
 	parser.add_argument('-default', action='store_const', const=lambda:'default', dest='ablation')
 	parser.add_argument('-parallel', action='store_const', const=lambda:'parallel', dest='ablation')
+	parser.add_argument('-parallel_noGSAP', action='store_const', const=lambda:'parallel_noGSAP', dest='ablation')
 
 	args = parser.parse_args()
 
@@ -119,7 +120,12 @@ if __name__=='__main__':
 			trainer = EBMTrainer(model, optimizer, num_samples=args.num_samples, num_buf_samples=len(train_stream)*args.batch_size, step_size=args.step_size,
 							global_step=False, add_positive=False)
 		elif args.ablation() == 'parallel':
-			print('Parallel with different distribution noise sigmas')
+			print('Parallel two different distribution sigmas')
+			trainer = EBMTrainer(model, optimizer, num_samples=args.num_samples,
+								 num_buf_samples=len(train_stream) * args.batch_size, step_size=args.step_size,
+								 global_step=True, add_positive=True)
+		elif args.ablation() == 'parallel_noGSAP':
+			print('Parallel two different distribution sigmas, no GS, no AP')
 			trainer = EBMTrainer(model, optimizer, num_samples=args.num_samples,
 								 num_buf_samples=len(train_stream) * args.batch_size, step_size=args.step_size,
 								 global_step=False, add_positive=False)
@@ -133,7 +139,7 @@ if __name__=='__main__':
 	if args.cmd() == 'train':
 		logger = Logger.new(Path('Log')/Path(args.experiment))
 		min_loss = float('+Inf')
-		if args.model() == 'ebm' and args.ablation and args.ablation() == 'parallel':
+		if args.model() == 'ebm' and args.ablation and 'parallel' in args.ablation():
 			## checking 'if' in separate training loop so less total 'if' checks.
 			print('running step_parallel')
 			for epoch in range(args.num_epochs):
