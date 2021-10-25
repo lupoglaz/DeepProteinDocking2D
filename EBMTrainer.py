@@ -11,16 +11,16 @@ from math import cos, sin
 from matplotlib import pylab as plt
 
 class SampleBuffer:
-	def __init__(self, num_samples, max_pos=100):
+	def __init__(self, num_samples, max_pos=100, num_replicas=2):
 		self.num_samples = num_samples
 		self.max_pos = max_pos
 		self.buffer = {}
 		for i in range(num_samples):
 			self.buffer[i] = []
-	
+
 	def __len__(self, i):
 		return len(self.buffer[i])
-	
+
 	def push(self, alphas, drs, index):
 		alphas = alphas.detach().to(device='cpu')
 		drs = drs.detach().to(device='cpu')
@@ -47,6 +47,8 @@ class SampleBuffer:
 				dr = torch.rand(num_samples, 2)*50.0 - 25.0
 				alphas.append(alpha)
 				drs.append(dr)
+				# print('\nalpha', alpha)
+				# print('dr', dr)
 		
 		alphas = torch.stack(alphas, dim=0).to(device=device)
 		drs = torch.stack(drs, dim=0).to(device=device)
@@ -56,10 +58,11 @@ class SampleBuffer:
 
 class EBMTrainer:
 	def __init__(self, model, optimizer, num_buf_samples=10, device='cuda', num_samples=10, weight=1.0, step_size=10.0, sample_steps=100,
-				global_step=True, add_positive=True):
+				global_step=True, add_positive=True, sigma_dr=0.05, sigma_alpha=0.5):
 		self.model = model
 		self.optimizer = optimizer
 		self.buffer = SampleBuffer(num_buf_samples)
+		self.buffer2 = SampleBuffer(num_buf_samples)
 		self.global_step = global_step
 		self.add_positive = add_positive
 
@@ -116,7 +119,7 @@ class EBMTrainer:
 		curr_grid = nn.functional.affine_grid(R, size=repr.size(), align_corners=True)
 		return nn.functional.grid_sample(repr, curr_grid, align_corners=True)
 
-	def langevin(self, neg_alpha, neg_dr, rec_feat, lig_feat, neg_idx):
+	def langevin(self, neg_alpha, neg_dr, rec_feat, lig_feat, neg_idx, sigma_dr=0.05, sigma_alpha=0.5):
 		noise_alpha = torch.zeros_like(neg_alpha)
 		noise_dr = torch.zeros_like(neg_dr)
 
@@ -139,20 +142,20 @@ class EBMTrainer:
 			pos_repr, _, A = self.model.mult(rec_feat, lig_feat, neg_alpha, neg_dr)
 			neg_out = self.model.scorer(pos_repr)
 			neg_out.mean().backward()
-			
+
 			langevin_opt.step()
-			
-			neg_dr.data += noise_dr.normal_(0, 0.5)
-			neg_alpha.data += noise_alpha.normal_(0, 0.05)
+
+			neg_dr.data += noise_dr.normal_(0, sigma_dr)
+			neg_alpha.data += noise_alpha.normal_(0, sigma_alpha)
 
 			neg_dr.data.clamp_(-rec_feat.size(2), rec_feat.size(2))
 			neg_alpha.data.clamp_(-np.pi, np.pi)
 		
 		return neg_alpha.detach(), neg_dr.detach()
 
-	def step(self, data, epoch=None):
+	def step_parallel(self, data, epoch=None):
 		receptor, ligand, translation, rotation, pos_idx = data
-		
+
 		pos_rec = receptor.to(device=self.device, dtype=torch.float32).unsqueeze(dim=1)
 		pos_lig = ligand.to(device=self.device, dtype=torch.float32).unsqueeze(dim=1)
 		pos_alpha = rotation.to(device=self.device, dtype=torch.float32).unsqueeze(dim=1)
@@ -161,25 +164,85 @@ class EBMTrainer:
 		batch_size = pos_rec.size(0)
 		num_features = pos_rec.size(1)
 		L = pos_rec.size(2)
-		
+
+		neg_alpha, neg_dr = self.buffer.get(pos_idx, num_samples=self.num_samples)
+		neg_alpha2, neg_dr2 = self.buffer2.get(pos_idx, num_samples=self.num_samples)
+
+		neg_rec = pos_rec.unsqueeze(dim=1).repeat(1, self.num_samples, 1, 1, 1).view(batch_size * self.num_samples,
+																					 num_features, L, L)
+		neg_lig = pos_lig.unsqueeze(dim=1).repeat(1, self.num_samples, 1, 1, 1).view(batch_size * self.num_samples,
+																					 num_features, L, L)
+		neg_idx = pos_idx.unsqueeze(dim=1).repeat(1, self.num_samples).view(batch_size * self.num_samples)
+		neg_alpha = neg_alpha.view(batch_size * self.num_samples, -1)
+		neg_dr = neg_dr.view(batch_size * self.num_samples, -1)
+		neg_alpha2 = neg_alpha2.view(batch_size * self.num_samples, -1)
+		neg_dr2 = neg_dr2.view(batch_size * self.num_samples, -1)
+
+		neg_rec_feat = self.model.repr(neg_rec).tensor
+		neg_lig_feat = self.model.repr(neg_lig).tensor
+		pos_rec_feat = self.model.repr(pos_rec).tensor
+		pos_lig_feat = self.model.repr(pos_lig).tensor
+
+		neg_alpha, neg_dr = self.langevin(neg_alpha, neg_dr, neg_rec_feat.detach(), neg_lig_feat.detach(), neg_idx, sigma_dr=0.005, sigma_alpha=0.05)
+		neg_alpha2, neg_dr2 = self.langevin(neg_alpha2, neg_dr2, neg_rec_feat.detach(), neg_lig_feat.detach(), neg_idx, sigma_dr=0.5, sigma_alpha=5)
+
+		self.requires_grad(True)
+		self.model.train()
+		self.model.zero_grad()
+
+		pos_out, _, _ = self.model.mult(pos_rec_feat, pos_lig_feat, pos_alpha, pos_dr)
+		pos_out = self.model.scorer(pos_out)
+		L_p = (pos_out + self.weight * pos_out ** 2).mean()
+		neg_out, _, _ = self.model.mult(neg_rec_feat, neg_lig_feat, neg_alpha, neg_dr)
+		neg_out = self.model.scorer(neg_out)
+		L_n = (-neg_out + self.weight * neg_out ** 2).mean()
+		neg_out2, _, _ = self.model.mult(neg_rec_feat, neg_lig_feat, neg_alpha2, neg_dr2)
+		neg_out2 = self.model.scorer(neg_out2)
+		L_n2 = (-neg_out2 + self.weight * neg_out2 ** 2).mean()
+		loss = L_p + (L_n + L_n2)/2
+		loss.backward()
+
+		self.optimizer.step()
+		if self.add_positive:
+			print('AP')
+			self.buffer.push(pos_alpha, pos_dr, pos_idx)
+			self.buffer2.push(pos_alpha, pos_dr, pos_idx)
+
+		self.buffer.push(neg_alpha, neg_dr, neg_idx)
+		self.buffer2.push(neg_alpha2, neg_dr2, neg_idx)
+
+		return loss.item()
+
+	def step(self, data, epoch=None):
+		receptor, ligand, translation, rotation, pos_idx = data
+
+		pos_rec = receptor.to(device=self.device, dtype=torch.float32).unsqueeze(dim=1)
+		pos_lig = ligand.to(device=self.device, dtype=torch.float32).unsqueeze(dim=1)
+		pos_alpha = rotation.to(device=self.device, dtype=torch.float32).unsqueeze(dim=1)
+		pos_dr = translation.to(device=self.device, dtype=torch.float32)
+
+		batch_size = pos_rec.size(0)
+		num_features = pos_rec.size(1)
+		L = pos_rec.size(2)
+
 		neg_alpha, neg_dr = self.buffer.get(pos_idx, num_samples=self.num_samples)
 		neg_rec = pos_rec.unsqueeze(dim=1).repeat(1, self.num_samples, 1, 1, 1).view(batch_size*self.num_samples, num_features, L, L)
 		neg_lig = pos_lig.unsqueeze(dim=1).repeat(1, self.num_samples, 1, 1, 1).view(batch_size*self.num_samples, num_features, L, L)
 		neg_idx = pos_idx.unsqueeze(dim=1).repeat(1, self.num_samples).view(batch_size*self.num_samples)
 		neg_alpha = neg_alpha.view(batch_size*self.num_samples, -1)
 		neg_dr = neg_dr.view(batch_size*self.num_samples, -1)
-		
+
 		neg_rec_feat = self.model.repr(neg_rec).tensor
 		neg_lig_feat = self.model.repr(neg_lig).tensor
 		pos_rec_feat = self.model.repr(pos_rec).tensor
 		pos_lig_feat = self.model.repr(pos_lig).tensor
-		
+
 		neg_alpha, neg_dr = self.langevin(neg_alpha, neg_dr, neg_rec_feat.detach(), neg_lig_feat.detach(), neg_idx)
-		
+
 		self.requires_grad(True)
 		self.model.train()
 		self.model.zero_grad()
-		
+
 		pos_out,_,_ = self.model.mult(pos_rec_feat, pos_lig_feat, pos_alpha, pos_dr)
 		pos_out = self.model.scorer(pos_out)
 		L_p = (pos_out + self.weight * pos_out ** 2).mean()
@@ -188,12 +251,12 @@ class EBMTrainer:
 		L_n = (-neg_out + self.weight * neg_out ** 2).mean()
 		loss = L_p + L_n
 		loss.backward()
-		
+
 		self.optimizer.step()
 		if self.add_positive:
 			print('AP')
 			self.buffer.push(pos_alpha, pos_dr, pos_idx)
 		self.buffer.push(neg_alpha, neg_dr, neg_idx)
-		
+
 		return loss.item()
 	
