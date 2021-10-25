@@ -1,3 +1,4 @@
+import sys
 import torch
 from torch import optim
 from pathlib import Path
@@ -78,6 +79,8 @@ if __name__=='__main__':
 	parser.add_argument('-no_global_step', action='store_const', const=lambda:'no_global_step', dest='ablation')
 	parser.add_argument('-no_pos_samples', action='store_const', const=lambda:'no_pos_samples', dest='ablation')
 	parser.add_argument('-default', action='store_const', const=lambda:'default', dest='ablation')
+	parser.add_argument('-parallel', action='store_const', const=lambda:'parallel', dest='ablation')
+
 	args = parser.parse_args()
 
 	if (args.cmd is None) or (args.model is None):
@@ -91,7 +94,7 @@ if __name__=='__main__':
 	
 	train_stream = get_docking_stream('DatasetGeneration/docking_data_train.pkl', batch_size=args.batch_size, max_size=None)
 	valid_stream = get_docking_stream('DatasetGeneration/docking_data_valid.pkl', batch_size=1, max_size=None)
-	
+
 	if args.model() == 'resnet':
 		model = CNNInteractionModel().to(device='cuda')
 		optimizer = optim.Adam(model.parameters(), lr=1e-3, betas=(0.0, 0.999))
@@ -115,43 +118,58 @@ if __name__=='__main__':
 			print('Default')
 			trainer = EBMTrainer(model, optimizer, num_samples=args.num_samples, num_buf_samples=len(train_stream)*args.batch_size, step_size=args.step_size,
 							global_step=False, add_positive=False)
+		elif args.ablation() == 'parallel':
+			print('Parallel with different distribution noise sigmas')
+			trainer = EBMTrainer(model, optimizer, num_samples=args.num_samples,
+								 num_buf_samples=len(train_stream) * args.batch_size, step_size=args.step_size,
+								 global_step=False, add_positive=False)
+
 	elif args.model() == 'docker':
 		model = EQScoringModel().to(device='cuda')
 		optimizer = optim.Adam(model.parameters(), lr=1e-3, betas=(0.0, 0.999))
 		trainer = DockingTrainer(model, optimizer, type='pos')
-	
-	
+
+
 	if args.cmd() == 'train':
 		logger = Logger.new(Path('Log')/Path(args.experiment))
 		min_loss = float('+Inf')
-		for epoch in range(args.num_epochs):
-			for data in tqdm(train_stream):
-				loss = trainer.step(data, epoch=epoch)
-				logger.log_train(loss)
+		if args.model() == 'ebm' and args.ablation and args.ablation() == 'parallel':
+			## checking 'if' in separate training loop so less total 'if' checks.
+			print('running step_parallel')
+			for epoch in range(args.num_epochs):
+				for data in tqdm(train_stream):
+					loss = trainer.step_parallel(data, epoch=epoch)
+					logger.log_train(loss)
+		else:
+			for epoch in range(args.num_epochs):
+				for data in tqdm(train_stream):
+					loss = trainer.step(data, epoch=epoch)
+					logger.log_train(loss)
 			
-			loss = []
-			log_data = []
-			docker = EQDockerGPU(model, num_angles=360)
-			for data in tqdm(valid_stream):
-				if args.model() == 'resnet':
-					it_loss, it_log_data = run_prediction_model(data, trainer, epoch=0)
-				elif args.model() == 'ebm':
-					it_loss, it_log_data = run_docking_model(data, docker, epoch=epoch)
-				elif args.model() == 'docker':
-					it_loss, it_log_data = run_docking_model(data, docker, epoch=epoch)
+		loss = []
+		log_data = []
+		docker = EQDockerGPU(model, num_angles=360)
+		for data in tqdm(valid_stream):
+			if args.model() == 'resnet':
+				it_loss, it_log_data = run_prediction_model(data, trainer, epoch=0)
+			elif args.model() == 'ebm':
+				it_loss, it_log_data = run_docking_model(data, docker, epoch=epoch)
+			elif args.model() == 'docker':
+				it_loss, it_log_data = run_docking_model(data, docker, epoch=epoch)
 
-				loss.append(it_loss)
-				log_data.append(it_log_data)
-			
-			av_loss = np.average(loss, axis=0)
-			logger.log_valid(av_loss)
-			logger.log_data(log_data)
 
-			print('Epoch', epoch, 'Valid Loss:', av_loss)
-			if av_loss < min_loss:
-				torch.save(model.state_dict(), logger.log_dir/Path('dock_ebm.th'))
-				print(f'Model saved: min_loss = {av_loss} prev = {min_loss}')
-				min_loss = av_loss
+			loss.append(it_loss)
+			log_data.append(it_log_data)
+
+		av_loss = np.average(loss, axis=0)
+		logger.log_valid(av_loss)
+		logger.log_data(log_data)
+
+		print('Epoch', epoch, 'Valid Loss:', av_loss)
+		if av_loss < min_loss:
+			torch.save(model.state_dict(), logger.log_dir/Path('dock_ebm.th'))
+			print(f'Model saved: min_loss = {av_loss} prev = {min_loss}')
+			min_loss = av_loss
 
 	elif args.cmd() == 'test':
 		trainer.load_checkpoint(Path('Log')/Path(args.experiment)/Path('dock_ebm.th'))
