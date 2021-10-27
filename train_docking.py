@@ -142,19 +142,14 @@ if __name__=='__main__':
 	if args.cmd() == 'train':
 		logger = Logger.new(Path('Log')/Path(args.experiment))
 		min_loss = float('+Inf')
-		if args.model() == 'ebm' and args.ablation and 'parallel' in args.ablation():
-			## checking 'if' in separate training loop so less total 'if' checks.
-			print('running step_parallel')
-			for epoch in range(args.num_epochs):
-				for data in tqdm(train_stream):
+		for epoch in range(args.num_epochs):
+			for data in tqdm(train_stream):
+				if args.model() == 'ebm' and args.ablation and 'parallel' in args.ablation():
 					loss = trainer.step_parallel(data, epoch=epoch)
-					logger.log_train(loss)
-		else:
-			for epoch in range(args.num_epochs):
-				for data in tqdm(train_stream):
+				else:
 					loss = trainer.step(data, epoch=epoch)
-					logger.log_train(loss)
-			
+				logger.log_train(loss)
+
 		loss = []
 		log_data = []
 		docker = EQDockerGPU(model, num_angles=360)
