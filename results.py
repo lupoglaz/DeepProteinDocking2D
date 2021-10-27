@@ -20,8 +20,8 @@ def plot_representations(experiments, output_file='Representations.png'):
 	from DatasetGeneration import Protein
 	import matplotlib.font_manager as font_manager
 	from matplotlib import rcParams
-	font_manager.fontManager.addfont('/home/lupoglaz/.fonts/Helvetica.ttf')
-	rcParams['font.family'] = 'Helvetica'
+	# font_manager.fontManager.addfont('/home/lupoglaz/.fonts/Helvetica.ttf')
+	# rcParams['font.family'] = 'Helvetica'
 	fig, axs = plt.subplots(3, 2, figsize=(8,12), sharey=True, constrained_layout=True)
 	# fig.subplots_adjust(wspace=0)
 	# fig.subplots_adjust(hspace=0.2)
