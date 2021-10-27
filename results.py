@@ -1,5 +1,7 @@
-import os 
-import sys 
+import os
+import sys
+sys.path.append('/home/sb1638/')
+
 import argparse
 from pathlib import Path
 from Logger import Logger
