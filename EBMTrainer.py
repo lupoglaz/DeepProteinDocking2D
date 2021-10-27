@@ -126,7 +126,8 @@ class EBMTrainer:
 		self.requires_grad(False)
 		self.model.eval()
 
-		# print(sigma_dr,sigma_alpha)
+		print(sigma_dr,sigma_alpha)
+
 
 		if self.global_step:
 			# print('GS')
