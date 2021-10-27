@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --partition=p_ccib_1
-#SBATCH --job-name=EBM_IP_1LDsamp_100ep_noGS
+#SBATCH --job-name=EBM_IP_1LDsamp_100ep_withGS
 #SBATCH --nodes=1
 ##SBATCH --ntasks=1
 #SBATCH --tasks-per-node=1
