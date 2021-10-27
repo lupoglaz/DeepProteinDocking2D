@@ -61,10 +61,8 @@ def run_prediction_model(data, trainer, epoch=None):
 				"pred_translation": pred_trans.squeeze().cpu()}
 	return loss, log_data
 
-if __name__=='__main__':
 
-	def print_to_stdout(*a):
-		print(*a, file=sys.stdout)
+if __name__=='__main__':
 
 	parser = argparse.ArgumentParser(description='Train deep protein docking')	
 	parser.add_argument('-experiment', default='DebugDocking', type=str)
@@ -96,7 +94,7 @@ if __name__=='__main__':
 
 	if torch.cuda.device_count()>1:
 		for i in range(torch.cuda.device_count()):
-			print_to_stdout(i, torch.cuda.get_device_name(i), torch.cuda.get_device_capability(i))
+			print(i, torch.cuda.get_device_name(i), torch.cuda.get_device_capability(i))
 		torch.cuda.set_device(args.gpu)
 	
 	train_stream = get_docking_stream('DatasetGeneration/docking_data_train.pkl', batch_size=args.batch_size, max_size=None)
@@ -110,28 +108,28 @@ if __name__=='__main__':
 		model = EQScoringModel().to(device='cuda')
 		optimizer = optim.Adam(model.parameters(), lr=1e-3, betas=(0.0, 0.999))
 		if args.ablation is None:
-			print_to_stdout('My default')
+			print('My default')
 			trainer = EBMTrainer(model, optimizer, num_samples=args.num_samples, num_buf_samples=len(train_stream)*args.batch_size, step_size=args.step_size,
 							global_step=True, add_positive=True)
 		elif args.ablation() == 'no_global_step':
-			print_to_stdout('No global step')
+			print('No global step')
 			trainer = EBMTrainer(model, optimizer, num_samples=args.num_samples, num_buf_samples=len(train_stream)*args.batch_size, step_size=args.step_size,
 							global_step=False, add_positive=True)
 		elif args.ablation() == 'no_pos_samples':
-			print_to_stdout('No positive samples')
+			print('No positive samples')
 			trainer = EBMTrainer(model, optimizer, num_samples=args.num_samples, num_buf_samples=len(train_stream)*args.batch_size, step_size=args.step_size,
 							global_step=True, add_positive=False)
 		elif args.ablation() == 'default':
-			print_to_stdout('Default')
+			print('Default')
 			trainer = EBMTrainer(model, optimizer, num_samples=args.num_samples, num_buf_samples=len(train_stream)*args.batch_size, step_size=args.step_size,
 							global_step=False, add_positive=False)
 		elif args.ablation() == 'parallel':
-			print_to_stdout('Parallel two different distribution sigmas')
+			print('Parallel two different distribution sigmas')
 			trainer = EBMTrainer(model, optimizer, num_samples=args.num_samples,
 								 num_buf_samples=len(train_stream) * args.batch_size, step_size=args.step_size,
 								 global_step=True, add_positive=True)
 		elif args.ablation() == 'parallel_noGSAP':
-			print_to_stdout('Parallel two different distribution sigmas, no GS, no AP')
+			print('Parallel two different distribution sigmas, no GS, no AP')
 			trainer = EBMTrainer(model, optimizer, num_samples=args.num_samples,
 								 num_buf_samples=len(train_stream) * args.batch_size, step_size=args.step_size,
 								 global_step=False, add_positive=False)
@@ -147,7 +145,7 @@ if __name__=='__main__':
 		min_loss = float('+Inf')
 		if args.model() == 'ebm' and args.ablation and 'parallel' in args.ablation():
 			## checking 'if' in separate training loop so less total 'if' checks.
-			print_to_stdout('running step_parallel')
+			print('running step_parallel')
 			for epoch in range(args.num_epochs):
 				for data in tqdm(train_stream):
 					loss = trainer.step_parallel(data, epoch=epoch)
@@ -177,10 +175,10 @@ if __name__=='__main__':
 		logger.log_valid(av_loss)
 		logger.log_data(log_data)
 
-		print_to_stdout('Epoch', epoch, 'Valid Loss:', av_loss)
+		print('Epoch', epoch, 'Valid Loss:', av_loss)
 		if av_loss < min_loss:
 			torch.save(model.state_dict(), logger.log_dir/Path('dock_ebm.th'))
-			print_to_stdout(f'Model saved: min_loss = {av_loss} prev = {min_loss}')
+			print(f'Model saved: min_loss = {av_loss} prev = {min_loss}')
 			min_loss = av_loss
 
 	elif args.cmd() == 'test':
@@ -205,4 +203,4 @@ if __name__=='__main__':
 		av_loss = np.average(loss, axis=0)
 		logger.log_data(log_data)
 
-		print_to_stdout(f'Test result: {av_loss}')
+		print(f'Test result: {av_loss}')
