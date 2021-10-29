@@ -123,7 +123,7 @@ if __name__=='__main__':
 			trainer = EBMTrainer(model, optimizer, num_samples=args.num_samples, num_buf_samples=len(train_stream)*args.batch_size, step_size=args.step_size,
 							global_step=False, add_positive=False)
 		elif args.ablation() == 'parallel':
-			print('Parallel two different distribution sigmas, no positive samples')
+			print('Parallel two different distribution sigmas, with global step, no positive samples')
 			trainer = EBMTrainer(model, optimizer, num_samples=args.num_samples,
 								 num_buf_samples=len(train_stream) * args.batch_size, step_size=args.step_size,
 								 global_step=True, add_positive=False)

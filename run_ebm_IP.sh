@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --partition=p_ccib_1
-#SBATCH --job-name=EBM_IP_1LDsamp_100ep_parallel_noGSAP
+#SBATCH --job-name=EBM_IP_1LDsamp_100ep_parallel_witGSnoAP
 #SBATCH --nodes=1
 ##SBATCH --ntasks=1
 #SBATCH --tasks-per-node=1
@@ -29,9 +29,16 @@ export OMP_NUM_THREADS=$SLURM_CPUS_PER_TASK
 #python results.py -experiment "$exp" -docking -max_epoch 100
 #python train_docking.py -experiment "$exp" -test -ebm -gpu 0
 
-exp=$(echo EBM_IP_1LDsamp_100ep_parallel_noGSAP)
+#exp=$(echo EBM_IP_1LDsamp_100ep_parallel_noGSAP)
+#
+##EBM: 1D sample buffer, no add_positive
+#python train_docking.py -experiment "$exp" -train -ebm -num_epochs 100 -batch_size 1 -gpu 0 -num_samples 1 -parallel_noGSAP
+#python results.py -experiment "$exp" -docking -max_epoch 100
+#python train_docking.py -experiment "$exp" -test -ebm -gpu 0
+
+exp=$(echo EBM_IP_1LDsamp_100ep_parallel_witGSnoAP)
 
 #EBM: 1D sample buffer, no add_positive
-python train_docking.py -experiment "$exp" -train -ebm -num_epochs 100 -batch_size 1 -gpu 0 -num_samples 1 -parallel_noGSAP
+python train_docking.py -experiment "$exp" -train -ebm -num_epochs 100 -batch_size 1 -gpu 0 -num_samples 1 -parallel
 python results.py -experiment "$exp" -docking -max_epoch 100
 python train_docking.py -experiment "$exp" -test -ebm -gpu 0
