@@ -185,7 +185,7 @@ class EBMTrainer:
 		pos_rec_feat = self.model.repr(pos_rec).tensor
 		pos_lig_feat = self.model.repr(pos_lig).tensor
 
-		neg_alpha, neg_dr = self.langevin(neg_alpha, neg_dr, neg_rec_feat.detach(), neg_lig_feat.detach(), neg_idx, sigma_dr=0.005, sigma_alpha=0.05)
+		neg_alpha, neg_dr = self.langevin(neg_alpha, neg_dr, neg_rec_feat.detach(), neg_lig_feat.detach(), neg_idx, sigma_dr=0.05, sigma_alpha=0.5)
 		neg_alpha2, neg_dr2 = self.langevin(neg_alpha2, neg_dr2, neg_rec_feat.detach(), neg_lig_feat.detach(), neg_idx, sigma_dr=0.5, sigma_alpha=5)
 
 		self.requires_grad(True)
