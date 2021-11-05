@@ -119,7 +119,7 @@ class EBMTrainer:
 		curr_grid = nn.functional.affine_grid(R, size=repr.size(), align_corners=True)
 		return nn.functional.grid_sample(repr, curr_grid, align_corners=True)
 
-	def langevin(self, neg_alpha, neg_dr, rec_feat, lig_feat, neg_idx, sigma_dr=0.05, sigma_alpha=0.5):
+	def langevin(self, neg_alpha, neg_dr, rec_feat, lig_feat, neg_idx, sigma_dr=0.5, sigma_alpha=5):
 		noise_alpha = torch.zeros_like(neg_alpha)
 		noise_dr = torch.zeros_like(neg_dr)
 

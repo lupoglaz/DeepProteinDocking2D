@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --partition=p_ccib_1
-#SBATCH --job-name=EBM_IP_1LDsamp_100ep_parallel_warmhotsigma_noGSnoAP
+#SBATCH --job-name=EBM_IP_1LDsamp_100ep_noGS_hot
 #SBATCH --nodes=1
 ##SBATCH --ntasks=1
 #SBATCH --tasks-per-node=1
@@ -29,12 +29,12 @@ export OMP_NUM_THREADS=$SLURM_CPUS_PER_TASK
 #python results.py -experiment "$exp" -docking -max_epoch 100
 #python train_docking.py -experiment "$exp" -test -ebm -gpu 0
 
-exp=$(echo EBM_IP_1LDsamp_100ep_parallel_warmhotsigma_noGSnoAP)
-
-#EBM: 1D sample buffer, no add_positive
-python train_docking.py -experiment "$exp" -train -ebm -num_epochs 100 -batch_size 1 -gpu 0 -num_samples 1 -parallel_noGSAP
-python results.py -experiment "$exp" -docking -max_epoch 100
-python train_docking.py -experiment "$exp" -test -ebm -gpu 0
+#exp=$(echo EBM_IP_1LDsamp_100ep_parallel_warmhotsigma_noGSnoAP)
+#
+##EBM: 1D sample buffer, no add_positive
+#python train_docking.py -experiment "$exp" -train -ebm -num_epochs 100 -batch_size 1 -gpu 0 -num_samples 1 -parallel_noGSAP
+#python results.py -experiment "$exp" -docking -max_epoch 100
+#python train_docking.py -experiment "$exp" -test -ebm -gpu 0
 
 #exp=$(echo EBM_IP_1LDsamp_100ep_parallel_warmhotsigma_withGSnoAP)
 #
@@ -42,3 +42,10 @@ python train_docking.py -experiment "$exp" -test -ebm -gpu 0
 #python train_docking.py -experiment "$exp" -train -ebm -num_epochs 100 -batch_size 1 -gpu 0 -num_samples 1 -parallel
 #python results.py -experiment "$exp" -docking -max_epoch 100
 #python train_docking.py -experiment "$exp" -test -ebm -gpu 0
+
+exp=$(echo EBM_IP_1LDsamp_100ep_noGS_hot)
+
+#EBM: 1D sample buffer, no add_positive
+python train_docking.py -experiment "$exp" -train -ebm -num_epochs 100 -batch_size 1 -gpu 0 -num_samples 1 -no_pos_samples -no_global_step
+python results.py -experiment "$exp" -docking -max_epoch 100
+python train_docking.py -experiment "$exp" -test -ebm -gpu 0
