@@ -53,6 +53,6 @@ export OMP_NUM_THREADS=$SLURM_CPUS_PER_TASK
 exp=$(echo EBM_IP_1LDsamp_100ep_withGS_hot)
 
 #EBM: 1D sample buffer, no add_positive
-python train_docking.py -experiment "$exp" -train -ebm -num_epochs 100 -batch_size 1 -gpu 0 -num_samples 1 -no_pos_samples
-python results.py -experiment "$exp" -docking -max_epoch 100
-python train_docking.py -experiment "$exp" -test -ebm -gpu 0
+srun -N1 -n1 python train_docking.py -experiment "$exp" -train -ebm -num_epochs 100 -batch_size 1 -gpu 0 -num_samples 1 -no_pos_samples
+srun -N1 -n1 python results.py -experiment "$exp" -docking -max_epoch 100
+srun -N1 -n1 python train_docking.py -experiment "$exp" -test -ebm -gpu 0
