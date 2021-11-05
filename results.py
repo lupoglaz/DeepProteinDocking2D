@@ -39,8 +39,10 @@ def plot_representations(experiments, output_file='Representations.png'):
 	trainer = DockingTrainer(model, None, type='pos')
 	trainer.load_checkpoint(Path('Log')/Path(experiments[0])/Path('dock_ebm.th'))
 	repr_0 = model.repr(receptor).tensor.detach().cpu().clone()
-	trainer.load_checkpoint(Path('Log')/Path(experiments[1])/Path('dock_ebm.th'))
+	trainer.load_checkpoint(Path('Log')/Path(experiments[0])/Path('dock_ebm.th'))
 	repr_1 = model.repr(receptor).tensor.detach().cpu().clone()
+	# trainer.load_checkpoint(Path('Log')/Path(experiments[1])/Path('dock_ebm.th'))
+	# repr_1 = model.repr(receptor).tensor.detach().cpu().clone()
 	reprs = torch.cat([repr_0, repr_1], dim=0)
 	min, max = torch.min(reprs).item(), torch.max(reprs).item()
 	norm = colors.TwoSlopeNorm(vcenter=0.0)
@@ -110,4 +112,4 @@ if __name__=='__main__':
 		logger.plot_dock(RES_DIR/Path("dock"), max_epoch=max_epoch)
 		logger.plot_eval(RES_DIR/Path("eval_anim"), max_epoch=max_epoch)
 		# plot_representations(['BFDocking', 'EBMDocking'], output_file=RES_DIR/Path("comp.png"))
-	
+		# plot_representations(['EBM_IP_1LDsamp_100ep_parallel_warmhotsigma_withGSnoAP'], output_file=RES_DIR / Path("comp.png"))

@@ -6,7 +6,7 @@ import seaborn as sea
 sea.set_style("whitegrid")
 from matplotlib import pylab as plt
 from DatasetGeneration import Complex, Protein
-# from celluloid import Camera
+from celluloid import Camera
 import torch
 import numpy as np
 from tqdm import tqdm
@@ -51,8 +51,8 @@ class Logger:
 	def plot_losses(self, output_name=None, average_num=5, xlabel='Iteration', ylabel='RMSD', coupled=False):
 		import matplotlib.font_manager as font_manager
 		from matplotlib import rcParams
-		font_manager.fontManager.addfont('/home/lupoglaz/.fonts/Helvetica.ttf')
-		rcParams['font.family'] = 'Helvetica'
+		# font_manager.fontManager.addfont('/home/lupoglaz/.fonts/Helvetica.ttf')
+		# rcParams['font.family'] = 'Helvetica'
 		def load_log(filename):
 			with open(filename) as fin:
 				header = fin.readline().split('\t')
@@ -90,56 +90,56 @@ class Logger:
 		else:
 			plt.savefig(f'{output_name}.png')
 
-	# def plot_dock(self, output_name, max_epoch=40):
-	# 	fig, axs = plt.subplots(1, 2, figsize=(12,6))
-	# 	camera = Camera(fig)
-	# 	for epoch in tqdm(range(max_epoch)):
-	# 		with open(self.log_dir/Path(f'valid_{epoch}.th'), "rb") as fin:
-	# 			log_data = torch.load( fin)
-	#
-	# 		dict = log_data[0]
-	# 		if (not("rotations" in dict.keys())) or (not("translations" in dict.keys())):
-	# 			return
-	# 		angles, angle_scores = dict["rotations"]
-	#
-	# 		axs[0].imshow(dict["translations"], cmap='plasma')
-	# 		axs[1].plot(angles.cpu(), angle_scores)
-	# 		plt.tight_layout()
-	# 		camera.snap()
-	#
-	# 	animation = camera.animate()
-	# 	animation.save(output_name.with_suffix('.mp4').as_posix())
-	#
-	# def plot_eval(self, output_name, max_epoch=40, max_samples=5):
-	# 	fig = plt.figure(figsize=(20,4))
-	# 	camera = Camera(fig)
-	# 	for epoch in tqdm(range(max_epoch)):
-	# 		with open(self.log_dir/Path(f'valid_{epoch}.th'), "rb") as fin:
-	# 			log_data = torch.load( fin)
-	# 		num_targets = min(len(log_data), max_samples)
-	#
-	# 		cell_size = 100
-	# 		plot_image = np.zeros((2*cell_size, num_targets*cell_size))
-	# 		for i in range(num_targets):
-	# 			dict = log_data[i]
-	# 			if (not("receptors" in dict.keys())) or (not("ligands" in dict.keys())):
-	# 				return
-	# 			rec = dict["receptors"][0,0,:,:]
-	# 			lig = dict["ligands"][0,0,:,:]
-	# 			cplx = Complex(Protein(rec.numpy()), Protein(lig.numpy()), dict["rotation"].item(), dict["translation"].squeeze().numpy())
-	# 			plot_image[:cell_size, i*cell_size:(i+1)*cell_size] = cplx.get_canvas(cell_size=cell_size)
-	#
-	# 			rec = dict["receptors"][0,0,:,:]
-	# 			lig = dict["ligands"][0,0,:,:]
-	# 			cplx = Complex(Protein(rec.numpy()), Protein(lig.numpy()), dict["pred_rotation"].item(), dict["pred_translation"].numpy())
-	# 			plot_image[cell_size:, i*cell_size:(i+1)*cell_size] = cplx.get_canvas(cell_size=cell_size)
-	#
-	# 		plt.imshow(plot_image)
-	# 		# plt.show()
-	# 		camera.snap()
-	#
-	# 	animation = camera.animate()
-	# 	animation.save(output_name.with_suffix('.mp4').as_posix())
+	def plot_dock(self, output_name, max_epoch=40):
+		fig, axs = plt.subplots(1, 2, figsize=(12,6))
+		camera = Camera(fig)
+		for epoch in tqdm(range(1)):
+			with open(self.log_dir/Path(f'valid_{epoch}.th'), "rb") as fin:
+				log_data = torch.load( fin)
+
+			dict = log_data[0]
+			if (not("rotations" in dict.keys())) or (not("translations" in dict.keys())):
+				return
+			angles, angle_scores = dict["rotations"]
+
+			axs[0].imshow(dict["translations"], cmap='plasma')
+			axs[1].plot(angles.cpu(), angle_scores)
+			plt.tight_layout()
+			camera.snap()
+
+		animation = camera.animate()
+		animation.save(output_name.with_suffix('.mp4').as_posix())
+
+	def plot_eval(self, output_name, max_epoch=40, max_samples=5):
+		fig = plt.figure(figsize=(20,4))
+		camera = Camera(fig)
+		for epoch in tqdm(range(1)):
+			with open(self.log_dir/Path(f'valid_{epoch}.th'), "rb") as fin:
+				log_data = torch.load( fin)
+			num_targets = min(len(log_data), max_samples)
+
+			cell_size = 100
+			plot_image = np.zeros((2*cell_size, num_targets*cell_size))
+			for i in range(num_targets):
+				dict = log_data[i]
+				if (not("receptors" in dict.keys())) or (not("ligands" in dict.keys())):
+					return
+				rec = dict["receptors"][0,0,:,:]
+				lig = dict["ligands"][0,0,:,:]
+				cplx = Complex(Protein(rec.numpy()), Protein(lig.numpy()), dict["rotation"].item(), dict["translation"].squeeze().numpy())
+				plot_image[:cell_size, i*cell_size:(i+1)*cell_size] = cplx.get_canvas(cell_size=cell_size)
+
+				rec = dict["receptors"][0,0,:,:]
+				lig = dict["ligands"][0,0,:,:]
+				cplx = Complex(Protein(rec.numpy()), Protein(lig.numpy()), dict["pred_rotation"].item(), dict["pred_translation"].numpy())
+				plot_image[cell_size:, i*cell_size:(i+1)*cell_size] = cplx.get_canvas(cell_size=cell_size)
+
+			plt.imshow(plot_image)
+			# plt.show()
+			camera.snap()
+
+		animation = camera.animate()
+		animation.save(output_name.with_suffix('.mp4').as_posix())
 
 	def plot_losses_int(self, output_name=None, average_num=5):
 		def load_log(filename):
