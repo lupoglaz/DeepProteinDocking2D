@@ -11,7 +11,7 @@ from math import cos, sin
 from matplotlib import pylab as plt
 
 class SampleBuffer:
-	def __init__(self, num_samples, max_pos=100, num_replicas=2):
+	def __init__(self, num_samples, max_pos=100):
 		self.num_samples = num_samples
 		self.max_pos = max_pos
 		self.buffer = {}
