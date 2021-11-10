@@ -68,7 +68,10 @@ class BruteForceInteractionTrainer:
     # case = 'FI_scratch_50ex_3reps_50ep_rs42_1s4v'
     # case = 'FI_scratch_25ex_3reps_50ep_rs42_1s4v'
 
-    case = 'rs42_1s4v'
+    # case = 'rs42_1s4v'
+
+    case = 'test_pytorch'
+
 
     # exp = 'A'
     # exp = 'B'
