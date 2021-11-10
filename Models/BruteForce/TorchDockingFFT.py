@@ -154,41 +154,64 @@ class TorchDockingFFT:
         ligand_bound = ligand_bound.squeeze()
         # print(receptor_bulk.shape)
 
-        signal_dim = 2
-        # Bulk score
-        cplx_rec = torch.rfft(receptor_bulk, signal_ndim=signal_dim)
-        cplx_lig = torch.rfft(ligand_bulk, signal_ndim=signal_dim)
-        re = cplx_rec[:, :, :, 0] * cplx_lig[:, :, :, 0] + cplx_rec[:, :, :, 1] * cplx_lig[:, :, :, 1]
-        im = -cplx_rec[:, :, :, 0] * cplx_lig[:, :, :, 1] + cplx_rec[:, :, :, 1] * cplx_lig[:, :, :, 0]
-        cconv = torch.stack([re, im], dim=3)
-        trans_bulk = torch.irfft(cconv, signal_dim, signal_sizes=(box_size, box_size))
+        # signal_dim = 2
+        # # Bulk score
+        # cplx_rec = torch.rfft(receptor_bulk, signal_ndim=signal_dim)
+        # cplx_lig = torch.rfft(ligand_bulk, signal_ndim=signal_dim)
+        # re = cplx_rec[:, :, :, 0] * cplx_lig[:, :, :, 0] + cplx_rec[:, :, :, 1] * cplx_lig[:, :, :, 1]
+        # im = -cplx_rec[:, :, :, 0] * cplx_lig[:, :, :, 1] + cplx_rec[:, :, :, 1] * cplx_lig[:, :, :, 0]
+        # cconv = torch.stack([re, im], dim=3)
+        # trans_bulk = torch.irfft(cconv, signal_dim, signal_sizes=(box_size, box_size))
+        #
+        # # print(cplx_rec.shape, cplx_lig.shape)
+        #
+        # # Boundary score
+        # cplx_rec = torch.rfft(receptor_bound, signal_ndim=signal_dim)
+        # cplx_lig = torch.rfft(ligand_bound, signal_ndim=signal_dim)
+        # re = cplx_rec[:, :, :, 0] * cplx_lig[:, :, :, 0] + cplx_rec[:, :, :, 1] * cplx_lig[:, :, :, 1]
+        # im = -cplx_rec[:, :, :, 0] * cplx_lig[:, :, :, 1] + cplx_rec[:, :, :, 1] * cplx_lig[:, :, :, 0]
+        # cconv = torch.stack([re, im], dim=3)
+        # trans_bound = torch.irfft(cconv, signal_dim, signal_sizes=(box_size, box_size))
+        # # print(trans_bound.shape)
+        #
+        # # Boundary - bulk score
+        # cplx_rec = torch.rfft(receptor_bound, signal_ndim=signal_dim)
+        # cplx_lig = torch.rfft(ligand_bulk, signal_ndim=signal_dim)
+        # re = cplx_rec[:, :, :, 0] * cplx_lig[:, :, :, 0] + cplx_rec[:, :, :, 1] * cplx_lig[:, :, :, 1]
+        # im = -cplx_rec[:, :, :, 0] * cplx_lig[:, :, :, 1] + cplx_rec[:, :, :, 1] * cplx_lig[:, :, :, 0]
+        # cconv = torch.stack([re, im], dim=3)
+        # trans_bulk_bound = torch.irfft(cconv, signal_dim, signal_sizes=(box_size, box_size))
+        #
+        # # Bulk - boundary score
+        # cplx_rec = torch.rfft(receptor_bulk, signal_ndim=signal_dim)
+        # cplx_lig = torch.rfft(ligand_bound, signal_ndim=signal_dim)
+        # re = cplx_rec[:, :, :, 0] * cplx_lig[:, :, :, 0] + cplx_rec[:, :, :, 1] * cplx_lig[:, :, :, 1]
+        # im = -cplx_rec[:, :, :, 0] * cplx_lig[:, :, :, 1] + cplx_rec[:, :, :, 1] * cplx_lig[:, :, :, 0]
+        # cconv = torch.stack([re, im], dim=3)
+        # trans_bound_bulk = torch.irfft(cconv, signal_dim, signal_sizes=(box_size, box_size))
 
-        # print(cplx_rec.shape, cplx_lig.shape)
+        # Bulk score
+        cplx_rec = torch.fft.rfft2(receptor_bulk, dim=(-2, -1))
+        cplx_lig = torch.fft.rfft2(ligand_bulk, dim=(-2, -1))
+        trans_bulk = torch.fft.irfft2(cplx_rec * torch.conj(cplx_lig), dim=(-2, -1))
+        # print(cplx_lig.shape, cplx_rec.shape)
+        # print(cconv.shape)
+        # print(trans_bulk.shape)
 
         # Boundary score
-        cplx_rec = torch.rfft(receptor_bound, signal_ndim=signal_dim)
-        cplx_lig = torch.rfft(ligand_bound, signal_ndim=signal_dim)
-        re = cplx_rec[:, :, :, 0] * cplx_lig[:, :, :, 0] + cplx_rec[:, :, :, 1] * cplx_lig[:, :, :, 1]
-        im = -cplx_rec[:, :, :, 0] * cplx_lig[:, :, :, 1] + cplx_rec[:, :, :, 1] * cplx_lig[:, :, :, 0]
-        cconv = torch.stack([re, im], dim=3)
-        trans_bound = torch.irfft(cconv, signal_dim, signal_sizes=(box_size, box_size))
-        # print(trans_bound.shape)
+        cplx_rec = torch.fft.rfft2(receptor_bound, dim=(-2, -1))
+        cplx_lig = torch.fft.rfft2(ligand_bound, dim=(-2, -1))
+        trans_bound = torch.fft.irfft2(cplx_rec * torch.conj(cplx_lig), dim=(-2, -1))
 
         # Boundary - bulk score
-        cplx_rec = torch.rfft(receptor_bound, signal_ndim=signal_dim)
-        cplx_lig = torch.rfft(ligand_bulk, signal_ndim=signal_dim)
-        re = cplx_rec[:, :, :, 0] * cplx_lig[:, :, :, 0] + cplx_rec[:, :, :, 1] * cplx_lig[:, :, :, 1]
-        im = -cplx_rec[:, :, :, 0] * cplx_lig[:, :, :, 1] + cplx_rec[:, :, :, 1] * cplx_lig[:, :, :, 0]
-        cconv = torch.stack([re, im], dim=3)
-        trans_bulk_bound = torch.irfft(cconv, signal_dim, signal_sizes=(box_size, box_size))
+        cplx_rec = torch.fft.rfft2(receptor_bound, dim=(-2, -1))
+        cplx_lig = torch.fft.rfft2(ligand_bulk, dim=(-2, -1))
+        trans_bulk_bound = torch.fft.irfft2(cplx_rec * torch.conj(cplx_lig), dim=(-2, -1))
 
         # Bulk - boundary score
-        cplx_rec = torch.rfft(receptor_bulk, signal_ndim=signal_dim)
-        cplx_lig = torch.rfft(ligand_bound, signal_ndim=signal_dim)
-        re = cplx_rec[:, :, :, 0] * cplx_lig[:, :, :, 0] + cplx_rec[:, :, :, 1] * cplx_lig[:, :, :, 1]
-        im = -cplx_rec[:, :, :, 0] * cplx_lig[:, :, :, 1] + cplx_rec[:, :, :, 1] * cplx_lig[:, :, :, 0]
-        cconv = torch.stack([re, im], dim=3)
-        trans_bound_bulk = torch.irfft(cconv, signal_dim, signal_sizes=(box_size, box_size))
+        cplx_rec = torch.fft.rfft2(receptor_bulk, dim=(-2, -1))
+        cplx_lig = torch.fft.rfft2(ligand_bound, dim=(-2, -1))
+        trans_bound_bulk = torch.fft.irfft2(cplx_rec * torch.conj(cplx_lig), dim=(-2, -1))
 
         ## cross-term score maximizing
         score = weight_bound * trans_bound + weight_crossterm1 * trans_bulk_bound + weight_crossterm2 * trans_bound_bulk - weight_bulk * trans_bulk

@@ -235,7 +235,10 @@ if __name__ == '__main__':
 
     # testcase = 'docking_FI_scratch_50ex_3reps_50ep_rs42_1s4v_scratch50'
 
-    testcase = 'docking_FI_scratch_25ex_3reps_50ep_rs42_1s4v_scratch46'
+    # testcase = 'docking_FI_scratch_25ex_3reps_50ep_rs42_1s4v_scratch46'
+
+    testcase = 'test_pytorch'
+
 
     #########################
     #### initialization torch settings
@@ -273,16 +276,16 @@ if __name__ == '__main__':
     ######################
     ### Train model from beginning
     # epoch = train_epochs
-    # train(debug=False)
+    train(debug=False)
 
     ### Resume training model at chosen epoch
     # train(True, resume_epoch=100)
 
     ### Evaluate model only and plot, at chosen epoch
-    plotting = True
+    # plotting = True
     # plotting = False
-    epoch = '' # when loading FI trained docking model state_dict explicitly.
+    # epoch = '' # when loading FI trained docking model state_dict explicitly.
     # epoch = 11 # best epoch from 'randinit_best_docking_model_epoch'
     # epoch = 75 # best epoch from 'onesinit_lr4_best_docking_model_epoch'
     # epoch = 200 # best epoch from '16scalar32vector_docking_model_epoch'
-    plot_evaluation_set(check_epoch=epoch, plotting=plotting)
+    # plot_evaluation_set(check_epoch=epoch, plotting=plotting)
