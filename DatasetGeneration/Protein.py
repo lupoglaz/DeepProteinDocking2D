@@ -18,7 +18,7 @@ from scipy import ndimage
 import alphashape
 import shapely.geometry as geom
 import shapely.affinity as affine
-import descartes.patch as patch
+# import descartes.patch as patch
 
 import torch.nn.functional as F
 
