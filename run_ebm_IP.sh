@@ -43,16 +43,24 @@ export OMP_NUM_THREADS=$SLURM_CPUS_PER_TASK
 #python results.py -experiment "$exp" -docking -max_epoch 100
 #python train_docking.py -experiment "$exp" -test -ebm -gpu 0
 
-exp=$(echo EBM_IP_1LDsamp_100ep_noGS_hot)
-
-#EBM: 1D sample buffer, no add_positive
-python train_docking.py -experiment "$exp" -train -ebm -num_epochs 100 -batch_size 1 -gpu 0 -num_samples 1 -no_pos_samples -no_global_step
-python results.py -experiment "$exp" -docking -max_epoch 100
-python train_docking.py -experiment "$exp" -test -ebm -gpu 0
+#exp=$(echo EBM_IP_1LDsamp_100ep_noGS_hot)
+#
+##EBM: 1D sample buffer, no add_positive
+#python train_docking.py -experiment "$exp" -train -ebm -num_epochs 100 -batch_size 1 -gpu 0 -num_samples 1 -no_pos_samples -no_global_step
+#python results.py -experiment "$exp" -docking -max_epoch 100
+#python train_docking.py -experiment "$exp" -test -ebm -gpu 0
 
 #exp=$(echo EBM_IP_1LDsamp_100ep_withGS_hot)
 #
 ##EBM: 1D sample buffer, no add_positive
 #python train_docking.py -experiment "$exp" -train -ebm -num_epochs 100 -batch_size 1 -gpu 0 -num_samples 1 -no_pos_samples
+#python results.py -experiment "$exp" -docking -max_epoch 100
+#python train_docking.py -experiment "$exp" -test -ebm -gpu 0
+
+
+exp=$(echo EBM_FI_1LDsamp_1ep)
+
+#EBM: 1D sample buffer, no add_positive
+python train_docking.py -experiment "$exp" -train -ebm -num_epochs 1 -batch_size 1 -gpu 0 -num_samples 1 -FI
 #python results.py -experiment "$exp" -docking -max_epoch 100
 #python train_docking.py -experiment "$exp" -test -ebm -gpu 0

@@ -8,7 +8,7 @@ import numpy as np
 import argparse
 
 from Models import EQScoringModel, EQDockerGPU, CNNInteractionModel
-from torchDataset import get_docking_stream
+from torchDataset import get_docking_stream, get_interaction_stream_balanced
 from tqdm import tqdm
 import random
 
@@ -19,36 +19,81 @@ from DockingTrainer import DockingTrainer
 from DatasetGeneration import Protein, Complex
 from Logger import Logger
 
-def run_docking_model(data, docker, epoch=None):
-	receptor, ligand, translation, rotation, indexes = data
-	receptor = receptor.to(device='cuda', dtype=torch.float).unsqueeze(dim=1)
-	ligand = ligand.to(device='cuda', dtype=torch.float).unsqueeze(dim=1)
-	translation = translation.to(device='cuda', dtype=torch.float)
-	rotation = rotation.to(device='cuda', dtype=torch.float).unsqueeze(dim=1)
-	docker.eval()
-	pred_angles, pred_translations = docker(receptor, ligand)
-	
-	if not epoch is None:
-		log_data = {"translations": docker.top_translations.cpu(),
-				"rotations": (docker.angles.cpu(), docker.top_rotations),
-				"receptors": receptor.cpu(),
-				"ligands": ligand.cpu(),
-				"rotation": rotation.cpu(),
-				"translation": translation.cpu(),
-				"pred_rotation": pred_angles.cpu(),
-				"pred_translation": pred_translations.cpu(),
-				}
-		
 
-	rec = Protein(receptor[0,0,:,:].cpu().numpy())
-	lig = Protein(ligand[0,0,:,:].cpu().numpy())
-	angle = rotation[0].item()
-	pos = translation[0,:].cpu().numpy()	
-	angle_pred = pred_angles.item()
-	pos_pred = pred_translations.cpu().numpy()
-	rmsd = lig.rmsd(pos, angle, pos_pred, angle_pred)
-	
-	return float(rmsd), log_data
+def run_docking_model(data, docker, epoch=None, FI=False):
+	if FI:
+		receptor, ligand, gt_interact = data
+
+		receptor = receptor.squeeze()
+		ligand = ligand.squeeze()
+		gt_interact = gt_interact.squeeze()
+		# print(gt_interact.shape, gt_interact)
+
+		receptor = receptor.to(device='cuda', dtype=torch.float).unsqueeze(0)
+		ligand = ligand.to(device='cuda', dtype=torch.float).unsqueeze(0)
+		gt_interact = gt_interact.to(device='cuda', dtype=torch.float)
+		# docker.eval()
+		pred_interact, deltaF = trainer.step_parallel(data, epoch=epoch)
+
+		BCEloss = torch.nn.BCELoss()
+		l1_loss = torch.nn.L1Loss()
+		w = 10 ** -5
+		L_reg = w * l1_loss(deltaF, torch.zeros(1).squeeze().cuda())
+		loss = BCEloss(pred_interact, gt_interact) + L_reg
+		loss.backward()
+		print('\n predicted', pred_interact.item(), '; ground truth', gt_interact.item())
+
+		# if not epoch is None:
+		# 	log_data = {"receptors": receptor.cpu(),
+		# 				"ligands": ligand.cpu(),
+		# 				"gt_interaction": gt_interact.cpu(),
+		# 				"pred_interaction": pred_interact.cpu(),
+		# 				}
+		with torch.no_grad():
+			threshold = 0.5
+			TP, FP, TN, FN = 0, 0, 0, 0
+			p = pred_interact.item()
+			a = gt_interact.item()
+			if p >= threshold and a >= threshold:
+				TP += 1
+			elif p >= threshold and a < threshold:
+				FP += 1
+			elif p < threshold and a >= threshold:
+				FN += 1
+			elif p < threshold and a < threshold:
+				TN += 1
+			# print('returning', TP, FP, TN, FN)
+			return TP, FP, TN, FN
+	else:
+		receptor, ligand, translation, rotation, indexes = data
+		receptor = receptor.to(device='cuda', dtype=torch.float).unsqueeze(dim=1)
+		ligand = ligand.to(device='cuda', dtype=torch.float).unsqueeze(dim=1)
+		translation = translation.to(device='cuda', dtype=torch.float)
+		rotation = rotation.to(device='cuda', dtype=torch.float).unsqueeze(dim=1)
+		docker.eval()
+		pred_angles, pred_translations = docker(receptor, ligand)
+
+		if not epoch is None:
+			log_data = {"translations": docker.top_translations.cpu(),
+					"rotations": (docker.angles.cpu(), docker.top_rotations),
+					"receptors": receptor.cpu(),
+					"ligands": ligand.cpu(),
+					"rotation": rotation.cpu(),
+					"translation": translation.cpu(),
+					"pred_rotation": pred_angles.cpu(),
+					"pred_translation": pred_translations.cpu(),
+					}
+
+
+		rec = Protein(receptor[0,0,:,:].cpu().numpy())
+		lig = Protein(ligand[0,0,:,:].cpu().numpy())
+		angle = rotation[0].item()
+		pos = translation[0,:].cpu().numpy()
+		angle_pred = pred_angles.item()
+		pos_pred = pred_translations.cpu().numpy()
+		rmsd = lig.rmsd(pos, angle, pos_pred, angle_pred)
+
+		return float(rmsd), log_data
 
 def run_prediction_model(data, trainer, epoch=None):
 	loss, pred_trans, pred_rot = trainer.eval(data)
@@ -60,6 +105,7 @@ def run_prediction_model(data, trainer, epoch=None):
 				"pred_rotation": pred_rot.squeeze().cpu(),
 				"pred_translation": pred_trans.squeeze().cpu()}
 	return loss, log_data
+
 
 if __name__=='__main__':
 
@@ -84,6 +130,7 @@ if __name__=='__main__':
 	parser.add_argument('-default', action='store_const', const=lambda:'default', dest='ablation')
 	parser.add_argument('-parallel', action='store_const', const=lambda:'parallel', dest='ablation')
 	parser.add_argument('-parallel_noGSAP', action='store_const', const=lambda:'parallel_noGSAP', dest='ablation')
+	parser.add_argument('-FI', action='store_const', const=lambda:'FI', dest='ablation')
 
 	args = parser.parse_args()
 
@@ -128,10 +175,17 @@ if __name__=='__main__':
 								 num_buf_samples=len(train_stream) * args.batch_size, step_size=args.step_size,
 								 global_step=True, add_positive=False)
 		elif args.ablation() == 'parallel_noGSAP':
-			print('Parallel two different distribution sigmas, no GS, no AP')
+			print('Parallel, two different distribution sigmas, no GS, no AP')
 			trainer = EBMTrainer(model, optimizer, num_samples=args.num_samples,
 								 num_buf_samples=len(train_stream) * args.batch_size, step_size=args.step_size,
 								 global_step=False, add_positive=False)
+		elif args.ablation() == 'FI':
+			print('Fact of interaction: using parallel, different distribution sigmas, no GS, no AP')
+			train_stream = get_interaction_stream_balanced('DatasetGeneration/interaction_data_train.pkl', batch_size=args.batch_size, max_size=10)
+			valid_stream = get_interaction_stream_balanced('DatasetGeneration/interaction_data_valid.pkl', batch_size=10)
+			trainer = EBMTrainer(model, optimizer, num_samples=args.num_samples,
+								 num_buf_samples=len(train_stream) * args.batch_size, step_size=args.step_size,
+								 global_step=False, add_positive=False, FI=True)
 
 	elif args.model() == 'docker':
 		model = EQScoringModel().to(device='cuda')
@@ -143,41 +197,86 @@ if __name__=='__main__':
 		logger = Logger.new(Path('Log')/Path(args.experiment))
 		min_loss = float('+Inf')
 		for epoch in range(args.num_epochs):
+			pos_idx = 0
 			for data in tqdm(train_stream):
 				if args.model() == 'ebm' and args.ablation and 'parallel' in args.ablation():
+					# print('\nrunning parallel')
 					loss = trainer.step_parallel(data, epoch=epoch)
+				if args.ablation() == 'FI':
+					receptor, ligand, gt_interact = data
+					data = (receptor, ligand, gt_interact, torch.tensor(pos_idx).unsqueeze(0).cuda())
+					loss = trainer.step_parallel(data, epoch=epoch)
+					pos_idx += 1
 				else:
 					loss = trainer.step(data, epoch=epoch)
+			if not args.ablation() == 'FI':
 				logger.log_train(loss)
 
-		loss = []
-		log_data = []
-		docker = EQDockerGPU(model, num_angles=360)
-		for data in tqdm(valid_stream):
-			if args.model() == 'resnet':
-				it_loss, it_log_data = run_prediction_model(data, trainer, epoch=0)
-			elif args.model() == 'ebm':
-				it_loss, it_log_data = run_docking_model(data, docker, epoch=epoch)
-			elif args.model() == 'docker':
-				it_loss, it_log_data = run_docking_model(data, docker, epoch=epoch)
+		if args.ablation() == 'FI':
+			log_format = '%f\t%f\t%f\t%f\t%f\n'
+			log_header = 'Accuracy\tPrecision\tRecall\tF1score\tMCC\n'
+			TP, FP, TN, FN = 0, 0, 0, 0
+
+			for data in tqdm(valid_stream):
+				tp, fp, tn, fn = trainer.step_parallel(data, FI=True)
+				# print(tp, fp, tn,fn)
+				TP += tp
+				FP += fp
+				TN += tn
+				FN += fn
+
+			Accuracy = float(TP + TN) / float(TP + TN + FP + FN)
+			if (TP + FP) > 0:
+				Precision = float(TP) / float(TP + FP)
+			else:
+				Precision = 0.0
+			if (TP + FN) > 0:
+				Recall = float(TP) / float(TP + FN)
+			else:
+				Recall = 0.0
+			F1score = TP / (TP + 0.5 * (FP + FN) + 1E-5)
+
+			MCC = ((TP * TN) - (FP * FN)) / (np.sqrt((TP + FP) * (TP + FN) * (TN + FP) * (TN + FN)) + 1E-5)
+
+			print(f'Epoch {epoch} Acc: {Accuracy} Prec: {Precision} Rec: {Recall} F1: {F1score} MCC: {MCC}')
+
+			with open('Log/'+str(args.experiment)+'/log_EBM_FI_validAPR_.txt', 'a') as fout:
+				# fout.write('Epoch ' + str(check_epoch) + '\n')
+				fout.write(log_header)
+				fout.write(log_format % (Accuracy, Precision, Recall, F1score, MCC))
+			fout.close()
+		else:
+			loss = []
+			log_data = []
+			docker = EQDockerGPU(model, num_angles=360)
+			for data in tqdm(valid_stream):
+				if args.model() == 'resnet':
+					it_loss, it_log_data = run_prediction_model(data, trainer, epoch=0)
+				elif args.model() == 'ebm':
+					it_loss, it_log_data = run_docking_model(data, docker, epoch=epoch)
+				elif args.model() == 'docker':
+					it_loss, it_log_data = run_docking_model(data, docker, epoch=epoch)
 
 
-			loss.append(it_loss)
-			log_data.append(it_log_data)
+				loss.append(it_loss)
+				log_data.append(it_log_data)
 
-		av_loss = np.average(loss, axis=0)
-		logger.log_valid(av_loss)
-		logger.log_data(log_data)
+			av_loss = np.average(loss, axis=0)
+			logger.log_valid(av_loss)
+			logger.log_data(log_data)
 
-		print('Epoch', epoch, 'Valid Loss:', av_loss)
-		if av_loss < min_loss:
-			torch.save(model.state_dict(), logger.log_dir/Path('dock_ebm.th'))
-			print(f'Model saved: min_loss = {av_loss} prev = {min_loss}')
-			min_loss = av_loss
+			print('Epoch', epoch, 'Valid Loss:', av_loss)
+			if av_loss < min_loss:
+				torch.save(model.state_dict(), logger.log_dir/Path('dock_ebm.th'))
+				print(f'Model saved: min_loss = {av_loss} prev = {min_loss}')
+				min_loss = av_loss
 
 	elif args.cmd() == 'test':
 		trainer.load_checkpoint(Path('Log')/Path(args.experiment)/Path('dock_ebm.th'))
-		test_stream = get_docking_stream('DatasetGeneration/docking_data_test.pkl', batch_size=1, max_size=None)
+		if args.ablation() == 'FI':
+			test_stream = get_interaction_stream_balanced('DatasetGeneration/interaction_data_test.pkl', batch_size=1, max_size=None)
+		else:
+			test_stream = get_docking_stream('DatasetGeneration/docking_data_test.pkl', batch_size=1, max_size=None)
 		logger = Logger.new(Path('Log')/Path(args.experiment)/Path('Test'))
 		
 		loss = []

@@ -58,7 +58,7 @@ class SampleBuffer:
 
 class EBMTrainer:
 	def __init__(self, model, optimizer, num_buf_samples=10, device='cuda', num_samples=10, weight=1.0, step_size=10.0, sample_steps=100,
-				global_step=True, add_positive=True, sigma_dr=0.05, sigma_alpha=0.5):
+				global_step=True, add_positive=True, sigma_dr=0.05, sigma_alpha=0.5, FI=False):
 		self.model = model
 		self.optimizer = optimizer
 		self.buffer = SampleBuffer(num_buf_samples)
@@ -74,6 +74,10 @@ class EBMTrainer:
 
 		self.plot_idx = 0
 		self.conv = ProteinConv2D()
+
+		self.FI = FI
+		if self.FI:
+			self.F_0 = nn.Parameter(torch.zeros(1, requires_grad=True))
 
 	def requires_grad(self, flag=True):
 		parameters = self.model.parameters()
@@ -138,11 +142,15 @@ class EBMTrainer:
 		neg_dr.requires_grad_()
 		langevin_opt = optim.SGD([neg_alpha, neg_dr], lr=self.step_size, momentum=0.0)
 
+		last100_neg_out = []
+
 		for k in range(self.sample_steps):
 			langevin_opt.zero_grad()
 
 			pos_repr, _, A = self.model.mult(rec_feat, lig_feat, neg_alpha, neg_dr)
 			neg_out = self.model.scorer(pos_repr)
+			# print(neg_out.shape)
+			# print(neg_out)
 			neg_out.mean().backward()
 
 			langevin_opt.step()
@@ -152,20 +160,37 @@ class EBMTrainer:
 
 			neg_dr.data.clamp_(-rec_feat.size(2), rec_feat.size(2))
 			neg_alpha.data.clamp_(-np.pi, np.pi)
-		
-		return neg_alpha.detach(), neg_dr.detach()
+
+			last100_neg_out.append(neg_out)
+
+		if self.FI:
+			E = torch.stack((last100_neg_out), dim=0).cpu()
+			# print(E.shape)
+			deltaF = -torch.logsumexp(-E, dim=(0, 1, 2)) - self.F_0
+			pred_interact = torch.sigmoid(-deltaF)
+
+			return neg_alpha.detach(), neg_dr.detach(), deltaF, pred_interact
+		else:
+			return neg_alpha.detach(), neg_dr.detach()
 
 	def step_parallel(self, data, epoch=None):
-		receptor, ligand, translation, rotation, pos_idx = data
+		if self.FI:
+			receptor, ligand, gt_interact, pos_idx = data
+			pos_rec = receptor.to(device=self.device, dtype=torch.float32).unsqueeze(dim=1)
+			pos_lig = ligand.to(device=self.device, dtype=torch.float32).unsqueeze(dim=1)
+		else:
+			receptor, ligand, translation, rotation, pos_idx = data
 
-		pos_rec = receptor.to(device=self.device, dtype=torch.float32).unsqueeze(dim=1)
-		pos_lig = ligand.to(device=self.device, dtype=torch.float32).unsqueeze(dim=1)
-		pos_alpha = rotation.to(device=self.device, dtype=torch.float32).unsqueeze(dim=1)
-		pos_dr = translation.to(device=self.device, dtype=torch.float32)
+			pos_rec = receptor.to(device=self.device, dtype=torch.float32).unsqueeze(dim=1)
+			pos_lig = ligand.to(device=self.device, dtype=torch.float32).unsqueeze(dim=1)
+			pos_alpha = rotation.to(device=self.device, dtype=torch.float32).unsqueeze(dim=1)
+			pos_dr = translation.to(device=self.device, dtype=torch.float32)
 
 		batch_size = pos_rec.size(0)
 		num_features = pos_rec.size(1)
 		L = pos_rec.size(2)
+
+		# print(pos_idx, pos_idx.type(), pos_idx.shape)
 
 		neg_alpha, neg_dr = self.buffer.get(pos_idx, num_samples=self.num_samples)
 		neg_alpha2, neg_dr2 = self.buffer2.get(pos_idx, num_samples=self.num_samples)
@@ -185,26 +210,46 @@ class EBMTrainer:
 		pos_rec_feat = self.model.repr(pos_rec).tensor
 		pos_lig_feat = self.model.repr(pos_lig).tensor
 
-		neg_alpha, neg_dr = self.langevin(neg_alpha, neg_dr, neg_rec_feat.detach(), neg_lig_feat.detach(), neg_idx, sigma_dr=0.05, sigma_alpha=0.5)
-		neg_alpha2, neg_dr2 = self.langevin(neg_alpha2, neg_dr2, neg_rec_feat.detach(), neg_lig_feat.detach(), neg_idx, sigma_dr=0.5, sigma_alpha=5)
+		if self.FI:
+			self.requires_grad(True)
+			self.model.train()
+			self.model.zero_grad()
+			neg_alpha, neg_dr, deltaF, pred_interact = self.langevin(neg_alpha, neg_dr, neg_rec_feat.detach(), neg_lig_feat.detach(), neg_idx, sigma_dr=0.05, sigma_alpha=0.5)
+			neg_alpha2, neg_dr2, deltaF2, pred_interact2 = self.langevin(neg_alpha2, neg_dr2, neg_rec_feat.detach(), neg_lig_feat.detach(),neg_idx, sigma_dr=0.5, sigma_alpha=5)
 
-		self.requires_grad(True)
-		self.model.train()
-		self.model.zero_grad()
+			# return deltaF.squeeze(), pred_interact.squeeze()
 
-		pos_out, _, _ = self.model.mult(pos_rec_feat, pos_lig_feat, pos_alpha, pos_dr)
-		pos_out = self.model.scorer(pos_out)
-		L_p = (pos_out + self.weight * pos_out ** 2).mean()
-		neg_out, _, _ = self.model.mult(neg_rec_feat, neg_lig_feat, neg_alpha, neg_dr)
-		neg_out = self.model.scorer(neg_out)
-		L_n = (-neg_out + self.weight * neg_out ** 2).mean()
-		neg_out2, _, _ = self.model.mult(neg_rec_feat, neg_lig_feat, neg_alpha2, neg_dr2)
-		neg_out2 = self.model.scorer(neg_out2)
-		L_n2 = (-neg_out2 + self.weight * neg_out2 ** 2).mean()
-		loss = L_p + (L_n + L_n2)/2
-		loss.backward()
+			BCEloss = torch.nn.BCELoss()
+			l1_loss = torch.nn.L1Loss()
+			w = 10 ** -5
+			L_reg = w * l1_loss(deltaF, torch.zeros(1).squeeze())
+			loss = BCEloss(pred_interact, gt_interact) + L_reg
+			loss.backward(retain_graph=True)
+			print('\n predicted', pred_interact.item(), '; ground truth', gt_interact.item())
+			self.optimizer.step()
+			self.buffer.push(neg_alpha, neg_dr, neg_idx)
+			self.buffer2.push(neg_alpha2, neg_dr2, neg_idx)
+		else:
+			neg_alpha, neg_dr = self.langevin(neg_alpha, neg_dr, neg_rec_feat.detach(), neg_lig_feat.detach(), neg_idx, sigma_dr=0.05, sigma_alpha=0.5)
+			neg_alpha2, neg_dr2 = self.langevin(neg_alpha2, neg_dr2, neg_rec_feat.detach(), neg_lig_feat.detach(), neg_idx, sigma_dr=0.5, sigma_alpha=5)
+
+			self.requires_grad(True)
+			self.model.train()
+			self.model.zero_grad()
+			pos_out, _, _ = self.model.mult(pos_rec_feat, pos_lig_feat, pos_alpha, pos_dr)
+			pos_out = self.model.scorer(pos_out)
+			L_p = (pos_out + self.weight * pos_out ** 2).mean()
+			neg_out, _, _ = self.model.mult(neg_rec_feat, neg_lig_feat, neg_alpha, neg_dr)
+			neg_out = self.model.scorer(neg_out)
+			L_n = (-neg_out + self.weight * neg_out ** 2).mean()
+			neg_out2, _, _ = self.model.mult(neg_rec_feat, neg_lig_feat, neg_alpha2, neg_dr2)
+			neg_out2 = self.model.scorer(neg_out2)
+			L_n2 = (-neg_out2 + self.weight * neg_out2 ** 2).mean()
+			loss = L_p + (L_n + L_n2)/2
+			loss.backward()
 
 		self.optimizer.step()
+		# never add postive for step parallel and 1D LD buffer
 		if self.add_positive:
 			# print('AP')
 			self.buffer.push(pos_alpha, pos_dr, pos_idx)
