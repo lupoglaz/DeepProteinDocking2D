@@ -6,7 +6,6 @@ class BruteForceInteraction(nn.Module):
     def __init__(self):
         super(BruteForceInteraction, self).__init__()
 
-        self.softmax = torch.nn.Softmax(dim=0)
         self.F_0 = nn.Parameter(torch.zeros(1, requires_grad=True))
 
     def forward(self, FFT_score, plotting=False):
