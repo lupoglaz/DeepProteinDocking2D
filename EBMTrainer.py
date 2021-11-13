@@ -224,9 +224,12 @@ class EBMTrainer:
 
 				# return deltaF.squeeze(), pred_interact.squeeze()
 
-				print('deltaF - F_0', deltaF.item())
+				print('deltaF - F_0, cold, hot', deltaF.item(), deltaF2.item())
 				print('F_0', self.F_0.item())
-				print('predicted interaction', pred_interact.item())
+				print('predicted interaction, cold , hot', pred_interact.item(), pred_interact2.item())
+
+				deltaF = (deltaF + deltaF2)/2
+				pred_interact = (pred_interact + pred_interact2)/2
 
 				BCEloss = torch.nn.BCELoss()
 				l1_loss = torch.nn.L1Loss()
@@ -234,7 +237,7 @@ class EBMTrainer:
 				L_reg = w * l1_loss(deltaF, torch.zeros(1))
 				loss = BCEloss(pred_interact, gt_interact) + L_reg
 				loss.backward()
-				print('\n predicted', pred_interact.item(), '; ground truth', gt_interact.item())
+				print('\n PREDICTED', pred_interact.item(), '; GROUND TRUTH', gt_interact.item())
 				self.optimizer.step()
 				self.buffer.push(neg_alpha, neg_dr, neg_idx)
 				self.buffer2.push(neg_alpha2, neg_dr2, neg_idx)
