@@ -151,7 +151,11 @@ class EBMTrainer:
 			neg_out = self.model.scorer(pos_repr)
 			# print(neg_out.shape)
 			# print(neg_out)
-			neg_out.mean().backward()
+			if self.FI:
+				neg_out.mean()
+			else:
+				neg_out.mean().backward()
+
 
 			langevin_opt.step()
 
@@ -173,7 +177,7 @@ class EBMTrainer:
 		else:
 			return neg_alpha.detach(), neg_dr.detach()
 
-	def step_parallel(self, data, epoch=None):
+	def step_parallel(self, data, epoch=None, train=True):
 		if self.FI:
 			receptor, ligand, gt_interact, pos_idx = data
 			pos_rec = receptor.to(device=self.device, dtype=torch.float32).unsqueeze(dim=1)
@@ -211,24 +215,51 @@ class EBMTrainer:
 		pos_lig_feat = self.model.repr(pos_lig).tensor
 
 		if self.FI:
-			self.requires_grad(True)
-			self.model.train()
-			self.model.zero_grad()
-			neg_alpha, neg_dr, deltaF, pred_interact = self.langevin(neg_alpha, neg_dr, neg_rec_feat.detach(), neg_lig_feat.detach(), neg_idx, sigma_dr=0.05, sigma_alpha=0.5)
-			neg_alpha2, neg_dr2, deltaF2, pred_interact2 = self.langevin(neg_alpha2, neg_dr2, neg_rec_feat.detach(), neg_lig_feat.detach(),neg_idx, sigma_dr=0.5, sigma_alpha=5)
+			if train:
+				self.requires_grad(True)
+				self.model.train()
+				self.model.zero_grad()
+				neg_alpha, neg_dr, deltaF, pred_interact = self.langevin(neg_alpha, neg_dr, neg_rec_feat.detach(), neg_lig_feat.detach(), neg_idx, sigma_dr=0.05, sigma_alpha=0.5)
+				neg_alpha2, neg_dr2, deltaF2, pred_interact2 = self.langevin(neg_alpha2, neg_dr2, neg_rec_feat.detach(), neg_lig_feat.detach(),neg_idx, sigma_dr=0.5, sigma_alpha=5)
 
-			# return deltaF.squeeze(), pred_interact.squeeze()
+				# return deltaF.squeeze(), pred_interact.squeeze()
 
-			BCEloss = torch.nn.BCELoss()
-			l1_loss = torch.nn.L1Loss()
-			w = 10 ** -5
-			L_reg = w * l1_loss(deltaF, torch.zeros(1).squeeze())
-			loss = BCEloss(pred_interact, gt_interact) + L_reg
-			loss.backward(retain_graph=True)
-			print('\n predicted', pred_interact.item(), '; ground truth', gt_interact.item())
-			self.optimizer.step()
-			self.buffer.push(neg_alpha, neg_dr, neg_idx)
-			self.buffer2.push(neg_alpha2, neg_dr2, neg_idx)
+				print('deltaF - F_0', deltaF.item())
+				print('F_0', self.F_0.item())
+				print('predicted interaction', pred_interact.item())
+
+				BCEloss = torch.nn.BCELoss()
+				l1_loss = torch.nn.L1Loss()
+				w = 10 ** -5
+				L_reg = w * l1_loss(deltaF, torch.zeros(1))
+				loss = BCEloss(pred_interact, gt_interact) + L_reg
+				loss.backward()
+				print('\n predicted', pred_interact.item(), '; ground truth', gt_interact.item())
+				self.optimizer.step()
+				self.buffer.push(neg_alpha, neg_dr, neg_idx)
+				self.buffer2.push(neg_alpha2, neg_dr2, neg_idx)
+				return loss.item()
+			else:
+				self.model.eval()
+				with torch.no_grad():
+					neg_alpha, neg_dr, deltaF, pred_interact = self.langevin(neg_alpha, neg_dr, neg_rec_feat.detach(),
+																			 neg_lig_feat.detach(), neg_idx,
+																			 sigma_dr=0.05, sigma_alpha=0.5)
+
+					threshold = 0.5
+					TP, FP, TN, FN = 0, 0, 0, 0
+					p = pred_interact.item()
+					a = gt_interact.item()
+					if p >= threshold and a >= threshold:
+						TP += 1
+					elif p >= threshold and a < threshold:
+						FP += 1
+					elif p < threshold and a >= threshold:
+						FN += 1
+					elif p < threshold and a < threshold:
+						TN += 1
+					# print('returning', TP, FP, TN, FN)
+					return TP, FP, TN, FN
 		else:
 			neg_alpha, neg_dr = self.langevin(neg_alpha, neg_dr, neg_rec_feat.detach(), neg_lig_feat.detach(), neg_idx, sigma_dr=0.05, sigma_alpha=0.5)
 			neg_alpha2, neg_dr2 = self.langevin(neg_alpha2, neg_dr2, neg_rec_feat.detach(), neg_lig_feat.detach(), neg_idx, sigma_dr=0.5, sigma_alpha=5)

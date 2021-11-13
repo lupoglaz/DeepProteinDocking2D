@@ -20,80 +20,36 @@ from DatasetGeneration import Protein, Complex
 from Logger import Logger
 
 
-def run_docking_model(data, docker, epoch=None, FI=False):
-	if FI:
-		receptor, ligand, gt_interact = data
+def run_docking_model(data, docker, epoch=None):
+	receptor, ligand, translation, rotation, indexes = data
+	receptor = receptor.to(device='cuda', dtype=torch.float).unsqueeze(dim=1)
+	ligand = ligand.to(device='cuda', dtype=torch.float).unsqueeze(dim=1)
+	translation = translation.to(device='cuda', dtype=torch.float)
+	rotation = rotation.to(device='cuda', dtype=torch.float).unsqueeze(dim=1)
+	docker.eval()
+	pred_angles, pred_translations = docker(receptor, ligand)
 
-		receptor = receptor.squeeze()
-		ligand = ligand.squeeze()
-		gt_interact = gt_interact.squeeze()
-		# print(gt_interact.shape, gt_interact)
-
-		receptor = receptor.to(device='cuda', dtype=torch.float).unsqueeze(0)
-		ligand = ligand.to(device='cuda', dtype=torch.float).unsqueeze(0)
-		gt_interact = gt_interact.to(device='cuda', dtype=torch.float)
-		# docker.eval()
-		pred_interact, deltaF = trainer.step_parallel(data, epoch=epoch)
-
-		BCEloss = torch.nn.BCELoss()
-		l1_loss = torch.nn.L1Loss()
-		w = 10 ** -5
-		L_reg = w * l1_loss(deltaF, torch.zeros(1).squeeze().cuda())
-		loss = BCEloss(pred_interact, gt_interact) + L_reg
-		loss.backward()
-		print('\n predicted', pred_interact.item(), '; ground truth', gt_interact.item())
-
-		# if not epoch is None:
-		# 	log_data = {"receptors": receptor.cpu(),
-		# 				"ligands": ligand.cpu(),
-		# 				"gt_interaction": gt_interact.cpu(),
-		# 				"pred_interaction": pred_interact.cpu(),
-		# 				}
-		with torch.no_grad():
-			threshold = 0.5
-			TP, FP, TN, FN = 0, 0, 0, 0
-			p = pred_interact.item()
-			a = gt_interact.item()
-			if p >= threshold and a >= threshold:
-				TP += 1
-			elif p >= threshold and a < threshold:
-				FP += 1
-			elif p < threshold and a >= threshold:
-				FN += 1
-			elif p < threshold and a < threshold:
-				TN += 1
-			# print('returning', TP, FP, TN, FN)
-			return TP, FP, TN, FN
-	else:
-		receptor, ligand, translation, rotation, indexes = data
-		receptor = receptor.to(device='cuda', dtype=torch.float).unsqueeze(dim=1)
-		ligand = ligand.to(device='cuda', dtype=torch.float).unsqueeze(dim=1)
-		translation = translation.to(device='cuda', dtype=torch.float)
-		rotation = rotation.to(device='cuda', dtype=torch.float).unsqueeze(dim=1)
-		docker.eval()
-		pred_angles, pred_translations = docker(receptor, ligand)
-
-		if not epoch is None:
-			log_data = {"translations": docker.top_translations.cpu(),
-					"rotations": (docker.angles.cpu(), docker.top_rotations),
-					"receptors": receptor.cpu(),
-					"ligands": ligand.cpu(),
-					"rotation": rotation.cpu(),
-					"translation": translation.cpu(),
-					"pred_rotation": pred_angles.cpu(),
-					"pred_translation": pred_translations.cpu(),
-					}
+	if not epoch is None:
+		log_data = {"translations": docker.top_translations.cpu(),
+				"rotations": (docker.angles.cpu(), docker.top_rotations),
+				"receptors": receptor.cpu(),
+				"ligands": ligand.cpu(),
+				"rotation": rotation.cpu(),
+				"translation": translation.cpu(),
+				"pred_rotation": pred_angles.cpu(),
+				"pred_translation": pred_translations.cpu(),
+				}
 
 
-		rec = Protein(receptor[0,0,:,:].cpu().numpy())
-		lig = Protein(ligand[0,0,:,:].cpu().numpy())
-		angle = rotation[0].item()
-		pos = translation[0,:].cpu().numpy()
-		angle_pred = pred_angles.item()
-		pos_pred = pred_translations.cpu().numpy()
-		rmsd = lig.rmsd(pos, angle, pos_pred, angle_pred)
+	rec = Protein(receptor[0,0,:,:].cpu().numpy())
+	lig = Protein(ligand[0,0,:,:].cpu().numpy())
+	angle = rotation[0].item()
+	pos = translation[0,:].cpu().numpy()
+	angle_pred = pred_angles.item()
+	pos_pred = pred_translations.cpu().numpy()
+	rmsd = lig.rmsd(pos, angle, pos_pred, angle_pred)
 
-		return float(rmsd), log_data
+	return float(rmsd), log_data
 
 def run_prediction_model(data, trainer, epoch=None):
 	loss, pred_trans, pred_rot = trainer.eval(data)
@@ -181,8 +137,9 @@ if __name__=='__main__':
 								 global_step=False, add_positive=False)
 		elif args.ablation() == 'FI':
 			print('Fact of interaction: using parallel, different distribution sigmas, no GS, no AP')
-			train_stream = get_interaction_stream_balanced('DatasetGeneration/interaction_data_train.pkl', batch_size=args.batch_size, max_size=10)
-			valid_stream = get_interaction_stream_balanced('DatasetGeneration/interaction_data_valid.pkl', batch_size=10)
+			# max_size=100
+			train_stream = get_interaction_stream_balanced('DatasetGeneration/interaction_data_train.pkl', batch_size=args.batch_size)
+			valid_stream = get_interaction_stream_balanced('DatasetGeneration/interaction_data_valid.pkl', batch_size=1)
 			trainer = EBMTrainer(model, optimizer, num_samples=args.num_samples,
 								 num_buf_samples=len(train_stream) * args.batch_size, step_size=args.step_size,
 								 global_step=False, add_positive=False, FI=True)
@@ -200,7 +157,7 @@ if __name__=='__main__':
 			pos_idx = 0
 			for data in tqdm(train_stream):
 				if args.model() == 'ebm' and args.ablation and 'parallel' in args.ablation():
-					# print('\nrunning parallel')
+					print('\nrunning parallel')
 					loss = trainer.step_parallel(data, epoch=epoch)
 				if args.ablation() == 'FI':
 					receptor, ligand, gt_interact = data
@@ -217,13 +174,18 @@ if __name__=='__main__':
 			log_header = 'Accuracy\tPrecision\tRecall\tF1score\tMCC\n'
 			TP, FP, TN, FN = 0, 0, 0, 0
 
+			pos_idx = 0
 			for data in tqdm(valid_stream):
-				tp, fp, tn, fn = trainer.step_parallel(data, FI=True)
+				receptor, ligand, gt_interact = data
+				data = (receptor, ligand, gt_interact, torch.tensor(pos_idx).unsqueeze(0).cuda())
+				tp, fp, tn, fn = trainer.step_parallel(data, train=False)
 				# print(tp, fp, tn,fn)
 				TP += tp
 				FP += fp
 				TN += tn
 				FN += fn
+				pos_idx += 1
+
 
 			Accuracy = float(TP + TN) / float(TP + TN + FP + FN)
 			if (TP + FP) > 0:
