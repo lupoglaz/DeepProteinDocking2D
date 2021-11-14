@@ -159,12 +159,14 @@ if __name__=='__main__':
 				if args.model() == 'ebm' and args.ablation and 'parallel' in args.ablation():
 					print('\nrunning parallel')
 					loss = trainer.step_parallel(data, epoch=epoch)
-				if args.ablation() == 'FI':
+				elif args.ablation() == 'FI':
+					print('\nFI parallel')
 					receptor, ligand, gt_interact = data
 					data = (receptor, ligand, gt_interact, torch.tensor(pos_idx).unsqueeze(0).cuda())
 					loss = trainer.step_parallel(data, epoch=epoch)
 					pos_idx += 1
 				else:
+					print('\nNOT PARALLEL')
 					loss = trainer.step(data, epoch=epoch)
 			if not args.ablation() == 'FI':
 				logger.log_train(loss)

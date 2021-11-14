@@ -31,24 +31,28 @@ class SampleBuffer:
 			if len(self.buffer[i])>self.max_pos:
 				self.buffer[i].pop(0)
 
-	def get(self, index, num_samples=1, device='cuda'):
+	def get(self, index, num_samples, device='cuda'):
 		alphas = []
 		drs = []
 		for idx in index:
 			i = idx.item()
 			if len(self.buffer[i])>=num_samples and random.randint(0,10)<7:
+				# print('if statement')
+				# print('len buffer', len(self.buffer[i]))
 				lst = random.choices(self.buffer[i], k=num_samples)
 				alpha = list(map(lambda x: x[0], lst))
 				dr = list(map(lambda x: x[1], lst))
 				alphas.append(torch.stack(alpha, dim=0))
 				drs.append(torch.stack(dr, dim=0))
 			else:
+				# print('else statement')
+				# print('len buffer', len(self.buffer[i]), self.buffer[i])
 				alpha = torch.rand(num_samples, 1)*2*np.pi - np.pi
 				dr = torch.rand(num_samples, 2)*50.0 - 25.0
 				alphas.append(alpha)
 				drs.append(dr)
-				# print('\nalpha', alpha)
-				# print('dr', dr)
+				print('\nalpha', alpha)
+				print('dr', dr)
 		
 		alphas = torch.stack(alphas, dim=0).to(device=device)
 		drs = torch.stack(drs, dim=0).to(device=device)
@@ -61,6 +65,7 @@ class EBMTrainer:
 				global_step=True, add_positive=True, sigma_dr=0.05, sigma_alpha=0.5, FI=False):
 		self.model = model
 		self.optimizer = optimizer
+
 		self.buffer = SampleBuffer(num_buf_samples)
 		self.buffer2 = SampleBuffer(num_buf_samples)
 		self.global_step = global_step
@@ -143,18 +148,23 @@ class EBMTrainer:
 		langevin_opt = optim.SGD([neg_alpha, neg_dr], lr=self.step_size, momentum=0.0)
 
 		last100_neg_out = []
+		last100_neg_alpha = []
+		last100_neg_dr = []
 
 		for k in range(self.sample_steps):
 			langevin_opt.zero_grad()
 
 			pos_repr, _, A = self.model.mult(rec_feat, lig_feat, neg_alpha, neg_dr)
 			neg_out = self.model.scorer(pos_repr)
+			# print('calling neg_out backward')
+			neg_out.mean().backward()
+
 			# print(neg_out.shape)
 			# print(neg_out)
-			if self.FI:
-				neg_out.mean()
-			else:
-				neg_out.mean().backward()
+			# if self.FI:
+			# 	neg_out.mean()
+			# else:
+			# 	neg_out.mean().backward()
 
 
 			langevin_opt.step()
@@ -167,13 +177,24 @@ class EBMTrainer:
 
 			last100_neg_out.append(neg_out)
 
-		if self.FI:
-			E = torch.stack((last100_neg_out), dim=0).cpu()
-			# print(E.shape)
-			deltaF = -torch.logsumexp(-E, dim=(0, 1, 2)) - self.F_0
-			pred_interact = torch.sigmoid(-deltaF)
+			last100_neg_alpha.append(neg_alpha)
+			last100_neg_dr.append(neg_dr)
 
-			return neg_alpha.detach(), neg_dr.detach(), deltaF, pred_interact
+		# if self.FI:
+		# 	E = torch.stack((last100_neg_out), dim=0).cpu()
+		# 	# print(E.shape)
+		# 	deltaF = -torch.logsumexp(-E, dim=(0, 1, 2)) - self.F_0
+		# 	pred_interact = torch.sigmoid(-deltaF)
+		#
+		# 	return neg_alpha.detach(), neg_dr.detach(), deltaF, pred_interact
+		# else:
+		# 	return neg_alpha.detach(), neg_dr.detach()
+
+		# print('\nneg_alpha', last100_neg_alpha)
+		# print('\nneg_dr', last100_neg_dr)
+
+		if self.FI:
+			return neg_alpha.detach(), neg_dr.detach(), last100_neg_out
 		else:
 			return neg_alpha.detach(), neg_dr.detach()
 
@@ -216,20 +237,40 @@ class EBMTrainer:
 
 		if self.FI:
 			if train:
-				self.requires_grad(True)
-				self.model.train()
-				self.model.zero_grad()
-				neg_alpha, neg_dr, deltaF, pred_interact = self.langevin(neg_alpha, neg_dr, neg_rec_feat.detach(), neg_lig_feat.detach(), neg_idx, sigma_dr=0.05, sigma_alpha=0.5)
-				neg_alpha2, neg_dr2, deltaF2, pred_interact2 = self.langevin(neg_alpha2, neg_dr2, neg_rec_feat.detach(), neg_lig_feat.detach(),neg_idx, sigma_dr=0.5, sigma_alpha=5)
+				# neg_alpha, neg_dr, deltaF, pred_interact = self.langevin(neg_alpha, neg_dr, neg_rec_feat.detach(), neg_lig_feat.detach(), neg_idx, sigma_dr=0.05, sigma_alpha=0.5)
+				# neg_alpha2, neg_dr2, deltaF2, pred_interact2 = self.langevin(neg_alpha2, neg_dr2, neg_rec_feat.detach(), neg_lig_feat.detach(),neg_idx, sigma_dr=0.5, sigma_alpha=5)
 
 				# return deltaF.squeeze(), pred_interact.squeeze()
 
-				print('deltaF - F_0, cold, hot', deltaF.item(), deltaF2.item())
-				print('F_0', self.F_0.item())
-				print('predicted interaction, cold , hot', pred_interact.item(), pred_interact2.item())
+				neg_alpha, neg_dr, last100_neg_out = self.langevin(neg_alpha, neg_dr, neg_rec_feat.detach(), neg_lig_feat.detach(), neg_idx, sigma_dr=0.05, sigma_alpha=0.5)
+				neg_alpha2, neg_dr2, last100_neg_out2 = self.langevin(neg_alpha2, neg_dr2, neg_rec_feat.detach(), neg_lig_feat.detach(),neg_idx, sigma_dr=0.5, sigma_alpha=5)
 
-				deltaF = (deltaF + deltaF2)/2
-				pred_interact = (pred_interact + pred_interact2)/2
+				self.requires_grad(True)
+				self.model.train()
+				self.model.zero_grad()
+
+				# print('\ncold',last100_neg_out)
+				# print('\nhot',last100_neg_out2)
+
+				E = torch.stack(last100_neg_out, dim=0).cpu()
+				E2 = torch.stack(last100_neg_out2, dim=0).cpu()
+				E = E + E2
+
+				# print(E.shape)
+				deltaF = -torch.logsumexp(-E, dim=(0, 1, 2)) - self.F_0
+				pred_interact = torch.sigmoid(-deltaF)
+
+				print('deltaF - F_0', deltaF.item())
+				print('F_0', self.F_0, 'gradient', self.F_0.grad)
+				print('predicted interaction', pred_interact.item())
+
+
+				# print('deltaF - F_0, cold, hot', deltaF.item(), deltaF2.item())
+				# print('F_0', self.F_0.item())
+				# print('predicted interaction, cold , hot', pred_interact.item(), pred_interact2.item())
+
+				# deltaF = deltaF + deltaF2
+				# pred_interact = pred_interact + pred_interact2
 
 				BCEloss = torch.nn.BCELoss()
 				l1_loss = torch.nn.L1Loss()
@@ -282,17 +323,17 @@ class EBMTrainer:
 			loss = L_p + (L_n + L_n2)/2
 			loss.backward()
 
-		self.optimizer.step()
-		# never add postive for step parallel and 1D LD buffer
-		if self.add_positive:
-			# print('AP')
-			self.buffer.push(pos_alpha, pos_dr, pos_idx)
-			self.buffer2.push(pos_alpha, pos_dr, pos_idx)
+			self.optimizer.step()
+			# never add postive for step parallel and 1D LD buffer
+			if self.add_positive:
+				# print('AP')
+				self.buffer.push(pos_alpha, pos_dr, pos_idx)
+				self.buffer2.push(pos_alpha, pos_dr, pos_idx)
 
-		self.buffer.push(neg_alpha, neg_dr, neg_idx)
-		self.buffer2.push(neg_alpha2, neg_dr2, neg_idx)
+			self.buffer.push(neg_alpha, neg_dr, neg_idx)
+			self.buffer2.push(neg_alpha2, neg_dr2, neg_idx)
 
-		return loss.item()
+			return loss.item()
 
 	def step(self, data, epoch=None):
 		receptor, ligand, translation, rotation, pos_idx = data
@@ -340,4 +381,4 @@ class EBMTrainer:
 		self.buffer.push(neg_alpha, neg_dr, neg_idx)
 
 		return loss.item()
-	
+
