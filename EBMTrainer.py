@@ -51,8 +51,8 @@ class SampleBuffer:
 				dr = torch.rand(num_samples, 2)*50.0 - 25.0
 				alphas.append(alpha)
 				drs.append(dr)
-				print('\nalpha', alpha)
-				print('dr', dr)
+				# print('\nalpha', alpha)
+				# print('dr', dr)
 		
 		alphas = torch.stack(alphas, dim=0).to(device=device)
 		drs = torch.stack(drs, dim=0).to(device=device)
@@ -88,6 +88,7 @@ class EBMTrainer:
 		parameters = self.model.parameters()
 		for p in parameters:
 			p.requires_grad = flag
+			# print('parameters', flag, p.grad )
 
 	def load_checkpoint(self, path):
 		raw_model = self.model.module if hasattr(self.model, "module") else self.model
@@ -148,8 +149,8 @@ class EBMTrainer:
 		langevin_opt = optim.SGD([neg_alpha, neg_dr], lr=self.step_size, momentum=0.0)
 
 		last100_neg_out = []
-		last100_neg_alpha = []
-		last100_neg_dr = []
+		# last100_neg_alpha = []
+		# last100_neg_dr = []
 
 		for k in range(self.sample_steps):
 			langevin_opt.zero_grad()
@@ -157,7 +158,7 @@ class EBMTrainer:
 			pos_repr, _, A = self.model.mult(rec_feat, lig_feat, neg_alpha, neg_dr)
 			neg_out = self.model.scorer(pos_repr)
 			# print('calling neg_out backward')
-			neg_out.mean().backward()
+			# neg_out.mean().backward()
 
 			# print(neg_out.shape)
 			# print(neg_out)
@@ -177,8 +178,10 @@ class EBMTrainer:
 
 			last100_neg_out.append(neg_out)
 
-			last100_neg_alpha.append(neg_alpha)
-			last100_neg_dr.append(neg_dr)
+			# last100_neg_alpha.append(neg_alpha)
+			# last100_neg_dr.append(neg_dr)
+			# # print('\nneg_alpha', last100_neg_alpha)
+			# # print('\nneg_dr', last100_neg_dr)
 
 		# if self.FI:
 		# 	E = torch.stack((last100_neg_out), dim=0).cpu()
@@ -189,9 +192,6 @@ class EBMTrainer:
 		# 	return neg_alpha.detach(), neg_dr.detach(), deltaF, pred_interact
 		# else:
 		# 	return neg_alpha.detach(), neg_dr.detach()
-
-		# print('\nneg_alpha', last100_neg_alpha)
-		# print('\nneg_dr', last100_neg_dr)
 
 		if self.FI:
 			return neg_alpha.detach(), neg_dr.detach(), last100_neg_out
@@ -254,14 +254,14 @@ class EBMTrainer:
 
 				E = torch.stack(last100_neg_out, dim=0).cpu()
 				E2 = torch.stack(last100_neg_out2, dim=0).cpu()
-				E = E + E2
+				# E = E + E2
 
 				# print(E.shape)
-				deltaF = -torch.logsumexp(-E, dim=(0, 1, 2)) - self.F_0
+				deltaF = -torch.logsumexp(-E, dim=(0, 1, 2)) - E2.mean()#- self.F_0
 				pred_interact = torch.sigmoid(-deltaF)
 
 				print('deltaF - F_0', deltaF.item())
-				print('F_0', self.F_0, 'gradient', self.F_0.grad)
+				# print('F_0', self.F_0, 'gradient', self.F_0.grad)
 				print('predicted interaction', pred_interact.item())
 
 
