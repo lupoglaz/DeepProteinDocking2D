@@ -203,6 +203,9 @@ class EBMTrainer:
 			receptor, ligand, gt_interact, pos_idx = data
 			pos_rec = receptor.to(device=self.device, dtype=torch.float32).unsqueeze(dim=1)
 			pos_lig = ligand.to(device=self.device, dtype=torch.float32).unsqueeze(dim=1)
+			# gt_interact = gt_interact.to(device=self.device, dtype=torch.float32).squeeze()
+			# print(gt_interact.shape)
+
 		else:
 			receptor, ligand, translation, rotation, pos_idx = data
 
@@ -252,31 +255,13 @@ class EBMTrainer:
 				# print('\ncold',last100_neg_out)
 				# print('\nhot',last100_neg_out2)
 
-				E = torch.stack(last100_neg_out, dim=0).cpu()
-				E2 = torch.stack(last100_neg_out2, dim=0).cpu()
-				# E = E + E2
-
-				# print(E.shape)
-				deltaF = -torch.logsumexp(-E, dim=(0, 1, 2)) - E2.mean()#- self.F_0
-				pred_interact = torch.sigmoid(-deltaF)
-
-				print('deltaF - F_0', deltaF.item())
-				# print('F_0', self.F_0, 'gradient', self.F_0.grad)
-				print('predicted interaction', pred_interact.item())
-
-
-				# print('deltaF - F_0, cold, hot', deltaF.item(), deltaF2.item())
-				# print('F_0', self.F_0.item())
-				# print('predicted interaction, cold , hot', pred_interact.item(), pred_interact2.item())
-
-				# deltaF = deltaF + deltaF2
-				# pred_interact = pred_interact + pred_interact2
+				deltaF, pred_interact, E2F = self.deltaF_interact(last100_neg_out, last100_neg_out2)
 
 				BCEloss = torch.nn.BCELoss()
 				l1_loss = torch.nn.L1Loss()
-				w = 10 ** -5
-				L_reg = w * l1_loss(deltaF, torch.zeros(1))
-				loss = BCEloss(pred_interact, gt_interact) + L_reg
+				w = 10 ** -7
+				L_reg = w * l1_loss(E2F.unsqueeze(0), torch.zeros(1))
+				loss = BCEloss(pred_interact.unsqueeze(0), gt_interact) + L_reg
 				loss.backward()
 				print('\n PREDICTED', pred_interact.item(), '; GROUND TRUTH', gt_interact.item())
 				self.optimizer.step()
@@ -286,24 +271,29 @@ class EBMTrainer:
 			else:
 				self.model.eval()
 				with torch.no_grad():
-					neg_alpha, neg_dr, deltaF, pred_interact = self.langevin(neg_alpha, neg_dr, neg_rec_feat.detach(),
-																			 neg_lig_feat.detach(), neg_idx,
-																			 sigma_dr=0.05, sigma_alpha=0.5)
+					neg_alpha, neg_dr, last100_neg_out = self.langevin(neg_alpha, neg_dr, neg_rec_feat.detach(),
+																	   neg_lig_feat.detach(), neg_idx, sigma_dr=0.05,
+																	   sigma_alpha=0.5)
+					neg_alpha2, neg_dr2, last100_neg_out2 = self.langevin(neg_alpha2, neg_dr2, neg_rec_feat.detach(),
+																		  neg_lig_feat.detach(), neg_idx, sigma_dr=0.5,
+																		  sigma_alpha=5)
 
-					threshold = 0.5
-					TP, FP, TN, FN = 0, 0, 0, 0
-					p = pred_interact.item()
-					a = gt_interact.item()
-					if p >= threshold and a >= threshold:
-						TP += 1
-					elif p >= threshold and a < threshold:
-						FP += 1
-					elif p < threshold and a >= threshold:
-						FN += 1
-					elif p < threshold and a < threshold:
-						TN += 1
-					# print('returning', TP, FP, TN, FN)
-					return TP, FP, TN, FN
+				deltaF, pred_interact, _ = self.deltaF_interact(last100_neg_out, last100_neg_out2)
+
+				threshold = 0.5
+				TP, FP, TN, FN = 0, 0, 0, 0
+				p = pred_interact.item()
+				a = gt_interact.item()
+				if p >= threshold and a >= threshold:
+					TP += 1
+				elif p >= threshold and a < threshold:
+					FP += 1
+				elif p < threshold and a >= threshold:
+					FN += 1
+				elif p < threshold and a < threshold:
+					TN += 1
+				# print('returning', TP, FP, TN, FN)
+				return TP, FP, TN, FN
 		else:
 			neg_alpha, neg_dr = self.langevin(neg_alpha, neg_dr, neg_rec_feat.detach(), neg_lig_feat.detach(), neg_idx, sigma_dr=0.05, sigma_alpha=0.5)
 			neg_alpha2, neg_dr2 = self.langevin(neg_alpha2, neg_dr2, neg_rec_feat.detach(), neg_lig_feat.detach(), neg_idx, sigma_dr=0.5, sigma_alpha=5)
@@ -334,6 +324,23 @@ class EBMTrainer:
 			self.buffer2.push(neg_alpha2, neg_dr2, neg_idx)
 
 			return loss.item()
+
+	def deltaF_interact(self, last100_neg_out, last100_neg_out2):
+			E = torch.stack(last100_neg_out, dim=0).cpu()
+			E2 = torch.stack(last100_neg_out2, dim=0).cpu()
+			# E = E - E2
+			# print('\nE2 mean', E2.mean())
+			# print(E.shape)
+
+			E2F = -torch.logsumexp(-E2, dim=(0, 1, 2))
+			deltaF = -torch.logsumexp(-E, dim=(0, 1, 2)) - E2F # - self.F_0
+			pred_interact = torch.sigmoid(-deltaF)
+
+			print('deltaF - F_0', deltaF.item())
+			# print('F_0', self.F_0, 'gradient', self.F_0.grad)
+			print('predicted interaction', pred_interact.item())
+
+			return deltaF, pred_interact, E2F
 
 	def step(self, data, epoch=None):
 		receptor, ligand, translation, rotation, pos_idx = data
