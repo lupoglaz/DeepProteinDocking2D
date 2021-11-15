@@ -259,7 +259,7 @@ class EBMTrainer:
 
 				BCEloss = torch.nn.BCELoss()
 				l1_loss = torch.nn.L1Loss()
-				w = 10 ** -7
+				w = 10 ** -5
 				L_reg = w * l1_loss(E2F.unsqueeze(0), torch.zeros(1))
 				loss = BCEloss(pred_interact.unsqueeze(0), gt_interact) + L_reg
 				loss.backward()
@@ -334,6 +334,8 @@ class EBMTrainer:
 
 			E2F = -torch.logsumexp(-E2, dim=(0, 1, 2))
 			deltaF = -torch.logsumexp(-E, dim=(0, 1, 2)) - E2F # - self.F_0
+			# deltaF = (-torch.logsumexp(-E, dim=(0, 1, 2)) + E2F)/2 # - self.F_0
+
 			pred_interact = torch.sigmoid(-deltaF)
 
 			print('deltaF - F_0', deltaF.item())

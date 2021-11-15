@@ -64,7 +64,7 @@ def run_prediction_model(data, trainer, epoch=None):
 
 
 if __name__=='__main__':
-
+	# torch.autograd.set_detect_anomaly(True)
 	parser = argparse.ArgumentParser(description='Train deep protein docking')	
 	parser.add_argument('-experiment', default='DebugDocking', type=str)
 	
