@@ -240,15 +240,22 @@ class EBMTrainer:
 				self.model.train()
 				self.model.zero_grad()
 
-				print('neg_alpha, neg_dr', neg_alpha, neg_dr)
-				print('neg_alpha, neg_dr grad', neg_alpha.grad, neg_dr.grad)
+				# print('neg_alpha, neg_dr', neg_alpha, neg_dr)
+				# print('neg_alpha, neg_dr grad', neg_alpha.grad, neg_dr.grad)
 
 				last100_neg_out_cold = torch.stack(last100_neg_out, dim=0)
 				last100_neg_out_hot = torch.stack(last100_neg_out2, dim=0)
 
 				pred_interact, deltaF = self.interaction_model(last100_neg_out_cold, plotting=False)
+				print('cold sim')
+				pred_interact2, deltaF2 = self.interaction_model(last100_neg_out_hot, plotting=False)
+				print('hot sim')
+
+				mixed_deltaF = deltaF-deltaF2
+				pred_interact = torch.sigmoid(-mixed_deltaF)
 
 				l1_loss = torch.nn.L1Loss()
+				w = 10 ** -5
 
 				neg_out, _, _ = self.model.mult(neg_rec_feat, neg_lig_feat, neg_alpha, neg_dr)
 				neg_out = self.model.scorer(neg_out)
@@ -259,7 +266,6 @@ class EBMTrainer:
 				loss_orig = l1_loss(L_n, L_n2)
 
 				BCEloss = torch.nn.BCELoss()
-				w = 10 ** 0
 				L_reg = w * l1_loss(deltaF.squeeze(), torch.zeros(1).squeeze().cuda())
 				loss = BCEloss(pred_interact.squeeze(), gt_interact.squeeze().cuda()) + L_reg + loss_orig
 				loss.backward()
@@ -279,7 +285,19 @@ class EBMTrainer:
 																	  neg_lig_feat.detach(), neg_idx, sigma_dr=0.5,
 																	  sigma_alpha=5)
 
-				deltaF, pred_interact = self.deltaF_interact(last100_neg_out.cuda(), last100_neg_out2.cuda())
+				# print('neg_alpha, neg_dr', neg_alpha, neg_dr)
+				# print('neg_alpha, neg_dr grad', neg_alpha.grad, neg_dr.grad)
+
+				last100_neg_out_cold = torch.stack(last100_neg_out, dim=0)
+				last100_neg_out_hot = torch.stack(last100_neg_out2, dim=0)
+
+				pred_interact, deltaF = self.interaction_model(last100_neg_out_cold, plotting=False)
+				print('cold sim')
+				pred_interact2, deltaF2 = self.interaction_model(last100_neg_out_hot, plotting=False)
+				print('hot sim')
+
+				mixed_deltaF = deltaF-deltaF2
+				pred_interact = torch.sigmoid(-mixed_deltaF)
 
 				threshold = 0.5
 				TP, FP, TN, FN = 0, 0, 0, 0
@@ -299,8 +317,8 @@ class EBMTrainer:
 			neg_alpha, neg_dr = self.langevin(neg_alpha, neg_dr, neg_rec_feat.detach(), neg_lig_feat.detach(), neg_idx, sigma_dr=0.05, sigma_alpha=0.5)
 			neg_alpha2, neg_dr2 = self.langevin(neg_alpha2, neg_dr2, neg_rec_feat.detach(), neg_lig_feat.detach(), neg_idx, sigma_dr=0.5, sigma_alpha=5)
 
-			print('neg_alpha, neg_dr', neg_alpha, neg_dr)
-			print('neg_alpha, neg_dr grad', neg_alpha.grad, neg_dr.grad)
+			# print('neg_alpha, neg_dr', neg_alpha, neg_dr)
+			# print('neg_alpha, neg_dr grad', neg_alpha.grad, neg_dr.grad)
 
 			self.requires_grad(True)
 			self.model.train()
@@ -329,24 +347,24 @@ class EBMTrainer:
 
 			return loss.item()
 
-	def deltaF_interact(self, last100_neg_out_cold, last100_neg_out_hot):
-		E_cold = -torch.logsumexp(-last100_neg_out_cold, dim=(0, 1, 2))
-		E_hot = -torch.logsumexp(-last100_neg_out_hot, dim=(0, 1, 2))
-
-		# deltaF = E_cold - E_hot - self.F_0.cuda()
-
-		# deltaF = E_cold - E_hot # - self.F_0
-
-		deltaF = E_cold - self.F_0.cuda()
-
-		pred_interact = torch.sigmoid(-deltaF)
-
-		with torch.no_grad():
-			print('deltaF - F_0', deltaF.item(), 'gradient', deltaF.grad)
-			print('F_0 = ', self.F_0.item(), 'gradient', self.F_0.grad)
-			print('predicted interaction', pred_interact.item())
-
-		return deltaF, pred_interact
+	# def deltaF_interact(self, last100_neg_out_cold, last100_neg_out_hot):
+	# 	E_cold = -torch.logsumexp(-last100_neg_out_cold, dim=(0, 1, 2))
+	# 	E_hot = -torch.logsumexp(-last100_neg_out_hot, dim=(0, 1, 2))
+	#
+	# 	deltaF = E_cold - E_hot - self.F_0.cuda()
+	#
+	# 	# deltaF = E_cold - E_hot # - self.F_0
+	#
+	# 	# deltaF = E_cold - self.F_0.cuda()
+	#
+	# 	pred_interact = torch.sigmoid(-deltaF)
+	#
+	# 	with torch.no_grad():
+	# 		print('deltaF - F_0', deltaF.item(), 'gradient', deltaF.grad)
+	# 		print('F_0 = ', self.F_0.item(), 'gradient', self.F_0.grad)
+	# 		print('predicted interaction', pred_interact.item())
+	#
+	# 	return deltaF, pred_interact
 
 	def step(self, data, epoch=None):
 		receptor, ligand, translation, rotation, pos_idx = data
