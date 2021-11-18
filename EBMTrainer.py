@@ -10,6 +10,8 @@ from math import cos, sin
 
 from matplotlib import pylab as plt
 
+from Models.BruteForce.model_bruteforce_interaction import BruteForceInteraction
+
 class SampleBuffer:
 	def __init__(self, num_samples, max_pos=100):
 		self.num_samples = num_samples
@@ -82,13 +84,21 @@ class EBMTrainer:
 
 		self.FI = FI
 		if self.FI:
-			self.F_0 = nn.Parameter(torch.zeros(1, requires_grad=True))
+		# 	print('*'*100)
+		# 	print('setting F_0 as parameter')
+		# 	self.F_0 = nn.Parameter(torch.zeros(1, requires_grad=True))
+
+			##### load blank models and optimizers, once
+			lr_interaction = 10 ** 0
+
+			self.interaction_model = BruteForceInteraction().to(device=0)
+			self.optimizer_interaction = optim.Adam(self.interaction_model.parameters(), lr=lr_interaction)
 
 	def requires_grad(self, flag=True):
 		parameters = self.model.parameters()
 		for p in parameters:
 			p.requires_grad = flag
-			# print('parameters', flag, p.grad )
+			# print('parameters',p, flag, p.grad)
 
 	def load_checkpoint(self, path):
 		raw_model = self.model.module if hasattr(self.model, "module") else self.model
@@ -157,15 +167,8 @@ class EBMTrainer:
 
 			pos_repr, _, A = self.model.mult(rec_feat, lig_feat, neg_alpha, neg_dr)
 			neg_out = self.model.scorer(pos_repr)
-			# print('calling neg_out backward')
-			# neg_out.mean().backward()
-
-			# print(neg_out.shape)
-			# print(neg_out)
-			# if self.FI:
-			# 	neg_out.mean()
-			# else:
-			# 	neg_out.mean().backward()
+			# neg_out.clone().mean().backward()
+			neg_out.mean().backward()
 
 
 			langevin_opt.step()
@@ -176,22 +179,12 @@ class EBMTrainer:
 			neg_dr.data.clamp_(-rec_feat.size(2), rec_feat.size(2))
 			neg_alpha.data.clamp_(-np.pi, np.pi)
 
-			last100_neg_out.append(neg_out)
+			last100_neg_out.append(neg_out.detach())
 
 			# last100_neg_alpha.append(neg_alpha)
 			# last100_neg_dr.append(neg_dr)
 			# # print('\nneg_alpha', last100_neg_alpha)
 			# # print('\nneg_dr', last100_neg_dr)
-
-		# if self.FI:
-		# 	E = torch.stack((last100_neg_out), dim=0).cpu()
-		# 	# print(E.shape)
-		# 	deltaF = -torch.logsumexp(-E, dim=(0, 1, 2)) - self.F_0
-		# 	pred_interact = torch.sigmoid(-deltaF)
-		#
-		# 	return neg_alpha.detach(), neg_dr.detach(), deltaF, pred_interact
-		# else:
-		# 	return neg_alpha.detach(), neg_dr.detach()
 
 		if self.FI:
 			return neg_alpha.detach(), neg_dr.detach(), last100_neg_out
@@ -240,31 +233,39 @@ class EBMTrainer:
 
 		if self.FI:
 			if train:
-				# neg_alpha, neg_dr, deltaF, pred_interact = self.langevin(neg_alpha, neg_dr, neg_rec_feat.detach(), neg_lig_feat.detach(), neg_idx, sigma_dr=0.05, sigma_alpha=0.5)
-				# neg_alpha2, neg_dr2, deltaF2, pred_interact2 = self.langevin(neg_alpha2, neg_dr2, neg_rec_feat.detach(), neg_lig_feat.detach(),neg_idx, sigma_dr=0.5, sigma_alpha=5)
-
-				# return deltaF.squeeze(), pred_interact.squeeze()
-
 				neg_alpha, neg_dr, last100_neg_out = self.langevin(neg_alpha, neg_dr, neg_rec_feat.detach(), neg_lig_feat.detach(), neg_idx, sigma_dr=0.05, sigma_alpha=0.5)
-				neg_alpha2, neg_dr2, last100_neg_out2 = self.langevin(neg_alpha2, neg_dr2, neg_rec_feat.detach(), neg_lig_feat.detach(),neg_idx, sigma_dr=0.5, sigma_alpha=5)
+				neg_alpha2, neg_dr2, last100_neg_out2 = self.langevin(neg_alpha2, neg_dr2, neg_rec_feat.detach(), neg_lig_feat.detach(), neg_idx, sigma_dr=0.5, sigma_alpha=5)
 
 				self.requires_grad(True)
 				self.model.train()
 				self.model.zero_grad()
 
-				# print('\ncold',last100_neg_out)
-				# print('\nhot',last100_neg_out2)
+				print('neg_alpha, neg_dr', neg_alpha, neg_dr)
+				print('neg_alpha, neg_dr grad', neg_alpha.grad, neg_dr.grad)
 
-				deltaF, pred_interact, E2F = self.deltaF_interact(last100_neg_out, last100_neg_out2)
+				last100_neg_out_cold = torch.stack(last100_neg_out, dim=0)
+				last100_neg_out_hot = torch.stack(last100_neg_out2, dim=0)
+
+				pred_interact, deltaF = self.interaction_model(last100_neg_out_cold, plotting=False)
+
+				l1_loss = torch.nn.L1Loss()
+
+				neg_out, _, _ = self.model.mult(neg_rec_feat, neg_lig_feat, neg_alpha, neg_dr)
+				neg_out = self.model.scorer(neg_out)
+				L_n = (-neg_out + self.weight * neg_out ** 2).mean()
+				neg_out2, _, _ = self.model.mult(neg_rec_feat, neg_lig_feat, neg_alpha2, neg_dr2)
+				neg_out2 = self.model.scorer(neg_out2)
+				L_n2 = (-neg_out2 + self.weight * neg_out2 ** 2).mean()
+				loss_orig = l1_loss(L_n, L_n2)
 
 				BCEloss = torch.nn.BCELoss()
-				l1_loss = torch.nn.L1Loss()
-				w = 10 ** -5
-				L_reg = w * l1_loss(E2F.unsqueeze(0), torch.zeros(1))
-				loss = BCEloss(pred_interact.unsqueeze(0), gt_interact) + L_reg
+				w = 10 ** 0
+				L_reg = w * l1_loss(deltaF.squeeze(), torch.zeros(1).squeeze().cuda())
+				loss = BCEloss(pred_interact.squeeze(), gt_interact.squeeze().cuda()) + L_reg + loss_orig
 				loss.backward()
 				print('\n PREDICTED', pred_interact.item(), '; GROUND TRUTH', gt_interact.item())
 				self.optimizer.step()
+				self.optimizer_interaction.step()
 				self.buffer.push(neg_alpha, neg_dr, neg_idx)
 				self.buffer2.push(neg_alpha2, neg_dr2, neg_idx)
 				return loss.item()
@@ -275,10 +276,10 @@ class EBMTrainer:
 																	   neg_lig_feat.detach(), neg_idx, sigma_dr=0.05,
 																	   sigma_alpha=0.5)
 					neg_alpha2, neg_dr2, last100_neg_out2 = self.langevin(neg_alpha2, neg_dr2, neg_rec_feat.detach(),
-																		  neg_lig_feat.detach(), neg_idx, sigma_dr=0.5,
-																		  sigma_alpha=5)
+																	  neg_lig_feat.detach(), neg_idx, sigma_dr=0.5,
+																	  sigma_alpha=5)
 
-				deltaF, pred_interact, _ = self.deltaF_interact(last100_neg_out, last100_neg_out2)
+				deltaF, pred_interact = self.deltaF_interact(last100_neg_out.cuda(), last100_neg_out2.cuda())
 
 				threshold = 0.5
 				TP, FP, TN, FN = 0, 0, 0, 0
@@ -297,6 +298,9 @@ class EBMTrainer:
 		else:
 			neg_alpha, neg_dr = self.langevin(neg_alpha, neg_dr, neg_rec_feat.detach(), neg_lig_feat.detach(), neg_idx, sigma_dr=0.05, sigma_alpha=0.5)
 			neg_alpha2, neg_dr2 = self.langevin(neg_alpha2, neg_dr2, neg_rec_feat.detach(), neg_lig_feat.detach(), neg_idx, sigma_dr=0.5, sigma_alpha=5)
+
+			print('neg_alpha, neg_dr', neg_alpha, neg_dr)
+			print('neg_alpha, neg_dr grad', neg_alpha.grad, neg_dr.grad)
 
 			self.requires_grad(True)
 			self.model.train()
@@ -325,24 +329,24 @@ class EBMTrainer:
 
 			return loss.item()
 
-	def deltaF_interact(self, last100_neg_out, last100_neg_out2):
-			E = torch.stack(last100_neg_out, dim=0).cpu()
-			E2 = torch.stack(last100_neg_out2, dim=0).cpu()
-			# E = E - E2
-			# print('\nE2 mean', E2.mean())
-			# print(E.shape)
+	def deltaF_interact(self, last100_neg_out_cold, last100_neg_out_hot):
+		E_cold = -torch.logsumexp(-last100_neg_out_cold, dim=(0, 1, 2))
+		E_hot = -torch.logsumexp(-last100_neg_out_hot, dim=(0, 1, 2))
 
-			E2F = -torch.logsumexp(-E2, dim=(0, 1, 2))
-			deltaF = -torch.logsumexp(-E, dim=(0, 1, 2)) - E2F # - self.F_0
-			# deltaF = (-torch.logsumexp(-E, dim=(0, 1, 2)) + E2F)/2 # - self.F_0
+		# deltaF = E_cold - E_hot - self.F_0.cuda()
 
-			pred_interact = torch.sigmoid(-deltaF)
+		# deltaF = E_cold - E_hot # - self.F_0
 
-			print('deltaF - F_0', deltaF.item())
-			# print('F_0', self.F_0, 'gradient', self.F_0.grad)
+		deltaF = E_cold - self.F_0.cuda()
+
+		pred_interact = torch.sigmoid(-deltaF)
+
+		with torch.no_grad():
+			print('deltaF - F_0', deltaF.item(), 'gradient', deltaF.grad)
+			print('F_0 = ', self.F_0.item(), 'gradient', self.F_0.grad)
 			print('predicted interaction', pred_interact.item())
 
-			return deltaF, pred_interact, E2F
+		return deltaF, pred_interact
 
 	def step(self, data, epoch=None):
 		receptor, ligand, translation, rotation, pos_idx = data
