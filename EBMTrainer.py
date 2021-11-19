@@ -84,7 +84,7 @@ class EBMTrainer:
 		self.FI = FI
 		if self.FI:
 			##### load blank models and optimizers, once
-			lr_interaction = 10 ** -1
+			lr_interaction = 10 ** -2
 			self.interaction_model = EBMInteractionModel().to(device=0)
 			self.optimizer_interaction = optim.Adam(self.interaction_model.parameters(), lr=lr_interaction)
 
@@ -220,7 +220,7 @@ class EBMTrainer:
 		if self.FI:
 			if train:
 				neg_alpha, neg_dr, last100_neg_out_cold = self.langevin(neg_alpha, neg_dr, neg_rec_feat.detach(), neg_lig_feat.detach(), neg_idx, sigma_dr=0.05, sigma_alpha=0.5)
-				neg_alpha2, neg_dr2, last100_neg_out_hot = self.langevin(neg_alpha2, neg_dr2, neg_rec_feat.detach(), neg_lig_feat.detach(), neg_idx, sigma_dr=0.5, sigma_alpha=5)
+				neg_alpha2, neg_dr2, last100_neg_out_hot = self.langevin(neg_alpha2, neg_dr2, neg_rec_feat.detach(), neg_lig_feat.detach(), neg_idx, sigma_dr=10, sigma_alpha=100)
 
 				self.requires_grad(True)
 				self.model.train()
@@ -229,10 +229,10 @@ class EBMTrainer:
 				# print('neg_alpha, neg_dr', neg_alpha, neg_dr)
 				# print('neg_alpha, neg_dr grad', neg_alpha.grad, neg_dr.grad)
 
-				pred_interact, deltaF = self.interaction_model(last100_neg_out_cold, last100_neg_out_hot)
+				pred_interact, deltaF, coldF, hotF = self.interaction_model(last100_neg_out_cold, last100_neg_out_hot)
 
-				l1_loss = torch.nn.L1Loss()
-				w = 10 ** -1
+				# w1 = 10 ** 0
+				# w2 = 10 ** 0
 
 				# neg_out, _, _ = self.model.mult(neg_rec_feat, neg_lig_feat, neg_alpha, neg_dr)
 				# neg_out = self.model.scorer(neg_out)
@@ -244,9 +244,24 @@ class EBMTrainer:
 				# print(loss_feats)
 
 				BCEloss = torch.nn.BCELoss()
-				L_reg = w * l1_loss(deltaF.squeeze(), torch.zeros(1).squeeze().cuda())
-				loss = BCEloss(pred_interact.squeeze(), gt_interact.squeeze().cuda()) + L_reg
+				l1_loss = torch.nn.L1Loss()
+				loss = BCEloss(pred_interact.squeeze(), gt_interact.squeeze().cuda())
+
+				w = 10 ** -5
+				# w = 10 ** 0
+
+				# L_reg1 = w1 * l1_loss(coldF.squeeze(), torch.zeros(1).squeeze().cuda())
+				# L_reg2 = w2 * l1_loss(hotF.squeeze(), torch.zeros(1).squeeze().cuda())
+				# loss = BCEloss(pred_interact.squeeze(), gt_interact.squeeze().cuda())
+
+				# loss = BCEloss(pred_interact.squeeze(), gt_interact.squeeze().cuda()) #+ L_reg1 + L_reg2
+
+				# L_reg = w * l1_loss(hotF.squeeze(), torch.zeros(1).squeeze().cuda())
+				# L_reg = w * l1_loss(deltaF.squeeze(), torch.zeros(1).squeeze().cuda())
+				# loss = BCEloss(pred_interact.squeeze(), gt_interact.squeeze().cuda()) + L_reg
 				# loss = BCEloss(pred_interact.squeeze(), gt_interact.squeeze().cuda()) + loss_feats + L_reg
+
+
 				loss.backward()
 				print('\n PREDICTED', pred_interact.item(), '; GROUND TRUTH', gt_interact.item())
 				self.optimizer.step()
@@ -326,25 +341,6 @@ class EBMTrainer:
 
 			return loss.item()
 
-	# def deltaF_interact(self, last100_neg_out_cold, last100_neg_out_hot):
-	# 	E_cold = -torch.logsumexp(-last100_neg_out_cold, dim=(0, 1, 2))
-	# 	E_hot = -torch.logsumexp(-last100_neg_out_hot, dim=(0, 1, 2))
-	#
-	# 	deltaF = E_cold - E_hot - self.F_0.cuda()
-	#
-	# 	# deltaF = E_cold - E_hot # - self.F_0
-	#
-	# 	# deltaF = E_cold - self.F_0.cuda()
-	#
-	# 	pred_interact = torch.sigmoid(-deltaF)
-	#
-	# 	with torch.no_grad():
-	# 		print('deltaF - F_0', deltaF.item(), 'gradient', deltaF.grad)
-	# 		print('F_0 = ', self.F_0.item(), 'gradient', self.F_0.grad)
-	# 		print('predicted interaction', pred_interact.item())
-	#
-	# 	return deltaF, pred_interact
-
 	def step(self, data, epoch=None):
 		receptor, ligand, translation, rotation, pos_idx = data
 
@@ -403,15 +399,17 @@ class EBMInteractionModel(nn.Module):
 		E_cold = torch.stack(cold_sim, dim=0).squeeze()
 		E_hot = torch.stack(hot_sim, dim=0).squeeze()
 		# print(E_cold.shape)
-		coldF = -torch.logsumexp(-E_cold, dim=(0))
-		hotF = -torch.logsumexp(-E_hot, dim=(0))
-		# print(coldF.shape)
+		coldF = -torch.logsumexp(-E_cold, dim=0)
+		hotF = -torch.logsumexp(-E_hot, dim=0)
+		print('coldF', coldF)
+		print('hotF', hotF)
 
-		deltaF = coldF + hotF + self.F_0
+		# deltaF = coldF + hotF + self.F_0
+		deltaF = coldF + hotF - self.F_0
 		pred_interact = torch.sigmoid(-deltaF)
 
 		with torch.no_grad():
 			print('\n(deltaF - F_0): ', deltaF.item())
-			print('F_0: ', self.F_0.item())
+			print('F_0: ', self.F_0.item(), 'F_0', self.F_0.grad)
 
-		return pred_interact.squeeze(), deltaF.squeeze()
+		return pred_interact.squeeze(), deltaF.squeeze(), coldF, hotF
