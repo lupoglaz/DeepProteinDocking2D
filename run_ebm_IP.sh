@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --partition=p_ccib_1
-#SBATCH --job-name=EBM_FI_1ep_batch1_dFcoldhot_F0_10l1reg
+#SBATCH --job-name=EBM_FI_1ep_batch1_dFsumcoldhotF0
 #SBATCH --nodes=1
 ##SBATCH --ntasks=1
 #SBATCH --tasks-per-node=1
@@ -59,7 +59,7 @@ export OMP_NUM_THREADS=$SLURM_CPUS_PER_TASK
 #python train_docking.py -experiment "$exp" -test -ebm -gpu 0
 
 
-exp=$(echo EBM_FI_1ep_batch1_dFcoldhot_F0_10l1reg)
+exp=$(echo EBM_FI_1ep_batch1_dFsumcoldhotF0)
 
 EBM: 1D sample buffer, no add_positive
 python train_docking.py -experiment "$exp" -train -ebm -num_epochs 1 -batch_size 1 -gpu 0 -num_samples 1 -FI
