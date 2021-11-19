@@ -10,7 +10,6 @@ from math import cos, sin
 
 from matplotlib import pylab as plt
 
-from Models.BruteForce.model_bruteforce_interaction import BruteForceInteraction
 
 class SampleBuffer:
 	def __init__(self, num_samples, max_pos=100):
@@ -55,7 +54,7 @@ class SampleBuffer:
 				drs.append(dr)
 				# print('\nalpha', alpha)
 				# print('dr', dr)
-		
+
 		alphas = torch.stack(alphas, dim=0).to(device=device)
 		drs = torch.stack(drs, dim=0).to(device=device)
 
@@ -84,14 +83,9 @@ class EBMTrainer:
 
 		self.FI = FI
 		if self.FI:
-		# 	print('*'*100)
-		# 	print('setting F_0 as parameter')
-		# 	self.F_0 = nn.Parameter(torch.zeros(1, requires_grad=True))
-
 			##### load blank models and optimizers, once
-			lr_interaction = 10 ** 0
-
-			self.interaction_model = BruteForceInteraction().to(device=0)
+			lr_interaction = 10 ** -1
+			self.interaction_model = EBMInteractionModel().to(device=0)
 			self.optimizer_interaction = optim.Adam(self.interaction_model.parameters(), lr=lr_interaction)
 
 	def requires_grad(self, flag=True):
@@ -107,7 +101,7 @@ class EBMTrainer:
 
 	def dock_spatial(self, rec_repr, lig_repr):
 		translations = self.conv(rec_repr, lig_repr)
-		
+
 		batch_size = translations.size(0)
 		num_features = translations.size(1)
 		L = translations.size(2)
@@ -116,21 +110,21 @@ class EBMTrainer:
 		translations = translations.transpose(1,2).contiguous().view(batch_size*L*L, num_features)
 		scores = self.model.scorer(translations).squeeze()
 		scores = scores.view(batch_size, L, L)
-		
+
 		minval_y, ind_y = torch.min(scores, dim=2, keepdim=False)
 		minval_x, ind_x = torch.min(minval_y, dim=1)
 		x = ind_x
 		y = ind_y[torch.arange(batch_size), ind_x]
-		
+
 		x -= int(L/2)
 		y -= int(L/2)
-		
+
 		# plt.imshow(scores[0,:,:].detach().cpu(), cmap='magma')
 		# plt.plot([y[0].item()], [x[0].item()], 'xb')
 		# plt.show()
 		# sys.exit()
 		return torch.stack([x,y], dim=1).to(dtype=lig_repr.dtype, device=lig_repr.device)
-				
+
 	def rotate(self, repr, angle):
 		alpha = angle.detach()
 		T0 = torch.cat([torch.cos(alpha), -torch.sin(alpha), torch.zeros_like(alpha)], dim=1)
@@ -153,14 +147,12 @@ class EBMTrainer:
 			with torch.no_grad():
 				rlig_feat = self.rotate(lig_feat, neg_alpha)
 				neg_dr = self.dock_spatial(rec_feat, rlig_feat)
-		
+
 		neg_alpha.requires_grad_()
 		neg_dr.requires_grad_()
 		langevin_opt = optim.SGD([neg_alpha, neg_dr], lr=self.step_size, momentum=0.0)
 
 		last100_neg_out = []
-		# last100_neg_alpha = []
-		# last100_neg_dr = []
 
 		for k in range(self.sample_steps):
 			langevin_opt.zero_grad()
@@ -181,11 +173,6 @@ class EBMTrainer:
 
 			last100_neg_out.append(neg_out.detach())
 
-			# last100_neg_alpha.append(neg_alpha)
-			# last100_neg_dr.append(neg_dr)
-			# # print('\nneg_alpha', last100_neg_alpha)
-			# # print('\nneg_dr', last100_neg_dr)
-
 		if self.FI:
 			return neg_alpha.detach(), neg_dr.detach(), last100_neg_out
 		else:
@@ -198,7 +185,6 @@ class EBMTrainer:
 			pos_lig = ligand.to(device=self.device, dtype=torch.float32).unsqueeze(dim=1)
 			# gt_interact = gt_interact.to(device=self.device, dtype=torch.float32).squeeze()
 			# print(gt_interact.shape)
-
 		else:
 			receptor, ligand, translation, rotation, pos_idx = data
 
@@ -233,8 +219,8 @@ class EBMTrainer:
 
 		if self.FI:
 			if train:
-				neg_alpha, neg_dr, last100_neg_out = self.langevin(neg_alpha, neg_dr, neg_rec_feat.detach(), neg_lig_feat.detach(), neg_idx, sigma_dr=0.05, sigma_alpha=0.5)
-				neg_alpha2, neg_dr2, last100_neg_out2 = self.langevin(neg_alpha2, neg_dr2, neg_rec_feat.detach(), neg_lig_feat.detach(), neg_idx, sigma_dr=0.5, sigma_alpha=5)
+				neg_alpha, neg_dr, last100_neg_out_cold = self.langevin(neg_alpha, neg_dr, neg_rec_feat.detach(), neg_lig_feat.detach(), neg_idx, sigma_dr=0.05, sigma_alpha=0.5)
+				neg_alpha2, neg_dr2, last100_neg_out_hot = self.langevin(neg_alpha2, neg_dr2, neg_rec_feat.detach(), neg_lig_feat.detach(), neg_idx, sigma_dr=0.5, sigma_alpha=5)
 
 				self.requires_grad(True)
 				self.model.train()
@@ -243,31 +229,24 @@ class EBMTrainer:
 				# print('neg_alpha, neg_dr', neg_alpha, neg_dr)
 				# print('neg_alpha, neg_dr grad', neg_alpha.grad, neg_dr.grad)
 
-				last100_neg_out_cold = torch.stack(last100_neg_out, dim=0)
-				last100_neg_out_hot = torch.stack(last100_neg_out2, dim=0)
-
-				pred_interact, deltaF = self.interaction_model(last100_neg_out_cold, plotting=False)
-				print('cold sim')
-				pred_interact2, deltaF2 = self.interaction_model(last100_neg_out_hot, plotting=False)
-				print('hot sim')
-
-				mixed_deltaF = deltaF-deltaF2
-				pred_interact = torch.sigmoid(-mixed_deltaF)
+				pred_interact, deltaF = self.interaction_model(last100_neg_out_cold, last100_neg_out_hot)
 
 				l1_loss = torch.nn.L1Loss()
-				w = 10 ** -5
+				w = 10 ** -1
 
-				neg_out, _, _ = self.model.mult(neg_rec_feat, neg_lig_feat, neg_alpha, neg_dr)
-				neg_out = self.model.scorer(neg_out)
-				L_n = (-neg_out + self.weight * neg_out ** 2).mean()
-				neg_out2, _, _ = self.model.mult(neg_rec_feat, neg_lig_feat, neg_alpha2, neg_dr2)
-				neg_out2 = self.model.scorer(neg_out2)
-				L_n2 = (-neg_out2 + self.weight * neg_out2 ** 2).mean()
-				loss_orig = l1_loss(L_n, L_n2)
+				# neg_out, _, _ = self.model.mult(neg_rec_feat, neg_lig_feat, neg_alpha, neg_dr)
+				# neg_out = self.model.scorer(neg_out)
+				# L_n = (-neg_out + self.weight * neg_out ** 2).mean()
+				# neg_out2, _, _ = self.model.mult(neg_rec_feat, neg_lig_feat, neg_alpha2, neg_dr2)
+				# neg_out2 = self.model.scorer(neg_out2)
+				# L_n2 = (-neg_out2 + self.weight * neg_out2 ** 2).mean()
+				# loss_feats = w * (L_n + L_n2)
+				# print(loss_feats)
 
 				BCEloss = torch.nn.BCELoss()
 				L_reg = w * l1_loss(deltaF.squeeze(), torch.zeros(1).squeeze().cuda())
-				loss = BCEloss(pred_interact.squeeze(), gt_interact.squeeze().cuda()) + L_reg + loss_orig
+				loss = BCEloss(pred_interact.squeeze(), gt_interact.squeeze().cuda()) + L_reg
+				# loss = BCEloss(pred_interact.squeeze(), gt_interact.squeeze().cuda()) + loss_feats + L_reg
 				loss.backward()
 				print('\n PREDICTED', pred_interact.item(), '; GROUND TRUTH', gt_interact.item())
 				self.optimizer.step()
@@ -296,7 +275,7 @@ class EBMTrainer:
 				pred_interact2, deltaF2 = self.interaction_model(last100_neg_out_hot, plotting=False)
 				print('hot sim')
 
-				mixed_deltaF = deltaF-deltaF2
+				mixed_deltaF = (deltaF + deltaF2) / 2
 				pred_interact = torch.sigmoid(-mixed_deltaF)
 
 				threshold = 0.5
@@ -413,3 +392,26 @@ class EBMTrainer:
 
 		return loss.item()
 
+
+class EBMInteractionModel(nn.Module):
+	def __init__(self):
+		super(EBMInteractionModel, self).__init__()
+
+		self.F_0 = nn.Parameter(torch.zeros(1, requires_grad=True))
+
+	def forward(self, cold_sim, hot_sim):
+		E_cold = torch.stack(cold_sim, dim=0).squeeze()
+		E_hot = torch.stack(hot_sim, dim=0).squeeze()
+		# print(E_cold.shape)
+		coldF = -torch.logsumexp(-E_cold, dim=(0))
+		hotF = -torch.logsumexp(-E_hot, dim=(0))
+		# print(coldF.shape)
+
+		deltaF = coldF + hotF + self.F_0
+		pred_interact = torch.sigmoid(-deltaF)
+
+		with torch.no_grad():
+			print('\n(deltaF - F_0): ', deltaF.item())
+			print('F_0: ', self.F_0.item())
+
+		return pred_interact.squeeze(), deltaF.squeeze()
