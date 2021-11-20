@@ -84,7 +84,7 @@ class EBMTrainer:
 		self.FI = FI
 		if self.FI:
 			##### load blank models and optimizers, once
-			lr_interaction = 10 ** -2
+			lr_interaction = 10 ** 0
 			self.interaction_model = EBMInteractionModel().to(device=0)
 			self.optimizer_interaction = optim.Adam(self.interaction_model.parameters(), lr=lr_interaction)
 
@@ -220,7 +220,7 @@ class EBMTrainer:
 		if self.FI:
 			if train:
 				neg_alpha, neg_dr, last100_neg_out_cold = self.langevin(neg_alpha, neg_dr, neg_rec_feat.detach(), neg_lig_feat.detach(), neg_idx, sigma_dr=0.05, sigma_alpha=0.5)
-				neg_alpha2, neg_dr2, last100_neg_out_hot = self.langevin(neg_alpha2, neg_dr2, neg_rec_feat.detach(), neg_lig_feat.detach(), neg_idx, sigma_dr=10, sigma_alpha=100)
+				neg_alpha2, neg_dr2, last100_neg_out_hot = self.langevin(neg_alpha2, neg_dr2, neg_rec_feat.detach(), neg_lig_feat.detach(), neg_idx, sigma_dr=0.5, sigma_alpha=5)
 
 				self.requires_grad(True)
 				self.model.train()
@@ -234,33 +234,50 @@ class EBMTrainer:
 				# w1 = 10 ** 0
 				# w2 = 10 ** 0
 
-				# neg_out, _, _ = self.model.mult(neg_rec_feat, neg_lig_feat, neg_alpha, neg_dr)
-				# neg_out = self.model.scorer(neg_out)
-				# L_n = (-neg_out + self.weight * neg_out ** 2).mean()
-				# neg_out2, _, _ = self.model.mult(neg_rec_feat, neg_lig_feat, neg_alpha2, neg_dr2)
-				# neg_out2 = self.model.scorer(neg_out2)
-				# L_n2 = (-neg_out2 + self.weight * neg_out2 ** 2).mean()
-				# loss_feats = w * (L_n + L_n2)
+				neg_rec_feat = neg_rec_feat.relu()
+				neg_lig_feat = neg_lig_feat.relu()
+
+				neg_out, _, _ = self.model.mult(neg_rec_feat, neg_lig_feat, neg_alpha, neg_dr)
+				neg_out = self.model.scorer(neg_out)
+				L_n = (-neg_out + self.weight * neg_out ** 2).mean()
+				neg_out2, _, _ = self.model.mult(neg_rec_feat, neg_lig_feat, neg_alpha2, neg_dr2)
+				neg_out2 = self.model.scorer(neg_out2)
+				L_n2 = (-neg_out2 + self.weight * neg_out2 ** 2).mean()
+				print(L_n, L_n2)
+				# print(L_n.grad, L_n2.grad)
+
+				neg_rec_feat = neg_rec_feat.squeeze()
+				neg_lig_feat = neg_lig_feat.squeeze()
+				rec_bulk, rec_bound = neg_rec_feat[0,:,:], neg_rec_feat[1,:,:]
+				lig_bulk, lig_bound = neg_lig_feat[0,:,:], neg_lig_feat[1,:,:]
+				plotting = False
+				# plotting = True
+				if plotting:
+					with torch.no_grad():
+						lig_plot = np.hstack((rec_bulk.detach().cpu(), rec_bound.detach().cpu()))
+						rec_plot = np.hstack((lig_bulk.detach().cpu(), lig_bound.detach().cpu()))
+						image = np.vstack((rec_plot, lig_plot))
+						plt.imshow(image)
+						plt.colorbar()
+						plt.show()
+
+
 				# print(loss_feats)
 
 				BCEloss = torch.nn.BCELoss()
 				l1_loss = torch.nn.L1Loss()
-				loss = BCEloss(pred_interact.squeeze(), gt_interact.squeeze().cuda())
 
 				w = 10 ** -5
-				# w = 10 ** 0
 
-				# L_reg1 = w1 * l1_loss(coldF.squeeze(), torch.zeros(1).squeeze().cuda())
-				# L_reg2 = w2 * l1_loss(hotF.squeeze(), torch.zeros(1).squeeze().cuda())
-				# loss = BCEloss(pred_interact.squeeze(), gt_interact.squeeze().cuda())
+				loss_feats = l1_loss(L_n, L_n2)
+				L_reg = l1_loss(deltaF.squeeze(), torch.zeros(1).squeeze().cuda())
+				loss = BCEloss(pred_interact.squeeze(), gt_interact.squeeze().cuda()) + loss_feats + L_reg
 
-				# loss = BCEloss(pred_interact.squeeze(), gt_interact.squeeze().cuda()) #+ L_reg1 + L_reg2
+				# loss_feats = w * (torch.sum(lig_bulk) * torch.sum(rec_bulk)) + (torch.sum(lig_bound) * torch.sum(lig_bound))
 
-				# L_reg = w * l1_loss(hotF.squeeze(), torch.zeros(1).squeeze().cuda())
+
 				# L_reg = w * l1_loss(deltaF.squeeze(), torch.zeros(1).squeeze().cuda())
-				# loss = BCEloss(pred_interact.squeeze(), gt_interact.squeeze().cuda()) + L_reg
-				# loss = BCEloss(pred_interact.squeeze(), gt_interact.squeeze().cuda()) + loss_feats + L_reg
-
+				# loss = BCEloss(pred_interact.squeeze(), gt_interact.squeeze().cuda()) + L_reg + loss_feats
 
 				loss.backward()
 				print('\n PREDICTED', pred_interact.item(), '; GROUND TRUTH', gt_interact.item())
@@ -396,16 +413,20 @@ class EBMInteractionModel(nn.Module):
 		self.F_0 = nn.Parameter(torch.zeros(1, requires_grad=True))
 
 	def forward(self, cold_sim, hot_sim):
-		E_cold = torch.stack(cold_sim, dim=0).squeeze()
-		E_hot = torch.stack(hot_sim, dim=0).squeeze()
+		E_cold = torch.stack(cold_sim, dim=0)
+		E_hot = torch.stack(hot_sim, dim=0)
 		# print(E_cold.shape)
-		coldF = -torch.logsumexp(-E_cold, dim=0)
-		hotF = -torch.logsumexp(-E_hot, dim=0)
+		coldF = -torch.logsumexp(-E_cold, dim=(0,1,2))
+		hotF = -torch.logsumexp(-E_hot, dim=(0,1,2))
 		print('coldF', coldF)
 		print('hotF', hotF)
 
+		sumF = coldF + hotF
+		deltaF = sumF - self.F_0
+
 		# deltaF = coldF + hotF + self.F_0
-		deltaF = coldF + hotF - self.F_0
+		# deltaF = coldF + hotF - self.F_0
+		# deltaF = coldF - self.F_0
 		pred_interact = torch.sigmoid(-deltaF)
 
 		with torch.no_grad():
