@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --partition=p_ccib_1
-#SBATCH --job-name=IP_1s4v_docking_epoch
+#SBATCH --job-name=makefigs_IP_1s4v_docking_200epochs
 #SBATCH --nodes=1
 ##SBATCH --ntasks=1
 #SBATCH --tasks-per-node=1

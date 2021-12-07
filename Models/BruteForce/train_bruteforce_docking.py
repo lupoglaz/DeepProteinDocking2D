@@ -237,8 +237,9 @@ if __name__ == '__main__':
 
     # testcase = 'docking_FI_scratch_25ex_3reps_50ep_rs42_1s4v_scratch46'
 
-    testcase = 'test_pytorch'
+    # testcase = 'test_pytorch'
 
+    testcase = 'makefigs_IP_1s4v_docking_200epochs'
 
     #########################
     #### initialization torch settings
@@ -275,7 +276,7 @@ if __name__ == '__main__':
 
     ######################
     ### Train model from beginning
-    # epoch = train_epochs
+    epoch = train_epochs
     train(debug=False)
 
     ### Resume training model at chosen epoch
