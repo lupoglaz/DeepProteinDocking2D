@@ -73,10 +73,11 @@ def run_prediction_model(data, trainer, epoch=None):
 
 if __name__=='__main__':
 	parser = argparse.ArgumentParser(description='Train deep protein docking')	
+	parser.add_argument('-data_dir', default='Log', type=str)
 	parser.add_argument('-experiment', default='DebugDocking', type=str)
 	
-	# parser.add_argument('-train', action='store_const', const=lambda:'train', dest='cmd')
-	# parser.add_argument('-test', action='store_const', const=lambda:'test', dest='cmd')
+	parser.add_argument('-train', action='store_const', const=lambda:'train', dest='cmd')
+	parser.add_argument('-test', action='store_const', const=lambda:'test', dest='cmd')
 
 	parser.add_argument('-resnet', action='store_const', const=lambda:'resnet', dest='model')
 	parser.add_argument('-ebm', action='store_const', const=lambda:'ebm', dest='model')
@@ -109,6 +110,7 @@ if __name__=='__main__':
 		model = CNNInteractionModel().to(device='cuda')
 		optimizer = optim.Adam(model.parameters(), lr=1e-3, betas=(0.0, 0.999))
 		trainer = SupervisedTrainer(model, optimizer, type='pos')
+	
 	elif args.model() == 'ebm':
 		repr = EQRepresentation(bias=False)
 		model = EQScoringModel(repr=repr).to(device='cuda')
@@ -129,6 +131,7 @@ if __name__=='__main__':
 			print('Default')
 			trainer = EBMTrainer(model, optimizer, num_samples=args.num_samples, num_buf_samples=len(train_stream)*args.batch_size, step_size=args.step_size,
 							global_step=False, add_positive=False)
+	
 	elif args.model() == 'docker':
 		repr = EQRepresentation(bias=False)
 		model = EQScoringModel(repr=repr).to(device='cuda')
@@ -137,56 +140,70 @@ if __name__=='__main__':
 	
 	
 	### TRAINING
+	if args.cmd() == 'train':
+		logger = SummaryWriter(Path(args.data_dir)/Path(args.experiment))
+		min_loss = float('+Inf')
+		iter = 0
+		for epoch in range(args.num_epochs):
+			for data in tqdm(train_stream):
+				log_dict = trainer.step(data, epoch=epoch)
+				logger.add_scalar("DockIP/Loss/Train", log_dict["Loss"], iter)
+				iter += 1
 
-	logger = SummaryWriter(Path('Log')/Path(args.experiment))
-	min_loss = float('+Inf')
-	iter = 0
-	for epoch in range(args.num_epochs):
-		for data in tqdm(train_stream):
-			log_dict = trainer.step(data, epoch=epoch)
-			logger.add_scalar("DockIP/Loss/Train", log_dict["Loss"], iter)
-			iter += 1
+			loss = []
+			log_data = []
+			docker = EQDockerGPU(model, num_angles=360)
+			for i, data in tqdm(enumerate(valid_stream)):
+				if args.model() == 'resnet':
+					it_loss, it_log_data = run_prediction_model(data, trainer, epoch=epoch)
+				elif args.model() == 'ebm' or args.model() == 'docker':
+					if i==0:
+						it_loss = run_docking_model(data, docker, iter, logger)
+					else:
+						it_loss = run_docking_model(data, docker, iter)
 
-		loss = []
-		log_data = []
-		docker = EQDockerGPU(model, num_angles=360)
-		for i, data in tqdm(enumerate(valid_stream)):
-			if args.model() == 'resnet':
-				it_loss, it_log_data = run_prediction_model(data, trainer, epoch=epoch)
-			elif args.model() == 'ebm' or args.model() == 'docker':
-				if i==0:
-					it_loss = run_docking_model(data, docker, iter, logger)
-				else:
-					it_loss = run_docking_model(data, docker, iter)
+				loss.append(it_loss)
+						
+			av_loss = np.average(loss, axis=0)
+			logger.add_scalar("DockIP/Loss/Valid", av_loss, iter)
 
-			loss.append(it_loss)
-					
-		av_loss = np.average(loss, axis=0)
-		logger.add_scalar("DockIP/Loss/Valid", av_loss, iter)
-
-		print('Epoch', epoch, 'Valid Loss:', av_loss)
-		if av_loss < min_loss:
-			torch.save(model.state_dict(), Path('Log')/Path(args.experiment)/Path('dock_ebm.th'))
-			print(f'Model saved: min_loss = {av_loss} prev = {min_loss}')
-			min_loss = av_loss
+			print('Epoch', epoch, 'Valid Loss:', av_loss)
+			if av_loss < min_loss:
+				torch.save(model.state_dict(), Path('Log')/Path(args.experiment)/Path('model.th'))
+				print(f'Model saved: min_loss = {av_loss} prev = {min_loss}')
+				min_loss = av_loss
 	
 	### TESTING
-	test_stream = get_docking_stream('DatasetGeneration/docking_data_test.pkl', batch_size=1, max_size=None)
-	trainer.load_checkpoint(Path('Log')/Path(args.experiment)/Path('dock_ebm.th'))
-	docker = EQDockerGPU(model, num_angles=360)
-	for data in tqdm(test_stream):
-		if args.model() == 'resnet':
-			it_loss, it_log_data = run_prediction_model(data, trainer, epoch=0)
-		elif args.model() == 'ebm' or args.model() == 'docker':
-			it_loss = run_docking_model(data, docker, 0)
-		loss.append(it_loss)
+	if args.cmd() == 'test':
+		test_stream = get_docking_stream('DatasetGeneration/docking_data_test.pkl', batch_size=1, max_size=None)
+		trainer.load_checkpoint(Path(args.data_dir)/Path(args.experiment)/Path('model.th'))
+		docker = EQDockerGPU(model, num_angles=360)
+		loss = []
+		for data in tqdm(test_stream):
+			if args.model() == 'resnet':
+				it_loss, it_log_data = run_prediction_model(data, trainer, epoch=0)
+			elif args.model() == 'ebm' or args.model() == 'docker':
+				it_loss = run_docking_model(data, docker, 0)
+			loss.append(it_loss)
+		av_loss = np.average(loss, axis=0)
+		print(f'Test result: {av_loss}')
 
-	av_loss = np.average(loss, axis=0)
-	print(f'Test result: {av_loss}')
-	ablation = "None"
-	if not(args.ablation is None): args.ablation()
-	logger.add_hparams(	{	'ModelType': args.model(), 
-							'Ablation': ablation, 
-							'StepSize': args.step_size, 'NumSamples': args.num_samples
-						}, 
-						{'hparam/valid_loss': min_loss, 'hparam/test_loss': av_loss})#, run_name=args.experiment)
+		valid_stream = get_docking_stream('DatasetGeneration/docking_data_valid.pkl', batch_size=1, max_size=None)
+		loss = []
+		for data in tqdm(valid_stream):
+			if args.model() == 'resnet':
+				it_loss, it_log_data = run_prediction_model(data, trainer, epoch=0)
+			elif args.model() == 'ebm' or args.model() == 'docker':
+				it_loss = run_docking_model(data, docker, 0)
+			loss.append(it_loss)
+		av_loss = np.average(loss, axis=0)
+		print(f'Valid result: {av_loss}')
+
+		# if args.cmd == 'train':
+		# 	ablation = "None"
+		# 	if not(args.ablation is None): args.ablation()
+		# 	logger.add_hparams(	{	'ModelType': args.model(), 
+		# 							'Ablation': ablation, 
+		# 							'StepSize': args.step_size, 'NumSamples': args.num_samples
+		# 						}, 
+		# 						{'hparam/valid_loss': min_loss, 'hparam/test_loss': av_loss})#, run_name=args.experiment)

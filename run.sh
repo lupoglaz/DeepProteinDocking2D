@@ -14,7 +14,7 @@
 
 #Brute-force interaction
 # python train_interaction.py -experiment BFInteraction -docker -pretrain BFDocking -batch_size 8 -num_epochs 10
-python train_interaction.py -experiment BFInteraction_repl -docker -batch_size 8 -num_epochs 20
+# python train_interaction.py -experiment BFInteraction_repl -docker -batch_size 8 -num_epochs 20
 
 #ResNet interaction
-python train_interaction.py -experiment CNNInteraction -resnet -num_epochs 30 -batch_size 32
+# python train_interaction.py -experiment CNNInteraction -resnet -num_epochs 30 -batch_size 32

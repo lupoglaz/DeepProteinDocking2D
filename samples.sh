@@ -1,0 +1,1 @@
+python train_docking.py -data_dir /media/lupoglaz/DeepProteinDocking2D -experiment CNNDocking_1 -resnet -test -gpu 0

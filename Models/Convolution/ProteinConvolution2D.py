@@ -13,19 +13,18 @@ def convolve(volume1, volume2, conj):
 	full_vol = box_size*box_size
 	output = torch.zeros(batch_size, box_size, box_size, device=volume1.device, dtype=volume1.dtype)
 	
-	cv1 = torch.rfft(volume1, 2)
-	cv2 = torch.rfft(volume2, 2)
-	
+	cv1 = torch.fft.rfft2(volume1, dim=(-2,-1))
+	cv2 = torch.fft.rfft2(volume2, dim=(-2,-1))
 	if conj:
-		re = cv1[:,:,:,0]*cv2[:,:,:,0] + cv1[:,:,:,1]*cv2[:,:,:,1]
-		im = -cv1[:,:,:,0]*cv2[:,:,:,1] + cv1[:,:,:,1]*cv2[:,:,:,0]
+		re = cv1[:,:,:].real * cv2[:,:,:].real + cv1[:,:,:].imag * cv2[:,:,:].imag
+		im = -cv1[:,:,:].real * cv2[:,:,:].imag + cv1[:,:,:].imag * cv2[:,:,:].real
 	else:
-		re = cv1[:,:,:,0]*cv2[:,:,:,0] - cv1[:,:,:,1]*cv2[:,:,:,1]
-		im = cv1[:,:,:,0]*cv2[:,:,:,1] + cv1[:,:,:,1]*cv2[:,:,:,0]
+		re = cv1[:,:,:].real * cv2[:,:,:].real - cv1[:,:,:].imag * cv2[:,:,:].imag
+		im = cv1[:,:,:].real * cv2[:,:,:].imag + cv1[:,:,:].imag * cv2[:,:,:].real
 	
-	cconv = torch.stack([re, im], dim=3)
+	cconv = torch.view_as_complex(torch.stack([re, im], dim=3))
 	
-	return torch.irfft(cconv, 2, signal_sizes=(box_size, box_size))
+	return torch.fft.irfft2(cconv,  dim=(-2,-1), s=(box_size, box_size))
 
 class ProteinConv2DFunction(Function):
 	@staticmethod
