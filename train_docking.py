@@ -138,7 +138,7 @@ if __name__=='__main__':
 	
 	### TRAINING
 
-	logger = SummaryWriter(Path('Log')/Path(args.experiment))
+	logger = SummaryWriter(Path('/media/HDD/DeepProteinDocking2D')/Path(args.experiment))
 	min_loss = float('+Inf')
 	iter = 0
 	for epoch in range(args.num_epochs):
@@ -166,13 +166,13 @@ if __name__=='__main__':
 
 		print('Epoch', epoch, 'Valid Loss:', av_loss)
 		if av_loss < min_loss:
-			torch.save(model.state_dict(), Path('Log')/Path(args.experiment)/Path('dock_ebm.th'))
+			torch.save(model.state_dict(), Path('/media/HDD/DeepProteinDocking2D')/Path(args.experiment)/Path('model.th'))
 			print(f'Model saved: min_loss = {av_loss} prev = {min_loss}')
 			min_loss = av_loss
 	
 	### TESTING
 	test_stream = get_docking_stream('DatasetGeneration/docking_data_test.pkl', batch_size=1, max_size=None)
-	trainer.load_checkpoint(Path('Log')/Path(args.experiment)/Path('dock_ebm.th'))
+	trainer.load_checkpoint(Path('/media/HDD/DeepProteinDocking2D')/Path(args.experiment)/Path('model.th'))
 	docker = EQDockerGPU(model, num_angles=360)
 	for data in tqdm(test_stream):
 		if args.model() == 'resnet':

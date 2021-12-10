@@ -151,7 +151,7 @@ if __name__=='__main__':
 	valid_stream = get_interaction_stream('DatasetGeneration/interaction_data_valid.pkl', batch_size=args.batch_size, max_size=1000)
 	test_stream = get_interaction_stream('DatasetGeneration/interaction_data_test.pkl', batch_size=args.batch_size, max_size=1000)
 	
-	logger = SummaryWriter(Path('Log')/Path(args.experiment))
+	logger = SummaryWriter(Path('/media/HDD/DeepProteinDocking2D')/Path(args.experiment))
 
 	if args.model() == 'resnet':
 		model = CNNInteractionModel().cuda()
@@ -210,14 +210,14 @@ if __name__=='__main__':
 			logger.add_scalar("DockFI/Valid/rec", Recall, epoch)
 			logger.add_scalar("DockFI/Valid/MCC", MCC, epoch)
 		
-		torch.save(model.state_dict(), Path('Log')/Path(args.experiment)/Path('model.th'))
+		torch.save(model.state_dict(), Path('/media/HDD/DeepProteinDocking2D')/Path(args.experiment)/Path('model.th'))
 
 	#TESTING
 	vAccuracy, vPrecision, vRecall, vF1, vMCC = test(valid_stream, trainer, epoch=epoch, threshold=threshold)
 	print(f'Threshold {threshold}')
 	print(f'Validation Epoch {epoch} Acc: {vAccuracy} Prec: {vPrecision} Rec: {vRecall} F1: {vF1} MCC: {vMCC}')
 
-	trainer.load_checkpoint(logger.log_dir / Path('model.th'))
+	trainer.load_checkpoint(Path('/media/HDD/DeepProteinDocking2D')/Path(args.experiment)/Path('model.th'))
 	print('Test:')
 	tAccuracy, tPrecision, tRecall, tF1, tMCC = test(test_stream, trainer, 0, threshold=threshold)
 	logger.add_hparams(	{'ModelType': args.model(), 'Pretrain': args.pretrain}, 
