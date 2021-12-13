@@ -1,5 +1,6 @@
 #Brute-force docking
-# python train_docking.py -experiment BFDocking -docker -num_epochs 30 -batch_size 11 -gpu 0
+# python train_docking.py -data_dir Log -experiment BFDocking -docker -train -num_epochs 30 -batch_size 11 -gpu 0
+# python train_docking.py -data_dir Log -experiment BFDocking -docker -test -gpu 0
 
 #Energy-based docking
 # python train_docking.py -experiment EBMDocking -ebm -num_epochs 100 -batch_size 32 -gpu 0
@@ -9,12 +10,13 @@
 
 
 #ResNet docking
-# python train_docking.py -experiment CNNDocking -resnet -num_epochs 100 -batch_size 32 -gpu 0
-
+# python train_docking.py -data_dir Log -experiment CNNDocking -resnet -train -num_epochs 100 -batch_size 32 -gpu 0
+# python train_docking.py -data_dir Log -experiment CNNDocking -resnet -test -gpu 0
 
 #Brute-force interaction
-# python train_interaction.py -experiment BFInteraction -docker -pretrain BFDocking -batch_size 8 -num_epochs 10
-python train_interaction.py -experiment BFInteraction_repl -docker -batch_size 8 -num_epochs 20
+# python train_interaction.py -experiment BFInteraction -docker -train -batch_size 8 -num_epochs 10
+# python train_docking.py -data_dir Log -experiment BFInteraction -docker -test -gpu 0
 
 #ResNet interaction
-python train_interaction.py -experiment CNNInteraction -resnet -num_epochs 30 -batch_size 32
+# python train_interaction.py -data_dir Log -experiment CNNInteraction -resnet -train -num_epochs 30 -batch_size 32
+# python train_interaction.py -data_dir Log -experiment CNNInteraction -resnet -test -gpu 0

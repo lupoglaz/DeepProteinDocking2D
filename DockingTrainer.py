@@ -30,7 +30,7 @@ class DockingTrainer:
 		
 		self.num_angles = num_angles
 		self.conv = ProteinConv2D()
-		self.angles = torch.from_numpy(np.linspace(-np.pi, np.pi, num=num_angles)).to(device='cuda', dtype=torch.float32)
+		self.angles = torch.from_numpy(np.linspace(-np.pi, np.pi, num=num_angles)).to(dtype=torch.float32)#.to(device='cuda')
 		self.sigmoid = nn.Sigmoid()
 
 		self.zero_input = None
@@ -38,11 +38,11 @@ class DockingTrainer:
 
 	def load_checkpoint(self, path):
 		raw_model = self.model.module if hasattr(self.model, "module") else self.model
-		checkpoint = torch.load(path)
+		checkpoint = torch.load(path, map_location=torch.device('cpu'))
 		raw_model.load_state_dict(checkpoint)
 
 	def rotate(self, repr, angle):
-		alpha = angle.detach()
+		alpha = angle.detach().to(device=repr.device)
 		T0 = torch.stack([torch.cos(alpha), -torch.sin(alpha), torch.zeros_like(alpha)], dim=1)
 		T1 = torch.stack([torch.sin(alpha), torch.cos(alpha), torch.zeros_like(alpha)], dim=1)
 		R = torch.stack([T0, T1], dim=1)

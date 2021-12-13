@@ -1,0 +1,1 @@
+python train_docking.py -data_dir /media/HDD/DeepProteinDocking2D -experiment BFDocking_1 -docker -test -gpu 0

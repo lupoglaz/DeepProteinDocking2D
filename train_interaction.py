@@ -124,9 +124,10 @@ def test_threshold(stream, trainer, iter, logger=None):
 if __name__=='__main__':
 	parser = argparse.ArgumentParser(description='Train deep protein docking')	
 	parser.add_argument('-experiment', default='Debug', type=str)
-	
-	# parser.add_argument('-train', action='store_const', const=lambda:'train', dest='cmd')
-	# parser.add_argument('-test', action='store_const', const=lambda:'test', dest='cmd')
+	parser.add_argument('-data_dir', default='Log', type=str)
+
+	parser.add_argument('-train', action='store_const', const=lambda:'train', dest='cmd')
+	parser.add_argument('-test', action='store_const', const=lambda:'test', dest='cmd')
 
 	parser.add_argument('-resnet', action='store_const', const=lambda:'resnet', dest='model')
 	parser.add_argument('-docker', action='store_const', const=lambda:'docker', dest='model')
@@ -151,7 +152,7 @@ if __name__=='__main__':
 	valid_stream = get_interaction_stream('DatasetGeneration/interaction_data_valid.pkl', batch_size=args.batch_size, max_size=1000)
 	test_stream = get_interaction_stream('DatasetGeneration/interaction_data_test.pkl', batch_size=args.batch_size, max_size=1000)
 	
-	logger = SummaryWriter(Path('/media/HDD/DeepProteinDocking2D')/Path(args.experiment))
+	logger = SummaryWriter(Path(args.data_dir)/Path(args.experiment))
 
 	if args.model() == 'resnet':
 		model = CNNInteractionModel().cuda()
@@ -170,58 +171,73 @@ if __name__=='__main__':
 		trainer = DockingTrainer(model, optimizer, type='int', omega=1.0)
 	
 	#TRAINING 
-	iter = 0
-	for epoch in range(args.num_epochs):
-		losses = []
-		if args.model() == 'resnet':
-			for data in tqdm(train_stream):
-				log_dict = trainer.step(data)
-				logger.add_scalar("DockFI/Train/Loss", log_dict["Loss"], iter)
-				iter += 1
-				losses.append(log_dict["Loss"])
-
-			print(f'Loss {np.mean(losses)}')
-			threshold = 0.5
-
-		elif args.model() == 'docker':
-			for data in tqdm(train_stream):
-				try:
+	if args.cmd() == 'train':
+		iter = 0
+		for epoch in range(args.num_epochs):
+			losses = []
+			if args.model() == 'resnet':
+				for data in tqdm(train_stream):
 					log_dict = trainer.step(data)
-				except EmptyBatch:
-					continue
-				logger.add_scalar("DockFI/Train/Loss", log_dict["LossRanking"], iter)
-				logger.add_scalar("DockFI/Train/ScoreMean", torch.mean(log_dict["P"]).item(), iter)
-				logger.add_scalar("DockFI/Train/ScoreStd", torch.std(log_dict["P"]).item(), iter)
-				logger.add_scalar("DockFI/Train/Missclass", log_dict["Loss"], iter)
-				for i, param in enumerate(trainer.model.parameters()):
-					if param.ndimension() > 0:
-						logger.add_histogram(f'DockFI/Model/{i}', param.detach().cpu(), iter)
+					logger.add_scalar("DockFI/Train/Loss", log_dict["Loss"], iter)
+					iter += 1
+					losses.append(log_dict["Loss"])
 
-				iter += 1
-				losses.append(log_dict["Loss"])
-						
-			print(f'Loss {np.mean(losses)}')
-			Accuracy, Precision, Recall, F1, MCC, threshold = test_threshold(train_small_stream, trainer, iter, logger)
-			print(f'Epoch {epoch} Acc: {Accuracy} Prec: {Precision} Rec: {Recall} F1: {F1} MCC: {MCC}')
+				print(f'Loss {np.mean(losses)}')
+				threshold = 0.5
+
+			elif args.model() == 'docker':
+				for data in tqdm(train_stream):
+					try:
+						log_dict = trainer.step(data)
+					except EmptyBatch:
+						continue
+					logger.add_scalar("DockFI/Train/Loss", log_dict["LossRanking"], iter)
+					logger.add_scalar("DockFI/Train/ScoreMean", torch.mean(log_dict["P"]).item(), iter)
+					logger.add_scalar("DockFI/Train/ScoreStd", torch.std(log_dict["P"]).item(), iter)
+					logger.add_scalar("DockFI/Train/Missclass", log_dict["Loss"], iter)
+					for i, param in enumerate(trainer.model.parameters()):
+						if param.ndimension() > 0:
+							logger.add_histogram(f'DockFI/Model/{i}', param.detach().cpu(), iter)
+
+					iter += 1
+					losses.append(log_dict["Loss"])
+							
+				print(f'Loss {np.mean(losses)}')
+				Accuracy, Precision, Recall, F1, MCC, threshold = test_threshold(train_small_stream, trainer, iter, logger)
+				print(f'Epoch {epoch} Acc: {Accuracy} Prec: {Precision} Rec: {Recall} F1: {F1} MCC: {MCC}')
 
 
-			logger.add_scalar("DockFI/Valid/acc", Accuracy, epoch)
-			logger.add_scalar("DockFI/Valid/prec", Precision, epoch)
-			logger.add_scalar("DockFI/Valid/rec", Recall, epoch)
-			logger.add_scalar("DockFI/Valid/MCC", MCC, epoch)
+				logger.add_scalar("DockFI/Valid/acc", Accuracy, epoch)
+				logger.add_scalar("DockFI/Valid/prec", Precision, epoch)
+				logger.add_scalar("DockFI/Valid/rec", Recall, epoch)
+				logger.add_scalar("DockFI/Valid/MCC", MCC, epoch)
+			
+			torch.save(model.state_dict(), Path(args.data_dir)/Path(args.experiment)/Path('model.th'))
 		
-		torch.save(model.state_dict(), Path('/media/HDD/DeepProteinDocking2D')/Path(args.experiment)/Path('model.th'))
+		vAccuracy, vPrecision, vRecall, vF1, vMCC = test(valid_stream, trainer, epoch=epoch, threshold=threshold)
+		print(f'Threshold {threshold}')
+		print(f'Validation Epoch {epoch} Acc: {vAccuracy} Prec: {vPrecision} Rec: {vRecall} F1: {vF1} MCC: {vMCC}')
 
 	#TESTING
-	vAccuracy, vPrecision, vRecall, vF1, vMCC = test(valid_stream, trainer, epoch=epoch, threshold=threshold)
-	print(f'Threshold {threshold}')
-	print(f'Validation Epoch {epoch} Acc: {vAccuracy} Prec: {vPrecision} Rec: {vRecall} F1: {vF1} MCC: {vMCC}')
+	elif args.cmd() == 'test':
+		trainer.load_checkpoint(Path(args.data_dir)/Path(args.experiment)/Path('model.th'))
+		if args.model() == 'docker':
+			Accuracy, Precision, Recall, F1, MCC, threshold = test_threshold(train_small_stream, trainer, iter, logger)
+			print(f'Threshold {threshold}')
+			print(f'Threshold Acc: {Accuracy} Prec: {Precision} Rec: {Recall} F1: {F1} MCC: {MCC}')
+		else:
+			threshold = 0.5
+		
+		vAccuracy, vPrecision, vRecall, vF1, vMCC = test(valid_stream, trainer, epoch=epoch, threshold=threshold)
+		print(f'Validation Acc: {vAccuracy} Prec: {vPrecision} Rec: {vRecall} F1: {vF1} MCC: {vMCC}')
 
-	trainer.load_checkpoint(Path('/media/HDD/DeepProteinDocking2D')/Path(args.experiment)/Path('model.th'))
-	print('Test:')
-	tAccuracy, tPrecision, tRecall, tF1, tMCC = test(test_stream, trainer, 0, threshold=threshold)
-	logger.add_hparams(	{'ModelType': args.model(), 'Pretrain': args.pretrain}, 
-						{'hparam/valid_acc': vAccuracy, 'hparam/valid_prec': vPrecision, 'hparam/valid_rec': vRecall, 
-						'hparam/valid_F1': vF1, 'hparam/valid_MCC': vMCC,
-						'hparam/test_acc': tAccuracy, 'hparam/test_prec': tPrecision, 'hparam/test_rec': tRecall, 
-						'hparam/test_F1': tF1, 'hparam/test_MCC': tMCC,})
+		tAccuracy, tPrecision, tRecall, tF1, tMCC = test(test_stream, trainer, 0, threshold=threshold)
+		print(f'Test Acc: {tAccuracy} Prec: {tPrecision} Rec: {tRecall} F1: {tF1} MCC: {tMCC}')
+
+		# logger.add_hparams(	{'ModelType': args.model(), 'Pretrain': args.pretrain}, 
+		# 					{'hparam/valid_acc': vAccuracy, 'hparam/valid_prec': vPrecision, 'hparam/valid_rec': vRecall, 
+		# 					'hparam/valid_F1': vF1, 'hparam/valid_MCC': vMCC,
+		# 					'hparam/test_acc': tAccuracy, 'hparam/test_prec': tPrecision, 'hparam/test_rec': tRecall, 
+		# 					'hparam/test_F1': tF1, 'hparam/test_MCC': tMCC,})
+	else:
+		raise(ValueError())
