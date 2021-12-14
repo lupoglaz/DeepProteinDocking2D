@@ -214,10 +214,6 @@ if __name__=='__main__':
 			
 			torch.save(model.state_dict(), Path(args.data_dir)/Path(args.experiment)/Path('model.th'))
 		
-		vAccuracy, vPrecision, vRecall, vF1, vMCC = test(valid_stream, trainer, epoch=epoch, threshold=threshold)
-		print(f'Threshold {threshold}')
-		print(f'Validation Epoch {epoch} Acc: {vAccuracy} Prec: {vPrecision} Rec: {vRecall} F1: {vF1} MCC: {vMCC}')
-
 	#TESTING
 	elif args.cmd() == 'test':
 		trainer.load_checkpoint(Path(args.data_dir)/Path(args.experiment)/Path('model.th'))
@@ -228,7 +224,7 @@ if __name__=='__main__':
 		else:
 			threshold = 0.5
 		
-		vAccuracy, vPrecision, vRecall, vF1, vMCC = test(valid_stream, trainer, epoch=epoch, threshold=threshold)
+		vAccuracy, vPrecision, vRecall, vF1, vMCC = test(valid_stream, trainer, epoch=0, threshold=threshold)
 		print(f'Validation Acc: {vAccuracy} Prec: {vPrecision} Rec: {vRecall} F1: {vF1} MCC: {vMCC}')
 
 		tAccuracy, tPrecision, tRecall, tF1, tMCC = test(test_stream, trainer, 0, threshold=threshold)
