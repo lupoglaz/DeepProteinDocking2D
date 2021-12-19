@@ -75,19 +75,41 @@ class BruteForceDocking(nn.Module):
                         rec_feat = F.pad(rec_feat, pad=([pad_size, pad_size + 1, pad_size, pad_size + 1]), mode='constant', value=0)
                         lig_feat = F.pad(lig_feat, pad=([pad_size, pad_size + 1, pad_size, pad_size + 1]), mode='constant', value=0)
 
-                rec_plot = np.hstack((receptor.squeeze().detach().cpu(),
-                                      rec_feat[0].squeeze().detach().cpu(),
-                                      rec_feat[1].squeeze().detach().cpu()))
-                lig_plot = np.hstack((ligand.squeeze().detach().cpu(),
-                                      lig_feat[0].squeeze().detach().cpu(),
-                                      lig_feat[1].squeeze().detach().cpu()))
+
+                pad_size = (receptor.shape[-1])//2
+                receptor = F.pad(receptor, pad=([pad_size, pad_size, pad_size, pad_size]), mode='constant', value=0)
+                ligand = F.pad(ligand, pad=([pad_size, pad_size, pad_size, pad_size]), mode='constant', value=0)
+                rec_feat = F.pad(rec_feat, pad=([pad_size, pad_size, pad_size, pad_size]), mode='constant', value=0)
+                lig_feat = F.pad(lig_feat, pad=([pad_size, pad_size, pad_size, pad_size]), mode='constant', value=0)
+                rec_plot = np.hstack((receptor.squeeze().t().detach().cpu(),
+                                      rec_feat[0].squeeze().t().detach().cpu(),
+                                      rec_feat[1].squeeze().t().detach().cpu()))
+                lig_plot = np.hstack((ligand.squeeze().t().detach().cpu(),
+                                      lig_feat[0].squeeze().t().detach().cpu(),
+                                      lig_feat[1].squeeze().t().detach().cpu()))
+
                 plt.imshow(np.vstack((rec_plot, lig_plot)), vmin=0, vmax=1) # plot scale limits
                 # plt.imshow(np.vstack((rec_plot, lig_plot)))
-                plt.title('Input                   F1_bulk                    F2_bound')
-                plt.colorbar()
-                plt.savefig('figs/Feats_BruteForceTorchFFT_SE2Conv2D_++-Score_feats_'+str(torch.argmax(FFT_score).item())+'.png')
+                # plt.title('Input'+' '*33+'F1_bulk'+' '*33+'F2_bound')
+                plt.title('Input', loc='left')
+                plt.title('F1_bulk')
+                plt.title('F2_bound', loc='right')
+                # plt.colorbar()
+                plt.grid(False)
+                plt.tick_params(
+                    axis='x',  # changes apply to the x-axis
+                    which='both',  # both major and minor ticks are affected
+                    bottom=False,  # ticks along the bottom edge are off
+                    top=False,  # ticks along the top edge are off
+                    labelbottom=False)  # labels along the bottom
+                plt.tick_params(
+                    axis='y',  # changes apply to the x-axis
+                    which='both',  # both major and minor ticks are affected
+                    left=False,  # ticks along the bottom edge are off
+                    right=False,  # ticks along the top edge are off
+                    labelleft=False)  # labels along the bottom
+                plt.savefig('figs/makefigs_feats'+str(torch.argmax(FFT_score).item())+'.png')
                 plt.show()
-
         return FFT_score
 
 

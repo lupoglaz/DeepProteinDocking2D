@@ -70,6 +70,8 @@ class BruteForceDockingTrainer:
 
         if eval and plotting:
             with torch.no_grad():
+                # import matplotlib.colors as colors
+                # cmap = colors.ListedColormap(['white', 'black', 'red'])
                 plt.close()
                 plt.figure(figsize=(8, 8))
                 pred_rot, pred_txy = TorchDockingFFT().extract_transform(FFT_score)
@@ -84,9 +86,25 @@ class BruteForceDockingTrainer:
                                      gt_rot.squeeze().detach().cpu().numpy(), gt_txy.squeeze().detach().cpu().numpy())
 
                 plt.imshow(pair.transpose())
-                plt.title('Ground Truth                      Input                       Predicted Pose')
-                plt.text(10, 10, "Ligand RMSD=" + str(rmsd_out.item()), backgroundcolor='w')
-                plt.savefig('figs/Pose_BruteForceTorchFFT_SE2Conv2D_Ligand_RMSD_' + str(rmsd_out.item()) + '.png')
+                # plt.title('Ground truth'+' '*33+'Input'+' '*33+'Predicted pose')
+                plt.title('Ground truth', loc='left')
+                plt.title('Input')
+                plt.title('Predicted pose', loc='right')
+                plt.text(225, 110, "RMSD = " + str(rmsd_out.item())[:5], backgroundcolor='w')
+                plt.grid(False)
+                plt.tick_params(
+                    axis='x',  # changes apply to the x-axis
+                    which='both',  # both major and minor ticks are affected
+                    bottom=False,  # ticks along the bottom edge are off
+                    top=False,  # ticks along the top edge are off
+                    labelbottom=False)  # labels along the bottom
+                plt.tick_params(
+                    axis='y',  # changes apply to the x-axis
+                    which='both',  # both major and minor ticks are affected
+                    left=False,  # ticks along the bottom edge are off
+                    right=False,  # ticks along the top edge are off
+                    labelleft=False)  # labels along the bottom
+                plt.savefig('figs/makefigs_pose' + str(rmsd_out.item()) + '.png')
                 plt.show()
 
         return loss.item(), rmsd_out.item()
@@ -162,6 +180,7 @@ class BruteForceDockingTrainer:
                 'state_dict': model.state_dict(),
                 'optimizer': optimizer.state_dict(),
             }
+
             if epoch % test_freq == 0 or epoch == 1:
                 valid_loss = []
                 for data in tqdm(valid_stream):
@@ -276,17 +295,17 @@ if __name__ == '__main__':
 
     ######################
     ### Train model from beginning
-    epoch = train_epochs
-    train(debug=False)
+    # epoch = train_epochs
+    # train(debug=False)
 
     ### Resume training model at chosen epoch
     # train(True, resume_epoch=100)
 
     ### Evaluate model only and plot, at chosen epoch
-    # plotting = True
+    plotting = True
     # plotting = False
     # epoch = '' # when loading FI trained docking model state_dict explicitly.
     # epoch = 11 # best epoch from 'randinit_best_docking_model_epoch'
     # epoch = 75 # best epoch from 'onesinit_lr4_best_docking_model_epoch'
-    # epoch = 200 # best epoch from '16scalar32vector_docking_model_epoch'
-    # plot_evaluation_set(check_epoch=epoch, plotting=plotting)
+    epoch = 200 # best epoch from '16scalar32vector_docking_model_epoch'
+    plot_evaluation_set(check_epoch=epoch, plotting=plotting)
