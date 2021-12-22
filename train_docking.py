@@ -64,6 +64,15 @@ def run_prediction_model(data, trainer, epoch=None):
 
 
 if __name__=='__main__':
+	#### initialization torch settings
+	# random_seed = 42
+	# np.random.seed(random_seed)
+	# torch.manual_seed(random_seed)
+	# random.seed(random_seed)
+	# torch.cuda.manual_seed(random_seed)
+	# torch.backends.cudnn.deterministic = True
+	# torch.cuda.set_device(0)
+
 	# torch.autograd.set_detect_anomaly(True)
 	parser = argparse.ArgumentParser(description='Train deep protein docking')	
 	parser.add_argument('-experiment', default='DebugDocking', type=str)
@@ -137,9 +146,9 @@ if __name__=='__main__':
 								 global_step=False, add_positive=False)
 		elif args.ablation() == 'FI':
 			print('Fact of interaction: using parallel, different distribution sigmas, no GS, no AP')
-			# max_size=100
-			train_stream = get_interaction_stream_balanced('DatasetGeneration/interaction_data_train.pkl', batch_size=args.batch_size)
-			valid_stream = get_interaction_stream_balanced('DatasetGeneration/interaction_data_valid.pkl', batch_size=1)
+			max_size=25
+			train_stream = get_interaction_stream_balanced('DatasetGeneration/interaction_data_train.pkl', batch_size=args.batch_size, max_size=max_size)
+			valid_stream = get_interaction_stream_balanced('DatasetGeneration/interaction_data_valid.pkl', batch_size=1, max_size=max_size//2)
 			trainer = EBMTrainer(model, optimizer, num_samples=args.num_samples,
 								 num_buf_samples=len(train_stream) * args.batch_size, step_size=args.step_size,
 								 global_step=False, add_positive=False, FI=True)
@@ -153,6 +162,13 @@ if __name__=='__main__':
 	if args.cmd() == 'train':
 		logger = Logger.new(Path('Log')/Path(args.experiment))
 		min_loss = float('+Inf')
+		# pretrain = True
+		pretrain = False
+		if pretrain:
+			print('*'*100)
+			print('Loading pretrained model for EBM')
+			trainer.load_checkpoint(Path('Log') / Path('pretrain_EBM_IP_100samples_1dLD') / Path('dock_ebm.th'))
+			print(Path('Log') / Path('pretrain_EBM_IP_100samples_1dLD') / Path('dock_ebm.th'))
 		for epoch in range(args.num_epochs):
 			pos_idx = 0
 			for data in tqdm(train_stream):
@@ -171,69 +187,70 @@ if __name__=='__main__':
 			if not args.ablation() == 'FI':
 				logger.log_train(loss)
 
-		if args.ablation() == 'FI':
-			log_format = '%f\t%f\t%f\t%f\t%f\n'
-			log_header = 'Accuracy\tPrecision\tRecall\tF1score\tMCC\n'
-			TP, FP, TN, FN = 0, 0, 0, 0
+			if args.ablation() == 'FI':
+				log_format = '%f\t%f\t%f\t%f\t%f\n'
+				log_header = 'Accuracy\tPrecision\tRecall\tF1score\tMCC\n'
+				TP, FP, TN, FN = 0, 0, 0, 0
 
-			pos_idx = 0
-			for data in tqdm(valid_stream):
-				receptor, ligand, gt_interact = data
-				data = (receptor, ligand, gt_interact, torch.tensor(pos_idx).unsqueeze(0).cuda())
-				tp, fp, tn, fn = trainer.step_parallel(data, train=False)
-				# print(tp, fp, tn,fn)
-				TP += tp
-				FP += fp
-				TN += tn
-				FN += fn
-				pos_idx += 1
+				pos_idx = 0
+				for data in tqdm(valid_stream):
+					receptor, ligand, gt_interact = data
+					data = (receptor, ligand, gt_interact, torch.tensor(pos_idx).unsqueeze(0).cuda())
+					tp, fp, tn, fn = trainer.step_parallel(data, train=False)
+					# print(tp, fp, tn,fn)
+					TP += tp
+					FP += fp
+					TN += tn
+					FN += fn
+					pos_idx += 1
 
 
-			Accuracy = float(TP + TN) / float(TP + TN + FP + FN)
-			if (TP + FP) > 0:
-				Precision = float(TP) / float(TP + FP)
+				Accuracy = float(TP + TN) / float(TP + TN + FP + FN)
+				if (TP + FP) > 0:
+					Precision = float(TP) / float(TP + FP)
+				else:
+					Precision = 0.0
+				if (TP + FN) > 0:
+					Recall = float(TP) / float(TP + FN)
+				else:
+					Recall = 0.0
+				F1score = TP / (TP + 0.5 * (FP + FN) + 1E-5)
+
+				MCC = ((TP * TN) - (FP * FN)) / (np.sqrt((TP + FP) * (TP + FN) * (TN + FP) * (TN + FN)) + 1E-5)
+
+				print(f'Epoch {epoch} Acc: {Accuracy} Prec: {Precision} Rec: {Recall} F1: {F1score} MCC: {MCC}')
+
+				with open('Log/'+str(args.experiment)+'/log_EBM_FI_validAPR.txt', 'a') as fout:
+					# fout.write('Epoch ' + str(check_epoch) + '\n')
+					fout.write('Epoch' + str(epoch) + '\n')
+					fout.write(log_header)
+					fout.write(log_format % (Accuracy, Precision, Recall, F1score, MCC))
+				fout.close()
 			else:
-				Precision = 0.0
-			if (TP + FN) > 0:
-				Recall = float(TP) / float(TP + FN)
-			else:
-				Recall = 0.0
-			F1score = TP / (TP + 0.5 * (FP + FN) + 1E-5)
-
-			MCC = ((TP * TN) - (FP * FN)) / (np.sqrt((TP + FP) * (TP + FN) * (TN + FP) * (TN + FN)) + 1E-5)
-
-			print(f'Epoch {epoch} Acc: {Accuracy} Prec: {Precision} Rec: {Recall} F1: {F1score} MCC: {MCC}')
-
-			with open('Log/'+str(args.experiment)+'/log_EBM_FI_validAPR_.txt', 'a') as fout:
-				# fout.write('Epoch ' + str(check_epoch) + '\n')
-				fout.write(log_header)
-				fout.write(log_format % (Accuracy, Precision, Recall, F1score, MCC))
-			fout.close()
-		else:
-			loss = []
-			log_data = []
-			docker = EQDockerGPU(model, num_angles=360)
-			for data in tqdm(valid_stream):
-				if args.model() == 'resnet':
-					it_loss, it_log_data = run_prediction_model(data, trainer, epoch=0)
-				elif args.model() == 'ebm':
-					it_loss, it_log_data = run_docking_model(data, docker, epoch=epoch)
-				elif args.model() == 'docker':
-					it_loss, it_log_data = run_docking_model(data, docker, epoch=epoch)
+				loss = []
+				log_data = []
+				docker = EQDockerGPU(model, num_angles=360)
+				for data in tqdm(valid_stream):
+					if args.model() == 'resnet':
+						it_loss, it_log_data = run_prediction_model(data, trainer, epoch=0)
+					elif args.model() == 'ebm':
+						it_loss, it_log_data = run_docking_model(data, docker, epoch=epoch)
+					elif args.model() == 'docker':
+						it_loss, it_log_data = run_docking_model(data, docker, epoch=epoch)
 
 
-				loss.append(it_loss)
-				log_data.append(it_log_data)
+					loss.append(it_loss)
+					log_data.append(it_log_data)
 
-			av_loss = np.average(loss, axis=0)
-			logger.log_valid(av_loss)
-			logger.log_data(log_data)
+				av_loss = np.average(loss, axis=0)
+				logger.log_valid(av_loss)
+				logger.log_data(log_data)
 
-			print('Epoch', epoch, 'Valid Loss:', av_loss)
-			if av_loss < min_loss:
-				torch.save(model.state_dict(), logger.log_dir/Path('dock_ebm.th'))
-				print(f'Model saved: min_loss = {av_loss} prev = {min_loss}')
-				min_loss = av_loss
+				print('Epoch', epoch, 'Valid Loss:', av_loss)
+				if av_loss < min_loss:
+					torch.save(model.state_dict(), logger.log_dir/Path('dock_ebm.th'))
+					print(f'Model saved: min_loss = {av_loss} prev = {min_loss}')
+					min_loss = av_loss
 
 	elif args.cmd() == 'test':
 		trainer.load_checkpoint(Path('Log')/Path(args.experiment)/Path('dock_ebm.th'))
