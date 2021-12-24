@@ -47,26 +47,26 @@ class RMSD:
         T2 = translation2.clone().detach().cuda()
         T = T1 - T2
 
-        rotation1 = torch.tensor([rotation1], dtype=torch.float).cuda()
-        rotation2 = torch.tensor([rotation2], dtype=torch.float).cuda()
-        R1 = torch.zeros(2, 2, dtype=torch.float).cuda()
+        rotation1 = torch.tensor([rotation1], dtype=torch.float64).cuda()
+        rotation2 = torch.tensor([rotation2], dtype=torch.float64).cuda()
+        R1 = torch.zeros(2, 2, dtype=torch.float64).cuda()
         R1[0, 0] = torch.cos(rotation1)
         R1[1, 1] = torch.cos(rotation1)
         R1[1, 0] = torch.sin(rotation1)
         R1[0, 1] = -torch.sin(rotation1)
-        R2 = torch.zeros(2, 2, dtype=torch.float).cuda()
+        R2 = torch.zeros(2, 2, dtype=torch.float64).cuda()
         R2[0, 0] = torch.cos(rotation2)
         R2[1, 1] = torch.cos(rotation2)
         R2[1, 0] = torch.sin(rotation2)
         R2[0, 1] = -torch.sin(rotation2)
         R = R2.transpose(0, 1) @ R1
 
-        I = torch.diag(torch.ones(2, dtype=torch.float)).cuda()
+        I = torch.diag(torch.ones(2, dtype=torch.float64)).cuda()
         # RMSD
         rmsd = torch.sum(T * T)
         rmsd = rmsd + torch.sum((I - R) * X, dim=(0, 1))
         rmsd = rmsd + 2.0 * torch.sum(torch.sum(T.unsqueeze(dim=1) * (R1 - R2), dim=0) * C, dim=0) + self.epsilon
-
+        # print(rmsd)
         return torch.sqrt(rmsd)
 
     def calc_rmsd(self):
@@ -78,12 +78,12 @@ class APR:
     def __init__(self):
         pass
 
-    def calcAPR(self, stream, trainer, model, epoch=0, pretrain_model=None):
+    def calcAPR(self, stream, trainer, epoch=0):
         print('Calculating Accuracy, Precision, Recall')
         TP, FP, TN, FN = 0, 0, 0, 0
 
         for data in tqdm(stream):
-            tp, fp, tn, fn = trainer.run_model(data, model, train=False, pretrain_model=pretrain_model)
+            tp, fp, tn, fn = trainer.run_model(data, train=False)
             # print(tp, fp, tn,fn)
             TP += tp
             FP += fp
@@ -99,11 +99,13 @@ class APR:
             Recall = float(TP) / float(TP + FN)
         else:
             Recall = 0.0
-        F1score = TP / (TP + 0.5*(FP + FN))
+        F1score = TP / (TP + 0.5*(FP + FN)+1E-5)
 
-        print(f'Epoch {epoch} Acc: {Accuracy} Prec: {Precision} Rec: {Recall} F1: {F1score}')
+        MCC = ((TP * TN) - (FP * FN)) / (np.sqrt((TP+FP)*(TP+FN)*(TN+FP)*(TN+FN))+1E-5)
 
-        return Accuracy, Precision, Recall, F1score
+        print(f'Epoch {epoch} Acc: {Accuracy} Prec: {Precision} Rec: {Recall} F1: {F1score} MCC: {MCC}')
+
+        return Accuracy, Precision, Recall, F1score, MCC
 
 if __name__ == '__main__':
     from DeepProteinDocking2D.Models.BruteForce.model_bruteforce_docking import BruteForceDocking

@@ -87,6 +87,8 @@ def plot_assembly(receptor, ligand, rotation, translation, gt_rot, gt_txy):
 
     receptor_copy = receptor * -100
     ligand_copy = ligand * 200
+    # receptor_copy = receptor * 1
+    # ligand_copy = ligand * 2
     padding = box_size//2
     if box_size < 100:
         receptor_copy = np.pad(receptor_copy, ((padding, padding), (padding, padding)), 'constant',
