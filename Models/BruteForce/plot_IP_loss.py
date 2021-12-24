@@ -11,8 +11,11 @@ import sys
 # testcase = '16scalar32vector_docking_epoch'
 # testcase = '1s4v_docking_epoch'
 
-testcase = 'makefigs_IP_1s4v_docking_200epochs'
-
+# testcase = 'makefigs_IP_1s4v_docking_200epochs'
+# testcase = 'Checkgitmerge_IP_1s4v_docking_10epochs'
+# testcase = 'noRandseed_Checkgitmerge_IP_1s4v_docking_10epochs'
+# testcase = 'rep1_noRandseed_Checkgitmerge_IP_1s4v_docking_10epochs'
+testcase = 'rep2_noRandseed_Checkgitmerge_IP_1s4v_docking_10epochs'
 
 #LOSS WITH ROTATION
 train = pd.read_csv("Log/losses/log_train_"+ testcase +".txt", sep='\t', header=1, names=['Epoch',	'Loss',	'rmsd'])
@@ -45,10 +48,11 @@ ax[1].set_xlabel('epochs')
 ax[1].set_ylabel('loss')
 ax[1].grid()
 # plt.yticks(np.arange(0, int(train['Loss'].max()) + 1, 1))
-ax[1].set_xticks(np.arange(0, num_epochs, 10))
+
+ax[1].set_xticks(np.arange(0, num_epochs+1, num_epochs/10))
 
 plt.xlabel('Epochs')
 ax[0].set_ylim([0,20])
 ax[1].set_ylim([0,20])
-plt.savefig('figs/'+testcase+'.png')
+plt.savefig('figs/BF_IP_loss_plots/'+testcase+'.png')
 plt.show()

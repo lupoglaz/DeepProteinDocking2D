@@ -181,10 +181,17 @@ class BruteForceDockingTrainer:
                 'optimizer': optimizer.state_dict(),
             }
 
+            trainloss = []
+            for data in tqdm(train_stream):
+                train_output = [BruteForceDockingTrainer().run_model(data, model, train=True, debug=debug)]
+                trainloss.append(train_output)
+
             if epoch % test_freq == 0 or epoch == 1:
                 valid_loss = []
                 for data in tqdm(valid_stream):
-                    valid_output = [BruteForceDockingTrainer().run_model(data, model, train=False, plotting=plotting, debug=False)]
+                    valid_output = [
+                        BruteForceDockingTrainer().run_model(data, model, train=False, plotting=plotting,
+                                                             debug=False)]
                     valid_loss.append(valid_output)
 
                 avg_validloss = np.average(valid_loss, axis=0)[0, :]
@@ -194,18 +201,14 @@ class BruteForceDockingTrainer:
 
                 test_loss = []
                 for data in tqdm(test_stream):
-                    test_output = [BruteForceDockingTrainer().run_model(data, model, train=False, plotting=plotting, debug=False)]
+                    test_output = [BruteForceDockingTrainer().run_model(data, model, train=False, plotting=plotting,
+                                                                        debug=False)]
                     test_loss.append(test_output)
 
                 avg_testloss = np.average(test_loss, axis=0)[0, :]
                 print('\nEpoch', epoch, 'TEST LOSS:', avg_testloss)
                 with open('Log/losses/log_test_' + testcase + '.txt', 'a') as fout:
                     fout.write(log_format % (epoch, avg_testloss[0], avg_testloss[1]))
-
-            trainloss = []
-            for data in tqdm(train_stream):
-                train_output = [BruteForceDockingTrainer().run_model(data, model, train=True, debug=debug)]
-                trainloss.append(train_output)
 
             avg_trainloss = np.average(trainloss, axis=0)[0, :]
             print('\nEpoch', epoch, 'Train Loss:', avg_trainloss)
@@ -227,48 +230,24 @@ if __name__ == '__main__':
     ### testing set
     testset = 'toy_concave_data/docking_data_test'
 
-    # testcase = 'docking_10ep_F0lr0_scratch_reg_deltaF6'
-    # testcase = 'test_datastream'
-    # testcase = 'docking_model_final_epoch36'
-    # testcase = 'debug_test'
-    # testcase = 'best_docking_model_epoch'
-    # testcase = 'randinit_best_docking_model_epoch'
-    # testcase = 'docking_scratch_final_lr5_ones10'
-    # testcase = 'onesinit_lr5_best_docking_model_epoch'
-    # testcase = 'onesinit_lr4_best_docking_model_epoch'
-    # testcase = '16scalar_init_lr4_epoch'
-    # testcase = '16scalar32vector_docking_epoch'
-    # testcase = '1s4v_docking_epoch'
-    # testcase = '1s2v_IP_epoch'
-    # testcase = 'IP_rotpad_1s4v_200ep'
-    # testcase = 'IP_min_rotpad_1s4v_200ep'
-    # testcase = 'IP_FFTcheck_1s4v_200ep'
-    # testcase = 'IP_nbound_FFTcheck_1s4v_200ep'
-    # testcase = 'IP_txyshift_nbound_FFTcheck_1s4v_200ep'
-    # testcase = 'IP_noswapquad_FFTcheck_1s4v_200ep'
-    # testcase = 'IP_min_nbound_noswapquad_FFTcheck_1s4v_200ep'
-    # testcase = 'IP_max_noswapquad_FFTcheck_1s4v_200ep'
-    # testcase = 'IP_NOnormnonlin_check'
+    # testcase = 'makefigs_IP_1s4v_docking_200epochs'
 
-    # testcase = 'IP_1s4v_docking_epoch'
+    # testcase = 'Checkgitmerge_IP_1s4v_docking_10epochs'
 
-    # testcase = 'docking_FI_scratch_50ex_3reps_50ep_rs42_1s4v_scratch50'
+    # testcase = 'noRandseed_Checkgitmerge_IP_1s4v_docking_10epochs'
 
-    # testcase = 'docking_FI_scratch_25ex_3reps_50ep_rs42_1s4v_scratch46'
-
-    # testcase = 'test_pytorch'
-
-    testcase = 'makefigs_IP_1s4v_docking_200epochs'
+    # testcase = 'rep1_noRandseed_Checkgitmerge_IP_1s4v_docking_10epochs'
+    testcase = 'rep2_noRandseed_Checkgitmerge_IP_1s4v_docking_10epochs'
 
     #########################
     #### initialization torch settings
-    random_seed = 42
-    np.random.seed(random_seed)
-    torch.manual_seed(random_seed)
-    random.seed(random_seed)
-    torch.cuda.manual_seed(random_seed)
-    torch.backends.cudnn.deterministic = True
-    torch.cuda.set_device(0)
+    # random_seed = 42
+    # np.random.seed(random_seed)
+    # torch.manual_seed(random_seed)
+    # random.seed(random_seed)
+    # torch.cuda.manual_seed(random_seed)
+    # torch.backends.cudnn.deterministic = True
+    # torch.cuda.set_device(0)
 
     torch.cuda.set_device(0)
     # torch.autograd.set_detect_anomaly(True)
@@ -282,7 +261,7 @@ if __name__ == '__main__':
     test_stream = get_docking_stream(testset + '.pkl', batch_size=1)
 
     ######################
-    train_epochs = 200
+    train_epochs = 10
 
     def train(resume_training=False, resume_epoch=0, debug=False):
         BruteForceDockingTrainer().train_model(model, optimizer, testcase, train_epochs, train_stream, valid_stream, test_stream,
@@ -296,16 +275,16 @@ if __name__ == '__main__':
     ######################
     ### Train model from beginning
     # epoch = train_epochs
-    # train(debug=False)
+    train(debug=False)
 
     ### Resume training model at chosen epoch
     # train(True, resume_epoch=100)
 
     ### Evaluate model only and plot, at chosen epoch
-    plotting = True
+    # plotting = True
     # plotting = False
     # epoch = '' # when loading FI trained docking model state_dict explicitly.
     # epoch = 11 # best epoch from 'randinit_best_docking_model_epoch'
     # epoch = 75 # best epoch from 'onesinit_lr4_best_docking_model_epoch'
-    epoch = 200 # best epoch from '16scalar32vector_docking_model_epoch'
-    plot_evaluation_set(check_epoch=epoch, plotting=plotting)
+    # epoch = 200 # best epoch from '16scalar32vector_docking_model_epoch'
+    # plot_evaluation_set(check_epoch=epoch, plotting=plotting)
