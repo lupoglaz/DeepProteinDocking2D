@@ -143,7 +143,7 @@ if __name__=='__main__':
 			print('Parallel, two different distribution sigmas, no GS, no AP')
 			trainer = EBMTrainer(model, optimizer, num_samples=args.num_samples,
 								 num_buf_samples=len(train_stream) * args.batch_size, step_size=args.step_size,
-								 global_step=False, add_positive=False)
+								 global_step=False, add_positive=False, sample_steps=100)
 		elif args.ablation() == 'FI':
 			print('Fact of interaction: using parallel, different distribution sigmas, no GS, no AP')
 			max_size=25
@@ -229,12 +229,13 @@ if __name__=='__main__':
 			else:
 				loss = []
 				log_data = []
-				docker = EQDockerGPU(model, num_angles=360)
+				docker = EQDockerGPU(model.eval(), num_angles=360)
 				for data in tqdm(valid_stream):
 					if args.model() == 'resnet':
 						it_loss, it_log_data = run_prediction_model(data, trainer, epoch=0)
 					elif args.model() == 'ebm':
 						it_loss, it_log_data = run_docking_model(data, docker, epoch=epoch)
+						eval_losses = trainer.step_parallel(data, epoch=epoch, train=False)
 					elif args.model() == 'docker':
 						it_loss, it_log_data = run_docking_model(data, docker, epoch=epoch)
 

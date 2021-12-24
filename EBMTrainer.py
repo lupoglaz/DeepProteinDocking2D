@@ -97,11 +97,11 @@ class EBMTrainer:
         for p in parameters:
             p.requires_grad = flag
         # print('parameters',p, flag, p.grad)
-
-    def load_checkpoint(self, path):
-        raw_model = self.model.module if hasattr(self.model, "module") else self.model
-        checkpoint = torch.load(path)
-        raw_model.load_state_dict(checkpoint)
+    #
+    # def load_checkpoint(self, path):
+    #     raw_model = self.model.module if hasattr(self.model, "module") else self.model
+    #     checkpoint = torch.load(path)
+    #     raw_model.load_state_dict(checkpoint)
 
     def dock_spatial(self, rec_repr, lig_repr):
         translations = self.conv(rec_repr, lig_repr)
@@ -156,7 +156,7 @@ class EBMTrainer:
 
         lastN_neg_out = []
 
-        self.sample_steps = 100
+        # self.sample_steps = 100
         for i in range(self.sample_steps):
             langevin_opt.zero_grad()
 
@@ -218,7 +218,7 @@ class EBMTrainer:
         pos_rec_feat = self.model.repr(pos_rec).tensor
         pos_lig_feat = self.model.repr(pos_lig).tensor
 
-        if self.FI:
+        if self.FI :
 
             plotting = True
             # plotting = False
@@ -303,6 +303,7 @@ class EBMTrainer:
         ########################################################################################################################################
         else:
             ## EBM IP parallel model
+            print('Training =', train)
             neg_alpha, neg_dr = self.langevin(neg_alpha, neg_dr, neg_rec_feat.detach(), neg_lig_feat.detach(), neg_idx,
                                               sigma_dr=0.05, sigma_alpha=0.5)
             neg_alpha2, neg_dr2 = self.langevin(neg_alpha2, neg_dr2, neg_rec_feat.detach(), neg_lig_feat.detach(),
@@ -317,15 +318,12 @@ class EBMTrainer:
             pos_out, _, _ = self.model.mult(pos_rec_feat, pos_lig_feat, pos_alpha, pos_dr)
             pos_out = self.model.scorer(pos_out)
             L_p = (pos_out + self.weight * pos_out ** 2).mean()
-            # L_p = (pos_out).mean()
             neg_out, _, _ = self.model.mult(neg_rec_feat, neg_lig_feat, neg_alpha, neg_dr)
             neg_out = self.model.scorer(neg_out)
             L_n = (-neg_out + self.weight * neg_out ** 2).mean()
-            # L_n = (-neg_out).mean()
             neg_out2, _, _ = self.model.mult(neg_rec_feat, neg_lig_feat, neg_alpha2, neg_dr2)
             neg_out2 = self.model.scorer(neg_out2)
             L_n2 = (-neg_out2 + self.weight * neg_out2 ** 2).mean()
-            # L_n2 = (-neg_out2).mean()
 
             L_n_out = (L_n + L_n2)/2
             loss = L_p + L_n_out
@@ -333,17 +331,19 @@ class EBMTrainer:
 
             plotting = True
             # plotting = False
-            if plotting:
-                with torch.no_grad():
-                    print('L_p, L_n, L_n2, L_nAvg\n',L_p, L_n, L_n2, (L_n + L_n2) / 2)
-                    print('Loss\n', loss)
-                    if pos_idx % 40 == 0:
-                        print('PLOTTING LOSS')
-                        self.plot_IP_energy(L_p.detach().cpu().numpy(), L_n.detach().cpu().numpy(), L_n2.detach().cpu().numpy(), epoch, pos_idx)
-                        print('PLOTTING PREDICTION')
-                        filename = 'EBM_figs/IP_figs/IPpose_epoch' + str(epoch) + '_' + str(self.sample_steps) + 'samples_pose_after_LD' + str(pos_idx.item())
-                        self.plot_pose(receptor, ligand, neg_alpha.squeeze(), neg_dr.squeeze(), 'Pose after LD', filename, pos_idx, epoch,
-                                       pos_alpha.squeeze().detach().cpu(), pos_dr.squeeze().detach().cpu())
+            if not train:
+                if plotting:
+                    with torch.no_grad():
+                        print('L_p, L_n, L_n2, L_nAvg\n',L_p, L_n, L_n2, (L_n + L_n2) / 2)
+                        print('Loss\n', loss)
+                        if pos_idx % 2 == 0:
+                            print('PLOTTING LOSS')
+                            filename = 'EBM_figs/IP_figs/IP_Loss_epoch' + str(epoch) + ' example number' + str(pos_idx)
+                            self.plot_IP_energy(L_p.detach().cpu().numpy(), L_n.detach().cpu().numpy(), L_n2.detach().cpu().numpy(), epoch, pos_idx, filename)
+                            print('PLOTTING PREDICTION')
+                            filename = 'EBM_figs/IP_figs/IPpose_epoch' + str(epoch) + '_' + str(self.sample_steps) + 'samples_pose_after_LD' + str(pos_idx.item())
+                            self.plot_pose(receptor, ligand, neg_alpha.squeeze(), neg_dr.squeeze(), 'Pose after LD', filename, pos_idx, epoch,
+                                           pos_alpha.squeeze().detach().cpu(), pos_dr.squeeze().detach().cpu())
 
 
             self.optimizer.step()
@@ -460,12 +460,13 @@ class EBMTrainer:
         plt.title(plot_title, loc='right')
         plt.suptitle(filename)
         if pos_idx < 1 and epoch == 0:
+            plt.savefig(filename)
             plt.show()
         else:
             plt.savefig(filename)
         plt.close()
 
-    def plot_IP_energy(self, L_p, L_n, L_n2, epoch, pos_idx):
+    def plot_IP_energy(self, L_p, L_n, L_n2, epoch, pos_idx, filename):
         L_n_out = (L_n + L_n2) / 2
         print('L_navg, L_p', L_n_out, L_p)
         f, ax = plt.subplots(figsize=(6, 6))
@@ -481,8 +482,13 @@ class EBMTrainer:
         plt.quiver([L_n_out], [0], color=['b'], angles='xy', scale_units='xy', scale=1)
         plt.title('IP Loss: Difference in L_p and L_n\n'+'epoch ' + str(epoch)+ ' example number' + str(pos_idx.item()))
         # plt.show()
-        plt.savefig('EBM_figs/IP_figs/IP_Loss_epoch' + str(epoch) + ' example number' + str(pos_idx))
+        if pos_idx < 1 and epoch == 0:
+            plt.savefig(filename)
+            plt.show()
+        else:
+            plt.savefig(filename)
         plt.close()
+
 
 # class EBMInteractionModel(nn.Module):
 #     def __init__(self):
