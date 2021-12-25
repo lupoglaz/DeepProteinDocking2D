@@ -270,8 +270,8 @@ class EBMTrainer:
 
 	def pose_prediction(self, pos_rec_feat, pos_lig_feat, neg_rec_feat, neg_lig_feat, pos_alpha, pos_dr, neg_alpha, neg_dr, neg_alpha2, neg_dr2, pos_idx, neg_idx, receptor, ligand, gt_interact, epoch,  train):
 		## parallel_EBM IP parallel model
-		print('\nTraining =', train)
-		print(epoch, '*' * 100)
+		# print('\nTraining =', train)
+		# print(epoch, '*' * 100)
 		with torch.no_grad():
 			translations = self.docker.dock_global(neg_rec_feat, neg_lig_feat)
 			scores = self.docker.score(translations)
@@ -306,7 +306,7 @@ class EBMTrainer:
 
 		plotting = True
 		# plotting = False
-		if train:
+		if not train:
 			if plotting:
 				with torch.no_grad():
 					print('L_p, L_n, L_n2, L_nAvg\n', L_p, L_n, L_n2, (L_n + L_n2) / 2)

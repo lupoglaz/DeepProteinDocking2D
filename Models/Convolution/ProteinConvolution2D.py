@@ -8,11 +8,6 @@ from e2cnn import nn as e2nn
 import math as m
 
 def convolve(volume1, volume2, conj):
-	# batch_size = volume1.size(0)
-	# box_size = volume1.size(1)
-	# full_vol = box_size*box_size
-	# output = torch.zeros(batch_size, box_size, box_size, device=volume1.device, dtype=volume1.dtype)
-
 	cplx_rec = torch.fft.rfft2(volume1, dim=(-2, -1))
 	cplx_lig = torch.fft.rfft2(volume2, dim=(-2, -1))
 

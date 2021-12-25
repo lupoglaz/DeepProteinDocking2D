@@ -128,7 +128,7 @@ if __name__ == '__main__':
         trainer = SupervisedTrainer(model, optimizer, type='pos')
 
     elif args.model() == 'ebm':
-        repr = EQRepresentation(bias=False)
+        repr = EQRepresentation()
         model = EQScoringModel(repr=repr).to(device='cuda')
         optimizer = optim.Adam(model.parameters(), lr=1e-3, betas=(0.0, 0.999))
         if args.ablation is None:
@@ -173,7 +173,7 @@ if __name__ == '__main__':
                                  global_step=False, add_positive=False, sample_steps=args.LD_steps, FI=True)
 
     elif args.model() == 'docker':
-        repr = EQRepresentation(bias=False)
+        repr = EQRepresentation()
         model = EQScoringModel(repr=repr).to(device='cuda')
         optimizer = optim.Adam(model.parameters(), lr=1e-3, betas=(0.0, 0.999))
         trainer = DockingTrainer(model, optimizer, type='pos')
