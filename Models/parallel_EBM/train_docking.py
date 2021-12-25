@@ -11,7 +11,7 @@ sys.path.append('C:\\Users\\Sid\\PycharmProjects\\lamoureuxlab\\')
 import warnings
 warnings.filterwarnings("ignore")
 
-from DeepProteinDocking2D.Models import EQScoringModel, EQDockerGPU, CNNInteractionModel, EQRepresentation
+from DeepProteinDocking2D.Models import EQScoringModel, EQDockerGPU, CNNInteractionModel, EQRepresentation, EQInteraction
 from DeepProteinDocking2D.torchDataset import get_docking_stream, get_interaction_stream_balanced
 from tqdm import tqdm
 
