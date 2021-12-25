@@ -303,7 +303,7 @@ class EBMTrainer:
         ########################################################################################################################################
         else:
             ## EBM IP parallel model
-            print('Training =', train)
+            # print('Training =', train)
             neg_alpha, neg_dr = self.langevin(neg_alpha, neg_dr, neg_rec_feat.detach(), neg_lig_feat.detach(), neg_idx,
                                               sigma_dr=0.05, sigma_alpha=0.5)
             neg_alpha2, neg_dr2 = self.langevin(neg_alpha2, neg_dr2, neg_rec_feat.detach(), neg_lig_feat.detach(),
