@@ -325,8 +325,8 @@ class EBMTrainer:
             neg_out2 = self.model.scorer(neg_out2)
             L_n2 = (-neg_out2 + self.weight * neg_out2 ** 2).mean()
 
-            L_n_out = (L_n + L_n2)/2
-            loss = L_p + L_n_out
+            L_n = (L_n + L_n2)/2
+            loss = L_p + L_n
             loss.backward()
 
             plotting = True
@@ -334,9 +334,9 @@ class EBMTrainer:
             if not train:
                 if plotting:
                     with torch.no_grad():
-                        print('L_p, L_n, L_n2, L_nAvg\n',L_p, L_n, L_n2, (L_n + L_n2) / 2)
+                        print('L_p, L_n\n',L_p, L_n)
                         print('Loss\n', loss)
-                        if pos_idx % 2 == 0:
+                        if pos_idx % 20 == 0:
                             print('PLOTTING LOSS')
                             filename = 'EBM_figs/IP_figs/IP_Loss_epoch' + str(epoch) + ' example number' + str(pos_idx)
                             self.plot_IP_energy(L_p.detach().cpu().numpy(), L_n.detach().cpu().numpy(), L_n2.detach().cpu().numpy(), epoch, pos_idx, filename)
@@ -466,20 +466,19 @@ class EBMTrainer:
             plt.savefig(filename)
         plt.close()
 
-    def plot_IP_energy(self, L_p, L_n, L_n2, epoch, pos_idx, filename):
-        L_n_out = (L_n + L_n2) / 2
-        print('L_navg, L_p', L_n_out, L_p)
+    def plot_IP_energy(self, L_p, L_n, epoch, pos_idx, filename):
+        print('L_p, L_n', L_p, L_n)
         f, ax = plt.subplots(figsize=(6, 6))
 
         axes_lim = (-0.25, 0.25)
-        ax.scatter(L_n_out, L_p, c=".3")
+        ax.scatter(L_n, L_p, c=".3")
         ax.plot(axes_lim, axes_lim, ls="--", c=".3")
         ax.set(xlim=axes_lim, ylim=axes_lim)
         ax.set_ylabel('L_p')
         ax.set_xlabel('L_n two temp simulation ')
-        plt.quiver([0], [0], [L_n_out], [L_p], angles='xy', scale_units='xy', scale=1)
+        plt.quiver([0], [0], [L_n], [L_p], angles='xy', scale_units='xy', scale=1)
         plt.quiver([0], [L_p], color=['r'], angles='xy', scale_units='xy', scale=1)
-        plt.quiver([L_n_out], [0], color=['b'], angles='xy', scale_units='xy', scale=1)
+        plt.quiver([L_n], [0], color=['b'], angles='xy', scale_units='xy', scale=1)
         plt.title('IP Loss: Difference in L_p and L_n\n'+'epoch ' + str(epoch)+ ' example number' + str(pos_idx.item()))
         # plt.show()
         if pos_idx < 1 and epoch == 0:

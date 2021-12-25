@@ -89,6 +89,7 @@ if __name__=='__main__':
 	parser.add_argument('-num_samples', default=10, type=int)
 	parser.add_argument('-batch_size', default=24, type=int)
 	parser.add_argument('-num_epochs', default=100, type=int)
+	parser.add_argument('-LD_steps', default=100, type=int)
 
 	parser.add_argument('-no_global_step', action='store_const', const=lambda:'no_global_step', dest='ablation')
 	parser.add_argument('-no_pos_samples', action='store_const', const=lambda:'no_pos_samples', dest='ablation')
@@ -143,7 +144,7 @@ if __name__=='__main__':
 			print('Parallel, two different distribution sigmas, no GS, no AP')
 			trainer = EBMTrainer(model, optimizer, num_samples=args.num_samples,
 								 num_buf_samples=len(train_stream) * args.batch_size, step_size=args.step_size,
-								 global_step=False, add_positive=False, sample_steps=100)
+								 global_step=False, add_positive=False, sample_steps=args.LD_steps)
 		elif args.ablation() == 'FI':
 			print('Fact of interaction: using parallel, different distribution sigmas, no GS, no AP')
 			max_size=25
@@ -151,7 +152,7 @@ if __name__=='__main__':
 			valid_stream = get_interaction_stream_balanced('DatasetGeneration/interaction_data_valid.pkl', batch_size=1, max_size=max_size//2)
 			trainer = EBMTrainer(model, optimizer, num_samples=args.num_samples,
 								 num_buf_samples=len(train_stream) * args.batch_size, step_size=args.step_size,
-								 global_step=False, add_positive=False, FI=True)
+								 global_step=False, add_positive=False, sample_steps=args.LD_steps, FI=True)
 
 	elif args.model() == 'docker':
 		model = EQScoringModel().to(device='cuda')
