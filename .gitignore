@@ -2,6 +2,8 @@
 Data/
 toy_concave_data/
 
+*events.out.tfevents*
+
 #Pytorch
 *.th
 *.pkl

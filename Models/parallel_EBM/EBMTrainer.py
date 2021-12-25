@@ -270,7 +270,15 @@ class EBMTrainer:
 
 	def pose_prediction(self, pos_rec_feat, pos_lig_feat, neg_rec_feat, neg_lig_feat, pos_alpha, pos_dr, neg_alpha, neg_dr, neg_alpha2, neg_dr2, pos_idx, neg_idx, receptor, ligand, gt_interact, epoch,  train):
 		## parallel_EBM IP parallel model
-		# print('\nTraining =', train)
+		print('\nTraining =', train)
+		print(epoch, '*' * 100)
+		with torch.no_grad():
+			translations = self.docker.dock_global(neg_rec_feat, neg_lig_feat)
+			scores = self.docker.score(translations)
+			score, rotation, translation = self.docker.get_conformation(scores)
+			neg_alpha = rotation.unsqueeze(0).unsqueeze(0).cuda()
+			neg_dr = translation.unsqueeze(0).cuda()
+
 		neg_alpha, neg_dr = self.langevin(neg_alpha, neg_dr, neg_rec_feat.detach(), neg_lig_feat.detach(), neg_idx,
 										  'cold')
 		neg_alpha2, neg_dr2 = self.langevin(neg_alpha2, neg_dr2, neg_rec_feat.detach(), neg_lig_feat.detach(), neg_idx,
@@ -298,7 +306,7 @@ class EBMTrainer:
 
 		plotting = True
 		# plotting = False
-		if not train:
+		if train:
 			if plotting:
 				with torch.no_grad():
 					print('L_p, L_n, L_n2, L_nAvg\n', L_p, L_n, L_n2, (L_n + L_n2) / 2)
@@ -315,6 +323,19 @@ class EBMTrainer:
 						self.plot_pose(receptor, ligand, neg_alpha.squeeze(), neg_dr.squeeze(), 'Pose after LD',
 									   filename, pos_idx, epoch,
 									   pos_alpha.squeeze().detach().cpu(), pos_dr.squeeze().detach().cpu())
+
+		# if plotting and (pos_idx > 620 or pos_idx < 1):
+		# 	if epoch == 0:
+						print('PLOTTING INITIALIZATION')
+						filename = 'EBM_figs/IP_figs/epoch' + str(epoch) + '_' + str(
+							self.sample_steps) + 'samples_initialized_pose' + str(pos_idx.item())
+						self.plot_pose(receptor, ligand, rotation, translation, 'Initalization global step pose', filename,
+									   pos_idx, epoch)
+						print('PLOTTING PREDICTION')
+						filename = 'EBM_figs/IP_figs/epoch' + str(epoch) + '_' + str(
+							self.sample_steps) + 'samples_pose_after_LD' + str(pos_idx.item())
+						self.plot_pose(receptor, ligand, neg_alpha.squeeze(), neg_dr.squeeze(), 'Pose after LD', filename,
+											   pos_idx, epoch)
 
 		self.optimizer.step()
 		# never add postive for step parallel and 1D LD buffer
