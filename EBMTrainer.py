@@ -339,7 +339,7 @@ class EBMTrainer:
                         if pos_idx % 20 == 0:
                             print('PLOTTING LOSS')
                             filename = 'EBM_figs/IP_figs/IP_Loss_epoch' + str(epoch) + ' example number' + str(pos_idx)
-                            self.plot_IP_energy(L_p.detach().cpu().numpy(), L_n.detach().cpu().numpy(), L_n2.detach().cpu().numpy(), epoch, pos_idx, filename)
+                            self.plot_IP_energy(L_p.detach().cpu().numpy(), L_n.detach().cpu().numpy(), epoch, pos_idx, filename)
                             print('PLOTTING PREDICTION')
                             filename = 'EBM_figs/IP_figs/IPpose_epoch' + str(epoch) + '_' + str(self.sample_steps) + 'samples_pose_after_LD' + str(pos_idx.item())
                             self.plot_pose(receptor, ligand, neg_alpha.squeeze(), neg_dr.squeeze(), 'Pose after LD', filename, pos_idx, epoch,
