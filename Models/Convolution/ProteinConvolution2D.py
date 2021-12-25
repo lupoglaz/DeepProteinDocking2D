@@ -16,14 +16,10 @@ def convolve(volume1, volume2, conj):
 	cplx_rec = torch.fft.rfft2(volume1, dim=(-2, -1))
 	cplx_lig = torch.fft.rfft2(volume2, dim=(-2, -1))
 
-	return torch.fft.irfft2(cplx_rec * torch.conj(cplx_lig), dim=(-2, -1))
-
-
-	# if conj:
-	# 	return torch.fft.irfft2(cplx_rec * torch.conj(cplx_lig), dim=(-2, -1))
-	#
-	# else:
-	# 	return torch.fft.irfft2(cplx_rec * cplx_lig, dim=(-2, -1))
+	if conj:
+		return torch.fft.irfft2(cplx_rec * torch.conj(cplx_lig), dim=(-2, -1))
+	else:
+		return torch.fft.irfft2(cplx_rec * cplx_lig, dim=(-2, -1))
 
 
 # def convolve(volume1, volume2, conj):
