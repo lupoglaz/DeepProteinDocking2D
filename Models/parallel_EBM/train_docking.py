@@ -5,10 +5,13 @@ import numpy as np
 import argparse
 import sys
 
+print(sys.path)
+sys.path.append('C:\\Users\\Sid\\PycharmProjects\\lamoureuxlab\\')
+print(sys.path)
+
 from DeepProteinDocking2D.Models import EQScoringModel, EQDockerGPU, CNNInteractionModel, EQRepresentation
 from DeepProteinDocking2D.torchDataset import get_docking_stream
 from tqdm import tqdm
-import random
 
 from EBMTrainer import EBMTrainer
 from DeepProteinDocking2D.SupervisedTrainer import SupervisedTrainer
@@ -93,6 +96,8 @@ if __name__=='__main__':
 	parser.add_argument('-no_global_step', action='store_const', const=lambda:'no_global_step', dest='ablation')
 	parser.add_argument('-no_pos_samples', action='store_const', const=lambda:'no_pos_samples', dest='ablation')
 	parser.add_argument('-default', action='store_const', const=lambda:'default', dest='ablation')
+	parser.add_argument('-parallel_noGSAP', action='store_const', const=lambda:'parallel_noGSAP', dest='ablation')
+
 	args = parser.parse_args()
 
 	if (args.model is None):
@@ -104,8 +109,8 @@ if __name__=='__main__':
 			print(i, torch.cuda.get_device_name(i), torch.cuda.get_device_capability(i))	
 		torch.cuda.set_device(args.gpu)
 	
-	train_stream = get_docking_stream('DatasetGeneration/docking_data_train.pkl', batch_size=args.batch_size, max_size=None)
-	valid_stream = get_docking_stream('DatasetGeneration/docking_data_valid.pkl', batch_size=1, max_size=None)
+	train_stream = get_docking_stream('toy_concave_data/docking_data_train.pkl', batch_size=args.batch_size, max_size=None)
+	valid_stream = get_docking_stream('toy_concave_data/docking_data_valid.pkl', batch_size=1, max_size=None)
 	
 	if args.model() == 'resnet':
 		model = CNNInteractionModel().to(device='cuda')
@@ -132,6 +137,11 @@ if __name__=='__main__':
 			print('Default')
 			trainer = EBMTrainer(model, optimizer, num_samples=args.num_samples, num_buf_samples=len(train_stream)*args.batch_size, step_size=args.step_size,
 							global_step=False, add_positive=False)
+		elif args.ablation() == 'parallel_noGSAP':
+			print('Parallel, two different distribution sigmas, no GS, no AP')
+			trainer = EBMTrainer(model, optimizer, num_samples=args.num_samples,
+								 num_buf_samples=len(train_stream) * args.batch_size, step_size=args.step_size,
+								 global_step=False, add_positive=False, sample_steps=10)
 	
 	elif args.model() == 'docker':
 		repr = EQRepresentation(bias=False)
@@ -147,7 +157,10 @@ if __name__=='__main__':
 		iter = 0
 		for epoch in range(args.num_epochs):
 			for data in tqdm(train_stream):
-				log_dict = trainer.step(data, epoch=epoch)
+				if args.ablation() == 'parallel_noGSAP':
+					log_dict = trainer.step_parallel(data, epoch=epoch, train=True)
+				else:
+					log_dict = trainer.step(data, epoch=epoch)
 				logger.add_scalar("DockIP/Loss/Train", log_dict["Loss"], iter)
 				iter += 1
 

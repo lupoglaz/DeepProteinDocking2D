@@ -237,6 +237,8 @@ if __name__ == '__main__':
     # testcase = 'noRandseed_Checkgitmerge_IP_1s4v_docking_10epochs'
 
     # testcase = 'rep1_noRandseed_Checkgitmerge_IP_1s4v_docking_10epochs'
+    # testcase = 'rep2_noRandseed_Checkgitmerge_IP_1s4v_docking_10epochs'
+
     testcase = 'rep2_noRandseed_Checkgitmerge_IP_1s4v_docking_10epochs'
 
     #########################
