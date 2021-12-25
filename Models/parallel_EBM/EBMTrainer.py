@@ -173,7 +173,7 @@ class EBMTrainer:
 		else:
 			return neg_alpha.detach(), neg_dr.detach()
 
-	def step(self, data, epoch=None):
+	def step(self, data, epoch=None, train=True):
 		receptor, ligand, translation, rotation, pos_idx = data
 		
 		pos_rec = receptor.to(device=self.device, dtype=torch.float32).unsqueeze(dim=1)
@@ -211,6 +211,24 @@ class EBMTrainer:
 		L_n = (-neg_out + self.weight * neg_out ** 2).mean()
 		loss = L_p + L_n
 		loss.backward()
+
+		print('L_p, L_n, \n', L_p, L_n)
+		print('Loss\n', loss)
+
+		if not train:
+			with torch.no_grad():
+				if pos_idx % 20 == 0:
+					print('PLOTTING LOSS')
+					filename = 'EBM_figs/IP_figs/IP_Loss_epoch' + str(epoch) + ' example number' + str(
+						pos_idx.item())
+					self.plot_IP_energy(L_p.detach().cpu().numpy(), L_n.detach().cpu().numpy(), epoch, pos_idx,
+										filename)
+					print('PLOTTING PREDICTION')
+					filename = 'EBM_figs/IP_figs/IPpose_epoch' + str(epoch) + '_' + str(
+						self.sample_steps) + 'samples_pose_after_LD' + str(pos_idx.item())
+					self.plot_pose(receptor, ligand, neg_alpha.squeeze(), neg_dr.squeeze(), 'Pose after LD',
+								   filename, pos_idx, epoch,
+								   pos_alpha.squeeze().detach().cpu(), pos_dr.squeeze().detach().cpu())
 		
 		self.optimizer.step()
 		if self.add_positive:
@@ -265,7 +283,7 @@ class EBMTrainer:
 		else:
 			return self.pose_prediction(pos_rec_feat, pos_lig_feat, neg_rec_feat, neg_lig_feat,
 										pos_alpha, pos_dr, neg_alpha, neg_dr, neg_alpha2, neg_dr2,
-										pos_idx, neg_idx, receptor, ligand, gt_interact, epoch,  train)
+										pos_idx, neg_idx, receptor, ligand, gt_interact, epoch, train)
 
 
 	def pose_prediction(self, pos_rec_feat, pos_lig_feat, neg_rec_feat, neg_lig_feat, pos_alpha, pos_dr, neg_alpha, neg_dr, neg_alpha2, neg_dr2, pos_idx, neg_idx, receptor, ligand, gt_interact, epoch,  train):
@@ -300,23 +318,25 @@ class EBMTrainer:
 		neg_out2 = self.model.scorer(neg_out2)
 		L_n2 = (-neg_out2 + self.weight * neg_out2 ** 2).mean()
 
-		L_n_out = (L_n + L_n2) / 2
-		loss = L_p + L_n_out
+		L_n = (L_n + L_n2) / 2
+		loss = L_p + L_n
 		loss.backward()
 
 		plotting = True
-		plotting = False
-		if train:
+		# plotting = False
+		print(train)
+
+		print('L_p, L_n, \n', L_p, L_n)
+		print('Loss\n', loss)
+
+		if not train:
 			if plotting:
 				with torch.no_grad():
-					print('L_p, L_n, L_n2, L_nAvg\n', L_p, L_n, L_n2, (L_n + L_n2) / 2)
-					print('Loss\n', loss)
-					if pos_idx % 1 == 0:
+					if pos_idx % 20 == 0:
 						print('PLOTTING LOSS')
 						filename = 'EBM_figs/IP_figs/IP_Loss_epoch' + str(epoch) + ' example number' + str(
 							pos_idx.item())
-						self.plot_IP_energy(L_p.detach().cpu().numpy(), L_n.detach().cpu().numpy(),
-											L_n2.detach().cpu().numpy(), epoch, pos_idx, filename)
+						self.plot_IP_energy(L_p.detach().cpu().numpy(), L_n.detach().cpu().numpy(), epoch, pos_idx, filename)
 						print('PLOTTING PREDICTION')
 						filename = 'EBM_figs/IP_figs/IPpose_epoch' + str(epoch) + '_' + str(
 							self.sample_steps) + 'samples_pose_after_LD' + str(pos_idx.item())
@@ -481,20 +501,19 @@ class EBMTrainer:
 			plt.savefig(filename)
 		plt.close()
 
-	def plot_IP_energy(self, L_p, L_n, L_n2, epoch, pos_idx, filename):
-		L_n_out = (L_n + L_n2) / 2
-		print('L_navg, L_p', L_n_out, L_p)
+	def plot_IP_energy(self, L_p, L_n, epoch, pos_idx, filename):
+		print('L_p, L_n', L_p, L_n)
 		f, ax = plt.subplots(figsize=(6, 6))
 
 		axes_lim = (-0.25, 0.25)
-		ax.scatter(L_n_out, L_p, c=".3")
+		ax.scatter(L_n, L_p, c=".3")
 		ax.plot(axes_lim, axes_lim, ls="--", c=".3")
 		ax.set(xlim=axes_lim, ylim=axes_lim)
 		ax.set_ylabel('L_p')
 		ax.set_xlabel('L_n two temp simulation ')
-		plt.quiver([0], [0], [L_n_out], [L_p], angles='xy', scale_units='xy', scale=1)
+		plt.quiver([0], [0], [L_n], [L_p], angles='xy', scale_units='xy', scale=1)
 		plt.quiver([0], [L_p], color=['r'], angles='xy', scale_units='xy', scale=1)
-		plt.quiver([L_n_out], [0], color=['b'], angles='xy', scale_units='xy', scale=1)
+		plt.quiver([L_n], [0], color=['b'], angles='xy', scale_units='xy', scale=1)
 		plt.title(
 			'IP Loss: Difference in L_p and L_n\n' + 'epoch ' + str(epoch) + ' example number' + str(pos_idx.item()))
 		# plt.show()

@@ -156,11 +156,6 @@ if __name__ == '__main__':
             trainer = EBMTrainer(model, optimizer, num_samples=args.num_samples,
                                  num_buf_samples=len(train_stream) * args.batch_size, step_size=args.step_size,
                                  global_step=False, add_positive=False, sample_steps=args.LD_steps)
-        elif args.ablation() == 'parallel_noGSAP':
-            print('Parallel, two different distribution sigmas, no GS, no AP')
-            trainer = EBMTrainer(model, optimizer, num_samples=args.num_samples,
-                                 num_buf_samples=len(train_stream) * args.batch_size, step_size=args.step_size,
-                                 global_step=False, add_positive=False, sample_steps=args.LD_steps)
         elif args.ablation() == 'FI':
             print('Fact of interaction: using parallel, different distribution sigmas, no GS, no AP')
             max_size = 25
@@ -188,7 +183,7 @@ if __name__ == '__main__':
                 if args.ablation() == 'parallel_noGSAP':
                     log_dict = trainer.step_parallel(data, epoch=epoch, train=True)
                 else:
-                    log_dict = trainer.step(data, epoch=epoch)
+                    log_dict = trainer.step(data, epoch=epoch, train=True)
                 logger.add_scalar("DockIP/Loss/Train", log_dict["Loss"], iter)
                 iter += 1
 
@@ -197,11 +192,15 @@ if __name__ == '__main__':
             docker = EQDockerGPU(model, num_angles=360)
             for i, data in tqdm(enumerate(valid_stream)):
                 if args.model() == 'resnet':
-                    it_loss, it_log_data = run_prediction_model(data, trainer, epoch=epoch)
+                    it_loss, it_log_data = run_prediction_model(data, trainer, epoch=epoch, train=False)
                 elif args.model() == 'ebm' or args.model() == 'docker':
+                    if args.ablation() == 'parallel_noGSAP':
+                        log_dict = trainer.step_parallel(data, epoch=epoch, train=False)
                     if i == 0:
+                        log_dict = trainer.step_parallel(data, epoch=epoch, train=False)
                         it_loss = run_docking_model(data, docker, iter, logger)
                     else:
+                        log_dict = trainer.step_parallel(data, epoch=epoch, train=False)
                         it_loss = run_docking_model(data, docker, iter)
 
                 loss.append(it_loss)
@@ -249,3 +248,7 @@ if __name__ == '__main__':
     # 							'StepSize': args.step_size, 'NumSamples': args.num_samples
     # 						},
     # 						{'hparam/valid_loss': min_loss, 'hparam/test_loss': av_loss})#, run_name=args.experiment)
+
+
+###
+# python train_docking.py -data_dir Log -experiment validplot_default_EBMDocking_1ep_10LDstep -train -ebm -num_epochs 1 -batch_size 1 -num_samples 1 -LD_steps 10 -gpu 0 -default
