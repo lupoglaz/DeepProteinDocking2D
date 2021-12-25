@@ -189,19 +189,26 @@ if __name__ == '__main__':
 
             loss = []
             log_data = []
-            docker = EQDockerGPU(model, num_angles=360)
+            docker = EQDockerGPU(model.eval(), num_angles=360)
             for i, data in tqdm(enumerate(valid_stream)):
                 if args.model() == 'resnet':
                     it_loss, it_log_data = run_prediction_model(data, trainer, epoch=epoch, train=False)
                 elif args.model() == 'ebm' or args.model() == 'docker':
                     if args.ablation() == 'parallel_noGSAP':
-                        log_dict = trainer.step_parallel(data, epoch=epoch, train=False)
-                    if i == 0:
-                        log_dict = trainer.step_parallel(data, epoch=epoch, train=False)
-                        it_loss = run_docking_model(data, docker, iter, logger)
+                        if i == 0:
+                            log_dict = trainer.step_parallel(data, epoch=epoch, train=False)
+                            it_loss = run_docking_model(data, docker, iter, logger)
+                        else:
+                            log_dict = trainer.step_parallel(data, epoch=epoch, train=False)
+                            it_loss = run_docking_model(data, docker, iter)
                     else:
-                        log_dict = trainer.step_parallel(data, epoch=epoch, train=False)
-                        it_loss = run_docking_model(data, docker, iter)
+                        if i == 0:
+                            log_dict = trainer.step(data, epoch=epoch, train=False)
+                            it_loss = run_docking_model(data, docker, iter, logger)
+                        else:
+                            log_dict = trainer.step(data, epoch=epoch, train=False)
+                            it_loss = run_docking_model(data, docker, iter)
+
 
                 loss.append(it_loss)
 

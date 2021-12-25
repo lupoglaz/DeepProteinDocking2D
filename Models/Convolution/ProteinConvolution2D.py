@@ -7,34 +7,31 @@ from e2cnn import gspaces
 from e2cnn import nn as e2nn
 import math as m
 
-def convolve(volume1, volume2, conj):
-	cplx_rec = torch.fft.rfft2(volume1, dim=(-2, -1))
-	cplx_lig = torch.fft.rfft2(volume2, dim=(-2, -1))
-
-	if conj:
-		return torch.fft.irfft2(cplx_rec * torch.conj(cplx_lig), dim=(-2, -1))
-	else:
-		return torch.fft.irfft2(cplx_rec * cplx_lig, dim=(-2, -1))
-
-
 # def convolve(volume1, volume2, conj):
-# 	batch_size = volume1.size(0)
-# 	box_size = volume1.size(1)
-# 	full_vol = box_size*box_size
-# 	output = torch.zeros(batch_size, box_size, box_size, device=volume1.device, dtype=volume1.dtype)
+# 	cplx_rec = torch.fft.rfft2(volume1, dim=(-2, -1))
+# 	cplx_lig = torch.fft.rfft2(volume2, dim=(-2, -1))
 #
-# 	cv1 = torch.fft.rfft2(volume1, dim=(-2,-1))
-# 	cv2 = torch.fft.rfft2(volume2, dim=(-2,-1))
 # 	if conj:
-# 		re = cv1[:,:,:].real * cv2[:,:,:].real + cv1[:,:,:].imag * cv2[:,:,:].imag
-# 		im = -cv1[:,:,:].real * cv2[:,:,:].imag + cv1[:,:,:].imag * cv2[:,:,:].real
+# 		return torch.fft.irfft2(cplx_rec * torch.conj(cplx_lig), dim=(-2, -1))
 # 	else:
-# 		re = cv1[:,:,:].real * cv2[:,:,:].real - cv1[:,:,:].imag * cv2[:,:,:].imag
-# 		im = cv1[:,:,:].real * cv2[:,:,:].imag + cv1[:,:,:].imag * cv2[:,:,:].real
-#
-# 	cconv = torch.view_as_complex(torch.stack([re, im], dim=3))
-#
-# 	return torch.fft.irfft2(cconv,  dim=(-2,-1), s=(box_size, box_size))
+# 		return torch.fft.irfft2(cplx_rec * cplx_lig, dim=(-2, -1))
+
+
+def convolve(volume1, volume2, conj):
+	box_size = volume1.size(1)
+
+	cv1 = torch.fft.rfft2(volume1, dim=(-2,-1))
+	cv2 = torch.fft.rfft2(volume2, dim=(-2,-1))
+	if conj:
+		re = cv1[:,:,:].real * cv2[:,:,:].real + cv1[:,:,:].imag * cv2[:,:,:].imag
+		im = -cv1[:,:,:].real * cv2[:,:,:].imag + cv1[:,:,:].imag * cv2[:,:,:].real
+	else:
+		re = cv1[:,:,:].real * cv2[:,:,:].real - cv1[:,:,:].imag * cv2[:,:,:].imag
+		im = cv1[:,:,:].real * cv2[:,:,:].imag + cv1[:,:,:].imag * cv2[:,:,:].real
+
+	cconv = torch.view_as_complex(torch.stack([re, im], dim=3))
+
+	return torch.fft.irfft2(cconv,  dim=(-2,-1), s=(box_size, box_size))
 
 
 class ProteinConv2DFunction(Function):
