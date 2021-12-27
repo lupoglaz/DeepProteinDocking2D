@@ -14,7 +14,7 @@ def init_weights(module):
 
 
 class EQRepresentation(nn.Module):
-    def __init__(self):
+    def __init__(self, bias=False):
         super(EQRepresentation, self).__init__()
 
         r2_act = gspaces.Rot2dOnR2(N=-1, maximum_frequency=5)
