@@ -3,7 +3,7 @@ from torch import optim
 import torch.nn as nn
 import numpy as np
 
-from Models import ProteinConv2D
+from .Models import ProteinConv2D
 from tqdm import tqdm
 import random
 from math import cos, sin
