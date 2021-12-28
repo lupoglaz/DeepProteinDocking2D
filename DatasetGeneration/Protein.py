@@ -16,8 +16,8 @@ import scipy
 from scipy.spatial import ConvexHull
 from scipy import ndimage
 import alphashape
-# import shapely.geometry as geom
-# import shapely.affinity as affine
+import shapely.geometry as geom
+import shapely.affinity as affine
 
 import torch.nn.functional as F
 
