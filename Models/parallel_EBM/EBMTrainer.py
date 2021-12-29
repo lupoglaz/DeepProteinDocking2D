@@ -11,6 +11,9 @@ import random
 
 from matplotlib import pylab as plt
 
+import sys
+sys.path.append('/home/sb1638/')
+
 
 class SampleBuffer:
     def __init__(self, num_samples, max_pos=100):
