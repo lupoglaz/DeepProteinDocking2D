@@ -87,7 +87,7 @@ class EBMTrainer:
         # self.sig_alpha = torch.ones(1)*0.5
         self.sig_dr = 0.05
         self.sig_alpha = 0.5
-        self.sig_hotweight = 0.005
+        self.sig_hotweight = 0.05
         self.docker = EQDockerGPU(EQScoringModel(repr=None).to(device='cuda'))
         input = torch.empty(1,1)
         self.hotweight = nn.Parameter(torch.ones_like(input, requires_grad=True, dtype=torch.float).to(device='cuda'))
@@ -101,7 +101,7 @@ class EBMTrainer:
             self.optimizer_interaction = optim.Adam(self.interaction_model.parameters(), lr=lr_interaction)
 
         self.path = '../../EBM_figs/IP_figs/'
-        self.debug = True
+        self.debug = False
         self.plotting = False
         self.train = False
 
@@ -171,7 +171,7 @@ class EBMTrainer:
         if temperature == 'hot':
             self.sig_dr = 0.5
             self.sig_alpha = 5
-            self.hotweight.data += noise_alpha.normal_(0, self.sig_hotweight)
+            # self.hotweight.data += noise_alpha.normal_(0, self.sig_hotweight)
 
         lastN_neg_out = []
         for i in range(self.sample_steps):
@@ -280,7 +280,7 @@ class EBMTrainer:
         L_n = (-neg_out + self.weight * neg_out ** 2).mean()
         neg_out2, _, _ = self.model.mult(neg_rec_feat, neg_lig_feat, neg_alpha2, neg_dr2)
         neg_out2 = self.model.scorer(neg_out2)
-        L_n2 = (-neg_out2 + self.weight * neg_out2 ** 2).mean() * self.hotweight
+        L_n2 = (-neg_out2 + self.weight * neg_out2 ** 2).mean() #* self.hotweight
 
         L_n = (L_n + L_n2) / 2
         loss = L_p + L_n
@@ -288,7 +288,7 @@ class EBMTrainer:
 
         if self.debug:
             with torch.no_grad():
-                print('\nLearned hot sim contribution', self.hotweight.item())
+                # print('\nLearned hot sim contribution', self.hotweight.item())
                 print('\nL_p, L_n, \n', L_p.item(), L_n.item())
                 print('Loss\n', loss.item())
                 self.plotting = True
@@ -316,14 +316,14 @@ class EBMTrainer:
                                neg_idx, receptor, ligand, gt_interact,
                                epoch, train):
 
-        if epoch == 0:
-            print(epoch, '*' * 100)
-            with torch.no_grad():
-                translations = self.docker.dock_global(neg_rec_feat, neg_lig_feat)
-                scores = self.docker.score(translations)
-                score, rotation, translation = self.docker.get_conformation(scores)
-                neg_alpha = rotation.unsqueeze(0).unsqueeze(0).cuda()
-                neg_dr = translation.unsqueeze(0).cuda()
+        # if epoch == 0:
+        #     print(epoch, '*' * 100)
+        #     # with torch.no_grad():
+        #     translations = self.docker.dock_global(neg_rec_feat, neg_lig_feat)
+        #     scores = self.docker.score(translations)
+        #     score, rotation, translation = self.docker.get_conformation(scores)
+        #     neg_alpha = rotation.unsqueeze(0).unsqueeze(0).cuda()
+        #     neg_dr = translation.unsqueeze(0).cuda()
 
         #### two sim, hot and cold
         # neg_alpha, neg_dr, lastN_E_cold = self.langevin(neg_alpha, neg_dr, neg_rec_feat.detach(),
@@ -369,11 +369,11 @@ class EBMTrainer:
 
             BCEloss = torch.nn.BCELoss()
             l1_loss = torch.nn.L1Loss()
-            loss = BCEloss(pred_interact.squeeze(), gt_interact.squeeze().cuda())
+            # loss = BCEloss(pred_interact.squeeze(), gt_interact.squeeze().cuda())
             #
-            # w = 10 ** -5
-            # L_reg = w * l1_loss(deltaF.squeeze(), torch.zeros(1).squeeze().cuda())
-            # loss = BCEloss(pred_interact.squeeze(), gt_interact.squeeze().cuda()) + L_reg
+            w = 10 ** -5
+            L_reg = w * l1_loss(deltaF.squeeze(), torch.zeros(1).squeeze().cuda())
+            loss = BCEloss(pred_interact.squeeze(), gt_interact.squeeze().cuda()) + L_reg
 
             loss.backward()
             print('\n PREDICTED', pred_interact.item(), '; GROUND TRUTH', gt_interact.item())
@@ -381,7 +381,25 @@ class EBMTrainer:
             self.optimizer_interaction.step()
             self.buffer.push(neg_alpha, neg_dr, neg_idx)
             self.buffer2.push(neg_alpha2, neg_dr2, neg_idx)
-            return loss.item()
+            # return loss.item()
+            return {"Loss": loss.item()}
+
+        else:
+            self.model.eval()
+            threshold = 0.5
+            TP, FP, TN, FN = 0, 0, 0, 0
+            p = pred_interact.item()
+            a = gt_interact.item()
+            if p >= threshold and a >= threshold:
+                TP += 1
+            elif p >= threshold and a < threshold:
+                FP += 1
+            elif p < threshold and a >= threshold:
+                FN += 1
+            elif p < threshold and a < threshold:
+                TN += 1
+            # print('returning', TP, FP, TN, FN)
+            return TP, FP, TN, FN
 
 
     def plot_condition(self, pos_idx, epoch, filename):

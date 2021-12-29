@@ -82,6 +82,15 @@ def run_prediction_model(data, trainer, epoch=None):
 
 
 if __name__ == '__main__':
+    #### initialization torch settings
+    import random
+    random_seed = 42
+    np.random.seed(random_seed)
+    torch.manual_seed(random_seed)
+    random.seed(random_seed)
+    torch.cuda.manual_seed(random_seed)
+    torch.backends.cudnn.deterministic = True
+    torch.cuda.set_device(0)
     parser = argparse.ArgumentParser(description='Train deep protein docking')
     parser.add_argument('-data_dir', default='Log', type=str)
     parser.add_argument('-experiment', default='DebugDocking', type=str)
@@ -158,11 +167,12 @@ if __name__ == '__main__':
                                  global_step=False, add_positive=False, sample_steps=args.LD_steps)
         elif args.ablation() == 'FI':
             print('Fact of interaction: using parallel, different distribution sigmas, no GS, no AP')
-            max_size = 25
-            train_stream = get_interaction_stream_balanced('DatasetGeneration/interaction_data_train.pkl',
+            max_size = 10
+            train_stream = get_interaction_stream_balanced('../../DatasetGeneration/interaction_data_train.pkl',
                                                            batch_size=args.batch_size, max_size=max_size)
-            valid_stream = get_interaction_stream_balanced('DatasetGeneration/interaction_data_valid.pkl', batch_size=1,
-                                                           max_size=max_size // 2)
+            valid_stream = get_interaction_stream_balanced('../../DatasetGeneration/interaction_data_valid.pkl', batch_size=1,
+                                                           max_size=max_size
+                                                           )
             trainer = EBMTrainer(model, optimizer, num_samples=args.num_samples,
                                  num_buf_samples=len(train_stream) * args.batch_size, step_size=args.step_size,
                                  global_step=False, add_positive=False, sample_steps=args.LD_steps, FI=True)
@@ -182,44 +192,90 @@ if __name__ == '__main__':
             for data in tqdm(train_stream):
                 if args.ablation() == 'parallel_noGSAP':
                     log_dict = trainer.step_parallel(data, epoch=epoch, train=True)
+                elif args.ablation() == 'FI':
+                    print('\nFI parallel')
+                    receptor, ligand, gt_interact = data
+                    data = (receptor, ligand, gt_interact, torch.tensor(iter).unsqueeze(0).cuda())
+                    log_dict = trainer.step_parallel(data, epoch=epoch, train=True)
                 else:
-                    log_dict = trainer.step(data, epoch=epoch, train=True)
+                    log_dict = trainer.step(data, epoch=epoch)
                 logger.add_scalar("DockIP/Loss/Train", log_dict["Loss"], iter)
                 iter += 1
 
-            loss = []
-            log_data = []
-            docker = EQDockerGPU(model.eval(), num_angles=360)
-            for i, data in tqdm(enumerate(valid_stream)):
-                if args.model() == 'resnet':
-                    it_loss, it_log_data = run_prediction_model(data, trainer, epoch=epoch, train=False)
-                elif args.model() == 'ebm' or args.model() == 'docker':
-                    if args.ablation() == 'parallel_noGSAP':
-                        if i == 0:
-                            log_dict = trainer.step_parallel(data, epoch=epoch, train=False)
-                            it_loss = run_docking_model(data, docker, iter, logger)
+            if args.ablation() == 'FI':
+                log_format = '%f\t%f\t%f\t%f\t%f\n'
+                log_header = 'Accuracy\tPrecision\tRecall\tF1score\tMCC\n'
+                TP, FP, TN, FN = 0, 0, 0, 0
+
+                pos_idx = 0
+                for data in tqdm(valid_stream):
+                    receptor, ligand, gt_interact = data
+                    data = (receptor, ligand, gt_interact, torch.tensor(pos_idx).unsqueeze(0).cuda())
+                    tp, fp, tn, fn = trainer.step_parallel(data, epoch=epoch, train=False)
+                    # print(tp, fp, tn,fn)
+                    TP += tp
+                    FP += fp
+                    TN += tn
+                    FN += fn
+                    pos_idx += 1
+
+                Accuracy = float(TP + TN) / float(TP + TN + FP + FN)
+                if (TP + FP) > 0:
+                    Precision = float(TP) / float(TP + FP)
+                else:
+                    Precision = 0.0
+                if (TP + FN) > 0:
+                    Recall = float(TP) / float(TP + FN)
+                else:
+                    Recall = 0.0
+                F1score = TP / (TP + 0.5 * (FP + FN) + 1E-5)
+
+                MCC = ((TP * TN) - (FP * FN)) / (np.sqrt((TP + FP) * (TP + FN) * (TN + FP) * (TN + FN)) + 1E-5)
+
+                it_loss = MCC
+
+                print(f'Epoch {epoch} Acc: {Accuracy} Prec: {Precision} Rec: {Recall} F1: {F1score} MCC: {MCC}')
+
+                with open('Log/' + str(args.experiment) + '/log_EBM_FI_validAPR.txt', 'a') as fout:
+                    # fout.write('Epoch ' + str(check_epoch) + '\n')
+                    fout.write('Epoch' + str(epoch) + '\n')
+                    fout.write(log_header)
+                    fout.write(log_format % (Accuracy, Precision, Recall, F1score, MCC))
+                fout.close()
+
+            else:
+                loss = []
+                log_data = []
+                docker = EQDockerGPU(model.eval(), num_angles=360)
+                for i, data in tqdm(enumerate(valid_stream)):
+                    if args.model() == 'resnet':
+                        it_loss, it_log_data = run_prediction_model(data, trainer, epoch=epoch, train=False)
+                    elif args.model() == 'ebm' or args.model() == 'docker':
+                        if args.ablation() == 'parallel_noGSAP':
+                            if i == 0:
+                                log_dict = trainer.step_parallel(data, epoch=epoch, train=False)
+                                it_loss = run_docking_model(data, docker, iter, logger)
+                            else:
+                                log_dict = trainer.step_parallel(data, epoch=epoch, train=False)
+                                it_loss = run_docking_model(data, docker, iter)
                         else:
-                            log_dict = trainer.step_parallel(data, epoch=epoch, train=False)
-                            it_loss = run_docking_model(data, docker, iter)
-                    else:
-                        if i == 0:
-                            log_dict = trainer.step(data, epoch=epoch, train=False)
-                            it_loss = run_docking_model(data, docker, iter, logger)
-                        else:
-                            log_dict = trainer.step(data, epoch=epoch, train=False)
-                            it_loss = run_docking_model(data, docker, iter)
+                            if i == 0:
+                                log_dict = trainer.step(data, epoch=epoch)
+                                it_loss = run_docking_model(data, docker, iter, logger)
+                            else:
+                                log_dict = trainer.step(data, epoch=epoch)
+                                it_loss = run_docking_model(data, docker, iter)
 
+                    loss.append(it_loss)
 
-                loss.append(it_loss)
+                    av_loss = np.average(loss, axis=0)
+                    logger.add_scalar("DockIP/Loss/Valid", av_loss, iter)
 
-            av_loss = np.average(loss, axis=0)
-            logger.add_scalar("DockIP/Loss/Valid", av_loss, iter)
-
-            print('Epoch', epoch, 'Valid Loss:', av_loss)
-            if av_loss < min_loss:
-                torch.save(model.state_dict(), Path('Log') / Path(args.experiment) / Path('model.th'))
-                print(f'Model saved: min_loss = {av_loss} prev = {min_loss}')
-                min_loss = av_loss
+                    print('Epoch', epoch, 'Valid Loss:', av_loss)
+                    if av_loss < min_loss:
+                        torch.save(model.state_dict(), Path('Log') / Path(args.experiment) / Path('model.th'))
+                        print(f'Model saved: min_loss = {av_loss} prev = {min_loss}')
+                        min_loss = av_loss
 
     ### TESTING
     if args.cmd() == 'test':
