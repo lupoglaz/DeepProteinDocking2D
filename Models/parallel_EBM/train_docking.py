@@ -4,10 +4,11 @@ from pathlib import Path
 import numpy as np
 import argparse
 import sys
-
+sys.path.append('/home/sb1638/')
 # print(sys.path)
 sys.path.append('C:\\Users\\Sid\\PycharmProjects\\lamoureuxlab\\')
 # print(sys.path)
+
 import warnings
 warnings.filterwarnings("ignore")
 
@@ -167,11 +168,13 @@ if __name__ == '__main__':
                                  global_step=False, add_positive=False, sample_steps=args.LD_steps)
         elif args.ablation() == 'FI':
             print('Fact of interaction: using parallel, different distribution sigmas, no GS, no AP')
-            max_size = 10
+            max_size = None
             train_stream = get_interaction_stream_balanced('../../DatasetGeneration/interaction_data_train.pkl',
-                                                           batch_size=args.batch_size, max_size=max_size)
+                                                           batch_size=args.batch_size,
+                                                           # max_size=max_size
+                                                           )
             valid_stream = get_interaction_stream_balanced('../../DatasetGeneration/interaction_data_valid.pkl', batch_size=1,
-                                                           max_size=max_size
+                                                           # max_size=max_size
                                                            )
             trainer = EBMTrainer(model, optimizer, num_samples=args.num_samples,
                                  num_buf_samples=len(train_stream) * args.batch_size, step_size=args.step_size,
@@ -187,8 +190,9 @@ if __name__ == '__main__':
     if args.cmd() == 'train':
         logger = SummaryWriter(Path(args.data_dir) / Path(args.experiment))
         min_loss = float('+Inf')
-        iter = 0
+        # iter = 0
         for epoch in range(args.num_epochs):
+            iter = 0
             for data in tqdm(train_stream):
                 if args.ablation() == 'parallel_noGSAP':
                     log_dict = trainer.step_parallel(data, epoch=epoch, train=True)
