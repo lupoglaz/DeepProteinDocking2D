@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --partition=p_ccib_1
-#SBATCH --job-name=EBM_FI_1ep_batch1_dFsumF_L1lossfeats_Lreg
+#SBATCH --job-name=EBM_FI_6ep_LD10_Lreg
 #SBATCH --nodes=1
 ##SBATCH --ntasks=1
 #SBATCH --tasks-per-node=1
