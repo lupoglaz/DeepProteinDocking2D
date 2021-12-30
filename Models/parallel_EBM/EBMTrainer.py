@@ -12,8 +12,10 @@ import random
 from matplotlib import pylab as plt
 
 import sys
+
 sys.path.append('/home/sb1638/')
 
+import os
 
 class SampleBuffer:
     def __init__(self, num_samples, max_pos=100):
@@ -56,8 +58,8 @@ class SampleBuffer:
                 dr = torch.rand(num_samples, 2) * 50.0 - 25.0
                 alphas.append(alpha)
                 drs.append(dr)
-            # print('\nalpha', alpha)
-            # print('dr', dr)
+        # print('\nalpha', alpha)
+        # print('dr', dr)
 
         alphas = torch.stack(alphas, dim=0).to(device=device)
         drs = torch.stack(drs, dim=0).to(device=device)
@@ -68,7 +70,7 @@ class SampleBuffer:
 class EBMTrainer:
     def __init__(self, model, optimizer, num_buf_samples=10, device='cuda', num_samples=10, weight=1.0, step_size=10.0,
                  sample_steps=100,
-                 global_step=True, add_positive=True, sigma_dr=0.05, sigma_alpha=0.5, FI=False):
+                 global_step=True, add_positive=True, sigma_dr=0.05, sigma_alpha=0.5, FI=False, experiment=None):
         self.model = model
         self.optimizer = optimizer
 
@@ -86,34 +88,49 @@ class EBMTrainer:
         self.plot_idx = 0
         self.conv = ProteinConv2D()
 
-        # self.sig_dr = torch.ones(1)*0.05
-        # self.sig_alpha = torch.ones(1)*0.5
         self.sig_dr = 0.05
         self.sig_alpha = 0.5
         self.sig_hotweight = 0.05
         self.docker = EQDockerGPU(EQScoringModel(repr=None).to(device='cuda'))
-        input = torch.empty(1,1)
-        self.hotweight = nn.Parameter(torch.ones_like(input, requires_grad=True, dtype=torch.float).to(device='cuda'))
-
+        # input = torch.empty(1, 1)
+        # self.hotweight = nn.Parameter(torch.ones_like(input, requires_grad=True, dtype=torch.float).to(device='cuda'))
+        self.plot_freq = 20
 
         self.FI = FI
         if self.FI:
-            ##### load blank models and optimizers, once
-            lr_interaction = 10 ** -3
+            print("LOAD FImodel ONCE??????")
+            ##### load blank model and optimizer, once
+            lr_interaction = 10 ** -2
             self.interaction_model = EBMInteractionModel().to(device=0)
             self.optimizer_interaction = optim.Adam(self.interaction_model.parameters(), lr=lr_interaction)
+            self.plot_freq = 100
+            # self.sig_dr = 5
+            # self.sig_alpha = 5
+            # self.sig_hotweight = 5
 
-        self.path = '../../EBM_figs/IP_figs/'
-        self.debug = False
-        self.plotting = False
+        self.experiment = experiment
+        self.path_IP = '../../EBM_figs/IP_figs/'+self.experiment
+        self.path_FI = '../../EBM_figs/FI_figs/'+self.experiment
+        try:
+            if 'IP' in self.experiment:
+                os.mkdir(self.path_IP)
+            if 'FI' in self.experiment:
+                os.mkdir(self.path_FI)
+        except:
+            print('dir already exists')
+
+        self.debug = True
         self.train = False
 
     def requires_grad(self, flag=True):
         parameters = self.model.parameters()
         for p in parameters:
             p.requires_grad = flag
-        # print('parameters',p, flag, p.grad)
 
+    def load_checkpoint(self, path):
+        raw_model = self.model.module if hasattr(self.model, "module") else self.model
+        checkpoint = torch.load(path)
+        raw_model.load_state_dict(checkpoint)
 
     def dock_spatial(self, rec_repr, lig_repr):
         translations = self.conv(rec_repr, lig_repr)
@@ -165,7 +182,6 @@ class EBMTrainer:
         neg_dr.requires_grad_()
         langevin_opt = optim.SGD([neg_alpha, neg_dr], lr=self.step_size, momentum=0.0)
 
-
         if not self.train:
             self.sig_dr = 0.0
             self.sig_alpha = 0.0
@@ -174,6 +190,12 @@ class EBMTrainer:
         if temperature == 'hot':
             self.sig_dr = 0.5
             self.sig_alpha = 5
+        # self.hotweight.data += noise_alpha.normal_(0, self.sig_hotweight)
+
+        # if self.FI:
+        #     if temperature == 'hot':
+        #         self.sig_dr = 10
+        #         self.sig_alpha = 10
             # self.hotweight.data += noise_alpha.normal_(0, self.sig_hotweight)
 
         lastN_neg_out = []
@@ -188,7 +210,6 @@ class EBMTrainer:
 
             neg_dr.data += noise_dr.normal_(0, self.sig_dr)
             neg_alpha.data += noise_alpha.normal_(0, self.sig_alpha)
-
 
             neg_dr.data.clamp_(-rec_feat.size(2), rec_feat.size(2))
             neg_alpha.data.clamp_(-np.pi, np.pi)
@@ -220,8 +241,6 @@ class EBMTrainer:
         num_features = pos_rec.size(1)
         L = pos_rec.size(2)
 
-        # print(pos_idx, pos_idx.type(), pos_idx.shape)
-
         neg_alpha, neg_dr = self.buffer.get(pos_idx, num_samples=self.num_samples)
         neg_alpha2, neg_dr2 = self.buffer2.get(pos_idx, num_samples=self.num_samples)
 
@@ -242,28 +261,15 @@ class EBMTrainer:
 
         if self.FI:
             return self.interaction_prediction(neg_rec_feat, neg_lig_feat, neg_alpha, neg_dr, neg_alpha2, neg_dr2,
-                                               pos_idx, neg_idx, receptor, ligand, gt_interact, epoch, train)
+                                               pos_idx, neg_idx, receptor, ligand, gt_interact, epoch)
         else:
             return self.pose_prediction(pos_rec_feat, pos_lig_feat, neg_rec_feat, neg_lig_feat,
                                         pos_alpha, pos_dr, neg_alpha, neg_dr, neg_alpha2, neg_dr2,
-                                        pos_idx, neg_idx, receptor, ligand, gt_interact, epoch, train)
+                                        pos_idx, neg_idx, receptor, ligand, epoch)
 
     def pose_prediction(self, pos_rec_feat, pos_lig_feat, neg_rec_feat, neg_lig_feat, pos_alpha, pos_dr, neg_alpha,
-                        neg_dr, neg_alpha2, neg_dr2, pos_idx, neg_idx, receptor, ligand, gt_interact, epoch, train):
-        ## parallel_EBM IP parallel model
-        # print('\nTraining =', train)
-        # print(epoch, '*' * 100)
-        # with torch.no_grad():
-        # 	translations = self.docker.dock_global(neg_rec_feat, neg_lig_feat)
-        # 	scores = self.docker.score(translations)
-        # 	score, rotation, translation = self.docker.get_conformation(scores)
-        # 	neg_alpha = rotation.unsqueeze(0).unsqueeze(0).cuda()
-        # 	neg_dr = translation.unsqueeze(0).cuda()
+                        neg_dr, neg_alpha2, neg_dr2, pos_idx, neg_idx, receptor, ligand, epoch):
 
-        if self.train:
-            self.model.train()
-        else:
-            self.model.eval()
 
         neg_alpha, neg_dr = self.langevin(neg_alpha, neg_dr, neg_rec_feat.detach(), neg_lig_feat.detach(), neg_idx,
                                           'cold')
@@ -272,9 +278,12 @@ class EBMTrainer:
 
         # print('neg_alpha, neg_dr', neg_alpha, neg_dr)
         # print('neg_alpha, neg_dr grad', neg_alpha.grad, neg_dr.grad)
-
-        self.requires_grad(True)
-        self.model.zero_grad()
+        if self.train:
+            self.model.train()
+            self.requires_grad(True)
+            self.model.zero_grad()
+        else:
+            self.model.eval()
         pos_out, _, _ = self.model.mult(pos_rec_feat, pos_lig_feat, pos_alpha, pos_dr)
         pos_out = self.model.scorer(pos_out)
         L_p = (pos_out + self.weight * pos_out ** 2).mean()
@@ -283,26 +292,29 @@ class EBMTrainer:
         L_n = (-neg_out + self.weight * neg_out ** 2).mean()
         neg_out2, _, _ = self.model.mult(neg_rec_feat, neg_lig_feat, neg_alpha2, neg_dr2)
         neg_out2 = self.model.scorer(neg_out2)
-        L_n2 = (-neg_out2 + self.weight * neg_out2 ** 2).mean() #* self.hotweight
+        L_n2 = (-neg_out2 + self.weight * neg_out2 ** 2).mean()  # * self.hotweight
 
         L_n = (L_n + L_n2) / 2
         loss = L_p + L_n
-        loss.backward()
+
+        if self.train:
+            loss.backward()
+            self.optimizer.step()
 
         if self.debug:
             with torch.no_grad():
                 # print('\nLearned hot sim contribution', self.hotweight.item())
                 print('\nL_p, L_n, \n', L_p.item(), L_n.item())
                 print('Loss\n', loss.item())
-                self.plotting = True
 
-                if not self.train and self.plotting:
-                    with torch.no_grad():
-                            self.plot_energy_and_pose(pos_idx, L_p, L_n, epoch, receptor, ligand, pos_alpha, pos_dr, neg_alpha, neg_dr,
-                                                      freq=20)
-                            self.plot_feats(neg_rec_feat, neg_lig_feat, epoch, pos_idx, freq=20)
+                filename = self.path_IP + 'IPenergyandpose_epoch' + str(epoch) + '_example' + str(pos_idx.item())
+                self.plot_energy_and_pose(pos_idx, L_p, L_n, epoch, receptor, ligand, pos_alpha, pos_dr,
+                                          neg_alpha, neg_dr, filename,
+                                          )
+                filename = self.path_IP + 'IPfeats_epoch' + str(epoch) + '_example' + str(pos_idx.item())
+                self.plot_feats(neg_rec_feat, neg_lig_feat, epoch, pos_idx, filename)
 
-        self.optimizer.step()
+        # self.optimizer.step()
         # never add postive for step parallel and 1D LD buffer
         if self.add_positive:
             # print('AP')
@@ -317,11 +329,10 @@ class EBMTrainer:
 
     def interaction_prediction(self, neg_rec_feat, neg_lig_feat, neg_alpha, neg_dr, neg_alpha2, neg_dr2, pos_idx,
                                neg_idx, receptor, ligand, gt_interact,
-                               epoch, train):
-
-        # if epoch == 0:
-        #     print(epoch, '*' * 100)
-        #     # with torch.no_grad():
+                               epoch):
+        # # if epoch == 0:
+        #     # print(epoch, '*' * 100)
+        # with torch.no_grad():
         #     translations = self.docker.dock_global(neg_rec_feat, neg_lig_feat)
         #     scores = self.docker.score(translations)
         #     score, rotation, translation = self.docker.get_conformation(scores)
@@ -329,54 +340,44 @@ class EBMTrainer:
         #     neg_dr = translation.unsqueeze(0).cuda()
 
         #### two sim, hot and cold
-        # neg_alpha, neg_dr, lastN_E_cold = self.langevin(neg_alpha, neg_dr, neg_rec_feat.detach(),
-        #                                                 neg_lig_feat.detach(), neg_idx, sigma_dr=0.05, sigma_alpha=0.5)
-        # neg_alpha, neg_dr, lastN_E_hot = self.langevin(neg_alpha, neg_dr, neg_rec_feat.detach(),
-        #                                                neg_lig_feat.detach(), neg_idx, sigma_dr=0.5, sigma_alpha=5)
-        # pred_interact, deltaF = self.interaction_model(lastN_E_cold, lastN_E_hot)
+        neg_alpha, neg_dr, lastN_E_cold = self.langevin(neg_alpha, neg_dr, neg_rec_feat.detach(),
+                                                        neg_lig_feat.detach(), neg_idx, 'cold')
+        neg_alpha, neg_dr, lastN_E_hot = self.langevin(neg_alpha, neg_dr, neg_rec_feat.detach(),
+                                                       neg_lig_feat.detach(), neg_idx, 'hot')
+        pred_interact, deltaF = self.interaction_model(lastN_E_cold, lastN_E_hot, hotcold=True)
 
         #### single sim
-        neg_alpha, neg_dr, last100_E_samples = self.langevin(neg_alpha, neg_dr, neg_rec_feat.detach(),
-                                                             neg_lig_feat.detach(), neg_idx)
-        pred_interact, deltaF = self.interaction_model(last100_E_samples)
+        # neg_alpha, neg_dr, last100_E_samples = self.langevin(neg_alpha, neg_dr, neg_rec_feat.detach(),
+        #                                                      neg_lig_feat.detach(), neg_idx)
+        # pred_interact, deltaF = self.interaction_model(last100_E_samples)
 
-        # if plotting and (pos_idx > 620 or pos_idx < 1):
-        # 	if epoch == 0:
-        # 		print('PLOTTING INITIALIZATION')
-        # 		filename = 'EBM_figs/FI_figs/epoch' + str(epoch) + '_' + str(
-        # 			self.sample_steps) + 'samples_initialized_pose' + str(pos_idx.item())
-        # 		self.plot_pose(receptor, ligand, rotation, translation, 'Initalization global step pose', filename,
-        # 					   pos_idx, epoch)
-        # 		print('PLOTTING PREDICTION')
-        # 		filename = 'EBM_figs/FI_figs/epoch' + str(epoch) + '_' + str(
-        # 			self.sample_steps) + 'samples_pose_after_LD' + str(pos_idx.item())
-        # 		self.plot_pose(receptor, ligand, neg_alpha.squeeze(), neg_dr.squeeze(), 'Pose after LD', filename,
-        # 					   pos_idx, epoch)
+        with torch.no_grad():
+            print('EPOCH', epoch)
+            print('PLOTTING PREDICTION')
+            filename = self.path_FI+'/Feats_epoch' + str(epoch) + '_' + str(
+                self.sample_steps) + '_' + str(pos_idx.item())
+            self.plot_feats(neg_rec_feat, neg_lig_feat, epoch, pos_idx, filename)
+            filename = self.path_FI+'/Pose_epoch' + str(epoch) + '_' + str(
+                self.sample_steps) + '_' + str(pos_idx.item())
+            self.plot_pose(receptor, ligand, neg_alpha.squeeze(), neg_dr.squeeze(), 'Pose after LD', filename,
+                           pos_idx, epoch,
+                           # gt_rot=rotation.detach().cpu().numpy(),
+                           #  gt_txy=translation.detach().cpu().numpy(),
+                           pred_interact=pred_interact.item(),
+                           gt_interact=gt_interact.item())
 
-        # print('*' * 100, 'example '+str(pos_idx.item()))
-        # print('Initialized neg_alpha and neg_dr with minimum energy pose')
-        # print('Energy, rotation, translation')
-        # print(score, rotation, translation)
-        # print('*' * 100, 'example '+str(pos_idx.item()))
-        # print('AFTER LD')
-        # print('Energy, rotation, translation')
-        # print(last100_E_samples[-1], neg_alpha, neg_dr)
-
-        if train:
+        if self.train:
             self.requires_grad(True)
             self.model.train()
             self.model.zero_grad()
 
-            # if plotting and epoch == 0 and (pos_idx > 50 or pos_idx < 1):
-            #     self.plot_feats(pos_rec _feat, pos_lig_feat, neg_rec_feat, neg_lig_feat)
-
             BCEloss = torch.nn.BCELoss()
             l1_loss = torch.nn.L1Loss()
-            # loss = BCEloss(pred_interact.squeeze(), gt_interact.squeeze().cuda())
-            #
-            w = 10 ** -5
-            L_reg = w * l1_loss(deltaF.squeeze(), torch.zeros(1).squeeze().cuda())
-            loss = BCEloss(pred_interact.squeeze(), gt_interact.squeeze().cuda()) + L_reg
+            loss = BCEloss(pred_interact.squeeze(), gt_interact.squeeze().cuda())
+
+            # w = 10 ** -5
+            # L_reg = w * l1_loss(deltaF.squeeze(), torch.zeros(1).squeeze().cuda())
+            # loss = BCEloss(pred_interact.squeeze(), gt_interact.squeeze().cuda()) + L_reg
 
             loss.backward()
             print('\n PREDICTED', pred_interact.item(), '; GROUND TRUTH', gt_interact.item())
@@ -395,15 +396,15 @@ class EBMTrainer:
             a = gt_interact.item()
             if p >= threshold and a >= threshold:
                 TP += 1
-            elif p >= threshold and a < threshold:
+            elif p >= threshold > a:
                 FP += 1
-            elif p < threshold and a >= threshold:
+            elif p < threshold <= a:
                 FN += 1
             elif p < threshold and a < threshold:
                 TN += 1
             # print('returning', TP, FP, TN, FN)
-            return TP, FP, TN, FN
-
+            print('\n PREDICTED', pred_interact.item(), '; GROUND TRUTH', gt_interact.item())
+            return TP, FP, TN, FN, pred_interact.squeeze() - gt_interact.squeeze().cuda()
 
     def plot_condition(self, pos_idx, epoch, filename):
         if self.debug:
@@ -413,56 +414,23 @@ class EBMTrainer:
             else:
                 plt.savefig(filename)
 
-    def plot_energy_and_pose(self, pos_idx, L_p, L_n, epoch, receptor, ligand, pos_alpha, pos_dr, neg_alpha, neg_dr, freq=20):
-        if pos_idx % freq == 0:
+    def plot_energy_and_pose(self, pos_idx, L_p, L_n, epoch, receptor, ligand, pos_alpha, pos_dr, neg_alpha, neg_dr,
+                             filename
+                             ):
+        if pos_idx % self.plot_freq == 0:
             print('PLOTTING LOSS')
-            filename = self.path + 'IP_Loss_epoch' + str(epoch) + 'example' + str(
-                pos_idx.item())
             self.plot_IP_energy_loss(L_p.detach().cpu().numpy(), L_n.squeeze().detach().cpu().numpy(), epoch, pos_idx,
                                      filename)
             print('PLOTTING PREDICTION')
-            filename = self.path + 'IPpose_epoch' + str(epoch) + '_' + str(
-                self.sample_steps) + 'samples_pose_after_LD' + str(pos_idx.item())
             self.plot_pose(receptor, ligand, neg_alpha.squeeze(), neg_dr.squeeze(), 'Pose after LD',
                            filename, pos_idx, epoch,
                            pos_alpha.squeeze().detach().cpu(), pos_dr.squeeze().detach().cpu())
 
-    def plot_feats(self, neg_rec_feat, neg_lig_feat, epoch, pos_idx, freq):
-        if pos_idx % freq == 0:
-
-            # pos_rec_feat = pos_rec_feat.squeeze()
-            # pos_lig_feat = pos_lig_feat.squeeze()
-            # pos_rec_bulk, pos_rec_bound = pos_rec_feat[0, :, :], pos_rec_feat[1, :, :]
-            # pos_lig_bulk, pos_lig_bound = pos_lig_feat[0, :, :], pos_lig_feat[1, :, :]
-
-            # neg_rec_feat = neg_rec_feat.detach().cpu()
-            # neg_lig_feat = neg_lig_feat.detach().cpu()
-            # rec_bulk, rec_bound = neg_rec_feat[0, :, :], neg_rec_feat[1, :, :]
-            # lig_bulk, lig_bound = neg_lig_feat[0, :, :], neg_lig_feat[1, :, :]
-
-
+    def plot_feats(self, neg_rec_feat, neg_lig_feat, epoch, pos_idx, filename):
+        if pos_idx % self.plot_freq == 0:
             with torch.no_grad():
-                # pos_lig_bulk = pos_lig_bulk.detach().cpu() / pos_lig_bulk.detach().cpu().max()
-                # pos_lig_bound = pos_lig_bound.detach().cpu() / pos_lig_bound.detach().cpu().max()
-                # pos_rec_bulk = pos_rec_bulk.detach().cpu() / pos_rec_bulk.detach().cpu().max()
-                # pos_rec_bound = pos_rec_bound.detach().cpu() / pos_rec_bound.detach().cpu().max()
-
-                # neg_lig_bulk = (lig_bulk - lig_bulk.min()) / (lig_bulk.max() - lig_bulk.min())
-                # neg_lig_bound = (lig_bound - lig_bound.min()) / (lig_bound.max() - lig_bound.min())
-                # neg_rec_bulk = (rec_bulk - rec_bulk.min()) / (rec_bulk.max() - rec_bulk.min())
-                # neg_rec_bound = (rec_bound - rec_bound.min()) / (rec_bound.max() - rec_bound.min())
-
-                # lig_plot = np.hstack((neg_lig_bulk, neg_lig_bound))
-                # rec_plot = np.hstack((neg_rec_bulk, neg_rec_bound))
-                # pos_lig_plot = np.hstack((pos_lig_bulk, pos_lig_bound))
-                # pos_rec_plot = np.hstack((pos_rec_bulk, pos_rec_bound))
-                # pos_plot = np.vstack((pos_rec_plot, pos_lig_plot))
-                # neg_plot = np.vstack((rec_plot, lig_plot))
-
-                # image = np.vstack((pos_plot, neg_plot))
-                # plt.imshow(image)
-
-                neg_rec_feat, neg_lig_feat = self.eigenvec_feats(neg_rec_feat.detach().cpu(), neg_lig_feat.detach().cpu())
+                neg_rec_feat, neg_lig_feat = self.eigenvec_feats(neg_rec_feat.detach().cpu(),
+                                                                 neg_lig_feat.detach().cpu())
                 neg_rec_bulk, neg_rec_bound = neg_rec_feat.squeeze()[0, :, :], neg_rec_feat.squeeze()[1, :, :]
                 neg_lig_bulk, neg_lig_bound = neg_lig_feat.squeeze()[0, :, :], neg_lig_feat.squeeze()[1, :, :]
                 lig_plot = np.hstack((neg_lig_bulk, neg_lig_bound))
@@ -471,10 +439,10 @@ class EBMTrainer:
                 plt.imshow(neg_plot)
                 plt.colorbar()
                 plt.title('Bulk', loc='left')
-                plt.title('Example'+str(pos_idx.item()))
+                plt.title('Example' + str(pos_idx.item()))
                 plt.title('Boundary', loc='right')
                 print('PLOTTING PREDICTION')
-                filename = self.path + 'IPfeats_epoch' + str(epoch) + '_example' + str(pos_idx.item())
+                print(filename)
                 if pos_idx < 1 and epoch == 0:
                     plt.savefig(filename)
                     plt.show()
@@ -483,7 +451,6 @@ class EBMTrainer:
                 plt.close()
 
     def eigenvec_feats(self, neg_rec_feat, neg_lig_feat):
-        # repr_0 = self.model.repr(ligand).tensor.detach().cpu().clone()
         A = self.model.scorer[0].weight.view(2, 2).detach().cpu().clone()
         eigvals, V = torch.linalg.eig(A)
         V = V.real
@@ -505,27 +472,31 @@ class EBMTrainer:
         return reprs
 
     def plot_pose(self, receptor, ligand, rotation, translation, plot_title, filename, pos_idx, epoch, gt_rot=0,
-                  gt_txy=(0, 0)):
-        pair = plot_assembly(receptor.squeeze().detach().cpu().numpy(),
-                             ligand.squeeze().detach().cpu().numpy(),
-                             rotation.detach().cpu().numpy(),
-                             (translation.squeeze()[0].detach().cpu().numpy(),
-                              translation.squeeze()[1].detach().cpu().numpy()),
-                             gt_rot,
-                             gt_txy)
-        if self.FI:
-            plt.imshow(pair[100:, :].transpose())
-        else:
+                  gt_txy=(0, 0), pred_interact=None, gt_interact=None):
+        if pos_idx % self.plot_freq == 0:
+            pair = plot_assembly(receptor.squeeze().detach().cpu().numpy(),
+                                 ligand.squeeze().detach().cpu().numpy(),
+                                 rotation.detach().cpu().numpy(),
+                                 (translation.squeeze()[0].detach().cpu().numpy(),
+                                  translation.squeeze()[1].detach().cpu().numpy()),
+                                 gt_rot,
+                                 gt_txy)
+            # if self.FI:
+            #     plt.imshow(pair[100:, :].transpose())
+            # else:
             plt.imshow(pair[:, :].transpose())
-        plt.title('EBM Input', loc='left')
-        plt.title(plot_title, loc='right')
-        plt.suptitle(filename)
-        if pos_idx < 1 and epoch == 0:
-            plt.savefig(filename)
-            plt.show()
-        else:
-            plt.savefig(filename)
-        plt.close()
+            plt.title('EBM Input', loc='left')
+            if gt_interact is not None and pred_interact is not None:
+                plt.title('Interaction: gt='+str(gt_interact)+' pred='+str(pred_interact)[:3])
+            plt.title(plot_title, loc='right')
+            plt.suptitle(filename)
+            print(filename)
+            if pos_idx < 1 and epoch == 0:
+                plt.savefig(filename)
+                plt.show()
+            else:
+                plt.savefig(filename)
+            plt.close()
 
     def plot_IP_energy_loss(self, L_p, L_n, epoch, pos_idx, filename):
         print('L_p, L_n', L_p, L_n)
@@ -543,6 +514,7 @@ class EBMTrainer:
         plt.title(
             'IP Loss: Difference in L_p and L_n\n' + 'epoch ' + str(epoch) + ' example number' + str(pos_idx.item()))
         # plt.show()
+        print(filename)
         if pos_idx < 1 and epoch == 0:
             plt.savefig(filename)
             plt.show()
@@ -550,22 +522,42 @@ class EBMTrainer:
             plt.savefig(filename)
         plt.close()
 
+
 class EBMInteractionModel(nn.Module):
     def __init__(self):
         super(EBMInteractionModel, self).__init__()
 
         self.F_0 = nn.Parameter(torch.zeros(1, requires_grad=True))
+        # input = torch.empty(1, 1)
+        # self.scaleup = nn.Parameter(torch.ones_like(input, requires_grad=True, dtype=torch.float).to(device='cuda'))
 
-    def forward(self, sampling):
-        E = torch.stack(sampling, dim=0)
-        F = -torch.logsumexp(-E, dim=(0, 1, 2))
+    def forward(self, sampling, sampling2=None, hotcold=False):
 
-        deltaF = F - self.F_0
-        pred_interact = torch.sigmoid(-deltaF)
+        if hotcold:
+            E1 = torch.stack(sampling, dim=0)
+            F1 = -torch.logsumexp(-E1, dim=(0, 1, 2))#*self.scaleup
 
-        with torch.no_grad():
-            print('F', F.item())
-            print('\n(deltaF - F_0): ', deltaF.item())
-            print('F_0: ', self.F_0.item(), 'F_0 grad', self.F_0.grad)
+            E2 = torch.stack(sampling2, dim=0)
+            F2 = -torch.logsumexp(-E2, dim=(0, 1, 2))
+
+            deltaF = (F1 + F2) - self.F_0
+            pred_interact = torch.sigmoid(-deltaF)
+
+            with torch.no_grad():
+                # print('scaleup', self.scaleup.item())
+                print('Fs', F1.item(), F2.item())
+                print('\n(deltaF - F_0): ', deltaF.item())
+                print('F_0: ', self.F_0.item(), 'F_0 grad', self.F_0.grad)
+        else:
+            E = torch.stack(sampling, dim=0)
+            F = -torch.logsumexp(-E, dim=(0, 1, 2))
+
+            deltaF = F - self.F_0
+            pred_interact = torch.sigmoid(-deltaF)
+
+            with torch.no_grad():
+                print('F', F.item())
+                print('\n(deltaF - F_0): ', deltaF.item())
+                print('F_0: ', self.F_0.item(), 'F_0 grad', self.F_0.grad)
 
         return pred_interact.squeeze(), deltaF.squeeze()
