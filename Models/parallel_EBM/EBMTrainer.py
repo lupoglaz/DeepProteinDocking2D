@@ -449,13 +449,7 @@ class EBMTrainer:
                 plt.title('Bulk', loc='left')
                 plt.title('Example' + str(pos_idx.item()))
                 plt.title('Boundary', loc='right')
-                # print('PLOTTING PREDICTION')
-                # print(filename)
-                # if pos_idx < 1 and epoch == 0:
-                #     plt.savefig(filename)
-                #     plt.show()
-                # else:
-                #     plt.savefig(filename)
+
                 plt.savefig(filename)
                 plt.close()
 
@@ -468,9 +462,6 @@ class EBMTrainer:
         repr_0 = torch.stack([rv01, rv02], dim=0).unsqueeze(dim=0).detach()
         # print(V)
 
-        # A = self.model.scorer[0].weight.view(2, 2).detach().cpu().clone()
-        # eigvals, V = torch.linalg.eig(A)
-        # V = V.real
         rv01 = V[0, 0] * neg_lig_feat[:, 0, :, :] + V[1, 0] * neg_lig_feat[:, 1, :, :]
         rv02 = V[0, 1] * neg_lig_feat[:, 0, :, :] + V[1, 1] * neg_lig_feat[:, 1, :, :]
         repr_1 = torch.stack([rv01, rv02], dim=0).unsqueeze(dim=0).detach()
@@ -497,12 +488,7 @@ class EBMTrainer:
                 plt.title('Interaction: gt=' + str(gt_interact) + ' pred=' + str(pred_interact)[:3])
             plt.title(plot_title, loc='right')
             plt.suptitle(filename)
-            # print(filename)
-            # if pos_idx < 1 and epoch == 0:
-            #     plt.savefig(filename)
-            #     plt.show()
-            # else:
-            #     plt.savefig(filename)
+
             plt.savefig(filename)
             plt.close()
 
@@ -521,13 +507,7 @@ class EBMTrainer:
         plt.quiver([L_n], [0], color=['b'], angles='xy', scale_units='xy', scale=1)
         plt.title(
             'IP Loss: Difference in L_p and L_n\n' + 'epoch ' + str(epoch) + ' example number' + str(pos_idx.item()))
-        # plt.show()
-        # print(filename)
-        # if pos_idx < 1 and epoch == 0:
-        #     plt.savefig(filename)
-        #     plt.show()
-        # else:
-        #     plt.savefig(filename)
+
         plt.savefig(filename)
         plt.close()
 
@@ -542,7 +522,7 @@ class EBMInteractionModel(nn.Module):
 
         if hotcold:
             E1 = torch.stack(sampling, dim=0)
-            F1 = -torch.logsumexp(-E1, dim=(0, 1, 2))  # *self.scaleup
+            F1 = -torch.logsumexp(-E1, dim=(0, 1, 2))
 
             E2 = torch.stack(sampling2, dim=0)
             F2 = -torch.logsumexp(-E2, dim=(0, 1, 2))
@@ -551,7 +531,6 @@ class EBMInteractionModel(nn.Module):
             pred_interact = torch.sigmoid(-deltaF)
 
             with torch.no_grad():
-                # print('scaleup', self.scaleup.item())
                 print('Fs', F1.item(), F2.item())
                 print('\n(deltaF - F_0): ', deltaF.item())
                 print('F_0: ', self.F_0.item(), 'F_0 grad', self.F_0.grad)
