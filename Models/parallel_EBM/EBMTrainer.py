@@ -373,15 +373,6 @@ class EBMTrainer:
                            gt_txy=translation.detach().cpu().numpy(),
                            pred_interact=pred_interact.item(),
                            gt_interact=gt_interact.item())
-            # else:
-            #     print('EPOCH', epoch)
-            #     print('PLOTTING PREDICTION')
-            #     self.plot_pose(receptor, ligand, neg_alpha.squeeze(), neg_dr.squeeze(), 'Pose after LD', filename,
-            #                    pos_idx, epoch,
-            #                    # gt_rot=rotation.detach().cpu().numpy(),
-            #                    #  gt_txy=translation.detach().cpu().numpy(),
-            #                    pred_interact=pred_interact.item(),
-            #                    gt_interact=gt_interact.item())
 
         if self.train:
             self.requires_grad(True)
@@ -499,9 +490,7 @@ class EBMTrainer:
                                   translation.squeeze()[1].detach().cpu().numpy()),
                                  gt_rot,
                                  gt_txy)
-            # if self.FI:
-            #     plt.imshow(pair[100:, :].transpose())
-            # else:
+
             plt.imshow(pair[:, :].transpose())
             plt.title('EBM Input', loc='left')
             if gt_interact is not None and pred_interact is not None:
@@ -548,8 +537,6 @@ class EBMInteractionModel(nn.Module):
         super(EBMInteractionModel, self).__init__()
 
         self.F_0 = nn.Parameter(torch.zeros(1, requires_grad=True))
-        # input = torch.empty(1, 1)
-        # self.scaleup = nn.Parameter(torch.ones_like(input, requires_grad=True, dtype=torch.float).to(device='cuda'))
 
     def forward(self, sampling, sampling2=None, hotcold=False):
 
