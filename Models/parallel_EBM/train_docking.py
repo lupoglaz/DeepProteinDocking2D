@@ -238,13 +238,14 @@ if __name__ == '__main__':
     if args.cmd() == 'train':
         logger = SummaryWriter(Path(args.data_dir) / Path(args.experiment))
         min_loss = float('+Inf')
-        # pretrain = True
-        pretrain = False
-        if pretrain:
+        min_dockerloss = float('+Inf')
+
+        if args.ablation() == 'FI':
             print('*' * 100)
             print('Loading pretrained model for EBM')
             trainer.load_checkpoint(Path('Log') / Path('check_IP_LD10_randseed_rep1') / Path('model.th'))
             print(Path('Log') / Path('check_IP_LD10_randseed_rep1') / Path('model.th'))
+
         # iter = 0
         for epoch in range(args.num_epochs):
             iter = 0
@@ -269,19 +270,33 @@ if __name__ == '__main__':
 
             else:
                 loss = []
+                dockerloss = []
                 log_data = []
                 docker = EQDockerGPU(model.eval(), num_angles=360)
+                iter = 0
                 for i, data in tqdm(enumerate(valid_stream)):
                     if args.model() == 'resnet':
                         it_loss, it_log_data = run_prediction_model(data, trainer, epoch=epoch, train=False)
                     elif args.model() == 'ebm' or args.model() == 'docker':
                         if args.ablation() == 'parallel_noGSAP':
+                            receptor, ligand, translation, rotation, indexes = data
+                            rec = Protein(receptor[0, :, :].cpu().numpy())
+                            lig = Protein(ligand[0, :, :].cpu().numpy())
+                            angle = rotation[0].item()
+                            pos = translation[0, :].cpu().numpy()
+
                             if i == 0:
-                                log_dict = trainer.step_parallel(data, epoch=epoch, train=False)
-                                it_loss = run_docking_model(data, docker, iter, logger)
+                                log_dict, angle_pred, pos_pred = trainer.step_parallel(data, epoch=epoch, train=False)
+                                angle_pred = angle_pred[0].item()
+                                pos_pred = pos_pred[0].cpu().numpy()
+                                it_loss = float(lig.rmsd(pos, angle, pos_pred, angle_pred))
+                                docker_loss = run_docking_model(data, docker, iter, logger)
                             else:
-                                log_dict = trainer.step_parallel(data, epoch=epoch, train=False)
-                                it_loss = run_docking_model(data, docker, iter)
+                                log_dict, angle_pred, pos_pred = trainer.step_parallel(data, epoch=epoch, train=False)
+                                angle_pred = angle_pred[0].item()
+                                pos_pred = pos_pred[0].cpu().numpy()
+                                it_loss = float(lig.rmsd(pos, angle, pos_pred, angle_pred))
+                                docker_loss = run_docking_model(data, docker, iter)
                         else:
                             if i == 0:
                                 log_dict = trainer.step(data, epoch=epoch)
@@ -289,17 +304,28 @@ if __name__ == '__main__':
                             else:
                                 log_dict = trainer.step(data, epoch=epoch)
                                 it_loss = run_docking_model(data, docker, iter)
+                    iter += 1
 
                     loss.append(it_loss)
+                    dockerloss.append(docker_loss)
+                    logger.add_scalar("DockIP/Loss/Valid", it_loss, iter)
+                    logger.add_scalar("DockIP/Loss/ValidDocker", docker_loss, iter)
 
                 av_loss = np.average(loss, axis=0)
-                logger.add_scalar("DockIP/Loss/Valid", av_loss, iter)
+                # logger.add_scalar("DockIP/Loss/Valid", av_loss, iter)
+                av_dockerloss = np.average(dockerloss, axis=0)
+                # logger.add_scalar("DockIP/Loss/Valid", av_dockerloss, iter)
 
                 print('Epoch', epoch, 'Valid Loss:', av_loss)
                 if av_loss < min_loss:
-                    torch.save(model.state_dict(), Path('Log') / Path(args.experiment) / Path('model.th'))
+                    # torch.save(model.state_dict(), Path('Log') / Path(args.experiment) / Path('model.th'))
                     print(f'Model saved: min_loss = {av_loss} prev = {min_loss}')
                     min_loss = av_loss
+                print('Epoch', epoch, 'Valid Docker Loss:', av_dockerloss)
+                if av_dockerloss < min_dockerloss:
+                    torch.save(model.state_dict(), Path('Log') / Path(args.experiment) / Path('model.th'))
+                    print(f'docker eval: min_loss = {av_dockerloss} prev = {min_dockerloss}')
+                    min_dockerloss = av_dockerloss
 
     ### TESTING
     if args.cmd() == 'test':
