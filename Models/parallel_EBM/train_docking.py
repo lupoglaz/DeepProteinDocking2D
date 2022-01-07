@@ -127,6 +127,17 @@ def run_prediction_model(data, trainer, epoch=None):
     return log_dict["Loss"], log_data
 
 
+def save_checkpoint(state, filename, model):
+    model.eval()
+    torch.save(state, filename)
+
+def load_ckp(checkpoint_fpath, model, optimizer):
+    model.eval()
+    checkpoint = torch.load(checkpoint_fpath)
+    model.load_state_dict(checkpoint['state_dict'], strict=True)
+    optimizer.load_state_dict(checkpoint['optimizer'])
+    return model, optimizer, checkpoint['epoch']
+
 if __name__ == '__main__':
     #### initialization torch settings
     import random
@@ -137,6 +148,8 @@ if __name__ == '__main__':
     torch.cuda.manual_seed(random_seed)
     torch.backends.cudnn.deterministic = True
     torch.cuda.set_device(0)
+    # torch.autograd.set_detect_anomaly(True)
+
     parser = argparse.ArgumentParser(description='Train deep protein docking')
     parser.add_argument('-data_dir', default='Log', type=str)
     parser.add_argument('-experiment', default='DebugDocking', type=str)
@@ -208,15 +221,41 @@ if __name__ == '__main__':
                                  global_step=False, add_positive=False)
         elif args.ablation() == 'parallel_noGSAP':
             print('Parallel, two different distribution sigmas, no GS, no AP')
+            # load_epoch = 0
+            # print('loading pretrain model')
+            # model, optimizer, start_epoch = load_ckp(Path(args.data_dir) / Path('IP_check_model_save') / Path('model'+str(load_epoch)+'.th'), model, optimizer)
+            # print(model)
+            # def check_gradients(model):
+            #     for n, p in model.named_parameters():
+            #         if p.requires_grad:
+            #             print('Name', n, '\nParam', p, '\nGradient', p.grad)
+            # check_gradients(model)
+
             trainer = EBMTrainer(model, optimizer, num_samples=args.num_samples,
                                  num_buf_samples=len(train_stream) * args.batch_size, step_size=args.step_size,
                                  global_step=False, add_positive=False, sample_steps=args.LD_steps, experiment=args.experiment)
+
+            # trainer.load_checkpoint(Path('Log') / Path('check_IP_LD10_randseed_rep1') / Path('model.th'))
+            # print(Path('Log') / Path('check_IP_LD10_randseed_rep1') / Path('model.th'))
+
         elif args.ablation() == 'FI':
             # mkdir = 'mkdir -p ../../EBM_figs/'+args.experiment+'/'
             # os.system(mkdir)
             # print(mkdir)
             print('Fact of interaction: using parallel, different distribution sigmas, no GS, no AP')
             max_size = 100
+            # load_epoch = 0
+            # print('loading pretrain model')
+            # model, optimizer, start_epoch = load_ckp(Path(args.data_dir) / Path('IP_check_model_save') / Path('model'+str(load_epoch)+'.th'), model, optimizer)
+            # print(model)
+            # def check_gradients(model):
+            #     for n, p in model.named_parameters():
+            #         if p.requires_grad:
+            #             print('Name', n, '\nParam', p, '\nGradient', p.grad)
+            # check_gradients(model)
+
+
+
             train_stream = get_interaction_stream_balanced('../../DatasetGeneration/interaction_data_train.pkl',
                                                            batch_size=args.batch_size,
                                                            max_size=max_size
@@ -227,6 +266,14 @@ if __name__ == '__main__':
             trainer = EBMTrainer(model, optimizer, num_samples=args.num_samples,
                                  num_buf_samples=len(train_stream) * args.batch_size, step_size=args.step_size,
                                  global_step=False, add_positive=False, sample_steps=args.LD_steps, FI=True, experiment=args.experiment)
+
+            # trainer.load_checkpoint(Path('Log') / Path('IP_check_model_save') / Path('model0.th'))
+            # print(Path('Log') / Path('IP_check_model_save') / Path('model0.th'))
+
+            trainer.load_checkpoint(Path('Log') / Path('check_IP_LD10_randseed_rep1') / Path('model.th'))
+            print(Path('Log') / Path('check_IP_LD10_randseed_rep1') / Path('model.th'))
+
+
 
     elif args.model() == 'docker':
         repr = EQRepresentation()
@@ -240,14 +287,23 @@ if __name__ == '__main__':
         min_loss = float('+Inf')
         min_dockerloss = float('+Inf')
 
-        if args.ablation() == 'FI':
-            print('*' * 100)
-            print('Loading pretrained model for EBM')
-            trainer.load_checkpoint(Path('Log') / Path('check_IP_LD10_randseed_rep1') / Path('model.th'))
-            print(Path('Log') / Path('check_IP_LD10_randseed_rep1') / Path('model.th'))
+        # if args.ablation() == 'FI':
+        #     print('*' * 100)
+        #     print('Loading pretrained model for EBM')
+            # trainer.load_checkpoint(Path('Log') / Path('check_IP_LD10_randseed_rep1') / Path('model.th'))
+            # print(Path('Log') / Path('check_IP_LD10_randseed_rep1') / Path('model.th'))
+            # model, optimizer, start_epoch = load_ckp(Path(args.data_dir) / Path(args.experiment) / Path('model.th'), model, optimizer)
+
 
         # iter = 0
         for epoch in range(args.num_epochs):
+
+            # checkpoint_dict = {
+            #     'epoch': epoch,
+            #     'state_dict': model.state_dict(),
+            #     'optimizer': optimizer.state_dict(),
+            # }
+
             iter = 0
             for data in tqdm(train_stream):
                 if args.ablation() == 'parallel_noGSAP':
@@ -326,6 +382,9 @@ if __name__ == '__main__':
                     torch.save(model.state_dict(), Path('Log') / Path(args.experiment) / Path('model.th'))
                     print(f'docker eval: min_loss = {av_dockerloss} prev = {min_dockerloss}')
                     min_dockerloss = av_dockerloss
+
+        # save_checkpoint(checkpoint_dict, Path(args.data_dir) / Path(args.experiment) / Path('model'+str(epoch)+'.th'), model)
+        # print('saving interaction model ' + args.data_dir + '/' + args.experiment + '/model'+str(epoch)+'.th')
 
     ### TESTING
     if args.cmd() == 'test':
