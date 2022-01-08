@@ -38,7 +38,7 @@ class EQScoringModel(nn.Module):
 
 
 class EQDockerGPU(nn.Module):
-    def __init__(self, scoring_model, num_angles=10):
+    def __init__(self, scoring_model, num_angles=360):
         super(EQDockerGPU, self).__init__()
         self.scoring_model = scoring_model
         self.conv = ProteinConv2D()
