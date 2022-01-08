@@ -424,3 +424,5 @@ if __name__ == '__main__':
 
 ###
 # python train_docking.py -data_dir Log -experiment validplot_default_EBMDocking_1ep_10LDstep -train -ebm -num_epochs 1 -batch_size 1 -num_samples 1 -LD_steps 10 -gpu 0 -default
+# $ python train_docking.py -data_dir Log -experiment FI_pretrain_unfrozen_LnLn2append_noReg_lr-2_wReg -train -ebm -num_epochs 1 -batch_size 1 -num_samples 1 -LD_steps 10 -gpu 0 -FI
+#
