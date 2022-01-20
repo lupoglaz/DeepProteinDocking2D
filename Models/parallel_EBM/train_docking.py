@@ -221,16 +221,6 @@ if __name__ == '__main__':
                                  global_step=False, add_positive=False)
         elif args.ablation() == 'parallel_noGSAP':
             print('Parallel, two different distribution sigmas, no GS, no AP')
-            # load_epoch = 0
-            # print('loading pretrain model')
-            # model, optimizer, start_epoch = load_ckp(Path(args.data_dir) / Path('IP_check_model_save') / Path('model'+str(load_epoch)+'.th'), model, optimizer)
-            # print(model)
-            # def check_gradients(model):
-            #     for n, p in model.named_parameters():
-            #         if p.requires_grad:
-            #             print('Name', n, '\nParam', p, '\nGradient', p.grad)
-            # check_gradients(model)
-
             trainer = EBMTrainer(model, optimizer, num_samples=args.num_samples,
                                  num_buf_samples=len(train_stream) * args.batch_size, step_size=args.step_size,
                                  global_step=False, add_positive=False, sample_steps=args.LD_steps, experiment=args.experiment)
@@ -244,18 +234,8 @@ if __name__ == '__main__':
             # print(mkdir)
             print('Fact of interaction: using parallel, different distribution sigmas, no GS, no AP')
             max_size = 100
-            # load_epoch = 0
-            # print('loading pretrain model')
-            # model, optimizer, start_epoch = load_ckp(Path(args.data_dir) / Path('IP_check_model_save') / Path('model'+str(load_epoch)+'.th'), model, optimizer)
-            # print(model)
-            # def check_gradients(model):
-            #     for n, p in model.named_parameters():
-            #         if p.requires_grad:
-            #             print('Name', n, '\nParam', p, '\nGradient', p.grad)
-            # check_gradients(model)
-
-
-
+            # max_size = 200
+            # max_size = 50
             train_stream = get_interaction_stream_balanced('../../DatasetGeneration/interaction_data_train.pkl',
                                                            batch_size=args.batch_size,
                                                            max_size=max_size
@@ -267,11 +247,11 @@ if __name__ == '__main__':
                                  num_buf_samples=len(train_stream) * args.batch_size, step_size=args.step_size,
                                  global_step=False, add_positive=False, sample_steps=args.LD_steps, FI=True, experiment=args.experiment)
 
-            # trainer.load_checkpoint(Path('Log') / Path('IP_check_model_save') / Path('model0.th'))
-            # print(Path('Log') / Path('IP_check_model_save') / Path('model0.th'))
-
             trainer.load_checkpoint(Path('Log') / Path('check_IP_LD10_randseed_rep1') / Path('model.th'))
             print(Path('Log') / Path('check_IP_LD10_randseed_rep1') / Path('model.th'))
+            #
+            # trainer.load_checkpoint(Path('Log') / Path('IP_check_1s4v') / Path('model.th'))
+            # print(Path('Log') / Path('IP_check_1s4v') / Path('model.th'))
 
 
 
@@ -297,12 +277,6 @@ if __name__ == '__main__':
 
         # iter = 0
         for epoch in range(args.num_epochs):
-
-            # checkpoint_dict = {
-            #     'epoch': epoch,
-            #     'state_dict': model.state_dict(),
-            #     'optimizer': optimizer.state_dict(),
-            # }
 
             iter = 0
             for data in tqdm(train_stream):
@@ -383,9 +357,6 @@ if __name__ == '__main__':
                     print(f'docker eval: min_loss = {av_dockerloss} prev = {min_dockerloss}')
                     min_dockerloss = av_dockerloss
 
-        # save_checkpoint(checkpoint_dict, Path(args.data_dir) / Path(args.experiment) / Path('model'+str(epoch)+'.th'), model)
-        # print('saving interaction model ' + args.data_dir + '/' + args.experiment + '/model'+str(epoch)+'.th')
-
     ### TESTING
     if args.cmd() == 'test':
         test_stream = get_docking_stream('DatasetGeneration/docking_data_test.pkl', batch_size=1, max_size=None)
@@ -423,6 +394,5 @@ if __name__ == '__main__':
 
 
 ###
-# python train_docking.py -data_dir Log -experiment validplot_default_EBMDocking_1ep_10LDstep -train -ebm -num_epochs 1 -batch_size 1 -num_samples 1 -LD_steps 10 -gpu 0 -default
-# $ python train_docking.py -data_dir Log -experiment FI_pretrain_unfrozen_LnLn2append_noReg_lr-2_wReg -train -ebm -num_epochs 1 -batch_size 1 -num_samples 1 -LD_steps 10 -gpu 0 -FI
-#
+
+#python train_docking.py -data_dir Log -experiment FI_WITHpretrain_BFfreeE_gitrestore_both -train -ebm -num_epochs 1 -batch_size 1 -num_samples 1 -gpu 0 -FI

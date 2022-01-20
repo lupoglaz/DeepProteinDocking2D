@@ -27,8 +27,8 @@ class EBMInteractionModel(nn.Module):
     def forward(self, sampling, sampling2=None, L_n=None, L_n2=None, hotcold=False):
 
         if hotcold:
-            print(L_n, L_n2)
-            sampling.append(L_n)
+            # print(L_n, L_n2)
+            # sampling.append(L_n)
             E1 = torch.stack(sampling, dim=0)
             F1 = -torch.logsumexp(-E1, dim=(0, 1, 2))
 
@@ -251,8 +251,10 @@ class EBMTrainer:
             self.sig_alpha = 5
 
         lastN_neg_out = []
-        for i in range(self.sample_steps):
+        lastN_alpha = []
+        lastN_dr = []
 
+        for i in range(self.sample_steps):
             langevin_opt.zero_grad()
 
             pos_repr, _, A = self.model.mult(rec_feat, lig_feat, neg_alpha, neg_dr)
@@ -261,16 +263,25 @@ class EBMTrainer:
 
             langevin_opt.step()
 
-            neg_dr.data += noise_dr.normal_(0, self.sig_dr)
-            neg_alpha.data += noise_alpha.normal_(0, self.sig_alpha)
+            # neg_dr.data += noise_dr.normal_(0, self.sig_dr)
+            # neg_alpha.data += noise_alpha.normal_(0, self.sig_alpha)
+
+            neg_dr = neg_dr + noise_dr.normal_(0, self.sig_dr)
+            neg_alpha = neg_alpha + noise_alpha.normal_(0, self.sig_alpha)
 
             neg_dr.data.clamp_(-rec_feat.size(2), rec_feat.size(2))
             neg_alpha.data.clamp_(-np.pi, np.pi)
 
+            # print(neg_alpha)
+            # print(neg_dr)
+            # print(neg_out)
             lastN_neg_out.append(neg_out.detach())
+            lastN_alpha.append(neg_alpha)
+            lastN_dr.append(neg_dr)
 
         if self.FI:
-            return neg_alpha.detach(), neg_dr.detach(), lastN_neg_out
+            return lastN_alpha, lastN_dr, lastN_neg_out, rotation.unsqueeze(0).unsqueeze(0).cuda(), translation.unsqueeze(0).cuda(), scores
+            # return neg_alpha.detach(), neg_dr.detach(), lastN_neg_out, rotation, translation
         else:
             return neg_alpha.detach(), neg_dr.detach()
 
@@ -403,110 +414,100 @@ class EBMTrainer:
     def FI_prediction(self, neg_rec_feat, neg_lig_feat, pos_rec_feat, pos_lig_feat, neg_alpha, neg_dr, neg_alpha2, neg_dr2, pos_idx,
                                neg_idx, receptor, ligand, gt_interact, epoch):
 
-        # self.train = False
 
+        # #### working model with gradient back to CNN and scoring layer
         # with torch.no_grad():
-        #     translations = self.docker.dock_global(neg_rec_feat, neg_lig_feat)
+        #     translations = self.docker.dock_global(pos_rec_feat, pos_lig_feat)
         #     scores = self.docker.score(translations)
-        #     score, rotation, translation = self.docker.get_conformation(scores)
-        #     # if self.pretrain_init:
+        #     Energies = -scores
+        #     score, rotation, translation = self.docker.get_conformation(Energies)
         #     pos_alpha = rotation.unsqueeze(0).unsqueeze(0).cuda()
         #     pos_dr = translation.unsqueeze(0).cuda()
         #
-        # pos_out, _, _ = self.model.mult(pos_rec_feat, pos_lig_feat, pos_alpha, pos_dr)
-        # pos_out = self.model.scorer(pos_out)
-        # print(pos_out)
-        # L_p = pos_out
-        # neg_out, _, _ = self.model.mult(neg_rec_feat, neg_lig_feat, neg_alpha, neg_dr)
-        # neg_out = self.model.scorer(neg_out)
-        # L_n = -neg_out
-        # neg_out2, _, _ = self.model.mult(neg_rec_feat, neg_lig_feat, neg_alpha2, neg_dr2)
-        # neg_out2 = self.model.scorer(neg_out2)
-        # L_n2 = -neg_out2
-        # L_n = -L_p
-
-        #### two sim, hot and cold
-        # neg_alpha, neg_dr, lastN_E_cold = self.langevin(neg_alpha, neg_dr, neg_rec_feat.detach(),
-        #                                                 neg_lig_feat.detach(), neg_idx, 'cold')
-        # neg_alpha, neg_dr, lastN_E_hot = self.langevin(neg_alpha, neg_dr, neg_rec_feat.detach(),
-        #                                                neg_lig_feat.detach(), neg_idx, 'hot')
+        #     # print(Energies.shape)
+        #     print('\nEnergy max and min\n')
+        #     print(torch.max(Energies), torch.min(Energies))
         #
-        # pred_interact, deltaF = self.interaction_model(lastN_E_cold, lastN_E_hot, L_n=L_n, L_n2=L_n2, hotcold=True)
-
-
-        # neg_out, _, _ = self.model.mult(neg_rec_feat, neg_lig_feat, neg_alpha, neg_dr)
-        # neg_out = self.model.scorer(neg_out)
-        # L_n = -neg_out
-
-        #### single sim
-        # neg_alpha, neg_dr, lastN_E_cold = self.langevin(neg_alpha, neg_dr, neg_rec_feat.detach(),
-        #                                                      neg_lig_feat.detach(), neg_idx, 'cold')
-        # pred_interact, deltaF = self.interaction_model(lastN_E_cold, hotcold=False)
+        # E_best_pos, _, _ = self.model.mult(neg_rec_feat, neg_lig_feat, pos_alpha, pos_dr)
+        # E_best_pos = self.model.scorer(E_best_pos)
+        # E_best_pos = E_best_pos
         #
-        # print(lastN_E_cold)
+        # pred_interact, deltaF = self.interaction_model(Energies, E_best_pos)
+        # #### working model ^^^^
 
+        neg_alpha_list, neg_dr_list, lastN_E_cold, rotation, translation, scores = self.langevin(neg_alpha, neg_dr,
+                                                        neg_rec_feat.detach(), neg_lig_feat.detach(), neg_idx, 'cold')
+        # , rotation, translation, scores
         if self.train:
             self.model.train()
+            self.interaction_model.train()
             self.requires_grad(True)
             self.model.zero_grad()
+            # self.interaction_model.zero_grad()
         else:
             self.model.eval()
 
-        # with torch.no_grad():
-        #     translations = self.docker.dock_global(neg_rec_feat, neg_lig_feat)
-        #     scores = self.docker.score(translations)
-        #     score, rotation, translation = self.docker.get_conformation(scores)
-        #     # if self.pretrain_init:
-        #     #     neg_alpha = rotation.unsqueeze(0).unsqueeze(0).cuda()
-        #     #     neg_dr = translation.unsqueeze(0).cuda()
-        #
-        #     filename_feats = self.path_FI + '/Feats_epoch' + str(epoch) + '_' + str(
-        #         self.sample_steps) + '_' + str(pos_idx.item())
-        #     EBMPlotter(self.model).plot_feats(neg_rec_feat, neg_lig_feat, epoch, pos_idx, filename_feats)
-        #     filename_pose = self.path_FI + '/Pose_epoch' + str(epoch) + '_' + str(
-        #         self.sample_steps) + '_' + str(pos_idx.item())
-        #     EBMPlotter(self.model).plot_pose(receptor, ligand, neg_alpha.squeeze(), neg_dr.squeeze(), 'Pose after LD', filename_pose,
-        #                    pos_idx, epoch,
-        #                    gt_rot=rotation.detach().cpu().numpy(),
-        #                    gt_txy=translation.detach().cpu().numpy(),
-        #                    pred_interact=pred_interact.item(),
-        #                    gt_interact=gt_interact.item())
+        lastN_E_grad = []
+        for i in range(len(lastN_E_cold)):
+            # print(neg_alpha_list[i])
+            # print(neg_dr_list[i])
+            # print(lastN_E_cold[i])
+            E_pred_neg, _, _ = self.model.mult(neg_rec_feat, neg_lig_feat, neg_alpha_list[i], neg_dr_list[i])
+            E_pred_neg = self.model.scorer(E_pred_neg)
+            lastN_E_grad.append(E_pred_neg)
 
+        E_best_pos, _, _ = self.model.mult(pos_rec_feat, pos_lig_feat, rotation, translation)
+        E_best_pos = self.model.scorer(E_best_pos)
+        E_best_pos = E_best_pos
 
-
+        Energies = torch.stack(lastN_E_grad, dim=0)
         with torch.no_grad():
-            translations = self.docker.dock_global(neg_rec_feat, neg_lig_feat)
-            scores = -self.docker.score(translations)
-            score, rotation, translation = self.docker.get_conformation(scores)
-            pos_alpha = rotation.unsqueeze(0).unsqueeze(0).cuda()
-            pos_dr = translation.unsqueeze(0).cuda()
-
-            # Energy = -Energy
-            print(scores.shape)
+            print(Energies.shape)
             print('\nEnergy max and min\n')
-            print(torch.max(scores), torch.min(scores))
+            print(torch.max(Energies), torch.min(Energies))
+            print('E_best', E_best_pos.item())
+        pred_interact, deltaF = self.interaction_model(Energies-E_best_pos)
 
-        pos_out, _, _ = self.model.mult(neg_rec_feat, neg_lig_feat, pos_alpha, pos_dr)
-        pos_out = self.model.scorer(pos_out)
+        # pred_interact, deltaF = self.interaction_model(lastN_E_grad)
 
-        pred_interact, deltaF = self.interaction_model(scores, pos_out)
+
+        # pos_alpha = rotation.unsqueeze(0).unsqueeze(0).cuda()
+        # pos_dr = translation.unsqueeze(0).cuda()
+        # Energies = torch.stack(lastN_E_grad, dim=0)
+
+        # E_best_pos, _, _ = self.model.mult(pos_rec_feat, pos_lig_feat, pos_alpha, pos_dr)
+        # E_best_pos = self.model.scorer(E_best_pos)
+        # E_best_pos = E_best_pos
+
+        # pred_interact, deltaF = self.interaction_model(-Energies, E_best_pos)
+
+        if self.train:
+            with torch.no_grad():
+                filename_feats = self.path_FI + '/Feats_epoch' + str(epoch) + '_' + str(
+                    self.sample_steps) + '_' + str(pos_idx.item())
+                EBMPlotter(self.model).plot_feats(neg_rec_feat, neg_lig_feat, epoch, pos_idx, filename_feats)
+                filename_pose = self.path_FI + '/Pose_epoch' + str(epoch) + '_' + str(
+                    self.sample_steps) + '_' + str(pos_idx.item())
+                EBMPlotter(self.model).plot_pose(receptor, ligand, neg_alpha.squeeze(), neg_dr.squeeze(), 'Pose after LD', filename_pose,
+                               pos_idx, epoch,
+                               # gt_rot=rotation.detach().cpu().numpy(),
+                               # gt_txy=translation.detach().cpu().numpy(),
+                               pred_interact=pred_interact.item(),
+                               gt_interact=gt_interact.item())
 
         if self.train:
             BCEloss = torch.nn.BCELoss()
             l1_loss = torch.nn.L1Loss()
-            # loss = BCEloss(pred_interact.squeeze(), gt_interact.squeeze().cuda())
-            # L_n = (L_n + L_n2).mean()
-            # loss = L_p + L_n
-            # loss = loss + l1_loss(L_p, L_n)
 
-            w = 10 ** 0
+            w = 10 ** -5
             L_reg = w * l1_loss(deltaF.squeeze(), torch.zeros(1).squeeze().cuda())
-            loss = BCEloss(pred_interact.squeeze(), gt_interact.squeeze().cuda()) + L_reg
+            loss = BCEloss(pred_interact.squeeze(), gt_interact.squeeze().cuda()) + L_reg #+ EBMloss #+ l1_loss(E_best_pos, E_pred_neg)
 
             loss.backward()
             print('\n PREDICTED', pred_interact.item(), '; GROUND TRUTH', gt_interact.item())
             self.optimizer.step()
             self.optimizer_interaction.step()
+            # self.optimizer_interaction.zero_grad()
             self.buffer.push(neg_alpha, neg_dr, neg_idx)
             self.buffer2.push(neg_alpha2, neg_dr2, neg_idx)
 
@@ -520,13 +521,6 @@ class EBMTrainer:
             return {"Loss": loss.item()}
 
         else:
-            #
-            # translations = self.docker.dock_global(neg_rec_feat, neg_lig_feat)
-            # scores = self.docker.score(translations)
-            # # score, rotation, translation = self.docker.get_conformation(scores)
-            #
-            # pred_interact, deltaF = self.BFinteraction_model(scores)
-
             threshold = 0.5
             TP, FP, TN, FN = 0, 0, 0, 0
             p = pred_interact.item()
@@ -544,14 +538,34 @@ class EBMTrainer:
             return TP, FP, TN, FN, pred_interact.squeeze() - gt_interact.squeeze().cuda()
 
 
+# class EBMBFInteractionModel(nn.Module):
+#     def __init__(self):
+#         super(EBMBFInteractionModel, self).__init__()
+#
+#         self.F_0 = nn.Parameter(torch.zeros(1, requires_grad=True))
+#
+#     def forward(self, sampling):
+#         E = torch.stack(sampling, dim=0)
+#         deltaF = -torch.logsumexp(-E, dim=(0, 1, 2)) - self.F_0
+#         pred_interact = torch.sigmoid(-deltaF)
+#         # deltaF = E.mean() - self.F_0
+#         # pred_interact = torch.sigmoid(-deltaF)
+#
+#         with torch.no_grad():
+#             # print('E_best', E_best.item())
+#             print('\n(deltaF - F_0): ', deltaF.item())
+#             print('F_0: ', self.F_0.item(), 'F_0 grad', self.F_0.grad)
+#
+#         return pred_interact.squeeze(), deltaF.squeeze()
+
 class EBMBFInteractionModel(nn.Module):
     def __init__(self):
         super(EBMBFInteractionModel, self).__init__()
 
         self.F_0 = nn.Parameter(torch.zeros(1, requires_grad=True))
 
-    def forward(self, E, posE):
-        deltaF = -torch.logsumexp(-E-posE, dim=(0, 1, 2)) - self.F_0
+    def forward(self, E):
+        deltaF = -torch.logsumexp(-E, dim=(0, 1, 2)) - self.F_0
         pred_interact = torch.sigmoid(-deltaF)
 
         with torch.no_grad():
@@ -559,3 +573,32 @@ class EBMBFInteractionModel(nn.Module):
             print('F_0: ', self.F_0.item(), 'F_0 grad', self.F_0.grad)
 
         return pred_interact.squeeze(), deltaF.squeeze()
+
+
+# neg_alpha, neg_dr, lastN_E_cold = self.langevin(neg_alpha, neg_dr, neg_rec_feat.detach(),
+        #                                                      neg_lig_feat.detach(), neg_idx, 'cold')
+        #
+        # E_pred_neg, _, _ = self.model.mult(neg_rec_feat, neg_lig_feat, neg_alpha, pos_dr)
+        # E_pred_neg = self.model.scorer(E_pred_neg)
+        # E_pred_neg = E_pred_neg
+        #
+        # neg_alpha2, neg_dr2, lastN_E_cold = self.langevin(neg_alpha2, neg_dr2, neg_rec_feat.detach(),
+        #                                                      neg_lig_feat.detach(), neg_idx, 'hot')
+        #
+        # E_pred_neg2, _, _ = self.model.mult(neg_rec_feat, neg_lig_feat, neg_alpha2, pos_dr)
+        # E_pred_neg2 = self.model.scorer(E_pred_neg2)
+        # E_pred_neg2 =E_pred_neg2
+        #
+        # # EBMloss = E_best_pos + (E_pred_neg + E_pred_neg2).mean()
+        # print('E_pred', E_pred_neg.item())
+        # print('E_pred2', E_pred_neg2.item())
+
+        # neg_alpha2, neg_dr2, lastN_E_hot = self.langevin(neg_alpha2, neg_dr2, neg_rec_feat.detach(),
+        #                                                      neg_lig_feat.detach(), neg_idx, 'hot')
+        #
+        # E_pred_neg2, _, _ = self.model.mult(neg_rec_feat, neg_lig_feat, neg_alpha2, neg_dr2)
+        # E_pred_neg2 = E_pred_neg2
+        # E_pred_neg2 = self.model.scorer(E_pred_neg2)
+        #
+        # print('E_pred', E_pred_neg.item())
+        # print('E_pred2', E_pred_neg2.item())
