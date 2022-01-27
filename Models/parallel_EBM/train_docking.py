@@ -233,9 +233,10 @@ if __name__ == '__main__':
             # os.system(mkdir)
             # print(mkdir)
             print('Fact of interaction: using parallel, different distribution sigmas, no GS, no AP')
-            max_size = 100
+            # max_size = 100
             # max_size = 200
             # max_size = 50
+            max_size = 50
             train_stream = get_interaction_stream_balanced('../../DatasetGeneration/interaction_data_train.pkl',
                                                            batch_size=args.batch_size,
                                                            max_size=max_size
@@ -247,11 +248,8 @@ if __name__ == '__main__':
                                  num_buf_samples=len(train_stream) * args.batch_size, step_size=args.step_size,
                                  global_step=False, add_positive=False, sample_steps=args.LD_steps, FI=True, experiment=args.experiment)
 
-            trainer.load_checkpoint(Path('Log') / Path('check_IP_LD10_randseed_rep1') / Path('model.th'))
-            print(Path('Log') / Path('check_IP_LD10_randseed_rep1') / Path('model.th'))
-            #
-            # trainer.load_checkpoint(Path('Log') / Path('IP_check_1s4v') / Path('model.th'))
-            # print(Path('Log') / Path('IP_check_1s4v') / Path('model.th'))
+            # trainer.load_checkpoint(Path('Log') / Path('check_IP_LD10_randseed_rep1') / Path('model.th'))
+            # print(Path('Log') / Path('check_IP_LD10_randseed_rep1') / Path('model.th'))
 
 
 
@@ -286,6 +284,7 @@ if __name__ == '__main__':
                 elif args.ablation() == 'FI':
                     print('\nFI parallel')
                     receptor, ligand, gt_interact = data
+
                     data = (receptor, ligand, gt_interact, torch.tensor(iter).unsqueeze(0).cuda())
                     log_dict = trainer.step_parallel(data, epoch=epoch, train=True)
                     logger.add_scalar("DockFI/Loss/Train/", log_dict["Loss"], iter*(epoch+1))

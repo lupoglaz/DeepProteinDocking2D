@@ -9,16 +9,29 @@ class EBMPlotter:
         self.model = model
         self.plot_freq = 100
 
-    def plot_energy_and_pose(self, pos_idx, L_p, L_n, epoch, receptor, ligand, pos_alpha, pos_dr, neg_alpha, neg_dr,
-                             filename):
+    def plot_pose(self, receptor, ligand, rotation, translation, plot_title, filename, pos_idx, epoch, gt_rot=0,
+                  gt_txy=(0, 0), pred_interact=None, gt_interact=None, plot_LD=False):
         if pos_idx % self.plot_freq == 0:
-            print('PLOTTING LOSS')
-            self.plot_IP_energy_loss(L_p.detach().cpu().numpy(), L_n.squeeze().detach().cpu().numpy(), epoch, pos_idx,
-                                     filename)
-            print('PLOTTING PREDICTION')
-            self.plot_pose(receptor, ligand, neg_alpha.squeeze(), neg_dr.squeeze(), 'Pose after LD',
-                           filename, pos_idx, epoch,
-                           pos_alpha.squeeze().detach().cpu(), pos_dr.squeeze().detach().cpu())
+            pair = plot_assembly(receptor.squeeze().detach().cpu().numpy(),
+                                 ligand.squeeze().detach().cpu().numpy(),
+                                 rotation.detach().cpu().numpy(),
+                                 (translation.squeeze()[0].detach().cpu().numpy(),
+                                  translation.squeeze()[1].detach().cpu().numpy()),
+                                 gt_rot,
+                                 gt_txy)
+
+            if plot_LD:
+                plt.imshow(pair[200:, :].transpose())
+            else:
+                plt.imshow(pair[:, :].transpose())
+            plt.title('EBM Input', loc='left')
+            if gt_interact is not None and pred_interact is not None:
+                plt.title('Interaction: gt=' + str(gt_interact) + ' pred=' + str(pred_interact)[:3])
+            plt.title(plot_title, loc='right')
+            # plt.suptitle(filename)
+
+            plt.savefig(filename)
+            plt.close()
 
     def plot_feats(self, neg_rec_feat, neg_lig_feat, epoch, pos_idx, filename):
         if pos_idx % self.plot_freq == 0:
@@ -57,26 +70,7 @@ class EBMPlotter:
 
         return reprs
 
-    def plot_pose(self, receptor, ligand, rotation, translation, plot_title, filename, pos_idx, epoch, gt_rot=0,
-                  gt_txy=(0, 0), pred_interact=None, gt_interact=None):
-        if pos_idx % self.plot_freq == 0:
-            pair = plot_assembly(receptor.squeeze().detach().cpu().numpy(),
-                                 ligand.squeeze().detach().cpu().numpy(),
-                                 rotation.detach().cpu().numpy(),
-                                 (translation.squeeze()[0].detach().cpu().numpy(),
-                                  translation.squeeze()[1].detach().cpu().numpy()),
-                                 gt_rot,
-                                 gt_txy)
 
-            plt.imshow(pair[:, :].transpose())
-            plt.title('EBM Input', loc='left')
-            if gt_interact is not None and pred_interact is not None:
-                plt.title('Interaction: gt=' + str(gt_interact) + ' pred=' + str(pred_interact)[:3])
-            plt.title(plot_title, loc='right')
-            plt.suptitle(filename)
-
-            plt.savefig(filename)
-            plt.close()
 
     def plot_IP_energy_loss(self, L_p, L_n, epoch, pos_idx, filename):
         print('L_p, L_n', L_p, L_n)
@@ -96,3 +90,14 @@ class EBMPlotter:
 
         plt.savefig(filename)
         plt.close()
+
+    def plot_energy_and_pose(self, pos_idx, L_p, L_n, epoch, receptor, ligand, pos_alpha, pos_dr, neg_alpha, neg_dr,
+                             filename):
+        if pos_idx % self.plot_freq == 0:
+            print('PLOTTING LOSS')
+            self.plot_IP_energy_loss(L_p.detach().cpu().numpy(), L_n.squeeze().detach().cpu().numpy(), epoch, pos_idx,
+                                     filename)
+            print('PLOTTING PREDICTION')
+            self.plot_pose(receptor, ligand, neg_alpha.squeeze(), neg_dr.squeeze(), 'Pose after LD',
+                           filename, pos_idx, epoch,
+                           pos_alpha.squeeze().detach().cpu(), pos_dr.squeeze().detach().cpu())
