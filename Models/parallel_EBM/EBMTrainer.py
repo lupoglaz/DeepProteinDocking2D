@@ -67,7 +67,7 @@ class EBMTrainer:
                  sample_steps=100,
                  global_step=True, add_positive=True, FI=False, experiment=None, path_pretrain=None):
 
-        self.debug = False
+        self.debug = True
         self.train = False
         self.BF_init = False
 
@@ -98,7 +98,7 @@ class EBMTrainer:
         if self.FI:
             print("LOAD FImodel ONCE??????")
             ##### load blank model and optimizer, once
-            lr_interaction = 10 ** -3
+            lr_interaction = 10 ** -1
             self.interaction_model = EBMBFInteractionModel().to(device=0)
             self.optimizer_interaction = optim.Adam(self.interaction_model.parameters(), lr=lr_interaction, betas=(0.0, 0.999))
 
@@ -126,7 +126,7 @@ class EBMTrainer:
     def check_gradients(model, param=None):
         for n, p in model.named_parameters():
             if param and param in str(n):
-                print('Name', n, '\nGradient', p.grad)
+                print('Name', n, '\nParam', p, '\nGradient', p.grad)
                 return
             if not param:
                 print('Name', n, '\nParam', p, '\nGradient', p.grad)
@@ -215,16 +215,6 @@ class EBMTrainer:
 
             langevin_opt.step()
 
-            # neg_dr.data += noise_dr.normal_(0, self.sig_dr)
-            # neg_alpha.data += noise_alpha.normal_(0, self.sig_alpha)
-            #
-            # neg_dr.data.clamp_(-rec_feat.size(2), rec_feat.size(2))
-            # neg_alpha.data.clamp_(-np.pi, np.pi)
-            #
-            # lastN_neg_out.append(neg_out.detach())
-            # lastN_alpha.append(neg_alpha.detach())
-            # lastN_dr.append(neg_dr.detach())
-
             dr_noise = noise_dr.normal_(0, self.sig_dr)
             alpha_noise = noise_alpha.normal_(0, self.sig_alpha)
             neg_dr.data += dr_noise
@@ -238,10 +228,6 @@ class EBMTrainer:
                 neg_dr_out = neg_dr.clone().clamp_(-rec_feat.size(2), rec_feat.size(2))
                 neg_alpha_out = neg_alpha.clone().clamp_(-np.pi, np.pi)
 
-            # print(neg_alpha)
-            # print(neg_dr)
-            # print(neg_out)
-
             # print('inside LD')
             # print(neg_alpha, neg_dr)
             # print(neg_alpha.data, neg_dr.data)
@@ -252,8 +238,6 @@ class EBMTrainer:
 
         if self.FI:
             return lastN_alpha, lastN_dr, lastN_neg_out
-            # return lastN_alpha, lastN_dr, lastN_neg_out, rotation.unsqueeze(0).unsqueeze(0).cuda(), translation.unsqueeze(0).cuda(), scores
-            # return neg_alpha.detach(), neg_dr.detach(), lastN_neg_out, rotation, translation
         else:
             return neg_alpha.detach(), neg_dr.detach()
 
@@ -377,30 +361,6 @@ class EBMTrainer:
     def FI_prediction(self, neg_rec_feat, neg_lig_feat, pos_rec_feat, pos_lig_feat, neg_alpha, neg_dr, neg_alpha2, neg_dr2, pos_idx,
                                neg_idx, receptor, ligand, gt_interact, epoch):
 
-        # #### working model with gradient back to CNN and scoring layer
-        # if self.train:
-        #     self.model.train()
-        #     self.interaction_model.train()
-        #     self.requires_grad(True)
-        #     self.model.zero_grad()
-        #     # self.interaction_model.zero_grad()
-        # else:
-        #     self.model.eval()
-        #
-        # with torch.no_grad():
-        #     translations = self.docker.dock_global(pos_rec_feat, pos_lig_feat)
-        #     Energies = self.docker.score(translations)
-        #     score, rotation, translation = self.docker.get_conformation(Energies)
-        #     pos_alpha = rotation.unsqueeze(0).unsqueeze(0).cuda()
-        #     pos_dr = translation.unsqueeze(0).cuda()
-        #
-        # E_best_pos, _, _ = self.model.mult(neg_rec_feat, neg_lig_feat, pos_alpha, pos_dr)
-        # E_best_pos = self.model.scorer(E_best_pos)
-        # E_best_pos = E_best_pos
-        #
-        # pred_interact, deltaF = self.interaction_model(Energies+E_best_pos)
-        # #### working model ^^^^
-
         # #### grad recompute model
         if self.debug:
             print("BEFORE LD")
@@ -410,6 +370,10 @@ class EBMTrainer:
 
         neg_alpha_list_hot, neg_dr_list_hot, lastN_E_hot = self.langevin(neg_alpha2, neg_dr2,
                                                         neg_rec_feat.detach(), neg_lig_feat.detach(), neg_idx, 'hot')
+
+        if self.debug:
+            print("After LD")
+            print(neg_alpha, neg_dr)
         if self.train:
             self.model.train()
             self.interaction_model.train()
@@ -418,39 +382,41 @@ class EBMTrainer:
             # self.interaction_model.zero_grad()
         else:
             self.model.eval()
-        #
+
         ## no gradient
         # Energies = torch.stack(lastN_E_cold, dim=0)
         # pred_interact, deltaF = self.interaction_model(Energies)
         ## no gradient
 
-        # lastN_E_cold_grad = []
-        # for i in range(len(lastN_E_cold)):
-        #     E_pred_neg_cold, _, _ = self.model.mult(neg_rec_feat, neg_lig_feat, neg_alpha_list_cold[i], neg_dr_list_cold[i])
-        #     E_pred_neg_cold = self.model.scorer(E_pred_neg_cold)
-        #     lastN_E_cold_grad.append(E_pred_neg_cold)
+        lastN_E_cold_grad = []
+        for i in range(len(lastN_E_cold)):
+            E_pred_neg_cold, _, _ = self.model.mult(neg_rec_feat, neg_lig_feat, neg_alpha_list_cold[i], neg_dr_list_cold[i])
+            E_pred_neg_cold = self.model.scorer(E_pred_neg_cold)
+            lastN_E_cold_grad.append(E_pred_neg_cold)
             # print(neg_dr_list_cold[i])
             # print(neg_alpha_list_cold[i])
             # print(E_pred_neg_cold)
 
-        # lastN_E_hot_grad = []
-        # for i in range(len(lastN_E_hot)):
-        #     E_pred_neg_hot, _, _ = self.model.mult(pos_rec_feat, pos_lig_feat, neg_alpha_list_hot[i], neg_dr_list_hot[i])
-        #     E_pred_neg_hot = self.model.scorer(E_pred_neg_hot)
-        #     lastN_E_hot_grad.append(E_pred_neg_hot)
+        lastN_E_hot_grad = []
+        for i in range(len(lastN_E_hot)):
+            E_pred_neg_hot, _, _ = self.model.mult(pos_rec_feat, pos_lig_feat, neg_alpha_list_hot[i], neg_dr_list_hot[i])
+            E_pred_neg_hot = self.model.scorer(E_pred_neg_hot)
+            lastN_E_hot_grad.append(E_pred_neg_hot)
 
-        # Energies_cold = torch.stack(lastN_E_cold_grad, dim=0)
-        # Energies_hot = torch.stack(lastN_E_hot_grad, dim=0)
+        Energies_cold_grad = torch.stack(lastN_E_cold_grad, dim=0)
+        Energies_hot_grad = torch.stack(lastN_E_hot_grad, dim=0)
+        pred_interact, deltaF = self.interaction_model(-Energies_cold_grad-Energies_hot_grad)
 
-        Energies_cold = torch.stack(lastN_E_cold, dim=0)
-        Energies_hot = torch.stack(lastN_E_hot, dim=0)
-        pred_interact, deltaF = self.interaction_model(Energies_cold+Energies_hot)
+        # Energies_cold = torch.stack(lastN_E_cold, dim=0)
+        # Energies_hot = torch.stack(lastN_E_hot, dim=0)
+        # pred_interact, deltaF = self.interaction_model(Energies_cold-Energies_hot)
         # #### grad recompute model
-
 
         with torch.no_grad():
             print('\nEnergy max and min')
-            print(torch.max(Energies_cold).item(), torch.min(Energies_cold).item())
+            print(torch.max(Energies_cold_grad).item(), torch.min(Energies_cold_grad).item())
+            print(torch.max(Energies_hot_grad).item(), torch.min(Energies_hot_grad).item())
+            # print(torch.max(Energies_cold).item(), torch.min(Energies_cold).item())
             # print(torch.max(Energies_hot).item(), torch.min(Energies_hot).item())
 
         if self.train:
@@ -483,8 +449,9 @@ class EBMTrainer:
 
             # l1_loss = torch.nn.L1Loss()
             # w = 10 ** -5
-            # L_reg = w * l1_loss(deltaF.squeeze(), torch.zeros(1)  .squeeze().cuda())
+            # L_reg = w * l1_loss(deltaF.squeeze(), torch.zeros(1).squeeze().cuda())
             # loss += L_reg
+
             # loss += loss_LpLn
 
             loss.backward()
@@ -503,8 +470,8 @@ class EBMTrainer:
             if self.debug:
                 print('checking gradients')
                 print('pretrain model')
-                # self.check_gradients(self.model, param='scorer')
-                self.check_gradients(self.model, param=None)
+                self.check_gradients(self.model, param='scorer')
+                # self.check_gradients(self.model, param=None)
                 print('interaction model')
                 self.check_gradients(self.interaction_model, param=None)
 
@@ -524,7 +491,13 @@ class EBMTrainer:
             elif p < threshold and a < threshold:
                 TN += 1
             # print('returning', TP, FP, TN, FN)
-            print('\n PREDICTED', pred_interact.item(), '; GROUND TRUTH', gt_interact.item())
+            # print('\n PREDICTED', pred_interact.item(), '; GROUND TRUTH', gt_interact.item())
+            with torch.no_grad():
+                print('\n PREDICTED', pred_interact.item(), '; GROUND TRUTH', gt_interact.item())
+                if torch.round(pred_interact).item() == torch.round(gt_interact).item():
+                    print(' GOOD')
+                else:
+                    print(' BAD')
             return TP, FP, TN, FN, pred_interact.squeeze() - gt_interact.squeeze().cuda()
 
 

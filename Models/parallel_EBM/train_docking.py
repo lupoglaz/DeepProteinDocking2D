@@ -240,28 +240,28 @@ if __name__ == '__main__':
             # max_size = 200
             # max_size = 50
             max_size = 50
-            # train_stream = get_interaction_stream_balanced('../../DatasetGeneration/interaction_data_train.pkl',
-            #                                                batch_size=args.batch_size,
-            #                                                max_size=max_size
-            #                                                )
-            # valid_stream = get_interaction_stream_balanced('../../DatasetGeneration/interaction_data_valid.pkl', batch_size=1,
-            #                                                max_size=max_size//2
-            #                                                )
-
-            train_stream = get_interaction_stream('../../DatasetGeneration/interaction_data_train.pkl',
+            train_stream = get_interaction_stream_balanced('../../DatasetGeneration/interaction_data_train.pkl',
                                                            batch_size=args.batch_size,
                                                            max_size=max_size
                                                            )
-            valid_stream = get_interaction_stream('../../DatasetGeneration/interaction_data_valid.pkl', batch_size=1,
+            valid_stream = get_interaction_stream_balanced('../../DatasetGeneration/interaction_data_valid.pkl', batch_size=1,
                                                            max_size=max_size//2
                                                            )
+
+            # train_stream = get_interaction_stream('../../DatasetGeneration/interaction_data_train.pkl',
+            #                                                batch_size=args.batch_size,
+            #                                                max_size=max_size
+            #                                                )
+            # valid_stream = get_interaction_stream('../../DatasetGeneration/interaction_data_valid.pkl', batch_size=1,
+            #                                                max_size=max_size//2
+            #                                                )
 
             trainer = EBMTrainer(model, optimizer, num_samples=args.num_samples,
                                  num_buf_samples=len(train_stream) * args.batch_size, step_size=args.step_size,
                                  global_step=False, add_positive=False, sample_steps=args.LD_steps, FI=True, experiment=args.experiment)
 
-            trainer.load_checkpoint(Path('Log') / Path('check_IP_LD10_randseed_rep1') / Path('model.th'))
-            print(Path('Log') / Path('check_IP_LD10_randseed_rep1') / Path('model.th'))
+            # trainer.load_checkpoint(Path('Log') / Path('check_IP_LD10_randseed_rep1') / Path('model.th'))
+            # print(Path('Log') / Path('check_IP_LD10_randseed_rep1') / Path('model.th'))
 
 
 
@@ -296,10 +296,18 @@ if __name__ == '__main__':
                 elif args.ablation() == 'FI':
                     print('\nFI parallel')
                     receptor, ligand, gt_interact = data
-                    # print(ligand.shape)
-                    # ligand = translate_gridligand(ligand[0], 0, 0)
-                    # data = (receptor, torch.tensor(ligand).unsqueeze(0).cuda(), gt_interact, torch.tensor(iter).unsqueeze(0).cuda())
-                    data = (receptor, ligand, gt_interact, torch.tensor(iter).unsqueeze(0).cuda())
+                    dim = ligand.shape[-1]//2
+                    pad = torch.nn.ConstantPad2d((dim, dim, dim, dim), 0)
+                    receptor = pad(receptor)
+                    ligand = pad(ligand)
+                    shiftx, shifty = np.random.randint(dim, size=2)
+                    if np.random.rand(1) > 0.5:
+                        shiftx = -shiftx
+                    if np.random.rand(1) > 0.5:
+                        shifty = -shifty
+                    ligand = translate_gridligand(ligand[0], shiftx, shifty)
+                    data = (receptor, torch.tensor(ligand).unsqueeze(0).cuda(), gt_interact, torch.tensor(iter).unsqueeze(0).cuda())
+                    # data = (receptor, ligand, gt_interact, torch.tensor(iter).unsqueeze(0).cuda())
                     log_dict = trainer.step_parallel(data, epoch=epoch, train=True)
                     logger.add_scalar("DockFI/Loss/Train/", log_dict["Loss"], iter*(epoch+1))
                 else:
