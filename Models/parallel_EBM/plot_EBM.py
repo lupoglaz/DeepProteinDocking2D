@@ -21,7 +21,7 @@ class EBMPlotter:
                                  gt_txy)
 
             if plot_LD:
-                plt.imshow(pair[200:, :].transpose())
+                plt.imshow(pair[100:, :].transpose())
             else:
                 plt.imshow(pair[:, :].transpose())
             plt.title('EBM Input', loc='left')

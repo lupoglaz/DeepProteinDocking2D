@@ -82,8 +82,8 @@ def plot_assembly(receptor, ligand, rotation, translation, gt_rot, gt_txy):
     gt_rot = (gt_rot * 180.0/np.pi)
     rotation = (rotation * 180.0/np.pi)
 
-    print('plotting pred values',rotation, translation)
-    print('plotting gt values', gt_rot, gt_txy)
+    # print('plotting pred values',rotation, translation)
+    # print('plotting gt values', gt_rot, gt_txy)
 
     receptor_copy = receptor * -100
     ligand_copy = ligand * 200

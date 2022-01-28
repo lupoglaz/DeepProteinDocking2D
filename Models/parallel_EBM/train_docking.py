@@ -15,7 +15,7 @@ import warnings
 warnings.filterwarnings("ignore")
 
 from DeepProteinDocking2D.Models import EQScoringModel, EQDockerGPU, CNNInteractionModel, EQRepresentation, EQInteraction
-from DeepProteinDocking2D.torchDataset import get_docking_stream, get_interaction_stream_balanced
+from DeepProteinDocking2D.torchDataset import get_docking_stream, get_interaction_stream_balanced, get_interaction_stream
 from tqdm import tqdm
 
 from EBMTrainer import EBMTrainer
@@ -27,6 +27,9 @@ from DeepProteinDocking2D.DatasetGeneration import Protein, Complex
 from torch.utils.tensorboard import SummaryWriter
 import matplotlib.pylab as plt
 import seaborn as sea
+
+from DeepProteinDocking2D.Models.BruteForce.utility_functions import translate_gridligand
+
 
 sea.set_style("whitegrid")
 
@@ -237,19 +240,28 @@ if __name__ == '__main__':
             # max_size = 200
             # max_size = 50
             max_size = 50
-            train_stream = get_interaction_stream_balanced('../../DatasetGeneration/interaction_data_train.pkl',
+            # train_stream = get_interaction_stream_balanced('../../DatasetGeneration/interaction_data_train.pkl',
+            #                                                batch_size=args.batch_size,
+            #                                                max_size=max_size
+            #                                                )
+            # valid_stream = get_interaction_stream_balanced('../../DatasetGeneration/interaction_data_valid.pkl', batch_size=1,
+            #                                                max_size=max_size//2
+            #                                                )
+
+            train_stream = get_interaction_stream('../../DatasetGeneration/interaction_data_train.pkl',
                                                            batch_size=args.batch_size,
                                                            max_size=max_size
                                                            )
-            valid_stream = get_interaction_stream_balanced('../../DatasetGeneration/interaction_data_valid.pkl', batch_size=1,
+            valid_stream = get_interaction_stream('../../DatasetGeneration/interaction_data_valid.pkl', batch_size=1,
                                                            max_size=max_size//2
                                                            )
+
             trainer = EBMTrainer(model, optimizer, num_samples=args.num_samples,
                                  num_buf_samples=len(train_stream) * args.batch_size, step_size=args.step_size,
                                  global_step=False, add_positive=False, sample_steps=args.LD_steps, FI=True, experiment=args.experiment)
 
-            # trainer.load_checkpoint(Path('Log') / Path('check_IP_LD10_randseed_rep1') / Path('model.th'))
-            # print(Path('Log') / Path('check_IP_LD10_randseed_rep1') / Path('model.th'))
+            trainer.load_checkpoint(Path('Log') / Path('check_IP_LD10_randseed_rep1') / Path('model.th'))
+            print(Path('Log') / Path('check_IP_LD10_randseed_rep1') / Path('model.th'))
 
 
 
@@ -284,7 +296,9 @@ if __name__ == '__main__':
                 elif args.ablation() == 'FI':
                     print('\nFI parallel')
                     receptor, ligand, gt_interact = data
-
+                    # print(ligand.shape)
+                    # ligand = translate_gridligand(ligand[0], 0, 0)
+                    # data = (receptor, torch.tensor(ligand).unsqueeze(0).cuda(), gt_interact, torch.tensor(iter).unsqueeze(0).cuda())
                     data = (receptor, ligand, gt_interact, torch.tensor(iter).unsqueeze(0).cuda())
                     log_dict = trainer.step_parallel(data, epoch=epoch, train=True)
                     logger.add_scalar("DockFI/Loss/Train/", log_dict["Loss"], iter*(epoch+1))
@@ -395,3 +409,4 @@ if __name__ == '__main__':
 ###
 
 #python train_docking.py -data_dir Log -experiment FI_WITHpretrain_BFfreeE_gitrestore_both -train -ebm -num_epochs 1 -batch_size 1 -num_samples 1 -gpu 0 -FI
+# python train_docking.py -data_dir Log -experiment FI_scratch_LDrecompute10_plotLD_1LD_100ep -train -ebm -num_epochs 100 -batch_size 1 -num_samples 1 -gpu 0 -FI -LD_steps 1
