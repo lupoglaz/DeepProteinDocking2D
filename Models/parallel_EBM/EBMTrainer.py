@@ -83,14 +83,16 @@ class EBMTrainer:
         self.sample_steps = sample_steps
         self.weight = weight
         self.step_size = step_size
-        self.step_size = 100
         self.device = device
 
         self.plot_idx = 0
         self.conv = ProteinConv2D()
 
-        self.sig_dr = 0.05
-        self.sig_alpha = 0.5
+        # self.sig_dr = 0.05
+        # self.sig_alpha = 0.5
+
+        self.sig_dr = 0.5
+        self.sig_alpha = 5
 
         self.docker = EQDockerGPU(EQScoringModel(repr=None).to(device='cuda'))
 
@@ -98,7 +100,7 @@ class EBMTrainer:
         if self.FI:
             print("LOAD FImodel ONCE??????")
             ##### load blank model and optimizer, once
-            lr_interaction = 10 ** -1
+            lr_interaction = 10 ** -3
             self.interaction_model = EBMBFInteractionModel().to(device=0)
             self.optimizer_interaction = optim.Adam(self.interaction_model.parameters(), lr=lr_interaction, betas=(0.0, 0.999))
 
@@ -197,8 +199,8 @@ class EBMTrainer:
         #     self.sig_alpha = 0.0
 
         if temperature == 'hot':
-            self.sig_dr = 0.5
-            self.sig_alpha = 5
+            self.sig_dr = 5
+            self.sig_alpha = 10
             # self.sig_dr = 10
             # self.sig_alpha = 20
 
@@ -366,7 +368,7 @@ class EBMTrainer:
             print("BEFORE LD")
             print(neg_alpha, neg_dr)
         neg_alpha_list_cold, neg_dr_list_cold, lastN_E_cold = self.langevin(neg_alpha, neg_dr,
-                                                        pos_rec_feat.detach(), pos_lig_feat.detach(), neg_idx, 'cold')
+                                                        neg_rec_feat.detach(), neg_rec_feat.detach(), neg_idx, 'cold')
 
         neg_alpha_list_hot, neg_dr_list_hot, lastN_E_hot = self.langevin(neg_alpha2, neg_dr2,
                                                         neg_rec_feat.detach(), neg_lig_feat.detach(), neg_idx, 'hot')
@@ -374,12 +376,13 @@ class EBMTrainer:
         if self.debug:
             print("After LD")
             print(neg_alpha, neg_dr)
+
         if self.train:
             self.model.train()
             self.interaction_model.train()
             self.requires_grad(True)
             self.model.zero_grad()
-            # self.interaction_model.zero_grad()
+            self.interaction_model.zero_grad()
         else:
             self.model.eval()
 
@@ -399,13 +402,13 @@ class EBMTrainer:
 
         lastN_E_hot_grad = []
         for i in range(len(lastN_E_hot)):
-            E_pred_neg_hot, _, _ = self.model.mult(pos_rec_feat, pos_lig_feat, neg_alpha_list_hot[i], neg_dr_list_hot[i])
+            E_pred_neg_hot, _, _ = self.model.mult(neg_rec_feat, neg_rec_feat, neg_alpha_list_hot[i], neg_dr_list_hot[i])
             E_pred_neg_hot = self.model.scorer(E_pred_neg_hot)
             lastN_E_hot_grad.append(E_pred_neg_hot)
 
         Energies_cold_grad = torch.stack(lastN_E_cold_grad, dim=0)
         Energies_hot_grad = torch.stack(lastN_E_hot_grad, dim=0)
-        pred_interact, deltaF = self.interaction_model(-Energies_cold_grad-Energies_hot_grad)
+        pred_interact, deltaF = self.interaction_model(Energies_cold_grad, Energies_hot_grad)
 
         # Energies_cold = torch.stack(lastN_E_cold, dim=0)
         # Energies_hot = torch.stack(lastN_E_hot, dim=0)
@@ -415,7 +418,7 @@ class EBMTrainer:
         with torch.no_grad():
             print('\nEnergy max and min')
             print(torch.max(Energies_cold_grad).item(), torch.min(Energies_cold_grad).item())
-            print(torch.max(Energies_hot_grad).item(), torch.min(Energies_hot_grad).item())
+            # print(torch.max(Energies_hot_grad).item(), torch.min(Energies_hot_grad).item())
             # print(torch.max(Energies_cold).item(), torch.min(Energies_cold).item())
             # print(torch.max(Energies_hot).item(), torch.min(Energies_hot).item())
 
@@ -491,7 +494,6 @@ class EBMTrainer:
             elif p < threshold and a < threshold:
                 TN += 1
             # print('returning', TP, FP, TN, FN)
-            # print('\n PREDICTED', pred_interact.item(), '; GROUND TRUTH', gt_interact.item())
             with torch.no_grad():
                 print('\n PREDICTED', pred_interact.item(), '; GROUND TRUTH', gt_interact.item())
                 if torch.round(pred_interact).item() == torch.round(gt_interact).item():
@@ -507,12 +509,14 @@ class EBMBFInteractionModel(nn.Module):
 
         self.F_0 = nn.Parameter(torch.zeros(1, requires_grad=True))
 
-    def forward(self, E):
-        deltaF = -torch.logsumexp(-E, dim=(0, 1, 2)) - self.F_0
+    def forward(self, Ecold, Ehot):
+        Fcold = -torch.logsumexp(-Ecold, dim=(0, 1, 2))
+        Fhot = -torch.logsumexp(-Ehot, dim=(0, 1, 2))
+        deltaF = Fcold + Fhot - self.F_0
         pred_interact = torch.sigmoid(-deltaF)
 
         with torch.no_grad():
             print('\n(deltaF - F_0): ', deltaF.item())
-            print('F_0: ', self.F_0.item(), 'F_0 grad', self.F_0.grad)
+            # print('F_0: ', self.F_0.item(), 'F_0 grad', self.F_0.grad)
 
         return pred_interact.squeeze(), deltaF.squeeze()

@@ -141,6 +141,19 @@ def load_ckp(checkpoint_fpath, model, optimizer):
     optimizer.load_state_dict(checkpoint['optimizer'])
     return model, optimizer, checkpoint['epoch']
 
+def pad_and_shift(ligand, receptor):
+    dim = ligand.shape[-1] // 2
+    pad = torch.nn.ConstantPad2d((dim, dim, dim, dim), 0)
+    receptor = pad(receptor)
+    ligand = pad(ligand)
+    shiftx, shifty = np.random.randint(dim, size=2)
+    if np.random.rand(1) > 0.5:
+        shiftx = -shiftx
+    if np.random.rand(1) > 0.5:
+        shifty = -shifty
+    ligand = translate_gridligand(ligand[0], shiftx, shifty)
+    data = (receptor, torch.tensor(ligand).unsqueeze(0).cuda(), gt_interact, torch.tensor(iter).unsqueeze(0).cuda())
+    return data
 if __name__ == '__main__':
     #### initialization torch settings
     import random
@@ -286,8 +299,8 @@ if __name__ == '__main__':
 
 
         # iter = 0
-        for epoch in range(args.num_epochs):
 
+        for epoch in range(args.num_epochs):
             iter = 0
             for data in tqdm(train_stream):
                 if args.ablation() == 'parallel_noGSAP':
@@ -296,17 +309,7 @@ if __name__ == '__main__':
                 elif args.ablation() == 'FI':
                     print('\nFI parallel')
                     receptor, ligand, gt_interact = data
-                    dim = ligand.shape[-1]//2
-                    pad = torch.nn.ConstantPad2d((dim, dim, dim, dim), 0)
-                    receptor = pad(receptor)
-                    ligand = pad(ligand)
-                    shiftx, shifty = np.random.randint(dim, size=2)
-                    if np.random.rand(1) > 0.5:
-                        shiftx = -shiftx
-                    if np.random.rand(1) > 0.5:
-                        shifty = -shifty
-                    ligand = translate_gridligand(ligand[0], shiftx, shifty)
-                    data = (receptor, torch.tensor(ligand).unsqueeze(0).cuda(), gt_interact, torch.tensor(iter).unsqueeze(0).cuda())
+                    data = pad_and_shift(ligand, receptor)
                     # data = (receptor, ligand, gt_interact, torch.tensor(iter).unsqueeze(0).cuda())
                     log_dict = trainer.step_parallel(data, epoch=epoch, train=True)
                     logger.add_scalar("DockFI/Loss/Train/", log_dict["Loss"], iter*(epoch+1))
