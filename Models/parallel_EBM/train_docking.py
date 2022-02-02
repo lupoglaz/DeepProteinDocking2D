@@ -28,7 +28,7 @@ from torch.utils.tensorboard import SummaryWriter
 import matplotlib.pylab as plt
 import seaborn as sea
 
-from DeepProteinDocking2D.Models.BruteForce.utility_functions import translate_gridligand
+from DeepProteinDocking2D.Models.BruteForce.utility_functions import translate_gridligand, rotate_gridligand
 
 
 sea.set_style("whitegrid")
@@ -76,6 +76,7 @@ def run_FI_eval(valid_stream, trainer):
 
     # return it_loss
     return {"Loss": pred_minus_gt.item()}
+
 
 def run_docking_model(data, docker, iter, logger=None):
     receptor, ligand, translation, rotation, indexes = data
@@ -134,6 +135,7 @@ def save_checkpoint(state, filename, model):
     model.eval()
     torch.save(state, filename)
 
+
 def load_ckp(checkpoint_fpath, model, optimizer):
     model.eval()
     checkpoint = torch.load(checkpoint_fpath)
@@ -141,19 +143,71 @@ def load_ckp(checkpoint_fpath, model, optimizer):
     optimizer.load_state_dict(checkpoint['optimizer'])
     return model, optimizer, checkpoint['epoch']
 
-def pad_and_shift(ligand, receptor):
+
+def rotate(repr, angle, x, y):
+    alpha = angle.detach()
+    dim = repr.shape[-1] // 2
+    x = (torch.ones_like(alpha)*x)/dim
+    y = (torch.ones_like(alpha)*y)/dim
+    # print(repr)
+    # print(angle)
+    # print(torch.zeros_like(angle))
+    # print("X")
+    # print(torch.ones_like(alpha)*x)
+    # print('cos')
+    # print(torch.cos(alpha))
+
+    # T0 = torch.cat([torch.cos(alpha), -torch.sin(alpha), x], dim=1)
+    # T1 = torch.cat([torch.sin(alpha), torch.cos(alpha), y], dim=1)
+    T0 = torch.cat([torch.cos(alpha), -torch.sin(alpha), y], dim=1)
+    T1 = torch.cat([torch.sin(alpha), torch.cos(alpha), x], dim=1)
+    R = torch.stack([T0, T1], dim=1)
+    # print(R)
+    curr_grid = torch.nn.functional.affine_grid(R, size=repr.size(), align_corners=True)
+    return torch.nn.functional.grid_sample(repr.float(), curr_grid.cpu(), align_corners=True)
+
+
+def pad_and_shift(ligand, receptor, last_transform=None):
+    # print(ligand.shape)
     dim = ligand.shape[-1] // 2
     pad = torch.nn.ConstantPad2d((dim, dim, dim, dim), 0)
     receptor = pad(receptor)
     ligand = pad(ligand)
-    shiftx, shifty = np.random.randint(dim, size=2)
-    if np.random.rand(1) > 0.5:
-        shiftx = -shiftx
-    if np.random.rand(1) > 0.5:
-        shifty = -shifty
-    ligand = translate_gridligand(ligand[0], shiftx, shifty)
-    data = (receptor, torch.tensor(ligand).unsqueeze(0).cuda(), gt_interact, torch.tensor(iter).unsqueeze(0).cuda())
-    return data
+    # print(ligand.shape)
+
+    # print(last_transform)
+
+    # print('plot no transform')
+    # plt.imshow(ligand.squeeze().detach().cpu().t())
+    # plt.show()
+
+    if last_transform is not None:
+        x, y = last_transform[1][0].unsqueeze(0).unsqueeze(0), last_transform[1][1].unsqueeze(0).unsqueeze(0)
+        # print(x, y)
+        ligand = rotate(ligand.unsqueeze(0).detach().cpu(), last_transform[0].unsqueeze(0).unsqueeze(0), x, y)
+        # ligand = translate_gridligand(ligand[0], last_transform[1][0], last_transform[1][1])
+        # ligand = rotate_gridligand(ligand, last_transform[0].detach().cpu())
+        # ligand = torch.tensor(ligand).unsqueeze(0).cuda()
+        # print(last_transform[1][0], last_transform[1][1])
+        # print(ligand.shape)
+        ligand = ligand.squeeze().unsqueeze(0)
+    # else:
+    #     shiftx, shifty = np.random.randint(dim, size=2)
+    #     if np.random.rand(1) > 0.5:
+    #         shiftx = -shiftx
+    #     if np.random.rand(1) > 0.5:
+    #         shifty = -shifty
+    #     ligand = translate_gridligand(ligand[0], shiftx, shifty)
+    #     ligand = torch.tensor(ligand).unsqueeze(0).cuda()
+    #     # print(last_transform)
+
+    # print('plot with transform')
+    # plt.imshow(ligand.squeeze().detach().cpu().t())
+    # plt.show()
+
+    return receptor, ligand
+
+
 if __name__ == '__main__':
     #### initialization torch settings
     import random
@@ -252,22 +306,22 @@ if __name__ == '__main__':
             # max_size = 100
             # max_size = 200
             # max_size = 50
-            max_size = 50
-            train_stream = get_interaction_stream_balanced('../../DatasetGeneration/interaction_data_train.pkl',
-                                                           batch_size=args.batch_size,
-                                                           max_size=max_size
-                                                           )
-            valid_stream = get_interaction_stream_balanced('../../DatasetGeneration/interaction_data_valid.pkl', batch_size=1,
-                                                           max_size=max_size//2
-                                                           )
-
-            # train_stream = get_interaction_stream('../../DatasetGeneration/interaction_data_train.pkl',
+            max_size = 2
+            # train_stream = get_interaction_stream_balanced('../../DatasetGeneration/interaction_data_train.pkl',
             #                                                batch_size=args.batch_size,
             #                                                max_size=max_size
             #                                                )
-            # valid_stream = get_interaction_stream('../../DatasetGeneration/interaction_data_valid.pkl', batch_size=1,
+            # valid_stream = get_interaction_stream_balanced('../../DatasetGeneration/interaction_data_valid.pkl', batch_size=1,
             #                                                max_size=max_size//2
             #                                                )
+
+            train_stream = get_interaction_stream('../../DatasetGeneration/interaction_data_train.pkl',
+                                                           batch_size=args.batch_size,
+                                                           max_size=max_size
+                                                           )
+            valid_stream = get_interaction_stream('../../DatasetGeneration/interaction_data_valid.pkl', batch_size=1,
+                                                           max_size=max_size//2
+                                                           )
 
             trainer = EBMTrainer(model, optimizer, num_samples=args.num_samples,
                                  num_buf_samples=len(train_stream) * args.batch_size, step_size=args.step_size,
@@ -299,19 +353,22 @@ if __name__ == '__main__':
 
 
         # iter = 0
-
+        last_transform_list = [None]*len(train_stream)
         for epoch in range(args.num_epochs):
             iter = 0
+            print(last_transform_list)
+
             for data in tqdm(train_stream):
                 if args.ablation() == 'parallel_noGSAP':
                     log_dict = trainer.step_parallel(data, epoch=epoch, train=True)
                     logger.add_scalar("DockIP/Loss/Train", log_dict["Loss"], iter*(epoch+1))
                 elif args.ablation() == 'FI':
-                    print('\nFI parallel')
+                    # print('\nFI parallel')
                     receptor, ligand, gt_interact = data
-                    data = pad_and_shift(ligand, receptor)
-                    # data = (receptor, ligand, gt_interact, torch.tensor(iter).unsqueeze(0).cuda())
-                    log_dict = trainer.step_parallel(data, epoch=epoch, train=True)
+                    # receptor, ligand = pad_and_shift(ligand, receptor, last_transform_list[iter])
+                    data = (receptor, ligand, gt_interact, torch.tensor(iter).unsqueeze(0).cuda())
+                    log_dict, last_transform = trainer.step_parallel(data, epoch=epoch, train=True)
+                    last_transform_list[iter] = last_transform
                     logger.add_scalar("DockFI/Loss/Train/", log_dict["Loss"], iter*(epoch+1))
                 else:
                     log_dict = trainer.step(data, epoch=epoch)
@@ -320,7 +377,7 @@ if __name__ == '__main__':
 
             if args.ablation() == 'FI':
                 log_valid = run_FI_eval(valid_stream, trainer)
-                logger.add_scalar("DockFI/Loss/Valid/", log_valid["Loss"], epoch)
+                logger.add_scalar("DockFI/Loss/Valid/", log_valid["Loss"], epoch+1)
 
             else:
                 loss = []
@@ -370,12 +427,12 @@ if __name__ == '__main__':
                 av_dockerloss = np.average(dockerloss, axis=0)
                 # logger.add_scalar("DockIP/Loss/Valid", av_dockerloss, iter)
 
-                print('Epoch', epoch, 'Valid Loss:', av_loss)
+                print('Epoch', epoch+1, 'Valid Loss:', av_loss)
                 if av_loss < min_loss:
                     # torch.save(model.state_dict(), Path('Log') / Path(args.experiment) / Path('model.th'))
                     print(f'Model saved: min_loss = {av_loss} prev = {min_loss}')
                     min_loss = av_loss
-                print('Epoch', epoch, 'Valid Docker Loss:', av_dockerloss)
+                print('Epoch', epoch+1, 'Valid Docker Loss:', av_dockerloss)
                 if av_dockerloss < min_dockerloss:
                     torch.save(model.state_dict(), Path('Log') / Path(args.experiment) / Path('model.th'))
                     print(f'docker eval: min_loss = {av_dockerloss} prev = {min_dockerloss}')

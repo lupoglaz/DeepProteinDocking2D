@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 class EBMPlotter:
     def __init__(self, model):
         self.model = model
-        self.plot_freq = 200
+        self.plot_freq = 1
 
     def plot_pose(self, receptor, ligand, rotation, translation, plot_title, filename, pos_idx, epoch, gt_rot=0,
                   gt_txy=(0, 0), pred_interact=None, gt_interact=None, plot_LD=False):
@@ -22,13 +22,15 @@ class EBMPlotter:
 
             if plot_LD:
                 plt.imshow(pair[100:, :].transpose())
+                # plt.imshow(pair[100:, :])
             else:
                 plt.imshow(pair[:, :].transpose())
+                # plt.imshow(pair[:, :])
             plt.title('EBM Input', loc='left')
             if gt_interact is not None and pred_interact is not None:
                 plt.title('Interaction: gt=' + str(gt_interact) + ' pred=' + str(pred_interact)[:3])
             plt.title(plot_title, loc='right')
-            # plt.suptitle(filename)
+            plt.suptitle('x' + str(translation.squeeze()[0].item()) + 'y' + str(translation.squeeze()[1].item()))
 
             plt.savefig(filename)
             plt.close()

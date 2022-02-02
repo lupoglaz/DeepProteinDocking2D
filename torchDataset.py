@@ -70,7 +70,7 @@ class ToyInteractionDataset(Dataset):
 				
 		self.weights = []
 		self.indexes = []
-		weight = float(self.num_proteins*self.num_proteins)/float(torch.sum(self.interactome).item())
+		weight = float(self.num_proteins*self.num_proteins)/float(torch.sum(self.interactome).item() + 1e-5)
 		N_pos = 0
 		N_neg = 0
 		for i in range(self.num_proteins):
