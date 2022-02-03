@@ -97,7 +97,7 @@ class EBMTrainer:
         self.BF_init = False
         self.Force_reg = True
         if self.Force_reg:
-            self.k = torch.ones(1).cuda() * 1e-3
+            self.k = 1e-5
 
         self.model = model
         self.optimizer = optimizer
@@ -220,7 +220,6 @@ class EBMTrainer:
 
         neg_alpha.requires_grad_()
         neg_dr.requires_grad_()
-        self.k.requires_grad_()
         langevin_opt = optim.SGD([neg_alpha, neg_dr], lr=self.step_size, momentum=0.0)
 
         # if not self.train:
@@ -244,7 +243,6 @@ class EBMTrainer:
             neg_out = self.model.scorer(pos_repr)
             if self.Force_reg:
                 # print(neg_alpha, neg_dr)
-                # print(self.k)
                 neg_out = neg_out + self.k * torch.sqrt(neg_dr.squeeze()[0]**2 + neg_dr.squeeze()[1]**2 + 1e-7)
             neg_out.mean().backward()
 
@@ -261,7 +259,7 @@ class EBMTrainer:
             with torch.no_grad():
                 # print(neg_alpha.clamp_(-np.pi, np.pi))
                 neg_dr_out = neg_dr.clone()#.clamp_(-rec_feat.size(2), rec_feat.size(2))
-                neg_alpha_out = neg_alpha.clone()#.clamp_(-np.pi, np.pi)
+                neg_alpha_out = neg_alpha#.clone().clamp_(-np.pi, np.pi)
 
             # print('inside LD')
             # print(neg_alpha, neg_dr)
@@ -466,8 +464,6 @@ class EBMTrainer:
                     self.sample_steps) + '_sample' + str(pos_idx.item())
                 EBMPlotter(self.model).plot_pose(receptor, ligand, neg_alpha.squeeze(), neg_dr.squeeze(), 'Pose after LD', filename_pose,
                                pos_idx, epoch,
-                               # gt_rot=rotation.detach().cpu().numpy(),
-                               # gt_txy=translation.detach().cpu().numpy(),
                                pred_interact=pred_interact.item(),
                                gt_interact=gt_interact.item())
 
@@ -477,6 +473,8 @@ class EBMTrainer:
                                                      neg_dr_list_cold[i].squeeze(), 'Pose after LD',
                                                      filename_pose,
                                                      pos_idx, epoch,
+                                                     gt_rot=neg_alpha_list_cold[0].squeeze().detach().cpu().numpy(),
+                                                     gt_txy=neg_dr_list_cold[0].squeeze().detach().cpu().numpy(),
                                                      pred_interact=pred_interact.item(),
                                                      gt_interact=gt_interact.item(),
                                                      plot_LD=True)
