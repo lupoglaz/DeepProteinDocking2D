@@ -36,21 +36,30 @@ class SampleBuffer:
             if len(self.buffer[i]) > self.max_pos:
                 self.buffer[i].pop(0)
 
-    def get(self, index, num_samples, device='cuda'):
+    def get(self, index, num_samples, device='cuda', last_transform=None):
         alphas = []
         drs = []
         for idx in index:
             i = idx.item()
             if len(self.buffer[i]) >= num_samples:
-                print('buffer if')
+                # print('buffer if')
                 lst = random.choices(self.buffer[i], k=num_samples)
                 alpha = list(map(lambda x: x[0], lst))
                 dr = list(map(lambda x: x[1], lst))
                 alphas.append(torch.stack(alpha, dim=0))
                 drs.append(torch.stack(dr, dim=0))
             else:
-                alphas.append(torch.zeros(num_samples, 1))
-                drs.append(torch.zeros(num_samples, 2))
+                # print('buffer else')
+                if last_transform:
+                    alphas.append(last_transform[0])
+                    drs.append(last_transform[1])
+                else:
+                    # alphas.append(torch.zeros(num_samples, 1))
+                    # drs.append(torch.zeros(num_samples, 2))
+                    alpha = torch.rand(num_samples, 1) * 2 * np.pi - np.pi
+                    dr = torch.rand(num_samples, 2) * 50.0 - 25.0
+                    alphas.append(alpha)
+                    drs.append(dr)
 
             # if len(self.buffer[i]) >= num_samples and random.randint(0, 10) < 7:
             #     lst = random.choices(self.buffer[i], k=num_samples)
@@ -86,6 +95,9 @@ class EBMTrainer:
         self.debug = False
         self.train = False
         self.BF_init = False
+        self.Force_reg = True
+        if self.Force_reg:
+            self.k = torch.ones(1).cuda() * 1e-3
 
         self.model = model
         self.optimizer = optimizer
@@ -208,6 +220,7 @@ class EBMTrainer:
 
         neg_alpha.requires_grad_()
         neg_dr.requires_grad_()
+        self.k.requires_grad_()
         langevin_opt = optim.SGD([neg_alpha, neg_dr], lr=self.step_size, momentum=0.0)
 
         # if not self.train:
@@ -229,6 +242,10 @@ class EBMTrainer:
 
             pos_repr, _, A = self.model.mult(rec_feat, lig_feat, neg_alpha, neg_dr)
             neg_out = self.model.scorer(pos_repr)
+            if self.Force_reg:
+                # print(neg_alpha, neg_dr)
+                # print(self.k)
+                neg_out = neg_out + self.k * torch.sqrt(neg_dr.squeeze()[0]**2 + neg_dr.squeeze()[1]**2 + 1e-7)
             neg_out.mean().backward()
 
             langevin_opt.step()
@@ -238,13 +255,13 @@ class EBMTrainer:
             neg_dr.data += dr_noise
             neg_alpha.data += alpha_noise
 
-            neg_dr.data = neg_dr.data.clamp_(-rec_feat.size(2), rec_feat.size(2))
-            neg_alpha.data = neg_alpha.data.clamp_(-np.pi, np.pi)
+            # neg_dr.data = neg_dr.data.clamp_(-rec_feat.size(2), rec_feat.size(2))
+            # neg_alpha.data = neg_alpha.data.clamp_(-np.pi, np.pi)
 
             with torch.no_grad():
                 # print(neg_alpha.clamp_(-np.pi, np.pi))
-                neg_dr_out = neg_dr.clone().clamp_(-rec_feat.size(2), rec_feat.size(2))
-                neg_alpha_out = neg_alpha.clone().clamp_(-np.pi, np.pi)
+                neg_dr_out = neg_dr.clone()#.clamp_(-rec_feat.size(2), rec_feat.size(2))
+                neg_alpha_out = neg_alpha.clone()#.clamp_(-np.pi, np.pi)
 
             # print('inside LD')
             # print(neg_alpha, neg_dr)
@@ -259,7 +276,7 @@ class EBMTrainer:
         else:
             return neg_alpha.detach(), neg_dr.detach()
 
-    def step_parallel(self, data, epoch=None, train=True):
+    def step_parallel(self, data, epoch=None, train=True, last_transform=None):
         self.requires_grad(True)
         gt_interact = None
         pos_alpha = None
@@ -282,8 +299,8 @@ class EBMTrainer:
         num_features = pos_rec.size(1)
         L = pos_rec.size(2)
 
-        neg_alpha, neg_dr = self.buffer.get(pos_idx, num_samples=self.num_samples)
-        neg_alpha2, neg_dr2 = self.buffer2.get(pos_idx, num_samples=self.num_samples)
+        neg_alpha, neg_dr = self.buffer.get(pos_idx, num_samples=self.num_samples, last_transform=last_transform)
+        neg_alpha2, neg_dr2 = self.buffer2.get(pos_idx, num_samples=self.num_samples, last_transform=last_transform)
 
         # print(neg_alpha, neg_dr)
 

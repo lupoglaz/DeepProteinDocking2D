@@ -303,10 +303,11 @@ if __name__ == '__main__':
             # os.system(mkdir)
             # print(mkdir)
             print('Fact of interaction: using parallel, different distribution sigmas, no GS, no AP')
-            # max_size = 100
+            max_size = 100
             # max_size = 200
             # max_size = 50
-            max_size = 2
+            # max_size = 2
+            # max_size = 10
             # train_stream = get_interaction_stream_balanced('../../DatasetGeneration/interaction_data_train.pkl',
             #                                                batch_size=args.batch_size,
             #                                                max_size=max_size
@@ -356,7 +357,7 @@ if __name__ == '__main__':
         last_transform_list = [None]*len(train_stream)
         for epoch in range(args.num_epochs):
             iter = 0
-            print(last_transform_list)
+            # print(last_transform_list)
 
             for data in tqdm(train_stream):
                 if args.ablation() == 'parallel_noGSAP':
@@ -365,9 +366,9 @@ if __name__ == '__main__':
                 elif args.ablation() == 'FI':
                     # print('\nFI parallel')
                     receptor, ligand, gt_interact = data
-                    # receptor, ligand = pad_and_shift(ligand, receptor, last_transform_list[iter])
+                    receptor, ligand = pad_and_shift(ligand, receptor, last_transform=None)
                     data = (receptor, ligand, gt_interact, torch.tensor(iter).unsqueeze(0).cuda())
-                    log_dict, last_transform = trainer.step_parallel(data, epoch=epoch, train=True)
+                    log_dict, last_transform = trainer.step_parallel(data, epoch=epoch, train=True, last_transform=last_transform_list[iter])
                     last_transform_list[iter] = last_transform
                     logger.add_scalar("DockFI/Loss/Train/", log_dict["Loss"], iter*(epoch+1))
                 else:
@@ -417,21 +418,20 @@ if __name__ == '__main__':
                                 it_loss = run_docking_model(data, docker, iter)
                     iter += 1
 
-                    loss.append(it_loss)
+                    # loss.append(it_loss)
                     dockerloss.append(docker_loss)
-                    logger.add_scalar("DockIP/Loss/Valid", it_loss, iter)
+                    # logger.add_scalar("DockIP/Loss/Valid", it_loss, iter)
                     logger.add_scalar("DockIP/Loss/ValidDocker", docker_loss, iter)
 
-                av_loss = np.average(loss, axis=0)
+                # av_loss = np.average(loss, axis=0)
                 # logger.add_scalar("DockIP/Loss/Valid", av_loss, iter)
                 av_dockerloss = np.average(dockerloss, axis=0)
                 # logger.add_scalar("DockIP/Loss/Valid", av_dockerloss, iter)
 
-                print('Epoch', epoch+1, 'Valid Loss:', av_loss)
-                if av_loss < min_loss:
-                    # torch.save(model.state_dict(), Path('Log') / Path(args.experiment) / Path('model.th'))
-                    print(f'Model saved: min_loss = {av_loss} prev = {min_loss}')
-                    min_loss = av_loss
+                # print('Epoch', epoch+1, 'Valid Loss:', av_loss)
+                # if av_loss < min_loss:
+                #     print(f'Model saved: min_loss = {av_loss} prev = {min_loss}')
+                #     min_loss = av_loss
                 print('Epoch', epoch+1, 'Valid Docker Loss:', av_dockerloss)
                 if av_dockerloss < min_dockerloss:
                     torch.save(model.state_dict(), Path('Log') / Path(args.experiment) / Path('model.th'))
