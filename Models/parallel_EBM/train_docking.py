@@ -303,11 +303,11 @@ if __name__ == '__main__':
             # os.system(mkdir)
             # print(mkdir)
             print('Fact of interaction: using parallel, different distribution sigmas, no GS, no AP')
-            max_size = 100
+            # max_size = 100
             # max_size = 200
             # max_size = 50
             # max_size = 2
-            # max_size = 10
+            max_size = 10
             # train_stream = get_interaction_stream_balanced('../../DatasetGeneration/interaction_data_train.pkl',
             #                                                batch_size=args.batch_size,
             #                                                max_size=max_size
@@ -365,11 +365,16 @@ if __name__ == '__main__':
                     logger.add_scalar("DockIP/Loss/Train", log_dict["Loss"], iter*(epoch+1))
                 elif args.ablation() == 'FI':
                     # print('\nFI parallel')
+                    # print(last_transform_list[iter])
+
                     receptor, ligand, gt_interact = data
                     receptor, ligand = pad_and_shift(ligand, receptor, last_transform=None)
                     data = (receptor, ligand, gt_interact, torch.tensor(iter).unsqueeze(0).cuda())
                     log_dict, last_transform = trainer.step_parallel(data, epoch=epoch, train=True, last_transform=last_transform_list[iter])
                     last_transform_list[iter] = last_transform
+                    # print('trainer')
+                    # print(last_transform_list[iter])
+
                     logger.add_scalar("DockFI/Loss/Train/", log_dict["Loss"], iter*(epoch+1))
                 else:
                     log_dict = trainer.step(data, epoch=epoch)
