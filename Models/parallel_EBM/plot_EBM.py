@@ -7,10 +7,10 @@ import matplotlib.pyplot as plt
 class EBMPlotter:
     def __init__(self, model):
         self.model = model
-        self.plot_freq = 10
+        self.plot_freq = 1000
 
     def plot_pose(self, receptor, ligand, rotation, translation, plot_title, filename, pos_idx, epoch, gt_rot=0,
-                  gt_txy=(0, 0), pred_interact=None, gt_interact=None, plot_LD=False):
+                  gt_txy=(0, 0), pred_interact=None, gt_interact=None, plot_LD=False, LDindex=None):
         if pos_idx % self.plot_freq == 0:
             pair = plot_assembly(receptor.squeeze().detach().cpu().numpy(),
                                  ligand.squeeze().detach().cpu().numpy(),
@@ -23,7 +23,7 @@ class EBMPlotter:
             if plot_LD:
                 plt.imshow(pair[100:, :].transpose())
                 plt.title('EBM Input', loc='left')
-                plt.suptitle('example' + str(pos_idx.item()) + '_epoch' + str(epoch + 1)
+                plt.suptitle('example' + str(pos_idx.item()) + '_epoch' + str(epoch + 1)+ 'LDindex' + str(LDindex+1)
                              +'\nx' + str(translation.squeeze()[0].item())[:3] + 'y' + str(translation.squeeze()[1].item())[:3]
                              )
                 plt.title(plot_title, loc='right')

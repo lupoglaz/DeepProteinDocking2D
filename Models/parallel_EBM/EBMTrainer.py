@@ -36,62 +36,37 @@ class SampleBuffer:
             if len(self.buffer[i]) > self.max_pos:
                 self.buffer[i].pop(0)
 
-    def get(self, index, num_samples, device='cuda', last_transform=None):
+    def get(self, index, num_samples, device='cuda', train=True):
         alphas = []
         drs = []
-        for idx in index:
-            i = idx.item()
-            if len(self.buffer[i]) >= num_samples and not eval:
-                # print('buffer if')
-                lst = random.choices(self.buffer[i], k=num_samples)
-                alpha = list(map(lambda x: x[0], lst))
-                dr = list(map(lambda x: x[1], lst))
-                alphas.append(torch.stack(alpha, dim=0))
-                drs.append(torch.stack(dr, dim=0))
-                # print('len buffer >= samples')
-            else:
-                if last_transform is not None:
-                    # print('\nlast transform')
-                    # print(last_transform)
-                    alphas.append(last_transform[0])
-                    drs.append(last_transform[1])
+        if not train:
+            # print('EVAL rand init')
+            alpha = torch.rand(num_samples, 1) * 2 * np.pi - np.pi
+            dr = torch.rand(num_samples, 2) * 50.0 - 25.0
+            alphas.append(alpha)
+            drs.append(dr)
+        else:
+            for idx in index:
+                i = idx.item()
+                if len(self.buffer[i]) >= num_samples > 1:
+                    # print('buffer if num_sampler > 1')
+                    lst = random.choices(self.buffer[i], k=num_samples)
+                    alpha = list(map(lambda x: x[0], lst))
+                    dr = list(map(lambda x: x[1], lst))
+                    alphas.append(torch.stack(alpha, dim=0))
+                    drs.append(torch.stack(dr, dim=0))
+                    # print('len buffer >= samples')
+                elif len(self.buffer[i]) == num_samples == 1:
+                    # print('buffer if num_sampler == 1')
+                    lst = self.buffer[i]
+                    alphas.append(lst[0][0])
+                    drs.append(lst[0][1])
                 else:
-                    # print('\nelse')
+                    # print('else rand init')
                     alpha = torch.rand(num_samples, 1) * 2 * np.pi - np.pi
                     dr = torch.rand(num_samples, 2) * 50.0 - 25.0
                     alphas.append(alpha)
                     drs.append(dr)
-                # # print('buffer else')
-                # if last_transform is not None:
-                #     print('\nif last_transform is not None')
-                #     # print(last_transform)
-                #     alphas.append(last_transform[0])
-                #     drs.append(last_transform[1])
-                # else:
-                # print(last_transform)
-
-                # alphas.append(torch.zeros(num_samples, 1))
-                # drs.append(torch.zeros(num_samples, 2))
-                # alpha = torch.rand(num_samples, 1) * 2 * np.pi - np.pi
-                # dr = torch.rand(num_samples, 2) * 50.0 - 25.0
-                # alphas.append(alpha)
-                # drs.append(dr)
-
-            # if len(self.buffer[i]) >= num_samples and random.randint(0, 10) < 7:
-            #     lst = random.choices(self.buffer[i], k=num_samples)
-            #     alpha = list(map(lambda x: x[0], lst))
-            #     dr = list(map(lambda x: x[1], lst))
-            #     alphas.append(torch.stack(alpha, dim=0))
-            #     drs.append(torch.stack(dr, dim=0))
-            #     # print(alpha, dr)
-            # else:
-            #     alpha = torch.rand(num_samples, 1) * 2 * np.pi - np.pi
-            #     dr = torch.rand(num_samples, 2) * 50.0 - 25.0
-            #     alphas.append(alpha)
-            #     drs.append(dr)
-            # print('\ni', i)
-            # print('buffer')
-            # print(self.buffer[i])
 
         # print('\nalpha', alpha)
         # print('dr', dr)
@@ -113,7 +88,7 @@ class EBMTrainer:
         self.BF_init = False
         self.Force_reg = True
         if self.Force_reg:
-            self.k = 1e-2
+            self.k = 1e0
 
         self.model = model
         self.optimizer = optimizer
@@ -238,10 +213,6 @@ class EBMTrainer:
         neg_dr.requires_grad_()
         langevin_opt = optim.SGD([neg_alpha, neg_dr], lr=self.step_size, momentum=0.0)
 
-        # if not self.train:
-        #     self.sig_dr = 0.0
-        #     self.sig_alpha = 0.0
-
         if temperature == 'hot':
             self.sig_dr = 0.5
             self.sig_alpha = 5
@@ -252,44 +223,57 @@ class EBMTrainer:
         lastN_alpha = []
         lastN_dr = []
 
-        # print('\nLD init transform')
-        # print(neg_alpha, neg_dr)
-        # lastN_alpha.append(neg_alpha)
-        # lastN_dr.append(neg_dr)
-        # print(lastN_alpha)
-        # print(lastN_dr)
         for i in range(self.sample_steps):
-            # print('during LD', i)
-            # print(lastN_alpha)
-            # print(lastN_dr)
-            langevin_opt.zero_grad()
+            if self.debug:
+                if i == 0 or i == 1:
+                    print('Before RandomForce LD', i)
+                    print(neg_alpha)
+                    print(neg_dr)
 
+            langevin_opt.zero_grad()
             pos_repr, _, A = self.model.mult(rec_feat, lig_feat, neg_alpha, neg_dr)
             neg_out = self.model.scorer(pos_repr)
+
             if self.Force_reg:
                 # print(neg_alpha, neg_dr)
                 neg_out = neg_out + self.k * torch.sqrt((neg_dr.squeeze()[0]**2 + neg_dr.squeeze()[1]**2) + 1e-7)
-            neg_out.mean().backward()
 
+            neg_out.mean().backward()
             langevin_opt.step()
+
+            # rand_dr = torch.normal(0, self.sig_dr, size=neg_dr.shape).cuda()
+            # neg_dr = neg_dr + rand_dr
+            # # neg_dr = neg_dr.clamp(-rec_feat.size(2), rec_feat.size(2))
+            # rand_alpha = torch.normal(0, self.sig_alpha, size=neg_alpha.shape).cuda()
+            # neg_alpha = neg_alpha + rand_alpha
 
             neg_dr = neg_dr + noise_dr.normal_(0, self.sig_dr)
             neg_alpha = neg_alpha + noise_alpha.normal_(0, self.sig_alpha)
-
+            #
+            # neg_dr.data += noise_dr.normal_(0, self.sig_dr)
+            # neg_alpha.data += noise_alpha.normal_(0, self.sig_alpha)
             # neg_dr.data = neg_dr.data.clamp_(-rec_feat.size(2), rec_feat.size(2))
             # neg_alpha.data = neg_alpha.data.clamp_(-np.pi, np.pi)
             with torch.no_grad():
                 # print(neg_alpha.clamp_(-np.pi, np.pi))
                 neg_dr_out = neg_dr.clone()#.clamp_(-rec_feat.size(2), rec_feat.size(2))
                 neg_alpha_out = neg_alpha.clone()#.clamp_(-np.pi, np.pi)
+                # print(neg_alpha, neg_dr)
+                # print(neg_alpha_out, neg_dr_out)
 
             # print('inside LD')
             # print(neg_alpha, neg_dr)
             # print(neg_alpha.data, neg_dr.data)
 
+            if self.debug:
+                if i == 0 or i == 1:
+                    print('After RandomForce LD', i)
+                    print(neg_alpha)
+                    print(neg_dr)
+
             lastN_neg_out.append(neg_out.detach())
-            lastN_alpha.append(neg_alpha_out)
-            lastN_dr.append(neg_dr_out)
+            lastN_alpha.append(neg_alpha_out.detach())
+            lastN_dr.append(neg_dr_out.detach())
 
 
         # print('after LD index 0')
@@ -299,7 +283,7 @@ class EBMTrainer:
         # print(lastN_dr)
 
         if self.FI:
-            return lastN_alpha, lastN_dr, lastN_neg_out
+            return neg_alpha.detach(), neg_dr.detach(), lastN_alpha, lastN_dr, lastN_neg_out
         else:
             return neg_alpha.detach(), neg_dr.detach()
 
@@ -326,10 +310,11 @@ class EBMTrainer:
         num_features = pos_rec.size(1)
         L = pos_rec.size(2)
 
-        neg_alpha, neg_dr = self.buffer.get(pos_idx, num_samples=self.num_samples, last_transform=last_transform)
-        neg_alpha2, neg_dr2 = self.buffer2.get(pos_idx, num_samples=self.num_samples, last_transform=last_transform)
+        neg_alpha, neg_dr = self.buffer.get(pos_idx, num_samples=self.num_samples, train=self.train)
+        # neg_alpha2, neg_dr2 = self.buffer2.get(pos_idx, num_samples=self.num_samples)
 
         # print(neg_alpha, neg_dr)
+        neg_alpha2, neg_dr2 = None, None
 
         neg_rec = pos_rec.unsqueeze(dim=1).repeat(1, self.num_samples, 1, 1, 1).view(batch_size * self.num_samples,
                                                                                      num_features, L, L)
@@ -338,8 +323,8 @@ class EBMTrainer:
         neg_idx = pos_idx.unsqueeze(dim=1).repeat(1, self.num_samples).view(batch_size * self.num_samples)
         neg_alpha = neg_alpha.view(batch_size * self.num_samples, -1)
         neg_dr = neg_dr.view(batch_size * self.num_samples, -1)
-        neg_alpha2 = neg_alpha2.view(batch_size * self.num_samples, -1)
-        neg_dr2 = neg_dr2.view(batch_size * self.num_samples, -1)
+        # neg_alpha2 = neg_alpha2.view(batch_size * self.num_samples, -1)
+        # neg_dr2 = neg_dr2.view(batch_size * self.num_samples, -1)
 
         neg_rec_feat = self.model.repr(neg_rec).tensor
         neg_lig_feat = self.model.repr(neg_lig).tensor
@@ -438,11 +423,11 @@ class EBMTrainer:
         if self.debug:
             print("BEFORE LD")
             print(neg_alpha, neg_dr)
-        neg_alpha_list_cold, neg_dr_list_cold, lastN_E_cold = self.langevin(neg_alpha, neg_dr,
+        neg_alpha, neg_dr, neg_alpha_list_cold, neg_dr_list_cold, lastN_E_cold = self.langevin(neg_alpha, neg_dr,
                                                         neg_rec_feat.detach(), neg_rec_feat.detach(), neg_idx, 'cold')
 
-        neg_alpha_list_hot, neg_dr_list_hot, lastN_E_hot = self.langevin(neg_alpha2, neg_dr2,
-                                                        neg_rec_feat.detach(), neg_lig_feat.detach(), neg_idx, 'hot')
+        # neg_alpha2, neg_dr2, neg_alpha_list_hot, neg_dr_list_hot, lastN_E_hot = self.langevin(neg_alpha2, neg_dr2,
+        #                                                 neg_rec_feat.detach(), neg_lig_feat.detach(), neg_idx, 'hot')
 
         if self.debug:
             print("After LD")
@@ -463,10 +448,10 @@ class EBMTrainer:
         ## no gradient
 
         Energies_cold_grad = self.recomp_grad(neg_rec_feat, neg_lig_feat, neg_alpha_list_cold, neg_dr_list_cold)
-        Energies_hot_grad = self.recomp_grad(neg_rec_feat, neg_lig_feat, neg_alpha_list_hot, neg_dr_list_hot)
+        # Energies_hot_grad = self.recomp_grad(neg_rec_feat, neg_lig_feat, neg_alpha_list_hot, neg_dr_list_hot)
 
-        # pred_interact, deltaF = self.interaction_model(Ecold=Energies_cold_grad, Ehot=None)
-        pred_interact, deltaF = self.interaction_model(Ecold=Energies_cold_grad, Ehot=Energies_hot_grad)
+        pred_interact, deltaF = self.interaction_model(Ecold=Energies_cold_grad, Ehot=None)
+        # pred_interact, deltaF = self.interaction_model(Ecold=Energies_cold_grad, Ehot=Energies_hot_grad)
 
         # #### grad recompute model
 
@@ -498,7 +483,8 @@ class EBMTrainer:
                                                      gt_txy=neg_dr_list_cold[0].squeeze().detach().cpu().numpy(),
                                                      pred_interact=pred_interact.item(),
                                                      gt_interact=gt_interact.item(),
-                                                     plot_LD=True)
+                                                     plot_LD=True,
+                                                     LDindex=i)
 
         if self.train:
             BCEloss = torch.nn.BCELoss()
@@ -523,7 +509,7 @@ class EBMTrainer:
             self.optimizer.step()
             self.optimizer_interaction.step()
             self.buffer.push(neg_alpha, neg_dr, neg_idx)
-            self.buffer2.push(neg_alpha2, neg_dr2, neg_idx)
+            # self.buffer2.push(neg_alpha2, neg_dr2, neg_idx)
 
             if self.debug:
                 print('checking gradients')
@@ -533,14 +519,10 @@ class EBMTrainer:
                 print('interaction model')
                 self.check_gradients(self.interaction_model, param=None)
 
-            last_transform = (neg_alpha_list_cold[-1].squeeze(), neg_dr_list_cold[-1].squeeze())
-            if self.debug:
-                print(last_transform)
+            # last_transform = (neg_alpha_list_cold[-1].squeeze(), neg_dr_list_cold[-1].squeeze())
+            # last_transform = (neg_alpha.detach(), neg_dr.detach())
 
-                print('first alpha, first dr')
-                print(neg_alpha_list_cold[0], neg_dr_list_cold[0])
-
-            return {"Loss": loss.item()}, last_transform
+            return {"Loss": loss.item()}
 
         else:
             threshold = 0.5
