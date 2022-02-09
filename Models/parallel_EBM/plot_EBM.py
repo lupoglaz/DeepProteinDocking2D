@@ -37,12 +37,16 @@ class EBMPlotter:
             plt.savefig(filename)
             plt.close()
 
-    def FI_energy_vs_F0(self, pos_list, neg_list, F_0, filename):
+    def FI_energy_vs_F0(self, pos_list, neg_list, F_0, filename, epoch):
         # plot at epoch level
-        # plot scatter of Energy mins for positive and negative examples
+        # plot scatter of Free energy mins for positive and negative examples
+        plt.title('Epoch'+str(epoch)+' Free Energies and F_0')
+        plt.ylabel('F')
+        plt.xlabel('Examples')
         plt.scatter(np.arange(len(pos_list)), pos_list, c='g', marker='v', alpha=0.5)
         plt.scatter(np.arange(len(neg_list)), neg_list, c='r', marker='^', alpha=0.5)
         plt.hlines(F_0, xmin=0, xmax=len(neg_list))
+        plt.legend(['Interaction','Non-interaction','Learned F_0'], loc='upper right')
         plt.savefig(filename)
         plot_min = min([min(pos_list), min(neg_list), F_0.item()])
         plt_max = max([max(pos_list), max(neg_list), F_0.item()])

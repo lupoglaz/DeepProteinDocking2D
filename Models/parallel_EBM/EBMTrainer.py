@@ -86,7 +86,7 @@ class EBMTrainer:
         self.debug = False
         self.train = False
         self.BF_init = False
-        self.Force_reg = True
+        self.Force_reg = False
         if self.Force_reg:
             self.k = 1e0
 
@@ -450,7 +450,7 @@ class EBMTrainer:
         Energies_cold_grad = self.recomp_grad(neg_rec_feat, neg_lig_feat, neg_alpha_list_cold, neg_dr_list_cold)
         # Energies_hot_grad = self.recomp_grad(neg_rec_feat, neg_lig_feat, neg_alpha_list_hot, neg_dr_list_hot)
 
-        pred_interact, deltaF, F_0 = self.interaction_model(Ecold=Energies_cold_grad, Ehot=None)
+        pred_interact, deltaF, F_cold, F_0 = self.interaction_model(Ecold=Energies_cold_grad, Ehot=None)
         # pred_interact, deltaF = self.interaction_model(Ecold=Energies_cold_grad, Ehot=Energies_hot_grad)
 
         # #### grad recompute model
@@ -519,12 +519,7 @@ class EBMTrainer:
                 print('interaction model')
                 self.check_gradients(self.interaction_model, param=None)
 
-            # last_transform = (neg_alpha_list_cold[-1].squeeze(), neg_dr_list_cold[-1].squeeze())
-            # last_transform = (neg_alpha.detach(), neg_dr.detach())
-            with torch.no_grad():
-                Emin = torch.min(Energies_cold_grad)
-
-            return {"Loss": loss.item()}, Emin, F_0
+            return {"Loss": loss.item()}, F_cold, F_0
 
         else:
             threshold = 0.5
@@ -571,4 +566,4 @@ class EBMBFInteractionModel(nn.Module):
         #     print('\n(deltaF - F_0): ', deltaF.item())
         #     # print('F_0: ', self.F_0.item(), 'F_0 grad', self.F_0.grad)
 
-        return pred_interact.squeeze(), deltaF.squeeze(), self.F_0.squeeze()
+        return pred_interact.squeeze(), deltaF.squeeze(), Fcold, self.F_0.squeeze()

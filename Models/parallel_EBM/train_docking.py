@@ -305,7 +305,7 @@ if __name__ == '__main__':
             # os.system(mkdir)
             # print(mkdir)
             print('Fact of interaction: using parallel, different distribution sigmas, no GS, no AP')
-            max_size = 100
+            # max_size = 100
             # max_size = 200
             # max_size = 50
             # max_size = 2
@@ -320,10 +320,10 @@ if __name__ == '__main__':
 
             train_stream = get_interaction_stream('../../DatasetGeneration/interaction_data_train.pkl',
                                                            batch_size=args.batch_size,
-                                                           max_size=max_size
+                                                           # max_size=max_size
                                                            )
             valid_stream = get_interaction_stream('../../DatasetGeneration/interaction_data_valid.pkl', batch_size=1,
-                                                           max_size=max_size//2
+                                                           # max_size=max_size//2
                                                            )
 
             trainer = EBMTrainer(model, optimizer, num_samples=args.num_samples,
@@ -372,12 +372,12 @@ if __name__ == '__main__':
                     receptor, ligand, gt_interact = data
                     receptor, ligand = pad_and_shift(ligand, receptor, last_transform=None)
                     data = (receptor, ligand, gt_interact, torch.tensor(iter).unsqueeze(0).cuda())
-                    log_dict, Emin, F_0 = trainer.step_parallel(data, epoch=epoch, train=True)
-                    Emin = Emin.detach().cpu()
+                    log_dict, F_cold, F_0 = trainer.step_parallel(data, epoch=epoch, train=True)
+                    F_cold = F_cold.detach().cpu()
                     if gt_interact > 0 and len(pos_list) < 100:
-                        pos_list.append(Emin)
+                        pos_list.append(F_cold)
                     if gt_interact < 1 and len(neg_list) < 100:
-                        neg_list.append(Emin)
+                        neg_list.append(F_cold)
                     logger.add_scalar("DockFI/Loss/Train/", log_dict["Loss"], iter*(epoch+1))
                 else:
                     log_dict = trainer.step(data, epoch=epoch)
@@ -385,9 +385,8 @@ if __name__ == '__main__':
                 iter += 1
 
             F_0 = F_0.detach().cpu()
-            filename =  '../../EBM_figs/FI_figs/'+args.experiment+ '/Emins_F0_scatter_epoch' + str(epoch + 1)
-            EBMPlotter(model).FI_energy_vs_F0(pos_list, neg_list, F_0, filename=filename)
-
+            filename = '../../EBM_figs/FI_figs/'+args.experiment+ '/Emins_F0_scatter_epoch' + str(epoch + 1)
+            EBMPlotter(model).FI_energy_vs_F0(pos_list, neg_list, F_0, filename=filename, epoch=epoch)
 
             if args.ablation() == 'FI':
                 log_valid = run_FI_eval(valid_stream, trainer)

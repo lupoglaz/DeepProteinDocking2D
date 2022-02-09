@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --partition=p_ccib_1
-#SBATCH --job-name=EBM_FI_6ep_LD10_Lreg
+#SBATCH --job-name=FI_fullset_10ep_plot1000_NoFreg
 #SBATCH --nodes=1
 ##SBATCH --ntasks=1
 #SBATCH --tasks-per-node=1
@@ -59,9 +59,12 @@ export OMP_NUM_THREADS=$SLURM_CPUS_PER_TASK
 #python train_docking.py -experiment "$exp" -test -ebm -gpu 0
 
 
-exp=$(echo EBM_FI_6ep_LD10_Lreg)
+#exp=$(echo EBM_FI_6ep_LD10_Lreg)
 
 #EBM: Fact of interaction
-python train_docking.py -experiment "$exp" -train -ebm -num_epochs 6 -batch_size 1 -gpu 0 -num_samples 1 -LD_steps 10 -FI
+#python train_docking.py -experiment "$exp" -train -ebm -num_epochs 6 -batch_size 1 -gpu 0 -num_samples 1 -LD_steps 10 -FI
 #python results.py -experiment "$exp" -docking -max_epoch 100
 #python train_docking.py -experiment "$exp" -test -ebm -gpu 0
+
+exp=$(echo FI_fullset_10ep_plot1000_NoFreg)
+python train_docking.py -data_dir Log -experiment "$exp" -LD_steps 10 -train -ebm -num_epochs 10 -batch_size 1 -num_samples 1 -gpu 0 -FI
