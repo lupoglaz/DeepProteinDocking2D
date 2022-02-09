@@ -450,7 +450,7 @@ class EBMTrainer:
         Energies_cold_grad = self.recomp_grad(neg_rec_feat, neg_lig_feat, neg_alpha_list_cold, neg_dr_list_cold)
         # Energies_hot_grad = self.recomp_grad(neg_rec_feat, neg_lig_feat, neg_alpha_list_hot, neg_dr_list_hot)
 
-        pred_interact, deltaF = self.interaction_model(Ecold=Energies_cold_grad, Ehot=None)
+        pred_interact, deltaF, F_0 = self.interaction_model(Ecold=Energies_cold_grad, Ehot=None)
         # pred_interact, deltaF = self.interaction_model(Ecold=Energies_cold_grad, Ehot=Energies_hot_grad)
 
         # #### grad recompute model
@@ -521,8 +521,10 @@ class EBMTrainer:
 
             # last_transform = (neg_alpha_list_cold[-1].squeeze(), neg_dr_list_cold[-1].squeeze())
             # last_transform = (neg_alpha.detach(), neg_dr.detach())
+            with torch.no_grad():
+                Emin = torch.min(Energies_cold_grad)
 
-            return {"Loss": loss.item()}
+            return {"Loss": loss.item()}, Emin, F_0
 
         else:
             threshold = 0.5
@@ -545,7 +547,7 @@ class EBMTrainer:
                         print(' GOOD')
                     else:
                         print(' BAD')
-            return TP, FP, TN, FN, pred_interact.squeeze() - gt_interact.squeeze().cuda()
+            return TP, FP, TN, FN
 
 
 class EBMBFInteractionModel(nn.Module):
@@ -569,4 +571,4 @@ class EBMBFInteractionModel(nn.Module):
         #     print('\n(deltaF - F_0): ', deltaF.item())
         #     # print('F_0: ', self.F_0.item(), 'F_0 grad', self.F_0.grad)
 
-        return pred_interact.squeeze(), deltaF.squeeze()
+        return pred_interact.squeeze(), deltaF.squeeze(), self.F_0.squeeze()

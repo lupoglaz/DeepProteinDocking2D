@@ -30,6 +30,8 @@ import seaborn as sea
 
 from DeepProteinDocking2D.Models.BruteForce.utility_functions import translate_gridligand, rotate_gridligand
 
+from plot_EBM import EBMPlotter
+
 
 sea.set_style("whitegrid")
 
@@ -42,7 +44,7 @@ def run_FI_eval(valid_stream, trainer):
     for data in tqdm(valid_stream):
         receptor, ligand, gt_interact = data
         data = (receptor, ligand, gt_interact, torch.tensor(pos_idx).unsqueeze(0).cuda())
-        tp, fp, tn, fn, pred_minus_gt = trainer.step_parallel(data, epoch=epoch, train=False)
+        tp, fp, tn, fn = trainer.step_parallel(data, epoch=epoch, train=False)
         # print(tp, fp, tn,fn)
         TP += tp
         FP += fp
@@ -75,7 +77,7 @@ def run_FI_eval(valid_stream, trainer):
     fout.close()
 
     # return it_loss
-    return {"Loss": pred_minus_gt.item()}
+    return {"MCC": MCC.item()}
 
 
 def run_docking_model(data, docker, iter, logger=None):
@@ -303,11 +305,11 @@ if __name__ == '__main__':
             # os.system(mkdir)
             # print(mkdir)
             print('Fact of interaction: using parallel, different distribution sigmas, no GS, no AP')
-            max_size = 100
+            # max_size = 100
             # max_size = 200
             # max_size = 50
             # max_size = 2
-            # max_size = 10
+            max_size = 10
             # train_stream = get_interaction_stream_balanced('../../DatasetGeneration/interaction_data_train.pkl',
             #                                                batch_size=args.batch_size,
             #                                                max_size=max_size
@@ -354,11 +356,12 @@ if __name__ == '__main__':
 
 
         # iter = 0
-        last_transform_list = [None]*len(train_stream)
+
         for epoch in range(args.num_epochs):
             iter = 0
             # print(last_transform_list)
-
+            pos_list = []
+            neg_list = []
             for data in tqdm(train_stream):
                 if args.ablation() == 'parallel_noGSAP':
                     log_dict = trainer.step_parallel(data, epoch=epoch, train=True)
@@ -369,25 +372,26 @@ if __name__ == '__main__':
                     receptor, ligand, gt_interact = data
                     receptor, ligand = pad_and_shift(ligand, receptor, last_transform=None)
                     data = (receptor, ligand, gt_interact, torch.tensor(iter).unsqueeze(0).cuda())
-                    log_dict = trainer.step_parallel(data, epoch=epoch, train=True)
-
-                    # receptor, ligand, gt_interact = data
-                    # receptor, ligand = pad_and_shift(ligand, receptor, last_transform=None)
-                    # data = (receptor, ligand, gt_interact, torch.tensor(iter).unsqueeze(0).cuda())
-                    # log_dict, last_transform = trainer.step_parallel(data, epoch=epoch, train=True, last_transform=last_transform_list[iter])
-                    # last_transform_list[iter] = last_transform
-                    # print('trainer')
-                    # print(last_transform_list[iter])
-
+                    log_dict, Emin, F_0 = trainer.step_parallel(data, epoch=epoch, train=True)
+                    Emin = Emin.detach().cpu()
+                    if gt_interact > 0 and len(pos_list) < 10:
+                        pos_list.append(Emin)
+                    if gt_interact < 1 and len(neg_list) < 10:
+                        neg_list.append(Emin)
                     logger.add_scalar("DockFI/Loss/Train/", log_dict["Loss"], iter*(epoch+1))
                 else:
                     log_dict = trainer.step(data, epoch=epoch)
                     logger.add_scalar("DockIP/Loss/Train", log_dict["Loss"], iter)
                 iter += 1
 
+            F_0 = F_0.detach().cpu()
+            filename =  '../../EBM_figs/FI_figs/'+args.experiment+ '/Emins_F0_scatter_epoch' + str(epoch + 1)
+            EBMPlotter(model).FI_energy_vs_F0(pos_list, neg_list, F_0, filename=filename)
+
+
             if args.ablation() == 'FI':
                 log_valid = run_FI_eval(valid_stream, trainer)
-                logger.add_scalar("DockFI/Loss/Valid/", log_valid["Loss"], epoch+1)
+                logger.add_scalar("DockFI/Loss/Valid/", log_valid["MCC"], epoch)
 
             else:
                 loss = []

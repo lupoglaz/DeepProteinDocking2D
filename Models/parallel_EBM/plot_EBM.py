@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 class EBMPlotter:
     def __init__(self, model):
         self.model = model
-        self.plot_freq = 1000
+        self.plot_freq = 10
 
     def plot_pose(self, receptor, ligand, rotation, translation, plot_title, filename, pos_idx, epoch, gt_rot=0,
                   gt_txy=(0, 0), pred_interact=None, gt_interact=None, plot_LD=False, LDindex=None):
@@ -34,9 +34,20 @@ class EBMPlotter:
             if gt_interact is not None and pred_interact is not None:
                 plt.title('Interaction: gt=' + str(gt_interact) + ' pred=' + str(pred_interact)[:3])
 
-
             plt.savefig(filename)
             plt.close()
+
+    def FI_energy_vs_F0(self, pos_list, neg_list, F_0, filename):
+        # plot at epoch level
+        # plot scatter of Energy mins for positive and negative examples
+        plt.scatter(np.arange(len(pos_list)), pos_list, c='g', marker='v', alpha=0.5)
+        plt.scatter(np.arange(len(neg_list)), neg_list, c='r', marker='^', alpha=0.5)
+        plt.hlines(F_0, xmin=0, xmax=len(neg_list))
+        plt.savefig(filename)
+        plot_min = min([min(pos_list), min(neg_list), F_0.item()])
+        plt_max = max([max(pos_list), max(neg_list), F_0.item()])
+        plt.ylim([plot_min, plt_max])
+        plt.close()
 
     def plot_feats(self, neg_rec_feat, neg_lig_feat, epoch, pos_idx, filename):
         if pos_idx % self.plot_freq == 0:
@@ -74,8 +85,6 @@ class EBMPlotter:
         reprs = torch.cat([repr_0, repr_1], dim=0)
 
         return reprs
-
-
 
     def plot_IP_energy_loss(self, L_p, L_n, epoch, pos_idx, filename):
         print('L_p, L_n', L_p, L_n)
