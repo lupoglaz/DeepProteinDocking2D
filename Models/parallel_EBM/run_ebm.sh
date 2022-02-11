@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --partition=p_ccib_1
-#SBATCH --job-name=FI_fullset_10ep_plot1000_NoFreg
+#SBATCH --job-name=FI_20ep_lr-3_NoFreg_LD100_plot10k
 #SBATCH --nodes=1
 ##SBATCH --ntasks=1
 #SBATCH --tasks-per-node=1
