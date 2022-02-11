@@ -12,10 +12,13 @@ from DeepProteinDocking2D.Models.BruteForce.validation_metrics import RMSD
 from DeepProteinDocking2D.Models.BruteForce.utility_functions import plot_assembly
 import numpy as np
 
+
 class TorchDockingFFT:
-    def __init__(self):
-        self.dim = 100
-        self.num_angles = 360
+    def __init__(self, lig_feats, rec_feats, num_angles=360):
+        self.lig_feats = lig_feats
+        self.rec_feats = rec_feats
+        self.dim = self.lig_feats.shape[-1]
+        self.num_angles = num_angles
         self.angles = torch.from_numpy(np.linspace(-np.pi, np.pi, num=self.num_angles)).cuda()
 
     def encode_transform(self, gt_rot, gt_txy):
@@ -114,7 +117,7 @@ class TorchDockingFFT:
 
         f_rec = receptor.unsqueeze(0).repeat(self.num_angles,1,1,1)
         f_lig = ligand.unsqueeze(0).repeat(self.num_angles,1,1,1)
-        rot_lig = TorchDockingFFT().rotate(f_lig, self.angles)
+        rot_lig = self.rotate(f_lig, self.angles)
 
         if initbox_size % 2 == 0:
             f_rec = F.pad(f_rec, pad=([pad_size, pad_size, pad_size, pad_size]), mode='constant', value=0)
@@ -137,7 +140,7 @@ class TorchDockingFFT:
                         plt.imshow(rot_lig[i,0,:,:].detach().cpu())
                         plt.show()
 
-        score = TorchDockingFFT().CE_dock_translations(f_rec, rot_lig, weight_bound, weight_crossterm1, weight_crossterm2, weight_bulk)
+        score = self.CE_dock_translations(f_rec, rot_lig, weight_bound, weight_crossterm1, weight_crossterm2, weight_bulk)
         # score = SwapQuadrants2DFunction.apply(score)
 
         return score
@@ -221,11 +224,10 @@ class TorchDockingFFT:
         return score
 
 
-    @staticmethod
-    def check_FFT_predictions(FFT_score, receptor, ligand, gt_txy, gt_rot):
+    def check_FFT_predictions(self, FFT_score, receptor, ligand, gt_txy, gt_rot):
         print('\n'+'*'*50)
 
-        pred_rot, pred_txy = TorchDockingFFT().extract_transform(FFT_score)
+        pred_rot, pred_txy = self.extract_transform(FFT_score)
         rmsd_out = RMSD(ligand, gt_rot, gt_txy, pred_rot, pred_txy).calc_rmsd()
         print('extracted predicted indices', pred_rot, pred_txy)
         print('gt indices', gt_rot, gt_txy)
@@ -304,12 +306,12 @@ if __name__ == '__main__':
         gt_rot = gt_rot.to(device='cuda', dtype=torch.float)
         gt_txy = gt_txy.to(device='cuda', dtype=torch.float)
 
-        receptor_stack = TorchDockingFFT().make_boundary(receptor)
-        ligand_stack = TorchDockingFFT().make_boundary(ligand)
-        FFT_score = TorchDockingFFT().dock_global(receptor_stack, ligand_stack, debug=False)
+        receptor_stack = TorchDockingFFT.make_boundary(receptor)
+        ligand_stack = TorchDockingFFT.make_boundary(ligand)
+        FFT_score = TorchDockingFFT(receptor_stack, ligand_stack).dock_global(receptor_stack, ligand_stack, debug=False)
 
 
-        TorchDockingFFT().check_FFT_predictions(FFT_score, receptor, ligand, gt_txy, gt_rot)
+        TorchDockingFFT(receptor_stack, ligand_stack).check_FFT_predictions(FFT_score, receptor, ligand, gt_txy, gt_rot)
 
         # FFT_score = TorchDockingFFT().dock_global(receptor_stack, ligand_stack, weight_bound=-0.3, weight_crossterm1=0.55, weight_crossterm2=0.55, weight_bulk=3.0, debug=False)
         #

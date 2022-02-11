@@ -145,67 +145,12 @@ def load_ckp(checkpoint_fpath, model, optimizer):
     optimizer.load_state_dict(checkpoint['optimizer'])
     return model, optimizer, checkpoint['epoch']
 
-
-def rotate(repr, angle, x, y):
-    alpha = angle.detach()
-    dim = repr.shape[-1] // 2
-    x = (torch.ones_like(alpha)*x)/dim
-    y = (torch.ones_like(alpha)*y)/dim
-    # print(repr)
-    # print(angle)
-    # print(torch.zeros_like(angle))
-    # print("X")
-    # print(torch.ones_like(alpha)*x)
-    # print('cos')
-    # print(torch.cos(alpha))
-
-    # T0 = torch.cat([torch.cos(alpha), -torch.sin(alpha), x], dim=1)
-    # T1 = torch.cat([torch.sin(alpha), torch.cos(alpha), y], dim=1)
-    T0 = torch.cat([torch.cos(alpha), -torch.sin(alpha), y], dim=1)
-    T1 = torch.cat([torch.sin(alpha), torch.cos(alpha), x], dim=1)
-    R = torch.stack([T0, T1], dim=1)
-    # print(R)
-    curr_grid = torch.nn.functional.affine_grid(R, size=repr.size(), align_corners=True)
-    return torch.nn.functional.grid_sample(repr.float(), curr_grid.cpu(), align_corners=True)
-
-
-def pad_and_shift(ligand, receptor, last_transform=None):
+def pad_shapes(ligand, receptor):
     # print(ligand.shape)
     dim = ligand.shape[-1] // 2
     pad = torch.nn.ConstantPad2d((dim, dim, dim, dim), 0)
     receptor = pad(receptor)
     ligand = pad(ligand)
-    # print(ligand.shape)
-
-    # print(last_transform)
-
-    # print('plot no transform')
-    # plt.imshow(ligand.squeeze().detach().cpu().t())
-    # plt.show()
-
-    if last_transform is not None:
-        x, y = last_transform[1][0].unsqueeze(0).unsqueeze(0), last_transform[1][1].unsqueeze(0).unsqueeze(0)
-        # print(x, y)
-        ligand = rotate(ligand.unsqueeze(0).detach().cpu(), last_transform[0].unsqueeze(0).unsqueeze(0), x, y)
-        # ligand = translate_gridligand(ligand[0], last_transform[1][0], last_transform[1][1])
-        # ligand = rotate_gridligand(ligand, last_transform[0].detach().cpu())
-        # ligand = torch.tensor(ligand).unsqueeze(0).cuda()
-        # print(last_transform[1][0], last_transform[1][1])
-        # print(ligand.shape)
-        ligand = ligand.squeeze().unsqueeze(0)
-    # else:
-    #     shiftx, shifty = np.random.randint(dim, size=2)
-    #     if np.random.rand(1) > 0.5:
-    #         shiftx = -shiftx
-    #     if np.random.rand(1) > 0.5:
-    #         shifty = -shifty
-    #     ligand = translate_gridligand(ligand[0], shiftx, shifty)
-    #     ligand = torch.tensor(ligand).unsqueeze(0).cuda()
-    #     # print(last_transform)
-
-    # print('plot with transform')
-    # plt.imshow(ligand.squeeze().detach().cpu().t())
-    # plt.show()
 
     return receptor, ligand
 
@@ -307,9 +252,10 @@ if __name__ == '__main__':
             print('Fact of interaction: using parallel, different distribution sigmas, no GS, no AP')
             # max_size = 100
             # max_size = 200
-            # max_size = 50
             # max_size = 2
             # max_size = 10
+            # max_size = 20
+            # max_size = 50
             # train_stream = get_interaction_stream_balanced('../../DatasetGeneration/interaction_data_train.pkl',
             #                                                batch_size=args.batch_size,
             #                                                max_size=max_size
@@ -323,7 +269,7 @@ if __name__ == '__main__':
                                                            # max_size=max_size
                                                            )
             valid_stream = get_interaction_stream('../../DatasetGeneration/interaction_data_valid.pkl', batch_size=1,
-                                                           # max_size=max_size//2
+                                                           # max_size=max_size
                                                            )
 
             trainer = EBMTrainer(model, optimizer, num_samples=args.num_samples,
@@ -370,7 +316,7 @@ if __name__ == '__main__':
                     # print('\nFI parallel')
                     # print(last_transform_list[iter])
                     receptor, ligand, gt_interact = data
-                    receptor, ligand = pad_and_shift(ligand, receptor, last_transform=None)
+                    receptor, ligand = pad_shapes(ligand, receptor)
                     data = (receptor, ligand, gt_interact, torch.tensor(iter).unsqueeze(0).cuda())
                     log_dict, F_cold, F_0 = trainer.step_parallel(data, epoch=epoch, train=True)
                     F_cold = F_cold.detach().cpu()
@@ -389,6 +335,7 @@ if __name__ == '__main__':
             EBMPlotter(model).FI_energy_vs_F0(pos_list, neg_list, F_0, filename=filename, epoch=epoch)
 
             if args.ablation() == 'FI':
+                print("Validation epoch: ", epoch)
                 log_valid = run_FI_eval(valid_stream, trainer)
                 logger.add_scalar("DockFI/Loss/Valid/", log_valid["MCC"], epoch)
 

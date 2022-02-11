@@ -5,9 +5,9 @@ import matplotlib.pyplot as plt
 
 
 class EBMPlotter:
-    def __init__(self, model):
+    def __init__(self, model, plot_freq=10000):
         self.model = model
-        self.plot_freq = 1000
+        self.plot_freq = plot_freq
 
     def plot_pose(self, receptor, ligand, rotation, translation, plot_title, filename, pos_idx, epoch, gt_rot=0,
                   gt_txy=(0, 0), pred_interact=None, gt_interact=None, plot_LD=False, LDindex=None):

@@ -88,7 +88,7 @@ class EBMTrainer:
         self.BF_init = False
         self.Force_reg = False
         if self.Force_reg:
-            self.k = 1e0
+            self.k = 1e-5
 
         self.model = model
         self.optimizer = optimizer
@@ -120,7 +120,7 @@ class EBMTrainer:
             # print("LOAD FImodel ONCE??????")
             ##### load blank model and optimizer, once
             lr_interaction = 10 ** -3
-            self.interaction_model = EBMBFInteractionModel().to(device=0)
+            self.interaction_model = FreeEnergyInteraction().to(device=0)
             self.optimizer_interaction = optim.Adam(self.interaction_model.parameters(), lr=lr_interaction, betas=(0.0, 0.999))
 
         self.experiment = experiment
@@ -249,7 +249,7 @@ class EBMTrainer:
 
             neg_dr = neg_dr + noise_dr.normal_(0, self.sig_dr)
             neg_alpha = neg_alpha + noise_alpha.normal_(0, self.sig_alpha)
-            #
+
             # neg_dr.data += noise_dr.normal_(0, self.sig_dr)
             # neg_alpha.data += noise_alpha.normal_(0, self.sig_alpha)
             # neg_dr.data = neg_dr.data.clamp_(-rec_feat.size(2), rec_feat.size(2))
@@ -472,19 +472,19 @@ class EBMTrainer:
                                pos_idx, epoch,
                                pred_interact=pred_interact.item(),
                                gt_interact=gt_interact.item())
-
-                for i in range(len(lastN_E_cold)):
-                    filename_pose = self.path_LD + '/sample' + str(pos_idx.item()) +'_epoch' + str(epoch+1) + '_LDstep'+str(i+1)
-                    EBMPlotter(self.model).plot_pose(receptor, ligand, neg_alpha_list_cold[i].squeeze(),
-                                                     neg_dr_list_cold[i].squeeze(), 'Pose after LD',
-                                                     filename_pose,
-                                                     pos_idx, epoch,
-                                                     gt_rot=neg_alpha_list_cold[0].squeeze().detach().cpu().numpy(),
-                                                     gt_txy=neg_dr_list_cold[0].squeeze().detach().cpu().numpy(),
-                                                     pred_interact=pred_interact.item(),
-                                                     gt_interact=gt_interact.item(),
-                                                     plot_LD=True,
-                                                     LDindex=i)
+                if self.debug:
+                    for i in range(len(lastN_E_cold)):
+                        filename_pose = self.path_LD + '/sample' + str(pos_idx.item()) +'_epoch' + str(epoch+1) + '_LDstep'+str(i+1)
+                        EBMPlotter(self.model).plot_pose(receptor, ligand, neg_alpha_list_cold[i].squeeze(),
+                                                         neg_dr_list_cold[i].squeeze(), 'Pose after LD',
+                                                         filename_pose,
+                                                         pos_idx, epoch,
+                                                         gt_rot=neg_alpha_list_cold[0].squeeze().detach().cpu().numpy(),
+                                                         gt_txy=neg_dr_list_cold[0].squeeze().detach().cpu().numpy(),
+                                                         pred_interact=pred_interact.item(),
+                                                         gt_interact=gt_interact.item(),
+                                                         plot_LD=True,
+                                                         LDindex=i)
 
         if self.train:
             BCEloss = torch.nn.BCELoss()
@@ -545,9 +545,9 @@ class EBMTrainer:
             return TP, FP, TN, FN
 
 
-class EBMBFInteractionModel(nn.Module):
+class FreeEnergyInteraction(nn.Module):
     def __init__(self):
-        super(EBMBFInteractionModel, self).__init__()
+        super(FreeEnergyInteraction, self).__init__()
 
         self.F_0 = nn.Parameter(torch.zeros(1, requires_grad=True))
 

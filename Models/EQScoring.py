@@ -34,6 +34,7 @@ class EQScoringModel(nn.Module):
         pos_repr, _, A = self.mult(rec_feat, lig_feat, alpha, dr)
 
         score = self.scorer(pos_repr)
+
         return score
 
 

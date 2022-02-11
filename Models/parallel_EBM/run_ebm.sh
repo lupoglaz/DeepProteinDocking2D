@@ -66,5 +66,5 @@ export OMP_NUM_THREADS=$SLURM_CPUS_PER_TASK
 #python results.py -experiment "$exp" -docking -max_epoch 100
 #python train_docking.py -experiment "$exp" -test -ebm -gpu 0
 
-exp=$(echo FI_fullset_10ep_plot1000_NoFreg)
-python train_docking.py -data_dir Log -experiment "$exp" -LD_steps 10 -train -ebm -num_epochs 10 -batch_size 1 -num_samples 1 -gpu 0 -FI
+exp=$(echo FI_20ep_lr-3_NoFreg_LD100_plot10k)
+python train_docking.py -data_dir Log -experiment "$exp" -LD_steps 100 -train -ebm -num_epochs 20 -batch_size 1 -num_samples 1 -gpu 0 -FI
