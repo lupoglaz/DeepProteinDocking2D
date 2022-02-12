@@ -119,7 +119,7 @@ class EBMTrainer:
         if self.FI:
             # print("LOAD FImodel ONCE??????")
             ##### load blank model and optimizer, once
-            lr_interaction = 10 ** -3
+            lr_interaction = 10 ** -1
             self.interaction_model = FreeEnergyInteraction().to(device=0)
             self.optimizer_interaction = optim.Adam(self.interaction_model.parameters(), lr=lr_interaction, betas=(0.0, 0.999))
 
@@ -536,6 +536,7 @@ class EBMTrainer:
                 TN += 1
             # print('returning', TP, FP, TN, FN)
             if self.debug:
+
                 with torch.no_grad():
                     print('\n PREDICTED', pred_interact.item(), '; GROUND TRUTH', gt_interact.item())
                     if torch.round(pred_interact).item() == torch.round(gt_interact).item():

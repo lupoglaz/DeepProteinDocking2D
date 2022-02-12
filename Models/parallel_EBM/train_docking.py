@@ -255,7 +255,7 @@ if __name__ == '__main__':
             # max_size = 2
             # max_size = 10
             # max_size = 20
-            # max_size = 50
+            max_size = 50
             # train_stream = get_interaction_stream_balanced('../../DatasetGeneration/interaction_data_train.pkl',
             #                                                batch_size=args.batch_size,
             #                                                max_size=max_size
@@ -266,10 +266,10 @@ if __name__ == '__main__':
 
             train_stream = get_interaction_stream('../../DatasetGeneration/interaction_data_train.pkl',
                                                            batch_size=args.batch_size,
-                                                           # max_size=max_size
+                                                           max_size=max_size
                                                            )
             valid_stream = get_interaction_stream('../../DatasetGeneration/interaction_data_valid.pkl', batch_size=1,
-                                                           # max_size=max_size
+                                                           max_size=max_size
                                                            )
 
             trainer = EBMTrainer(model, optimizer, num_samples=args.num_samples,

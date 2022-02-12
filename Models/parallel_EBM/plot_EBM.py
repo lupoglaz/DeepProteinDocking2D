@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 
 
 class EBMPlotter:
-    def __init__(self, model, plot_freq=10000):
+    def __init__(self, model, plot_freq=20):
         self.model = model
         self.plot_freq = plot_freq
 
