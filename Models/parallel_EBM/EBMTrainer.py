@@ -381,10 +381,10 @@ class EBMTrainer:
                 # print('\nL_p, L_n, \n', L_p.item(), L_n.item())
                 # print('Loss\n', loss.item())
 
-                filename = self.path_IP + '/IPenergyandpose_epoch' + str(epoch+1) + '_example' + str(pos_idx.item())
+                filename = self.path_IP + '/IPenergyandpose_epoch' + str(epoch) + '_example' + str(pos_idx.item())
                 EBMPlotter(self.model).plot_energy_and_pose(pos_idx, L_p, L_n, epoch, receptor, ligand, pos_alpha, pos_dr,
                                           neg_alpha, neg_dr, filename)
-                filename = self.path_IP + '/IPfeats_epoch' + str(epoch+1) + '_example' + str(pos_idx.item())
+                filename = self.path_IP + '/IPfeats_epoch' + str(epoch) + '_example' + str(pos_idx.item())
                 EBMPlotter(self.model).plot_feats(neg_rec_feat, neg_lig_feat, epoch, pos_idx, filename)
 
         # never add postive for step parallel and 1D LD buffer
@@ -465,16 +465,16 @@ class EBMTrainer:
 
         if self.train:
             with torch.no_grad():
-                filename_feats = self.path_FI + '/Feats_sample' + str(pos_idx.item()) +'_epoch' + str(epoch+1)
+                filename_feats = self.path_FI + '/Feats_sample' + str(pos_idx.item()) +'_epoch' + str(epoch)
                 EBMPlotter(self.model).plot_feats(neg_rec_feat, neg_lig_feat, epoch, pos_idx, filename_feats)
-                filename_pose = self.path_FI + '/Pose_sample' + str(pos_idx.item()) +'_epoch' + str(epoch+1)
+                filename_pose = self.path_FI + '/Pose_sample' + str(pos_idx.item()) +'_epoch' + str(epoch)
                 EBMPlotter(self.model).plot_pose(receptor, ligand, neg_alpha.squeeze(), neg_dr.squeeze(), 'Pose after LD', filename_pose,
                                pos_idx, epoch,
                                pred_interact=pred_interact.item(),
                                gt_interact=gt_interact.item())
                 if self.debug:
                     for i in range(len(lastN_E_cold)):
-                        filename_pose = self.path_LD + '/sample' + str(pos_idx.item()) +'_epoch' + str(epoch+1) + '_LDstep'+str(i+1)
+                        filename_pose = self.path_LD + '/sample' + str(pos_idx.item()) +'_epoch' + str(epoch) + '_LDstep'+str(i+1)
                         EBMPlotter(self.model).plot_pose(receptor, ligand, neg_alpha_list_cold[i].squeeze(),
                                                          neg_dr_list_cold[i].squeeze(), 'Pose after LD',
                                                          filename_pose,
@@ -490,12 +490,10 @@ class EBMTrainer:
             BCEloss = torch.nn.BCELoss()
             loss = BCEloss(pred_interact.squeeze(), gt_interact.squeeze().cuda())
 
-            # l1_loss = torch.nn.L1Loss()
-            # w = 10 ** -5
-            # L_reg = w * l1_loss(deltaF.squeeze(), torch.zeros(1).squeeze().cuda())
-            # loss += L_reg
-
-            # loss += loss_LpLn
+            l1_loss = torch.nn.L1Loss()
+            w = 10 ** -5
+            L_reg = w * l1_loss(deltaF.squeeze(), torch.zeros(1).squeeze().cuda())
+            loss += L_reg
 
             loss.backward()
             if self.debug:

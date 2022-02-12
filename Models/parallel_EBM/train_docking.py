@@ -255,22 +255,22 @@ if __name__ == '__main__':
             # max_size = 2
             # max_size = 10
             # max_size = 20
-            max_size = 50
-            # train_stream = get_interaction_stream_balanced('../../DatasetGeneration/interaction_data_train.pkl',
+            # max_size = 50
+            train_stream = get_interaction_stream_balanced('../../DatasetGeneration/interaction_data_train.pkl',
+                                                           batch_size=args.batch_size,
+                                                           # max_size=max_size
+                                                           )
+            valid_stream = get_interaction_stream_balanced('../../DatasetGeneration/interaction_data_valid.pkl', batch_size=1,
+                                                           # max_size=max_size
+                                                           )
+
+            # train_stream = get_interaction_stream('../../DatasetGeneration/interaction_data_train.pkl',
             #                                                batch_size=args.batch_size,
             #                                                max_size=max_size
             #                                                )
-            # valid_stream = get_interaction_stream_balanced('../../DatasetGeneration/interaction_data_valid.pkl', batch_size=1,
-            #                                                max_size=max_size//2
+            # valid_stream = get_interaction_stream('../../DatasetGeneration/interaction_data_valid.pkl', batch_size=1,
+            #                                                max_size=max_size
             #                                                )
-
-            train_stream = get_interaction_stream('../../DatasetGeneration/interaction_data_train.pkl',
-                                                           batch_size=args.batch_size,
-                                                           max_size=max_size
-                                                           )
-            valid_stream = get_interaction_stream('../../DatasetGeneration/interaction_data_valid.pkl', batch_size=1,
-                                                           max_size=max_size
-                                                           )
 
             trainer = EBMTrainer(model, optimizer, num_samples=args.num_samples,
                                  num_buf_samples=len(train_stream) * args.batch_size, step_size=args.step_size,
@@ -331,13 +331,14 @@ if __name__ == '__main__':
                 iter += 1
 
             F_0 = F_0.detach().cpu()
-            filename = '../../EBM_figs/FI_figs/'+args.experiment+ '/Emins_F0_scatter_epoch' + str(epoch + 1)
+            filename = '../../EBM_figs/FI_figs/'+args.experiment+ '/Emins_F0_scatter_epoch' + str(epoch)
             EBMPlotter(model).FI_energy_vs_F0(pos_list, neg_list, F_0, filename=filename, epoch=epoch)
 
             if args.ablation() == 'FI':
-                print("Validation epoch: ", epoch)
-                log_valid = run_FI_eval(valid_stream, trainer)
-                logger.add_scalar("DockFI/Loss/Valid/", log_valid["MCC"], epoch)
+                if epoch % 5 == 0:
+                    print("Validation epoch: ", epoch)
+                    log_valid = run_FI_eval(valid_stream, trainer)
+                    logger.add_scalar("DockFI/Loss/Valid/", log_valid["MCC"], epoch)
 
             else:
                 loss = []
@@ -391,7 +392,7 @@ if __name__ == '__main__':
                 # if av_loss < min_loss:
                 #     print(f'Model saved: min_loss = {av_loss} prev = {min_loss}')
                 #     min_loss = av_loss
-                print('Epoch', epoch+1, 'Valid Docker Loss:', av_dockerloss)
+                print('Epoch', epoch, 'Valid Docker Loss:', av_dockerloss)
                 if av_dockerloss < min_dockerloss:
                     torch.save(model.state_dict(), Path('Log') / Path(args.experiment) / Path('model.th'))
                     print(f'docker eval: min_loss = {av_dockerloss} prev = {min_dockerloss}')

@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 
 
 class EBMPlotter:
-    def __init__(self, model, plot_freq=20):
+    def __init__(self, model, plot_freq=10000):
         self.model = model
         self.plot_freq = plot_freq
 
@@ -43,14 +43,14 @@ class EBMPlotter:
         plt.title('Epoch'+str(epoch)+' Free Energies and F_0')
         plt.ylabel('F')
         plt.xlabel('Examples')
+        plot_min = max(min([min(pos_list), min(neg_list), F_0.item()]), -30)
+        plot_max = min(max([max(pos_list), max(neg_list), F_0.item()]), +30)
+        plt.ylim([plot_min, plot_max])
         plt.scatter(np.arange(len(pos_list)), pos_list, c='g', marker='v', alpha=0.5)
         plt.scatter(np.arange(len(neg_list)), neg_list, c='r', marker='^', alpha=0.5)
         plt.hlines(F_0, xmin=0, xmax=len(neg_list))
         plt.legend(['Interaction','Non-interaction','Learned F_0'], loc='upper right')
         plt.savefig(filename)
-        plot_min = min([min(pos_list), min(neg_list), F_0.item()])
-        plt_max = max([max(pos_list), max(neg_list), F_0.item()])
-        plt.ylim([plot_min, plt_max])
         plt.close()
 
     def plot_feats(self, neg_rec_feat, neg_lig_feat, epoch, pos_idx, filename):
@@ -66,7 +66,7 @@ class EBMPlotter:
                 plt.imshow(neg_plot)
                 plt.colorbar()
                 plt.title('Bulk', loc='left')
-                plt.title('Example' + str(pos_idx.item()))
+                plt.title('Epoch'+str(epoch)+' Ex' + str(pos_idx.item()))
                 plt.title('Boundary', loc='right')
 
                 plt.savefig(filename)
