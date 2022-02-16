@@ -86,9 +86,19 @@ class EBMTrainer:
         self.debug = False
         self.train = False
         self.BF_init = False
-        self.Force_reg = False
+        self.wReg = False
+        self.Force_reg = True
         if self.Force_reg:
-            self.k = 1e-5
+            self.k = 1e-2
+            self.eps = 1e-7
+
+        self.FI = FI
+        if self.FI:
+            # print("LOAD FImodel ONCE??????")
+            ##### load blank model and optimizer, once
+            lr_interaction = 10 ** -2
+            self.interaction_model = FreeEnergyInteraction().to(device=0)
+            self.optimizer_interaction = optim.Adam(self.interaction_model.parameters(), lr=lr_interaction)
 
         self.model = model
         self.optimizer = optimizer
@@ -107,21 +117,7 @@ class EBMTrainer:
         self.plot_idx = 0
         self.conv = ProteinConv2D()
 
-        self.sig_dr = 0.05
-        self.sig_alpha = 0.5
-
-        # self.sig_dr = 0.5
-        # self.sig_alpha = 5
-
         self.docker = EQDockerGPU(EQScoringModel(repr=None).to(device='cuda'))
-
-        self.FI = FI
-        if self.FI:
-            # print("LOAD FImodel ONCE??????")
-            ##### load blank model and optimizer, once
-            lr_interaction = 10 ** -1
-            self.interaction_model = FreeEnergyInteraction().to(device=0)
-            self.optimizer_interaction = optim.Adam(self.interaction_model.parameters(), lr=lr_interaction, betas=(0.0, 0.999))
 
         self.experiment = experiment
         self.path_IP = '../../EBM_figs/IP_figs/' + self.experiment
@@ -213,11 +209,21 @@ class EBMTrainer:
         neg_dr.requires_grad_()
         langevin_opt = optim.SGD([neg_alpha, neg_dr], lr=self.step_size, momentum=0.0)
 
+
+        if temperature == 'cold':
+            self.sig_dr = 0.05
+            self.sig_alpha = 0.5
+            # self.sig_dr = 0.5
+            # self.sig_alpha = 0.5
+
         if temperature == 'hot':
             self.sig_dr = 0.5
             self.sig_alpha = 5
+            # self.sig_dr = 5
+            # self.sig_alpha = 5
             # self.sig_dr = 10
             # self.sig_alpha = 20
+
 
         lastN_neg_out = []
         lastN_alpha = []
@@ -236,7 +242,14 @@ class EBMTrainer:
 
             if self.Force_reg:
                 # print(neg_alpha, neg_dr)
-                neg_out = neg_out + self.k * torch.sqrt((neg_dr.squeeze()[0]**2 + neg_dr.squeeze()[1]**2) + 1e-7)
+                F_reg = self.k * torch.sqrt(torch.sum(neg_dr.data**2) + self.eps)
+                neg_out = neg_out + F_reg
+
+                # print(F_reg)
+                # print('before')
+                # print(neg_out)
+                # print('after')
+                # print(neg_out)
 
             neg_out.mean().backward()
             langevin_opt.step()
@@ -249,6 +262,7 @@ class EBMTrainer:
 
             neg_dr = neg_dr + noise_dr.normal_(0, self.sig_dr)
             neg_alpha = neg_alpha + noise_alpha.normal_(0, self.sig_alpha)
+            neg_dr.data = neg_dr.data.clamp_(-rec_feat.size(2)+10, rec_feat.size(2)-10)
 
             # neg_dr.data += noise_dr.normal_(0, self.sig_dr)
             # neg_alpha.data += noise_alpha.normal_(0, self.sig_alpha)
@@ -256,8 +270,9 @@ class EBMTrainer:
             # neg_alpha.data = neg_alpha.data.clamp_(-np.pi, np.pi)
             with torch.no_grad():
                 # print(neg_alpha.clamp_(-np.pi, np.pi))
-                neg_dr_out = neg_dr.clone()#.clamp_(-rec_feat.size(2), rec_feat.size(2))
-                neg_alpha_out = neg_alpha.clone()#.clamp_(-np.pi, np.pi)
+                neg_dr_out = neg_dr.data.clone()
+                neg_alpha_out = neg_alpha.data.clone()
+                # print('transform inside LD')
                 # print(neg_alpha, neg_dr)
                 # print(neg_alpha_out, neg_dr_out)
 
@@ -283,7 +298,7 @@ class EBMTrainer:
         # print(lastN_dr)
 
         if self.FI:
-            return neg_alpha.detach(), neg_dr.detach(), lastN_alpha, lastN_dr, lastN_neg_out
+            return neg_alpha_out.detach(), neg_dr_out.detach(), lastN_alpha, lastN_dr, lastN_neg_out
         else:
             return neg_alpha.detach(), neg_dr.detach()
 
@@ -311,10 +326,10 @@ class EBMTrainer:
         L = pos_rec.size(2)
 
         neg_alpha, neg_dr = self.buffer.get(pos_idx, num_samples=self.num_samples, train=self.train)
-        # neg_alpha2, neg_dr2 = self.buffer2.get(pos_idx, num_samples=self.num_samples)
+        neg_alpha2, neg_dr2 = self.buffer2.get(pos_idx, num_samples=self.num_samples, train=self.train)
 
         # print(neg_alpha, neg_dr)
-        neg_alpha2, neg_dr2 = None, None
+        # neg_alpha2, neg_dr2 = None, None
 
         neg_rec = pos_rec.unsqueeze(dim=1).repeat(1, self.num_samples, 1, 1, 1).view(batch_size * self.num_samples,
                                                                                      num_features, L, L)
@@ -323,8 +338,8 @@ class EBMTrainer:
         neg_idx = pos_idx.unsqueeze(dim=1).repeat(1, self.num_samples).view(batch_size * self.num_samples)
         neg_alpha = neg_alpha.view(batch_size * self.num_samples, -1)
         neg_dr = neg_dr.view(batch_size * self.num_samples, -1)
-        # neg_alpha2 = neg_alpha2.view(batch_size * self.num_samples, -1)
-        # neg_dr2 = neg_dr2.view(batch_size * self.num_samples, -1)
+        neg_alpha2 = neg_alpha2.view(batch_size * self.num_samples, -1)
+        neg_dr2 = neg_dr2.view(batch_size * self.num_samples, -1)
 
         neg_rec_feat = self.model.repr(neg_rec).tensor
         neg_lig_feat = self.model.repr(neg_lig).tensor
@@ -408,8 +423,13 @@ class EBMTrainer:
     def recomp_grad(self, neg_rec_feat, neg_lig_feat, neg_alpha_list, neg_dr_list):
         lastN_E_grad = []
         for i in range(len(neg_dr_list)):
+            # print('transform RECOMP LD')
+            # print(neg_alpha_list[i], neg_dr_list[i])
             E_pred_neg_cold, _, _ = self.model.mult(neg_rec_feat, neg_lig_feat, neg_alpha_list[i], neg_dr_list[i])
             E_pred_neg_cold = self.model.scorer(E_pred_neg_cold)
+            if self.Force_reg:
+                F_reg = self.k * torch.sqrt(torch.sum(neg_dr_list[i] ** 2) + self.eps)
+                E_pred_neg_cold = E_pred_neg_cold + F_reg
             lastN_E_grad.append(E_pred_neg_cold)
             # print(neg_dr_list_cold[i])
             # print(neg_alpha_list_cold[i])
@@ -426,8 +446,8 @@ class EBMTrainer:
         neg_alpha, neg_dr, neg_alpha_list_cold, neg_dr_list_cold, lastN_E_cold = self.langevin(neg_alpha, neg_dr,
                                                         neg_rec_feat.detach(), neg_rec_feat.detach(), neg_idx, 'cold')
 
-        # neg_alpha2, neg_dr2, neg_alpha_list_hot, neg_dr_list_hot, lastN_E_hot = self.langevin(neg_alpha2, neg_dr2,
-        #                                                 neg_rec_feat.detach(), neg_lig_feat.detach(), neg_idx, 'hot')
+        neg_alpha2, neg_dr2, neg_alpha_list_hot, neg_dr_list_hot, lastN_E_hot = self.langevin(neg_alpha2, neg_dr2,
+                                                        neg_rec_feat.detach(), neg_lig_feat.detach(), neg_idx, 'hot')
 
         if self.debug:
             print("After LD")
@@ -448,10 +468,10 @@ class EBMTrainer:
         ## no gradient
 
         Energies_cold_grad = self.recomp_grad(neg_rec_feat, neg_lig_feat, neg_alpha_list_cold, neg_dr_list_cold)
-        # Energies_hot_grad = self.recomp_grad(neg_rec_feat, neg_lig_feat, neg_alpha_list_hot, neg_dr_list_hot)
+        Energies_hot_grad = self.recomp_grad(neg_rec_feat, neg_lig_feat, neg_alpha_list_hot, neg_dr_list_hot)
 
-        pred_interact, deltaF, F_cold, F_0 = self.interaction_model(Ecold=Energies_cold_grad, Ehot=None)
-        # pred_interact, deltaF = self.interaction_model(Ecold=Energies_cold_grad, Ehot=Energies_hot_grad)
+        # pred_interact, deltaF, F_cold, F_0 = self.interaction_model(Ecold=Energies_cold_grad, Ehot=None)
+        pred_interact, deltaF, F_cold, F_0 = self.interaction_model(Ecold=Energies_cold_grad, Ehot=Energies_hot_grad, Emean=False)
 
         # #### grad recompute model
 
@@ -490,10 +510,11 @@ class EBMTrainer:
             BCEloss = torch.nn.BCELoss()
             loss = BCEloss(pred_interact.squeeze(), gt_interact.squeeze().cuda())
 
-            l1_loss = torch.nn.L1Loss()
-            w = 10 ** -5
-            L_reg = w * l1_loss(deltaF.squeeze(), torch.zeros(1).squeeze().cuda())
-            loss += L_reg
+            if self.wReg:
+                l1_loss = torch.nn.L1Loss()
+                w = 10 ** -5
+                L_reg = w * l1_loss(deltaF.squeeze(), torch.zeros(1).squeeze().cuda())
+                loss += L_reg
 
             loss.backward()
             if self.debug:
@@ -520,6 +541,7 @@ class EBMTrainer:
             return {"Loss": loss.item()}, F_cold, F_0
 
         else:
+            self.model.eval()
             threshold = 0.5
             TP, FP, TN, FN = 0, 0, 0, 0
             p = pred_interact.item()
@@ -550,15 +572,23 @@ class FreeEnergyInteraction(nn.Module):
 
         self.F_0 = nn.Parameter(torch.zeros(1, requires_grad=True))
 
-    def forward(self, Ecold, Ehot=None):
-        if Ehot is not None:
-            Fcold = -torch.logsumexp(-Ecold, dim=(0, 1, 2))
-            Fhot = -torch.logsumexp(-Ehot, dim=(0, 1, 2))
-            deltaF = Fcold + Fhot - self.F_0
+    def forward(self, Ecold, Ehot=None, Emean=False):
+        if not Emean:
+            if Ehot is not None:
+                Fcold = -torch.logsumexp(-Ecold, dim=(0, 1, 2))
+                Fhot = -torch.logsumexp(-Ehot, dim=(0, 1, 2))
+                deltaF = Fcold + Fhot - self.F_0
+            else:
+                Fcold = -torch.logsumexp(-Ecold, dim=(0, 1, 2))
+                deltaF = Fcold - self.F_0
         else:
-            Fcold = -torch.logsumexp(-Ecold, dim=(0, 1, 2))
-            deltaF = Fcold - self.F_0
-
+            if Ehot is not None:
+                Fcold = -torch.mean(-Ecold, dim=(0, 1, 2))
+                Fhot = -torch.mean(-Ehot, dim=(0, 1, 2))
+                deltaF = Fcold + Fhot - self.F_0
+            else:
+                Fcold = -torch.logsumexp(-Ecold, dim=(0, 1, 2))
+                deltaF = Fcold - self.F_0
         pred_interact = torch.sigmoid(-deltaF)
 
         # with torch.no_grad():

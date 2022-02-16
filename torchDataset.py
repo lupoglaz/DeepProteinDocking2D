@@ -3,17 +3,17 @@ import os
 import sys
 import _pickle as pkl
 import torch
-from torch.utils.data import Dataset, BatchSampler, WeightedRandomSampler
+from torch.utils.data import Dataset, BatchSampler, WeightedRandomSampler, SequentialSampler
 import numpy as np
-import random
-random.seed(42)
+# import random
+# random.seed(42)
 
 def crop_collate(batch):
 	r"""
 	"""
 	receptors = torch.stack(list(map(lambda x: x[0], batch)), dim=0)
 	ligands = torch.stack(list(map(lambda x: x[1], batch)), dim=0)
-	if len(batch[0])>3:	
+	if len(batch[0])>3:
 		translations = torch.stack(list(map(lambda x: x[2], batch)), dim=0)
 		rotations = torch.cat(list(map(lambda x: x[3], batch)), dim=0)
 		index = torch.tensor(list(map(lambda x: x[4], batch)), dtype=torch.long)
@@ -37,14 +37,14 @@ class ToyDockingDataset(Dataset):
 
 		print ("Dataset file: ", self.path)
 		print ("Dataset size: ", self.dataset_size)
-		
+
 	def __getitem__(self, index):
 		r"""
 		"""
 		receptor, ligand, translation, rotation = self.data[index]
 		return torch.from_numpy(receptor), torch.from_numpy(ligand), torch.tensor(translation), torch.tensor([rotation]), index
 
-		
+
 	def __len__(self):
 		r"""
 		Returns length of the dataset
@@ -60,14 +60,14 @@ class ToyInteractionDataset(Dataset):
 		self.path = path
 		with open(self.path, 'rb') as fin:
 			self.proteins, self.interactome = pkl.load(fin)
-		
+
 		if max_size<len(self.proteins):
 			self.proteins = self.proteins[:max_size]
 			self.interactome = self.interactome[:max_size, :max_size]
 
 		self.interactome = torch.from_numpy(self.interactome).to(dtype=torch.float32)
 		self.num_proteins = len(list(self.proteins))
-				
+
 		self.weights = []
 		self.indexes = []
 		weight = float(self.num_proteins*self.num_proteins)/float(torch.sum(self.interactome).item() + 1e-5)
@@ -90,7 +90,7 @@ class ToyInteractionDataset(Dataset):
 		print ("Dataset size: ", self.dataset_size)
 		print ("Number of proteins: ", len(self.proteins))
 		print ("Positive weight: ", weight, "Number of pos/neg:", N_pos, N_neg)
-		
+
 	def __getitem__(self, index):
 		r"""
 		"""
@@ -100,7 +100,7 @@ class ToyInteractionDataset(Dataset):
 		interaction = self.interactome[i,j]
 		return torch.from_numpy(receptor), torch.from_numpy(ligand), torch.tensor([interaction])
 
-		
+
 	def __len__(self):
 		r"""
 		Returns length of the dataset
@@ -113,10 +113,12 @@ def get_docking_stream(data_path, batch_size = 10, shuffle = False, max_size=100
 	trainloader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, num_workers=0, shuffle=shuffle, collate_fn=crop_collate)
 	return trainloader
 
-def get_interaction_stream_balanced(data_path, batch_size = 10, shuffle = False, max_size=1000):
+def get_interaction_stream_balanced(data_path, batch_size=10, max_size=1000):
 	dataset = ToyInteractionDataset(path=data_path, max_size=max_size)
-	sampler = BatchSampler(WeightedRandomSampler(dataset.weights, len(dataset.weights), replacement=True), batch_size, False)
-	trainloader = torch.utils.data.DataLoader(dataset, batch_sampler=sampler, num_workers=0, collate_fn=crop_collate)
+	sampler = BatchSampler(WeightedRandomSampler(weights=dataset.weights, num_samples=len(dataset), replacement=True), batch_size, drop_last=False)
+	trainloader = torch.utils.data.DataLoader(dataset, batch_sampler=sampler, num_workers=0, collate_fn=crop_collate, shuffle=False, pin_memory=True)
+	# sampler = SequentialSampler(WeightedRandomSampler(weights=dataset.weights, num_samples=len(dataset), replacement=True))
+	# trainloader = torch.utils.data.DataLoader(dataset, sampler=sampler, num_workers=0, collate_fn=crop_collate, shuffle=False, pin_memory=True)
 	return trainloader
 
 def get_interaction_stream(data_path, batch_size = 10, max_size=1000):
