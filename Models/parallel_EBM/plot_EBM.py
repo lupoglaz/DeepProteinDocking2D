@@ -10,7 +10,7 @@ class EBMPlotter:
         self.plot_freq = plot_freq
 
     def plot_pose(self, receptor, ligand, rotation, translation, plot_title, filename, pos_idx, epoch, gt_rot=0,
-                  gt_txy=(0, 0), pred_interact=None, gt_interact=None, plot_LD=False, LDindex=None):
+                  gt_txy=(0, 0), pred_interact=None, gt_interact=None, plot_LD=False, Energyscored=None, LDindex=None):
         if pos_idx % self.plot_freq == 0:
             pair = plot_assembly(receptor.squeeze().detach().cpu().numpy(),
                                  ligand.squeeze().detach().cpu().numpy(),
@@ -20,7 +20,7 @@ class EBMPlotter:
                                  gt_rot,
                                  gt_txy)
 
-            header = 'example' + str(pos_idx.item()) + '_epoch' + str(epoch + 1)+\
+            header = 'example' + str(pos_idx.item()) + '_epoch' + str(epoch + 1)+ 'EnergyScore=' + str(Energyscored.item())[:4] +\
                      ' x=' + str(translation.squeeze()[0].item())[:4] + 'y=' + str(translation.squeeze()[1].item())[:4] + '\n'
             if plot_LD:
                 plt.imshow(pair[100:, :].transpose())
@@ -58,8 +58,10 @@ class EBMPlotter:
     def plot_feats(self, neg_rec_feat, neg_lig_feat, epoch, pos_idx, filename):
         if pos_idx % self.plot_freq == 0:
             with torch.no_grad():
-                neg_rec_feat, neg_lig_feat = self.eigenvec_feats(neg_rec_feat.detach().cpu(),
-                                                                 neg_lig_feat.detach().cpu())
+                neg_rec_feat = neg_rec_feat.detach().cpu()
+                neg_lig_feat = neg_lig_feat.detach().cpu()
+                # neg_rec_feat, neg_lig_feat = self.eigenvec_feats(neg_rec_feat.detach().cpu(),
+                #                                                  neg_lig_feat.detach().cpu())
                 neg_rec_bulk, neg_rec_bound = neg_rec_feat.squeeze()[0, :, :], neg_rec_feat.squeeze()[1, :, :]
                 neg_lig_bulk, neg_lig_bound = neg_lig_feat.squeeze()[0, :, :], neg_lig_feat.squeeze()[1, :, :]
                 lig_plot = np.hstack((neg_lig_bulk, neg_lig_bound))

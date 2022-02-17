@@ -18,10 +18,16 @@ class EQRepresentation(nn.Module):
         super(EQRepresentation, self).__init__()
 
         r2_act = gspaces.Rot2dOnR2(N=-1, maximum_frequency=5)
+        self.scalar = 16
+        self.vector = 4
+        # self.tensor = 2
+        # self.scalar = 1
+        # self.vector = 4
         self.feat_type_in = e2nn.FieldType(r2_act, [r2_act.irreps['irrep_0']])
         self.feat_type_hid = e2nn.FieldType(r2_act,
-                                            16 * [r2_act.irreps['irrep_0']] + 4 * [r2_act.irreps['irrep_1']] + 2 * [
-                                                r2_act.irreps['irrep_2']])
+                                            self.scalar * [r2_act.irreps['irrep_0']] + self.vector * [r2_act.irreps['irrep_1']]
+                                            # + self.tensor * [r2_act.irreps['irrep_2']]
+                                            )
         self.feat_type_out = e2nn.FieldType(r2_act, 2 * [r2_act.trivial_repr])
 
         self.repr = nn.Sequential(
@@ -35,6 +41,8 @@ class EQRepresentation(nn.Module):
             e2nn.NormNonLinearity(self.feat_type_hid, bias=False),
 
             e2nn.R2Conv(self.feat_type_hid, self.feat_type_out, kernel_size=5, padding=2, bias=False),
+            # e2nn.NormNonLinearity(self.feat_type_out, bias=False),
+            e2nn.NormPool(self.feat_type_out),
         )
         with torch.no_grad():
             self.repr.apply(init_weights)

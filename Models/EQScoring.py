@@ -21,11 +21,20 @@ class EQScoringModel(nn.Module):
         self.mult = ImageCrossMultiply()
         self.repr = repr
 
-        self.scorer = nn.Sequential(
-            nn.Linear(4, 1, bias=False)
-        )
-        with torch.no_grad():
-            self.scorer.apply(init_weights)
+        self.boundW = nn.Parameter(torch.ones(1, requires_grad=True))
+        self.crosstermW1 = nn.Parameter(torch.ones(1, requires_grad=True))
+        self.crosstermW2 = nn.Parameter(torch.ones(1, requires_grad=True))
+        self.bulkW = nn.Parameter(torch.ones(1, requires_grad=True))
+
+        # self.scorer = nn.Sequential(
+        #     nn.Linear(4, 1, bias=False)
+        # )
+        # with torch.no_grad():
+        #     self.scorer.apply(init_weights)
+    #
+    def scorer(self, pos_repr):
+        # print(pos_repr.shape)
+        return self.bulkW * pos_repr[0,0] + self.crosstermW1 * pos_repr[0,1] + self.crosstermW2 * pos_repr[0,2] - self.boundW * pos_repr[0,3]
 
     def forward(self, receptor, ligand, alpha, dr):
         rec_feat = self.repr(receptor).tensor
@@ -34,7 +43,8 @@ class EQScoringModel(nn.Module):
         pos_repr, _, A = self.mult(rec_feat, lig_feat, alpha, dr)
 
         score = self.scorer(pos_repr)
-
+        # print('basldfkja;wsdlf')
+        # print(score.shape)
         return score
 
 

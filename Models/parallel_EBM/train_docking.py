@@ -448,3 +448,4 @@ if __name__ == '__main__':
 #python train_docking.py -data_dir Log -experiment FI_100ep_10LD_contLD_nopad_ebmlr-4nb_lr-1_dataFreg-1sqsum_20ep_coldhotter_noclamp_recompFreg -LD_steps 10 -train -ebm -num_epochs 20 -batch_size 1 -num_samples 1 -gpu 0 -FI
 # python train_docking.py -data_dir Log -experiment FI_10LD_ebmlr-4nb_lr-0_20ep_recompFreg+1_wReg-5 -LD_steps 10 -train -ebm -num_epochs 20 -batch_size 1 -num_samples 1 -gpu 0 -FI
 # python train_docking.py -data_dir Log -experiment FI_10LD_ebmlr-4nb_lr-2_recompFreg-2_clamptxy-10_100ep -LD_steps 10 -train -ebm -num_epochs 100 -batch_size 1 -num_samples 1 -gpu 0 -FI
+# python train_docking.py -data_dir Log -experiment FI_100ep_noFreg_clampdiv3_zerosinit_box50_s16v4t0_signedscorer_withNP_noNL_lr-2_cold5only -LD_steps 10 -train -ebm -num_epochs 100 -batch_size 1 -num_samples 1 -gpu 0 -FI

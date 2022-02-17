@@ -63,8 +63,12 @@ class SampleBuffer:
                     drs.append(lst[0][1])
                 else:
                     # print('else rand init')
-                    alpha = torch.rand(num_samples, 1) * 2 * np.pi - np.pi
-                    dr = torch.rand(num_samples, 2) * 50.0 - 25.0
+                    # alpha = torch.rand(num_samples, 1) * 2 * np.pi - np.pi
+                    # dr = torch.rand(num_samples, 2) * 50.0 - 25.0
+                    # alphas.append(alpha)
+                    # drs.append(dr)
+                    alpha = torch.zeros(num_samples, 1)
+                    dr = torch.zeros(num_samples, 2)
                     alphas.append(alpha)
                     drs.append(dr)
 
@@ -86,17 +90,17 @@ class EBMTrainer:
         self.debug = False
         self.train = False
         self.BF_init = False
-        self.wReg = False
-        self.Force_reg = True
+        self.wReg = True
+        self.Force_reg = False
         if self.Force_reg:
-            self.k = 1e-2
+            self.k = 1e-3
             self.eps = 1e-7
 
         self.FI = FI
         if self.FI:
             # print("LOAD FImodel ONCE??????")
             ##### load blank model and optimizer, once
-            lr_interaction = 10 ** -2
+            lr_interaction = 10 ** -7
             self.interaction_model = FreeEnergyInteraction().to(device=0)
             self.optimizer_interaction = optim.Adam(self.interaction_model.parameters(), lr=lr_interaction)
 
@@ -209,21 +213,21 @@ class EBMTrainer:
         neg_dr.requires_grad_()
         langevin_opt = optim.SGD([neg_alpha, neg_dr], lr=self.step_size, momentum=0.0)
 
-
         if temperature == 'cold':
-            self.sig_dr = 0.05
-            self.sig_alpha = 0.5
-            # self.sig_dr = 0.5
+            # self.sig_dr = 0.05
             # self.sig_alpha = 0.5
+            self.sig_dr = 5
+            self.sig_alpha = 5
 
         if temperature == 'hot':
-            self.sig_dr = 0.5
-            self.sig_alpha = 5
+            # self.sig_dr = 0.5
+            # self.sig_alpha = 5
             # self.sig_dr = 5
             # self.sig_alpha = 5
             # self.sig_dr = 10
-            # self.sig_alpha = 20
-
+            # self.sig_alpha = 10
+            self.sig_dr = 20
+            self.sig_alpha = 20
 
         lastN_neg_out = []
         lastN_alpha = []
@@ -241,15 +245,8 @@ class EBMTrainer:
             neg_out = self.model.scorer(pos_repr)
 
             if self.Force_reg:
-                # print(neg_alpha, neg_dr)
                 F_reg = self.k * torch.sqrt(torch.sum(neg_dr.data**2) + self.eps)
                 neg_out = neg_out + F_reg
-
-                # print(F_reg)
-                # print('before')
-                # print(neg_out)
-                # print('after')
-                # print(neg_out)
 
             neg_out.mean().backward()
             langevin_opt.step()
@@ -262,7 +259,8 @@ class EBMTrainer:
 
             neg_dr = neg_dr + noise_dr.normal_(0, self.sig_dr)
             neg_alpha = neg_alpha + noise_alpha.normal_(0, self.sig_alpha)
-            neg_dr.data = neg_dr.data.clamp_(-rec_feat.size(2)+10, rec_feat.size(2)-10)
+            clamp_offset = rec_feat.size(2)//3
+            neg_dr.data = neg_dr.data.clamp_(-rec_feat.size(2)+clamp_offset, rec_feat.size(2)-clamp_offset)
 
             # neg_dr.data += noise_dr.normal_(0, self.sig_dr)
             # neg_alpha.data += noise_alpha.normal_(0, self.sig_alpha)
@@ -289,13 +287,6 @@ class EBMTrainer:
             lastN_neg_out.append(neg_out.detach())
             lastN_alpha.append(neg_alpha_out.detach())
             lastN_dr.append(neg_dr_out.detach())
-
-
-        # print('after LD index 0')
-        # # print(lastN_alpha[0])
-        # # print(lastN_dr[0])
-        # print(lastN_alpha)
-        # print(lastN_dr)
 
         if self.FI:
             return neg_alpha_out.detach(), neg_dr_out.detach(), lastN_alpha, lastN_dr, lastN_neg_out
@@ -446,8 +437,8 @@ class EBMTrainer:
         neg_alpha, neg_dr, neg_alpha_list_cold, neg_dr_list_cold, lastN_E_cold = self.langevin(neg_alpha, neg_dr,
                                                         neg_rec_feat.detach(), neg_rec_feat.detach(), neg_idx, 'cold')
 
-        neg_alpha2, neg_dr2, neg_alpha_list_hot, neg_dr_list_hot, lastN_E_hot = self.langevin(neg_alpha2, neg_dr2,
-                                                        neg_rec_feat.detach(), neg_lig_feat.detach(), neg_idx, 'hot')
+        # neg_alpha2, neg_dr2, neg_alpha_list_hot, neg_dr_list_hot, lastN_E_hot = self.langevin(neg_alpha2, neg_dr2,
+        #                                                 neg_rec_feat.detach(), neg_lig_feat.detach(), neg_idx, 'hot')
 
         if self.debug:
             print("After LD")
@@ -468,10 +459,10 @@ class EBMTrainer:
         ## no gradient
 
         Energies_cold_grad = self.recomp_grad(neg_rec_feat, neg_lig_feat, neg_alpha_list_cold, neg_dr_list_cold)
-        Energies_hot_grad = self.recomp_grad(neg_rec_feat, neg_lig_feat, neg_alpha_list_hot, neg_dr_list_hot)
+        # Energies_hot_grad = self.recomp_grad(neg_rec_feat, neg_lig_feat, neg_alpha_list_hot, neg_dr_list_hot)
 
-        # pred_interact, deltaF, F_cold, F_0 = self.interaction_model(Ecold=Energies_cold_grad, Ehot=None)
-        pred_interact, deltaF, F_cold, F_0 = self.interaction_model(Ecold=Energies_cold_grad, Ehot=Energies_hot_grad, Emean=False)
+        pred_interact, deltaF, F_cold, F_0 = self.interaction_model(Ecold=Energies_cold_grad, Ehot=None)
+        # pred_interact, deltaF, F_cold, F_0 = self.interaction_model(Ecold=Energies_cold_grad, Ehot=Energies_hot_grad, Emean=False)
 
         # #### grad recompute model
 
@@ -491,7 +482,8 @@ class EBMTrainer:
                 EBMPlotter(self.model).plot_pose(receptor, ligand, neg_alpha.squeeze(), neg_dr.squeeze(), 'Pose after LD', filename_pose,
                                pos_idx, epoch,
                                pred_interact=pred_interact.item(),
-                               gt_interact=gt_interact.item())
+                               gt_interact=gt_interact.item(),
+                               Energyscored=Energies_cold_grad[-1])
                 if self.debug:
                     for i in range(len(lastN_E_cold)):
                         filename_pose = self.path_LD + '/sample' + str(pos_idx.item()) +'_epoch' + str(epoch) + '_LDstep'+str(i+1)
@@ -504,6 +496,7 @@ class EBMTrainer:
                                                          pred_interact=pred_interact.item(),
                                                          gt_interact=gt_interact.item(),
                                                          plot_LD=True,
+                                                         Energyscored=lastN_E_cold[-1],
                                                          LDindex=i)
 
         if self.train:
@@ -575,19 +568,19 @@ class FreeEnergyInteraction(nn.Module):
     def forward(self, Ecold, Ehot=None, Emean=False):
         if not Emean:
             if Ehot is not None:
-                Fcold = -torch.logsumexp(-Ecold, dim=(0, 1, 2))
-                Fhot = -torch.logsumexp(-Ehot, dim=(0, 1, 2))
+                Fcold = -torch.logsumexp(-Ecold, dim=0)
+                Fhot = -torch.logsumexp(-Ehot, dim=0)
                 deltaF = Fcold + Fhot - self.F_0
             else:
-                Fcold = -torch.logsumexp(-Ecold, dim=(0, 1, 2))
+                Fcold = -torch.logsumexp(-Ecold, dim=(0))
                 deltaF = Fcold - self.F_0
         else:
             if Ehot is not None:
-                Fcold = -torch.mean(-Ecold, dim=(0, 1, 2))
-                Fhot = -torch.mean(-Ehot, dim=(0, 1, 2))
+                Fcold = -torch.mean(-Ecold, dim=(0))
+                Fhot = -torch.mean(-Ehot, dim=(0))
                 deltaF = Fcold + Fhot - self.F_0
             else:
-                Fcold = -torch.logsumexp(-Ecold, dim=(0, 1, 2))
+                Fcold = -torch.logsumexp(-Ecold, dim=(0))
                 deltaF = Fcold - self.F_0
         pred_interact = torch.sigmoid(-deltaF)
 
