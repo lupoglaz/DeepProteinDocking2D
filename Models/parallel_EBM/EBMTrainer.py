@@ -216,8 +216,12 @@ class EBMTrainer:
         if temperature == 'cold':
             # self.sig_dr = 0.05
             # self.sig_alpha = 0.5
-            self.sig_dr = 5
-            self.sig_alpha = 5
+            # self.sig_dr = 5
+            # self.sig_alpha = 5
+            self.sig_dr = 10
+            self.sig_alpha = 10
+            # self.sig_dr = 20
+            # self.sig_alpha = 20
 
         if temperature == 'hot':
             # self.sig_dr = 0.5

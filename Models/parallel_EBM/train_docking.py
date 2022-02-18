@@ -257,7 +257,7 @@ if __name__ == '__main__':
             # max_size = 10
             # max_size = 20
             # max_size = 50
-            max_size = 25
+            max_size = 10
             # train_stream = get_interaction_stream_balanced('../../DatasetGeneration/interaction_data_train.pkl',
             #                                                batch_size=args.batch_size,
             #                                                max_size=max_size
