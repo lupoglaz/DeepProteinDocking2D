@@ -20,6 +20,9 @@ import matplotlib.pylab as plt
 import seaborn as sea
 sea.set_style("whitegrid")
 
+import sys
+sys.path.append('/home/sb1638/')
+
 def run_docking_model(data, docker, iter, logger=None):
 	receptor, ligand, translation, rotation, indexes = data
 	receptor = receptor.to(device='cuda', dtype=torch.float).unsqueeze(dim=1)

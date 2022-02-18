@@ -20,6 +20,8 @@ from torch.utils.tensorboard import SummaryWriter
 import matplotlib.pylab as plt
 import seaborn as sea
 sea.set_style("whitegrid")
+import sys
+sys.path.append('/home/sb1638/')
 
 def test(stream, trainer, epoch=0, threshold=0.5):
 	TP, FP, TN, FN = 0, 0, 0, 0
