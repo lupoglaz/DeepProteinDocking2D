@@ -123,6 +123,17 @@ def test_threshold(stream, trainer, iter, logger=None):
 	MCC = (TP*TN - FP*FN)/torch.sqrt((TP+FP)*(TP+FN)*(TN+FP)*(TN+FN)+1E-5).item()
 	return Accuracy.item(), Precision, Recall, F1, MCC, threshold
 
+
+def write_validloss(filename):
+	log_format = '%f\t%f\t%f\t%f\t%f\n'
+	log_header = 'Accuracy\tPrecision\tRecall\tF1score\tMCC\n'
+	with open('Log/' + str(args.experiment) + '/'+filename, 'a') as fout:
+		# fout.write('Epoch ' + str(check_epoch) + '\n')
+		fout.write('Epoch' + str(epoch) + '\n')
+		fout.write(log_header)
+		fout.write(log_format % (Accuracy, Precision, Recall, F1, MCC))
+	fout.close()
+
 if __name__=='__main__':
 	parser = argparse.ArgumentParser(description='Train deep protein docking')	
 	parser.add_argument('-experiment', default='Debug', type=str)
@@ -213,6 +224,9 @@ if __name__=='__main__':
 				logger.add_scalar("DockFI/Valid/prec", Precision, epoch)
 				logger.add_scalar("DockFI/Valid/rec", Recall, epoch)
 				logger.add_scalar("DockFI/Valid/MCC", MCC, epoch)
+
+				## write validation loss to file
+				write_validloss('log_FI_validsetAPR.txt')
 			
 			torch.save(model.state_dict(), Path(args.data_dir)/Path(args.experiment)/Path('model.th'))
 		
@@ -232,7 +246,9 @@ if __name__=='__main__':
 		tAccuracy, tPrecision, tRecall, tF1, tMCC = test(test_stream, trainer, 0, threshold=threshold)
 		print(f'Test Acc: {tAccuracy} Prec: {tPrecision} Rec: {tRecall} F1: {tF1} MCC: {tMCC}')
 
-		# logger.add_hparams(	{'ModelType': args.model(), 'Pretrain': args.pretrain}, 
+		write_validloss('log_FI_testsetAPR.txt')
+
+	# logger.add_hparams(	{'ModelType': args.model(), 'Pretrain': args.pretrain},
 		# 					{'hparam/valid_acc': vAccuracy, 'hparam/valid_prec': vPrecision, 'hparam/valid_rec': vRecall, 
 		# 					'hparam/valid_F1': vF1, 'hparam/valid_MCC': vMCC,
 		# 					'hparam/test_acc': tAccuracy, 'hparam/test_prec': tPrecision, 'hparam/test_rec': tRecall, 
