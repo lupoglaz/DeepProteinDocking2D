@@ -3,12 +3,15 @@ from torch import optim
 import torch.nn as nn
 import numpy as np
 
-from .Models import ProteinConv2D
+# from .Models import ProteinConv2D
+from Models.Convolution.ProteinConvolution2D import ProteinConv2D
+
 from tqdm import tqdm
 import random
 from math import cos, sin
 import numpy as np
-from .Models import RankingLoss
+# from .Models import RankingLoss
+from Models.EQInteraction import RankingLoss
 
 class DockingTrainer:
 	def __init__(self, model, optimizer, num_angles=360, device='cuda', type='pos', accum=0, omega=10E-2):
