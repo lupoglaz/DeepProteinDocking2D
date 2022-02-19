@@ -7,10 +7,10 @@ import matplotlib.pylab as plt
 import seaborn as sea
 sea.set_style("whitegrid")
 
-from DeepProteinDocking2D.Models.BruteForce.utility_functions import read_pkl
 from DeepProteinDocking2D.Models.BruteForce.validation_metrics import RMSD
 from DeepProteinDocking2D.Models.BruteForce.utility_functions import plot_assembly
 import numpy as np
+
 
 class TorchDockingFFT:
     def __init__(self):
@@ -45,40 +45,6 @@ class TorchDockingFFT:
             pred_Y = pred_Y - self.dim
         return pred_rot, torch.stack((pred_X, pred_Y), dim=0)
 
-    # def encode_transform(self, gt_rot, gt_txy):
-    #     empty_3D = torch.zeros([self.num_angles, self.dim, self.dim], dtype=torch.double).cuda()
-    #     deg_index_rot = (((gt_rot * 180.0/np.pi) + 180.0) % self.num_angles).type(torch.long)
-    #     # centered_txy = gt_txy.type(torch.long) + self.dim//2
-    #     gt_X = gt_txy[0].type(torch.long) + self.dim//2
-    #     gt_Y = gt_txy[1].type(torch.long) + self.dim//2
-    #
-    #     # Just to make translations look nice
-    #     # if gt_X > self.dim//2:
-    #     #     gt_X = gt_X - self.dim
-    #     # if gt_Y > self.dim//2:
-    #     #     gt_Y = gt_Y - self.dim
-    #
-    #     empty_3D[deg_index_rot, gt_X, gt_Y] = -1
-    #     target_flatindex = torch.argmin(empty_3D.flatten()).cuda()
-    #     print(gt_rot, gt_txy)
-    #     print(deg_index_rot, gt_X, gt_Y)
-    #     # print(ConcaveTrainer().extract_transform(empty_3D))
-    #     return target_flatindex
-    #
-    # def extract_transform(self, pred_score):
-    #     pred_argmin = torch.argmin(pred_score)
-    #     pred_rot = ((pred_argmin / self.dim ** 2) * np.pi / 180.0) - np.pi
-    #
-    #     XYind = torch.remainder(pred_argmin, self.dim ** 2)
-    #     pred_X = XYind // self.dim + self.dim//2
-    #     pred_Y = XYind % self.dim + self.dim//2
-    #
-    #     # Just to make translations look nice
-    #     if pred_X > self.dim//2:
-    #         pred_X = pred_X - self.dim
-    #     if pred_Y > self.dim//2:
-    #         pred_Y = pred_Y - self.dim
-    #     return pred_rot, torch.stack((pred_X, pred_Y), dim=0)
 
     @staticmethod
     def make_boundary(grid_shape):
@@ -124,10 +90,6 @@ class TorchDockingFFT:
             rot_lig = F.pad(rot_lig, pad=([pad_size, pad_size+1, pad_size, pad_size+1]), mode='constant', value=0)
         # print('padded shape', f_rec.shape)
 
-        # f_rec = receptor.unsqueeze(0).repeat(self.num_angles,1,1,1)
-        # f_lig = ligand.unsqueeze(0).repeat(self.num_angles,1,1,1)
-        # rot_lig = TorchDockingFilter().rotate(f_lig, self.angles)
-
         if debug:
             with torch.no_grad():
                 step = 30
@@ -142,10 +104,7 @@ class TorchDockingFFT:
 
         return score
 
-
     def CE_dock_translations(self, receptor, ligand, weight_bound, weight_crossterm1, weight_crossterm2, weight_bulk):
-        box_size = receptor.shape[-1]
-
         receptor_bulk, receptor_bound = torch.chunk(receptor, chunks=2, dim=1)
         ligand_bulk, ligand_bound = torch.chunk(ligand, chunks=2, dim=1)
         receptor_bulk = receptor_bulk.squeeze()
@@ -153,42 +112,6 @@ class TorchDockingFFT:
         ligand_bulk = ligand_bulk.squeeze()
         ligand_bound = ligand_bound.squeeze()
         # print(receptor_bulk.shape)
-
-        # signal_dim = 2
-        # # Bulk score
-        # cplx_rec = torch.rfft(receptor_bulk, signal_ndim=signal_dim)
-        # cplx_lig = torch.rfft(ligand_bulk, signal_ndim=signal_dim)
-        # re = cplx_rec[:, :, :, 0] * cplx_lig[:, :, :, 0] + cplx_rec[:, :, :, 1] * cplx_lig[:, :, :, 1]
-        # im = -cplx_rec[:, :, :, 0] * cplx_lig[:, :, :, 1] + cplx_rec[:, :, :, 1] * cplx_lig[:, :, :, 0]
-        # cconv = torch.stack([re, im], dim=3)
-        # trans_bulk = torch.irfft(cconv, signal_dim, signal_sizes=(box_size, box_size))
-        #
-        # # print(cplx_rec.shape, cplx_lig.shape)
-        #
-        # # Boundary score
-        # cplx_rec = torch.rfft(receptor_bound, signal_ndim=signal_dim)
-        # cplx_lig = torch.rfft(ligand_bound, signal_ndim=signal_dim)
-        # re = cplx_rec[:, :, :, 0] * cplx_lig[:, :, :, 0] + cplx_rec[:, :, :, 1] * cplx_lig[:, :, :, 1]
-        # im = -cplx_rec[:, :, :, 0] * cplx_lig[:, :, :, 1] + cplx_rec[:, :, :, 1] * cplx_lig[:, :, :, 0]
-        # cconv = torch.stack([re, im], dim=3)
-        # trans_bound = torch.irfft(cconv, signal_dim, signal_sizes=(box_size, box_size))
-        # # print(trans_bound.shape)
-        #
-        # # Boundary - bulk score
-        # cplx_rec = torch.rfft(receptor_bound, signal_ndim=signal_dim)
-        # cplx_lig = torch.rfft(ligand_bulk, signal_ndim=signal_dim)
-        # re = cplx_rec[:, :, :, 0] * cplx_lig[:, :, :, 0] + cplx_rec[:, :, :, 1] * cplx_lig[:, :, :, 1]
-        # im = -cplx_rec[:, :, :, 0] * cplx_lig[:, :, :, 1] + cplx_rec[:, :, :, 1] * cplx_lig[:, :, :, 0]
-        # cconv = torch.stack([re, im], dim=3)
-        # trans_bulk_bound = torch.irfft(cconv, signal_dim, signal_sizes=(box_size, box_size))
-        #
-        # # Bulk - boundary score
-        # cplx_rec = torch.rfft(receptor_bulk, signal_ndim=signal_dim)
-        # cplx_lig = torch.rfft(ligand_bound, signal_ndim=signal_dim)
-        # re = cplx_rec[:, :, :, 0] * cplx_lig[:, :, :, 0] + cplx_rec[:, :, :, 1] * cplx_lig[:, :, :, 1]
-        # im = -cplx_rec[:, :, :, 0] * cplx_lig[:, :, :, 1] + cplx_rec[:, :, :, 1] * cplx_lig[:, :, :, 0]
-        # cconv = torch.stack([re, im], dim=3)
-        # trans_bound_bulk = torch.irfft(cconv, signal_dim, signal_sizes=(box_size, box_size))
 
         # Bulk score
         cplx_rec = torch.fft.rfft2(receptor_bulk, dim=(-2, -1))
@@ -282,6 +205,7 @@ class SwapQuadrants2DFunction(Function):
 
         return grad_input
 
+
 if __name__ == '__main__':
 
     from DeepProteinDocking2D.torchDataset import get_docking_stream
@@ -307,7 +231,6 @@ if __name__ == '__main__':
         receptor_stack = TorchDockingFFT().make_boundary(receptor)
         ligand_stack = TorchDockingFFT().make_boundary(ligand)
         FFT_score = TorchDockingFFT().dock_global(receptor_stack, ligand_stack, debug=False)
-
 
         TorchDockingFFT().check_FFT_predictions(FFT_score, receptor, ligand, gt_txy, gt_rot)
 
