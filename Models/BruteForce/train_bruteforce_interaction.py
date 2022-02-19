@@ -41,10 +41,8 @@ class BruteForceInteractionTrainer:
 
     print('SHOULD ONLY PRINT ONCE PER TRAINING')
     ##############################################################################
-    # case = 'test_working_model_newDataLoader_batch1'
+    case = 'test_working_model_newDataLoader_batch1'
     # ^^^^ works
-    case = 'test_working_model_newDataLoader_batch1_NOrandomseed'
-    #
 
     # exp = 'A'
     # exp = 'B'
@@ -296,11 +294,11 @@ if __name__ == '__main__':
 
     #########################
     #### initialization torch settings
-    # random_seed = 42
-    # np.random.seed(random_seed)
-    # torch.manual_seed(random_seed)
-    # random.seed(random_seed)
-    # torch.cuda.manual_seed(random_seed)
+    random_seed = 42
+    np.random.seed(random_seed)
+    torch.manual_seed(random_seed)
+    random.seed(random_seed)
+    torch.cuda.manual_seed(random_seed)
     torch.backends.cudnn.deterministic = True
     torch.cuda.set_device(0)
     # CUDA_LAUNCH_BLOCKING = 1
