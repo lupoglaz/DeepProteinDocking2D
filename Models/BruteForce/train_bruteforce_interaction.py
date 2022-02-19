@@ -41,37 +41,10 @@ class BruteForceInteractionTrainer:
 
     print('SHOULD ONLY PRINT ONCE PER TRAINING')
     ##############################################################################
-    # case = 'final'
-    # case = 'final_ones'
-    # case = 'final_lr5_ones'
-    # case = 'final_lr4_ones'
-    # case = '3reps_ones'
-    # case = '2reps_ones'
-    # case = '16s32v'
-    # case = '2s16v'
-    # case = '2s2v'
-    # case = '1s4v'
-    # case = 'rep_1s4v'
-    # case = 'rep2_1s4v'
-    # case = '1s2v'
-    # case = 'rs0_1s4v'
-    # case = 'rs0_1s2v'
-    # case = 'FFTcheck_1s4v_scratch'
-    # case = 'test_dF_1s4v_scratch'
-    # case = 'rs0_1s4v'
-    # case = 'rs0_checknormpool_1s4v'
-    # case = 'rs0_NOnormnonlin_1s4v'
-    # case = 'rs42_1s4v'
-    # case = 'noretaingraph'
-    # case = 'withretaingraph'
-
-    # case = 'FI_scratch_50ex_3reps_50ep_rs42_1s4v'
-    # case = 'FI_scratch_25ex_3reps_50ep_rs42_1s4v'
-
-    # case = 'rs42_1s4v'
-
-    case = 'test_pytorch'
-
+    # case = 'test_working_model_newDataLoader_batch1'
+    # ^^^^ works
+    case = 'test_working_model_newDataLoader_batch1_NOrandomseed'
+    #
 
     # exp = 'A'
     # exp = 'B'
@@ -145,7 +118,8 @@ class BruteForceInteractionTrainer:
         w = 10**-5
         L_reg = w * l1_loss(deltaF, torch.zeros(1).squeeze().cuda())
         loss = BCEloss(pred_interact, gt_interact) + L_reg
-        print('\n predicted', pred_interact.item(), '; ground truth', gt_interact.item())
+        if debug:
+            print('\n predicted', pred_interact.item(), '; ground truth', gt_interact.item())
 
         if train:
             self.pretrain_model.zero_grad()
@@ -322,11 +296,11 @@ if __name__ == '__main__':
 
     #########################
     #### initialization torch settings
-    random_seed = 42
-    np.random.seed(random_seed)
-    torch.manual_seed(random_seed)
-    random.seed(random_seed)
-    torch.cuda.manual_seed(random_seed)
+    # random_seed = 42
+    # np.random.seed(random_seed)
+    # torch.manual_seed(random_seed)
+    # random.seed(random_seed)
+    # torch.cuda.manual_seed(random_seed)
     torch.backends.cudnn.deterministic = True
     torch.cuda.set_device(0)
     # CUDA_LAUNCH_BLOCKING = 1
@@ -334,7 +308,8 @@ if __name__ == '__main__':
 
     # max_size = 50
     # max_size = 25
-    train_stream = get_interaction_stream_balanced(trainset + '.pkl', batch_size=1)
+    batch_size=1
+    train_stream = get_interaction_stream_balanced(trainset + '.pkl', batch_size=batch_size)
     valid_stream = get_interaction_stream_balanced(validset + '.pkl', batch_size=1)
     test_stream = get_interaction_stream_balanced(testset + '.pkl', batch_size=1)
 

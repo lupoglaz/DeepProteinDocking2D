@@ -18,7 +18,7 @@
 # python train_interaction.py -experiment BFInteraction -docker -train -batch_size 8 -num_epochs 10
 # python train_docking.py -data_dir Log -experiment BFInteraction -docker -test -gpu 0
 
-#python train_interaction.py -experiment BFInteraction_georgydefaults_batch8_10ep -docker -train -batch_size 8 -num_epochs 10
+#python train_interaction.py -experiment BFInteraction_georgydefaults_batch2_10ep -docker -train -batch_size 2 -num_epochs 10
 #python train_docking.py -data_dir Log -experiment BFInteraction -docker -test -gpu 0
 
 #ResNet interaction
