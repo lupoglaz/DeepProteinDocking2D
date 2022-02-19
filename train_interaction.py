@@ -23,6 +23,9 @@ sea.set_style("whitegrid")
 import sys
 sys.path.append('/home/sb1638/')
 
+torch.cuda.empty_cache()
+
+
 def test(stream, trainer, epoch=0, threshold=0.5):
 	TP, FP, TN, FN = 0, 0, 0, 0
 	for data in tqdm(stream):
