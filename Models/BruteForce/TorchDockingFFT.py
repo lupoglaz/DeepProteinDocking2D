@@ -165,47 +165,6 @@ class TorchDockingFFT:
         plt.show()
 
 
-class SwapQuadrants2DFunction(Function):
-    @staticmethod
-    def forward(ctx, input_volume):
-        # batch_size = input_volume.size(0)
-        num_features = input_volume.size(0)
-        L = input_volume.size(2)
-        L2 = int(L / 2)
-        output_volume = torch.zeros(num_features, L, L, device=input_volume.device,
-                                    dtype=input_volume.dtype)
-
-        output_volume[ :, :L2, :L2] = input_volume[ :, L2:L, L2:L]
-        output_volume[ :, L2:L, L2:L] = input_volume[ :, :L2, :L2]
-
-        output_volume[ :, L2:L, :L2] = input_volume[ :, :L2, L2:L]
-        output_volume[ :, :L2, L2:L] = input_volume[ :, L2:L, :L2]
-
-        output_volume[ :, L2:L, L2:L] = input_volume[ :, :L2, :L2]
-        output_volume[ :, :L2, :L2] = input_volume[:, L2:L, L2:L]
-
-        return output_volume
-
-    @staticmethod
-    def backward(ctx, grad_output):
-        # batch_size = grad_output.size(0)
-        num_features = grad_output.size(0)
-        L = grad_output.size(2)
-        L2 = int(L / 2)
-        grad_input = torch.zeros(num_features, L, L, device=grad_output.device, dtype=grad_output.dtype)
-
-        grad_input[:, :L2, :L2] = grad_output[:, L2:L, L2:L]
-        grad_input[:, L2:L, L2:L] = grad_output[:, :L2, :L2]
-
-        grad_input[:, L2:L, :L2] = grad_output[:, :L2, L2:L]
-        grad_input[:, :L2, L2:L] = grad_output[:, L2:L, :L2]
-
-        grad_input[:, L2:L, L2:L] = grad_output[:, :L2, :L2]
-        grad_input[:, :L2, :L2] = grad_output[:, L2:L, L2:L]
-
-        return grad_input
-
-
 if __name__ == '__main__':
 
     from DeepProteinDocking2D.torchDataset import get_docking_stream
