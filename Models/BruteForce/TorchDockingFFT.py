@@ -73,7 +73,8 @@ class TorchDockingFFT:
 
     # weight_bound = 1.0, weight_crossterm1 = 1.0, weight_crossterm2 = 1.0, weight_bulk = 1.0,
     # weight_bound = 3.0, weight_crossterm1 = -0.3, weight_crossterm2 = -0.3, weight_bulk = 2.8,
-    def dock_global(self, receptor, ligand, weight_bound = 3.0, weight_crossterm1 = -0.3, weight_crossterm2 = -0.3, weight_bulk = 30.0, debug=False):
+    # weight_bound = 3.0, weight_crossterm1 = -0.3, weight_crossterm2 = -0.3, weight_bulk = 30.0,
+    def dock_global(self, receptor, ligand, weight_bound = 3.0, weight_crossterm1 = -0.3, weight_crossterm2 = -0.3, weight_bulk = 2.8, debug=False):
         initbox_size = receptor.shape[-1]
         # print(receptor.shape)
         pad_size = initbox_size // 2
@@ -157,7 +158,6 @@ class TorchDockingFFT:
 
         plt.imshow(FFT_score[pred_rot.long(), :, :].detach().cpu())
         plt.show()
-
 
         pair = plot_assembly(receptor.detach().cpu(), ligand.detach().cpu().numpy(), pred_rot.detach().cpu().numpy(),
                              pred_txy.detach().cpu().numpy(), gt_rot.detach().cpu().numpy(), gt_txy.detach().cpu().numpy())
