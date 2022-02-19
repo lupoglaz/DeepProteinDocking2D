@@ -255,3 +255,5 @@ if __name__=='__main__':
 		# 					'hparam/test_F1': tF1, 'hparam/test_MCC': tMCC,})
 	else:
 		raise(ValueError())
+
+# python train_interaction.py -experiment BFInteraction_georgydefaults_check -docker -train -batch_size 8 -num_epochs 10
