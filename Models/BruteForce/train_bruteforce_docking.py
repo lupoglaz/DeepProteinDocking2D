@@ -258,8 +258,6 @@ if __name__ == '__main__':
     torch.cuda.manual_seed(random_seed)
     torch.backends.cudnn.deterministic = True
     torch.cuda.set_device(0)
-
-    torch.cuda.set_device(0)
     # torch.autograd.set_detect_anomaly(True)
     ######################
     lr = 10 ** -4
