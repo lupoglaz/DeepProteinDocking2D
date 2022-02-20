@@ -243,13 +243,11 @@ class BruteForceDockingTrainer:
 
 if __name__ == '__main__':
     #################################################################################
+    # Datasets
     trainset = 'toy_concave_data/docking_data_train'
     validset = 'toy_concave_data/docking_data_valid'
     ### testing set
     testset = 'toy_concave_data/docking_data_test'
-
-    experiment = 'RECODE_CHECK_BFDOCKING'
-
     #########################
     #### initialization torch settings
     random_seed = 42
@@ -273,14 +271,13 @@ if __name__ == '__main__':
 
     ######################
     train_epochs = 10
+    experiment = 'RECODE_CHECK_BFDOCKING'
 
     ######################
     ### Train model from beginning
-    # epoch = train_epochs
     # BruteForceDockingTrainer(model, optimizer).run_trainer(train_epochs)
 
     ### Resume training model at chosen epoch
-    # train(True, resume_epoch=100)
     # BruteForceDockingTrainer(model, optimizer).run_trainer(train_epochs, resume_training=True, resume_epoch=20)
     # BruteForceDockingTrainer(model, optimizer).run_trainer(train_epochs=1, resume_training=True, resume_epoch=30)
 
