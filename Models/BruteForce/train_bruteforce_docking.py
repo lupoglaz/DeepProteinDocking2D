@@ -16,11 +16,10 @@ from plot_IP_loss import LossPlotter
 
 
 class BruteForceDockingTrainer:
-    def __init__(self, model, optimizer, train=True, debug=False, plotting=False):
-        self.train = train
+    def __init__(self, model, optimizer, debug=False, plotting=False):
         self.debug = debug
         self.plotting = plotting
-        self.test_freq = 1
+        self.eval_freq = 1
         self.save_freq = 1
 
         self.dim = TorchDockingFFT().dim
@@ -29,7 +28,7 @@ class BruteForceDockingTrainer:
         self.model = model
         self.optimizer = optimizer
 
-    def run_model(self, data, model):
+    def run_model(self, data, model, train=True):
         receptor, ligand, gt_txy, gt_rot, _ = data
 
         receptor = receptor.squeeze()
@@ -42,7 +41,7 @@ class BruteForceDockingTrainer:
         gt_rot = gt_rot.to(device='cuda', dtype=torch.float)
         gt_txy = gt_txy.to(device='cuda', dtype=torch.float)
 
-        if self.train:
+        if train:
             model.train()
 
         ### run model and loss calculation
@@ -69,7 +68,7 @@ class BruteForceDockingTrainer:
         if self.debug:
             self.check_model_gradients()
 
-        if self.train:
+        if train:
             self.model.zero_grad()
             loss.backward()
             self.optimizer.step()
@@ -110,7 +109,7 @@ class BruteForceDockingTrainer:
                     resume_epoch=0):
 
         if self.plotting:
-            self.test_freq = 1
+            self.eval_freq = 1
 
         log_header = 'Epoch\tLoss\trmsd\n'
         log_format = '%d\t%f\t%f\n'
@@ -150,7 +149,7 @@ class BruteForceDockingTrainer:
             ### Training epoch
             train_loss = []
             for data in tqdm(train_stream):
-                train_output = [self.run_model(data, model)]
+                train_output = [self.run_model(data, model, train=True)]
                 train_loss.append(train_output)
                 with open('Log/losses/log_RMSDsTrainset_epoch' + str(epoch) + experiment + '.txt', 'a') as fout:
                     fout.write('%f\n' % (train_output[0][-1]))
@@ -161,10 +160,10 @@ class BruteForceDockingTrainer:
                 fout.write(log_format % (epoch, avg_trainloss[0], avg_trainloss[1]))
 
             ### Evaluation epoch
-            if epoch % self.test_freq == 0 or epoch == 1:
+            if epoch % self.eval_freq == 0 or epoch == 1:
                 valid_loss = []
                 for data in tqdm(valid_stream):
-                    valid_output = [self.run_model(data, model)]
+                    valid_output = [self.run_model(data, model, train=False)]
                     valid_loss.append(valid_output)
                     with open('Log/losses/log_RMSDsValidset_epoch' + str(epoch) + experiment + '.txt', 'a') as fout:
                         fout.write('%f\n' % (valid_output[0][-1]))
@@ -176,7 +175,7 @@ class BruteForceDockingTrainer:
 
                 test_loss = []
                 for data in tqdm(test_stream):
-                    test_output = [self.run_model(data, model)]
+                    test_output = [self.run_model(data, model, train=False)]
                     test_loss.append(test_output)
                     with open('Log/losses/log_RMSDsTestset_epoch' + str(epoch) + experiment + '.txt', 'a') as fout:
                         fout.write('%f\n' % (test_output[0][-1]))
@@ -237,8 +236,8 @@ class BruteForceDockingTrainer:
                          resume_training=resume_training, resume_epoch=resume_epoch)
 
     def plot_evaluation_set(self, check_epoch):
-        train_epochs = 1
-        self.train_model(model, optimizer, experiment, train_epochs, train_stream, valid_stream,
+        eval_epochs = 1
+        self.train_model(model, optimizer, experiment, eval_epochs, train_stream, valid_stream,
                          test_stream,
                          resume_training=True, resume_epoch=check_epoch)
 
@@ -269,20 +268,19 @@ if __name__ == '__main__':
     test_stream = get_docking_stream(testset + '.pkl', batch_size=1)
 
     ######################
-    train_epochs = 10
-    experiment = 'RECODE_CHECK_BFDOCKING'
+    train_epochs = 20
+    experiment = 'RECODE_CHECK_BFDOCKING_30epochs'
 
     ######################
     ### Train model from beginning
     # BruteForceDockingTrainer(model, optimizer).run_trainer(train_epochs)
 
     ### Resume training model at chosen epoch
-    # BruteForceDockingTrainer(model, optimizer).run_trainer(train_epochs, resume_training=True, resume_epoch=20)
-    # BruteForceDockingTrainer(model, optimizer).run_trainer(train_epochs=1, resume_training=True, resume_epoch=30)
+    # BruteForceDockingTrainer(model, optimizer).run_trainer(train_epochs=10, resume_training=True, resume_epoch=20)
 
     ## Plot loss from current experiment
-    LossPlotter(experiment).plot_loss()
-    LossPlotter(experiment).plot_rmsd_distribution(plot_epoch=31)
+    # LossPlotter(experiment).plot_loss()
+    # LossPlotter(experiment).plot_rmsd_distribution(plot_epoch=30)
 
     ### Evaluate model only and plot, at chosen epoch
-    # BruteForceDockingTrainer(model, optimizer, plotting=True).plot_evaluation_set(check_epoch=30)
+    BruteForceDockingTrainer(model, optimizer, plotting=True).plot_evaluation_set(check_epoch=30)
