@@ -14,6 +14,7 @@ from DeepProteinDocking2D.Models.BruteForce.validation_metrics import RMSD
 import matplotlib.pyplot as plt
 from plot_IP_loss import LossPlotter
 
+
 class BruteForceDockingTrainer:
     def __init__(self, model, optimizer, train=True, debug=False, plotting=False):
         self.train = train
