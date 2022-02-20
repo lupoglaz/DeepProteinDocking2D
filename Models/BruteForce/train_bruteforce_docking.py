@@ -19,6 +19,8 @@ class BruteForceDockingTrainer:
         self.train = train
         self.debug = debug
         self.plotting = plotting
+        self.test_freq = 1
+        self.save_freq = 1
 
         self.dim = TorchDockingFFT().dim
         self.num_angles = TorchDockingFFT().num_angles
@@ -75,7 +77,7 @@ class BruteForceDockingTrainer:
 
         if self.plotting and eval:
             with torch.no_grad():
-                rmsd_out = self.plot_pose(FFT_score, receptor, ligand, gt_rot, gt_txy)
+                self.plot_pose(FFT_score, receptor, ligand, gt_rot, gt_txy)
 
         return loss.item(), rmsd_out.item()
 
@@ -106,11 +108,8 @@ class BruteForceDockingTrainer:
                     resume_training=False,
                     resume_epoch=0):
 
-        test_freq = 1
-        save_freq = 1
-
         if self.plotting:
-            test_freq = 1
+            self.test_freq = 1
 
         log_header = 'Epoch\tLoss\trmsd\n'
         log_format = '%d\t%f\t%f\n'
@@ -148,22 +147,26 @@ class BruteForceDockingTrainer:
             }
 
             ### Training epoch
-            trainloss = []
+            train_loss = []
             for data in tqdm(train_stream):
                 train_output = [self.run_model(data, model)]
-                trainloss.append(train_output)
+                train_loss.append(train_output)
+                with open('Log/losses/log_RMSDsTrainset_epoch' + str(epoch) + experiment + '.txt', 'a') as fout:
+                    fout.write('%f\n' % (train_output[0][-1]))
 
-            avg_trainloss = np.average(trainloss, axis=0)[0, :]
+            avg_trainloss = np.average(train_loss, axis=0)[0, :]
             print('\nEpoch', epoch, 'Train Loss:', avg_trainloss)
             with open('Log/losses/log_train_' + experiment + '.txt', 'a') as fout:
                 fout.write(log_format % (epoch, avg_trainloss[0], avg_trainloss[1]))
 
             ### Evaluation epoch
-            if epoch % test_freq == 0 or epoch == 1:
+            if epoch % self.test_freq == 0 or epoch == 1:
                 valid_loss = []
                 for data in tqdm(valid_stream):
                     valid_output = [self.run_model(data, model)]
                     valid_loss.append(valid_output)
+                    with open('Log/losses/log_RMSDsValidset_epoch' + str(epoch) + experiment + '.txt', 'a') as fout:
+                        fout.write('%f\n' % (valid_output[0][-1]))
 
                 avg_validloss = np.average(valid_loss, axis=0)[0, :]
                 print('\nEpoch', epoch, 'VALID LOSS:', avg_validloss)
@@ -174,6 +177,8 @@ class BruteForceDockingTrainer:
                 for data in tqdm(test_stream):
                     test_output = [self.run_model(data, model)]
                     test_loss.append(test_output)
+                    with open('Log/losses/log_RMSDsTestset_epoch' + str(epoch) + experiment + '.txt', 'a') as fout:
+                        fout.write('%f\n' % (test_output[0][-1]))
 
                 avg_testloss = np.average(test_loss, axis=0)[0, :]
                 print('\nEpoch', epoch, 'TEST LOSS:', avg_testloss)
@@ -181,7 +186,7 @@ class BruteForceDockingTrainer:
                     fout.write(log_format % (epoch, avg_testloss[0], avg_testloss[1]))
 
             #### saving model while training
-            if epoch % save_freq == 0:
+            if epoch % self.save_freq == 0:
                 self.save_checkpoint(checkpoint_dict, 'Log/' + experiment + str(epoch) + '.th')
                 print('saving model ' + 'Log/' + experiment + str(epoch) + '.th')
             if epoch == num_epochs - 1:
@@ -224,7 +229,6 @@ class BruteForceDockingTrainer:
             labelleft=False)  # labels along the bottom
         plt.savefig('figs/docking_pose_RMSD' + str(rmsd_out.item())[:4] + '.png')
         # plt.show()
-        return rmsd_out
 
     def run_trainer(self, train_epochs, resume_training=False, resume_epoch=0):
         self.train_model(model, optimizer, experiment, train_epochs, train_stream, valid_stream,
@@ -278,14 +282,11 @@ if __name__ == '__main__':
     ### Resume training model at chosen epoch
     # train(True, resume_epoch=100)
     # BruteForceDockingTrainer(model, optimizer).run_trainer(train_epochs, resume_training=True, resume_epoch=20)
+    # BruteForceDockingTrainer(model, optimizer).run_trainer(train_epochs=1, resume_training=True, resume_epoch=30)
 
     ## Plot loss from current experiment
-    LossPlotter(experiment).plot_loss()
-    LossPlotter(experiment).plot_loss()
+    # LossPlotter(experiment).plot_loss()
+    LossPlotter(experiment).plot_rmsd_distribution(plot_epoch=31)
 
     ### Evaluate model only and plot, at chosen epoch
-    # epoch = '' # when loading FI trained docking model state_dict explicitly.
-    # epoch = 11 # best epoch from 'randinit_best_docking_model_epoch'
-    # epoch = 75 # best epoch from 'onesinit_lr4_best_docking_model_epoch'
-    # epoch = 200 # best epoch from '16scalar32vector_docking_model_epoch'
     # BruteForceDockingTrainer(model, optimizer, plotting=True).plot_evaluation_set(check_epoch=30)
