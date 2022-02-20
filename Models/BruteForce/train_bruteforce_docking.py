@@ -285,7 +285,7 @@ if __name__ == '__main__':
     # BruteForceDockingTrainer(model, optimizer).run_trainer(train_epochs=1, resume_training=True, resume_epoch=30)
 
     ## Plot loss from current experiment
-    # LossPlotter(experiment).plot_loss()
+    LossPlotter(experiment).plot_loss()
     LossPlotter(experiment).plot_rmsd_distribution(plot_epoch=31)
 
     ### Evaluate model only and plot, at chosen epoch

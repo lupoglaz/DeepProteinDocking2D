@@ -18,7 +18,7 @@ class LossPlotter:
 
         num_epochs = len(train['Epoch'].to_numpy())
 
-        fig, ax = plt.subplots(2)
+        fig, ax = plt.subplots(2, figsize=(20,10))
         train_rmsd = ax[0].plot(train['Epoch'].to_numpy(), train['rmsd'].to_numpy())
         valid_rmsd = ax[0].plot(valid['Epoch'].to_numpy(), valid['rmsd'].to_numpy())
         test_rmsd = ax[0].plot(test['Epoch'].to_numpy(), test['rmsd'].to_numpy())
@@ -61,7 +61,7 @@ class LossPlotter:
         num_test_examples = len(test['RMSD'].to_numpy())
         bins = int(min([num_train_examples, num_valid_examples, num_test_examples])/2)
 
-        fig, ax = plt.subplots(3)
+        fig, ax = plt.subplots(3, figsize=(10,30))
         plt.suptitle('RMSD distribution: ' + self.experiment)
 
         train_rmsd = ax[0].hist(train['RMSD'].to_numpy(), bins=bins, color='b')
