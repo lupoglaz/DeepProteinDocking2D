@@ -13,7 +13,8 @@ import numpy as np
 
 
 class TorchDockingFFT:
-    def __init__(self):
+    def __init__(self, debug=False):
+        self.debug = debug
         self.dim = 100
         self.num_angles = 360
         self.angles = torch.from_numpy(np.linspace(-np.pi, np.pi, num=self.num_angles)).cuda()
