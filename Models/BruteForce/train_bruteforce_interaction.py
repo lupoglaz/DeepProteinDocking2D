@@ -353,6 +353,8 @@ if __name__ == '__main__':
     # max_size = 50
     max_size = 25
     batch_size = 1
+    if batch_size > 1:
+        raise NotImplementedError()
     train_stream = get_interaction_stream_balanced(trainset + '.pkl', batch_size=batch_size, max_size=max_size)
     valid_stream = get_interaction_stream_balanced(validset + '.pkl', batch_size=1, max_size=max_size)
     test_stream = get_interaction_stream_balanced(testset + '.pkl', batch_size=1, max_size=max_size)

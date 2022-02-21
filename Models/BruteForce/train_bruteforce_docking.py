@@ -263,7 +263,10 @@ if __name__ == '__main__':
     model = BruteForceDocking().to(device=0)
     optimizer = optim.Adam(model.parameters(), lr=lr)
 
-    train_stream = get_docking_stream(trainset + '.pkl', batch_size=1)
+    batch_size = 1
+    if batch_size > 1:
+        raise NotImplementedError()
+    train_stream = get_docking_stream(trainset + '.pkl', batch_size=batch_size)
     valid_stream = get_docking_stream(validset + '.pkl', batch_size=1)
     test_stream = get_docking_stream(testset + '.pkl', batch_size=1)
 
