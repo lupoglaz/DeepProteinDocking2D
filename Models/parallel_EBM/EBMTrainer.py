@@ -98,7 +98,7 @@ class EBMTrainer:
 
         self.FI = FI
         if self.FI:
-            # print("LOAD FImodel ONCE??????")
+            print("LOAD FImodel ONCE??????")
             ##### load blank model and optimizer, once
             lr_interaction = 10 ** -7
             self.interaction_model = FreeEnergyInteraction().to(device=0)
