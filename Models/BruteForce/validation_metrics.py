@@ -5,6 +5,7 @@ from DeepProteinDocking2D.Models.BruteForce.utility_functions import read_pkl, p
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 
+
 class RMSD:
     def __init__(self, ligand, gt_rot, gt_txy, pred_rot, pred_txy):
         self.bulk = np.array(ligand.detach().cpu())
