@@ -4,7 +4,7 @@ import torch.nn as nn
 import numpy as np
 
 # from .Models import ProteinConv2D
-from Models.Convolution.ProteinConvolution2D import ProteinConv2D
+from .Models.Convolution.ProteinConvolution2D import ProteinConv2D
 
 from tqdm import tqdm
 import random
