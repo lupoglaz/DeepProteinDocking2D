@@ -144,7 +144,7 @@ class BruteForceDockingTrainer:
             checkpoint_dict = {
                 'epoch': epoch,
                 'state_dict': self.model.state_dict(),
-                'optimizer': optimizer.state_dict(),
+                'optimizer': self.optimizer.state_dict(),
             }
 
             ### Training epoch
