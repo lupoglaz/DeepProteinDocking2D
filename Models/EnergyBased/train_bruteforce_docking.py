@@ -16,7 +16,7 @@ from plot_IP_loss import LossPlotter
 
 
 class BruteForceDockingTrainer:
-    def __init__(self, cur_model, cur_optimizer, cur_experiment, debug=False, plotting=False):
+    def __init__(self, model, optimizer, debug=False, plotting=False):
         self.debug = debug
         self.plotting = plotting
         self.eval_freq = 1
@@ -25,11 +25,10 @@ class BruteForceDockingTrainer:
         self.dim = TorchDockingFFT().dim
         self.num_angles = TorchDockingFFT().num_angles
 
-        self.model = cur_model
-        self.optimizer = cur_optimizer
-        self.experiment = cur_experiment
+        self.model = model
+        self.optimizer = optimizer
 
-    def run_model(self, data, train=True):
+    def run_model(self, data, model, train=True):
         receptor, ligand, gt_txy, gt_rot, _ = data
 
         receptor = receptor.squeeze()
@@ -43,11 +42,11 @@ class BruteForceDockingTrainer:
         gt_txy = gt_txy.to(device='cuda', dtype=torch.float)
 
         if train:
-            self.model.train()
+            model.train()
 
         ### run model and loss calculation
         ##### call model
-        FFT_score = self.model(receptor, ligand, plotting=self.plotting)
+        FFT_score = model(receptor, ligand, plotting=self.plotting)
         FFT_score = FFT_score.flatten()
 
         ### Encode ground truth transformation index into empty energy grid
@@ -105,7 +104,7 @@ class BruteForceDockingTrainer:
             torch.nn.init.kaiming_uniform_(self.model.weight)
             # torch.nn.init.kaiming_normal_(model.weight)
 
-    def train_model(self, train_epochs, train_stream, valid_stream, test_stream,
+    def train_model(self, model, optimizer, experiment, train_epochs, train_stream, valid_stream, test_stream,
                     resume_training=False,
                     resume_epoch=0):
 
@@ -117,7 +116,7 @@ class BruteForceDockingTrainer:
 
         ### Continue training on existing model?
         if resume_training:
-            ckp_path = 'Log/' + self.experiment + str(resume_epoch) + '.th'
+            ckp_path = 'Log/' + experiment + str(resume_epoch) + '.th'
             self.model, self.optimizer, start_epoch = self.load_ckp(ckp_path)
             start_epoch += 1
 
@@ -127,13 +126,13 @@ class BruteForceDockingTrainer:
         else:
             start_epoch = 1
             ### Loss log files
-            with open('Log/losses/log_train_' + self.experiment + '.txt', 'w') as fout:
+            with open('Log/losses/log_train_' + experiment + '.txt', 'w') as fout:
                 fout.write('Docking Training Loss:\n')
                 fout.write(log_header)
-            with open('Log/losses/log_valid_' + self.experiment + '.txt', 'w') as fout:
+            with open('Log/losses/log_valid_' + experiment + '.txt', 'w') as fout:
                 fout.write('Docking Validation Loss:\n')
                 fout.write(log_header)
-            with open('Log/losses/log_test_' + self.experiment + '.txt', 'w') as fout:
+            with open('Log/losses/log_test_' + experiment + '.txt', 'w') as fout:
                 fout.write('Docking Testing Loss:\n')
                 fout.write(log_header)
 
@@ -143,56 +142,56 @@ class BruteForceDockingTrainer:
 
             checkpoint_dict = {
                 'epoch': epoch,
-                'state_dict': self.model.state_dict(),
+                'state_dict': model.state_dict(),
                 'optimizer': optimizer.state_dict(),
             }
 
             ### Training epoch
             train_loss = []
             for data in tqdm(train_stream):
-                train_output = [self.run_model(data, train=True)]
+                train_output = [self.run_model(data, model, train=True)]
                 train_loss.append(train_output)
-                with open('Log/losses/log_RMSDsTrainset_epoch' + str(epoch) + self.experiment + '.txt', 'a') as fout:
+                with open('Log/losses/log_RMSDsTrainset_epoch' + str(epoch) + experiment + '.txt', 'a') as fout:
                     fout.write('%f\n' % (train_output[0][-1]))
 
             avg_trainloss = np.average(train_loss, axis=0)[0, :]
             print('\nEpoch', epoch, 'Train Loss:', avg_trainloss)
-            with open('Log/losses/log_train_' + self.experiment + '.txt', 'a') as fout:
+            with open('Log/losses/log_train_' + experiment + '.txt', 'a') as fout:
                 fout.write(log_format % (epoch, avg_trainloss[0], avg_trainloss[1]))
 
             ### Evaluation epoch
             if epoch % self.eval_freq == 0 or epoch == 1:
                 valid_loss = []
                 for data in tqdm(valid_stream):
-                    valid_output = [self.run_model(data, train=False)]
+                    valid_output = [self.run_model(data, model, train=False)]
                     valid_loss.append(valid_output)
-                    with open('Log/losses/log_RMSDsValidset_epoch' + str(epoch) + self.experiment + '.txt', 'a') as fout:
+                    with open('Log/losses/log_RMSDsValidset_epoch' + str(epoch) + experiment + '.txt', 'a') as fout:
                         fout.write('%f\n' % (valid_output[0][-1]))
 
                 avg_validloss = np.average(valid_loss, axis=0)[0, :]
                 print('\nEpoch', epoch, 'VALID LOSS:', avg_validloss)
-                with open('Log/losses/log_valid_' + self.experiment + '.txt', 'a') as fout:
+                with open('Log/losses/log_valid_' + experiment + '.txt', 'a') as fout:
                     fout.write(log_format % (epoch, avg_validloss[0], avg_validloss[1]))
 
                 test_loss = []
                 for data in tqdm(test_stream):
-                    test_output = [self.run_model(data, train=False)]
+                    test_output = [self.run_model(data, model, train=False)]
                     test_loss.append(test_output)
-                    with open('Log/losses/log_RMSDsTestset_epoch' + str(epoch) + self.experiment + '.txt', 'a') as fout:
+                    with open('Log/losses/log_RMSDsTestset_epoch' + str(epoch) + experiment + '.txt', 'a') as fout:
                         fout.write('%f\n' % (test_output[0][-1]))
 
                 avg_testloss = np.average(test_loss, axis=0)[0, :]
                 print('\nEpoch', epoch, 'TEST LOSS:', avg_testloss)
-                with open('Log/losses/log_test_' + self.experiment + '.txt', 'a') as fout:
+                with open('Log/losses/log_test_' + experiment + '.txt', 'a') as fout:
                     fout.write(log_format % (epoch, avg_testloss[0], avg_testloss[1]))
 
             #### saving model while training
             if epoch % self.save_freq == 0:
-                self.save_checkpoint(checkpoint_dict, 'Log/' + self.experiment + str(epoch) + '.th')
-                print('saving model ' + 'Log/' + self.experiment + str(epoch) + '.th')
+                self.save_checkpoint(checkpoint_dict, 'Log/' + experiment + str(epoch) + '.th')
+                print('saving model ' + 'Log/' + experiment + str(epoch) + '.th')
             if epoch == num_epochs - 1:
-                self.save_checkpoint(checkpoint_dict, 'Log/' + self.experiment + 'end.th')
-                print('saving LAST EPOCH model ' + 'Log/' + self.experiment + str(epoch) + '.th')
+                self.save_checkpoint(checkpoint_dict, 'Log/' + experiment + 'end.th')
+                print('saving LAST EPOCH model ' + 'Log/' + experiment + str(epoch) + '.th')
 
     @staticmethod
     def plot_pose(FFT_score, receptor, ligand, gt_rot, gt_txy):
@@ -232,13 +231,13 @@ class BruteForceDockingTrainer:
         # plt.show()
 
     def run_trainer(self, train_epochs, resume_training=False, resume_epoch=0):
-        self.train_model(train_epochs, train_stream, valid_stream,
+        self.train_model(model, optimizer, experiment, train_epochs, train_stream, valid_stream,
                          test_stream,
                          resume_training=resume_training, resume_epoch=resume_epoch)
 
     def plot_evaluation_set(self, check_epoch):
         eval_epochs = 1
-        self.train_model(eval_epochs, train_stream, valid_stream,
+        self.train_model(model, optimizer, experiment, eval_epochs, train_stream, valid_stream,
                          test_stream,
                          resume_training=True, resume_epoch=check_epoch)
 
@@ -273,19 +272,18 @@ if __name__ == '__main__':
 
     ######################
     train_epochs = 20
-    # experiment = 'RECODE_CHECK_BFDOCKING_30epochs'
-    experiment = 'PASS_FFT_DIM_NUMANGLES_EXPERIMENT'
+    experiment = 'RECODE_CHECK_BFDOCKING_30epochs'
 
     ######################
     ### Train model from beginning
-    BruteForceDockingTrainer(model, optimizer, experiment).run_trainer(train_epochs)
+    # BruteForceDockingTrainer(model, optimizer).run_trainer(train_epochs)
 
     ### Resume training model at chosen epoch
-    # BruteForceDockingTrainer(model, optimizer, experiment).run_trainer(train_epochs=10, resume_training=True, resume_epoch=20)
+    # BruteForceDockingTrainer(model, optimizer).run_trainer(train_epochs=10, resume_training=True, resume_epoch=20)
 
     ## Plot loss from current experiment
     # LossPlotter(experiment).plot_loss()
     # LossPlotter(experiment).plot_rmsd_distribution(plot_epoch=30)
 
     ### Evaluate model only and plot, at chosen epoch
-    BruteForceDockingTrainer(model, optimizer, experiment, plotting=True).plot_evaluation_set(check_epoch=30)
+    BruteForceDockingTrainer(model, optimizer, plotting=True).plot_evaluation_set(check_epoch=30)

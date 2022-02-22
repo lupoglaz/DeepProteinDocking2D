@@ -13,10 +13,10 @@ import numpy as np
 
 
 class TorchDockingFFT:
-    def __init__(self, debug=False):
+    def __init__(self, dim=100, num_angles=360, debug=False):
         self.debug = debug
-        self.dim = 100
-        self.num_angles = 360
+        self.dim = dim
+        self.num_angles = num_angles
         self.angles = torch.from_numpy(np.linspace(-np.pi, np.pi, num=self.num_angles)).cuda()
 
     def encode_transform(self, gt_rot, gt_txy):

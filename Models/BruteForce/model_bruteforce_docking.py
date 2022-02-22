@@ -47,7 +47,7 @@ class BruteForceDocking(nn.Module):
         rec_feat = self.netSE2(receptor_geomT).tensor.squeeze()
         lig_feat = self.netSE2(ligand_geomT).tensor.squeeze()
 
-        FFT_score = TorchDockingFFT().dock_global(
+        FFT_score = TorchDockingFFT(dim=rec_feat.shape[-1]*2, num_angles=360).dock_global(
             rec_feat,
             lig_feat,
             weight_bound=self.boundW,

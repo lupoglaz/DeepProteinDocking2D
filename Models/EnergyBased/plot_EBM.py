@@ -42,20 +42,6 @@ class EBMPlotter:
         # plot at epoch level
         # plot scatter of Free energy mins for positive and negative examples
         plot_limit = 1000
-        # fig, ax = plt.subplots(1, 2)
-        # plt.title('Epoch'+str(epoch)+' Free Energies and F_0')
-        # plt.ylabel('F')
-        # plt.xlabel('Examples')
-        # plot_min = max(min([min(pos_list), min(neg_list), F_0.item()]), -plot_limit)
-        # plot_max = min(max([max(pos_list), max(neg_list), F_0.item()]), +plot_limit)
-        # plt.ylim([plot_min, plot_max])
-        # ax[0,0].scatter(pos_ind, pos_list, c='g', marker='v', alpha=0.50)
-        # ax[0,0].scatter(neg_ind, neg_list, c='r', marker='^', alpha=0.33)
-        # ax[0,0].hlines(F_0, xmin=0, xmax=max(pos_ind[-1], neg_ind[-1]))
-        # # ax[1,1].hist(neg_list)
-        # plt.legend(['Interaction','Non-interaction','Learned F_0'], loc='upper right')
-        # plt.savefig(filename)
-        # plt.close()
         plt.title('Epoch'+str(epoch)+' Free Energies and F_0')
         plt.ylabel('F')
         plt.xlabel('Examples')
@@ -65,7 +51,6 @@ class EBMPlotter:
         plt.scatter(pos_ind, pos_list, c='g', marker='v', alpha=0.50)
         plt.scatter(neg_ind, neg_list, c='r', marker='^', alpha=0.33)
         plt.hlines(F_0, xmin=0, xmax=max(pos_ind[-1], neg_ind[-1]))
-        plt.hist(neg_list)
         plt.legend(['Interaction','Non-interaction','Learned F_0'], loc='upper right')
         plt.savefig(filename)
         plt.close()
