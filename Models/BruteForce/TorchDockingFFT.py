@@ -13,8 +13,9 @@ import numpy as np
 
 
 class TorchDockingFFT:
-    def __init__(self, dim=100, num_angles=360, debug=False):
+    def __init__(self, dim=100, num_angles=360, swap_plot_quadrants=False, debug=False):
         self.debug = debug
+        self.swap_plot_quadrants = swap_plot_quadrants
         self.dim = dim
         self.num_angles = num_angles
         self.angles = torch.from_numpy(np.linspace(-np.pi, np.pi, num=self.num_angles)).cuda()
@@ -36,16 +37,18 @@ class TorchDockingFFT:
         pred_rot = ((pred_index / self.dim ** 2) * np.pi / 180.0) - np.pi
 
         XYind = torch.remainder(pred_index, self.dim ** 2)
-        pred_X = XYind // self.dim
-        pred_Y = XYind % self.dim
-
-        # Just to make translations look nice
+        if self.swap_plot_quadrants:
+            pred_X = XYind // self.dim - self.dim//2
+            pred_Y = XYind % self.dim - self.dim//2
+        else:
+            pred_X = XYind // self.dim
+            pred_Y = XYind % self.dim
+        # Just to make translation values look nice in terms of + or - signs
         if pred_X > self.dim//2:
             pred_X = pred_X - self.dim
         if pred_Y > self.dim//2:
             pred_Y = pred_Y - self.dim
         return pred_rot, torch.stack((pred_X, pred_Y), dim=0)
-
 
     @staticmethod
     def make_boundary(grid_shape):
@@ -75,7 +78,7 @@ class TorchDockingFFT:
     # weight_bound = 1.0, weight_crossterm1 = 1.0, weight_crossterm2 = 1.0, weight_bulk = 1.0,
     # weight_bound = 3.0, weight_crossterm1 = -0.3, weight_crossterm2 = -0.3, weight_bulk = 2.8,
     # weight_bound = 3.0, weight_crossterm1 = -0.3, weight_crossterm2 = -0.3, weight_bulk = 30.0,
-    def dock_global(self, receptor, ligand, weight_bound = 3.0, weight_crossterm1 = -0.3, weight_crossterm2 = -0.3, weight_bulk = 2.8, debug=False):
+    def dock_global(self, receptor, ligand, weight_bound=3.0, weight_crossterm1=-0.3, weight_crossterm2=-0.3, weight_bulk=30.0, debug=False):
         initbox_size = receptor.shape[-1]
         # print(receptor.shape)
         pad_size = initbox_size // 2
@@ -107,8 +110,9 @@ class TorchDockingFFT:
         return score
 
     def CE_dock_translations(self, receptor, ligand, weight_bound, weight_crossterm1, weight_crossterm2, weight_bulk):
-        receptor_bulk, receptor_bound = torch.chunk(receptor, chunks=2, dim=1)
-        ligand_bulk, ligand_bound = torch.chunk(ligand, chunks=2, dim=1)
+        num_feats_per_shape = 2
+        receptor_bulk, receptor_bound = torch.chunk(receptor, chunks=num_feats_per_shape, dim=1)
+        ligand_bulk, ligand_bound = torch.chunk(ligand, chunks=num_feats_per_shape, dim=1)
         receptor_bulk = receptor_bulk.squeeze()
         receptor_bound = receptor_bound.squeeze()
         ligand_bulk = ligand_bulk.squeeze()
@@ -143,7 +147,10 @@ class TorchDockingFFT:
 
         # print(score.shape)
 
-        return score
+        if self.swap_plot_quadrants:
+            return self.swap_quadrants(score)
+        else:
+            return score
 
 
     @staticmethod
@@ -164,6 +171,26 @@ class TorchDockingFFT:
                              pred_txy.detach().cpu().numpy(), gt_rot.detach().cpu().numpy(), gt_txy.detach().cpu().numpy())
         plt.imshow(pair.transpose())
         plt.show()
+
+    def swap_quadrants(ctx, input_volume):
+        # batch_size = input_volume.size(0)
+        # num_features = input_volume.size(1)
+        num_features = input_volume.size(0)
+        L = input_volume.size(-1)
+        L2 = int(L / 2)
+        # output_volume = torch.zeros(batch_size, num_features, L, L, device=input_volume.device, dtype=input_volume.dtype)
+        output_volume = torch.zeros(num_features, L, L, device=input_volume.device, dtype=input_volume.dtype)
+
+        output_volume[:, :L2, :L2] = input_volume[:, L2:L, L2:L]
+        output_volume[:, L2:L, L2:L] = input_volume[:, :L2, :L2]
+
+        output_volume[:, L2:L, :L2] = input_volume[:, :L2, L2:L]
+        output_volume[:, :L2, L2:L] = input_volume[:, L2:L, :L2]
+
+        output_volume[:, L2:L, L2:L] = input_volume[:, :L2, :L2]
+        output_volume[:, :L2, :L2] = input_volume[:, L2:L, L2:L]
+
+        return output_volume
 
 
 if __name__ == '__main__':
@@ -188,11 +215,12 @@ if __name__ == '__main__':
         gt_rot = gt_rot.to(device='cuda', dtype=torch.float)
         gt_txy = gt_txy.to(device='cuda', dtype=torch.float)
 
-        receptor_stack = TorchDockingFFT().make_boundary(receptor)
-        ligand_stack = TorchDockingFFT().make_boundary(ligand)
-        FFT_score = TorchDockingFFT().dock_global(receptor_stack, ligand_stack, debug=False)
+        FFT = TorchDockingFFT(swap_plot_quadrants=True)
+        receptor_stack = FFT.make_boundary(receptor)
+        ligand_stack = FFT.make_boundary(ligand)
+        FFT_score = FFT.dock_global(receptor_stack, ligand_stack, debug=False)
 
-        TorchDockingFFT().check_FFT_predictions(FFT_score, receptor, ligand, gt_txy, gt_rot)
+        FFT.check_FFT_predictions(FFT_score, receptor, ligand, gt_txy, gt_rot)
 
         # FFT_score = TorchDockingFFT().dock_global(receptor_stack, ligand_stack, weight_bound=-0.3, weight_crossterm1=0.55, weight_crossterm2=0.55, weight_bulk=3.0, debug=False)
         #

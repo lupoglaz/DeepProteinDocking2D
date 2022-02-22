@@ -271,7 +271,8 @@ if __name__ == '__main__':
     ######################
     train_epochs = 20
     # experiment = 'RECODE_CHECK_BFDOCKING_30epochs'
-    experiment = 'PASS_FFT_DIM_NUMANGLES_EXPERIMENT'
+    # experiment = 'PASS_FFT_DIM_NUMANGLES_EXPERIMENT'
+    experiment = 'SWAP_QUADRANTS_False'
 
     ######################
     ### Train model from beginning
