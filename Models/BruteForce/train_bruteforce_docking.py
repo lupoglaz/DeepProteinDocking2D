@@ -210,7 +210,6 @@ class BruteForceDockingTrainer:
                              gt_rot.squeeze().detach().cpu().numpy(), gt_txy.squeeze().detach().cpu().numpy())
 
         plt.imshow(pair.transpose())
-        # plt.title('Ground truth'+' '*33+'Input'+' '*33+'Predicted pose')
         plt.title('Ground truth', loc='left')
         plt.title('Input')
         plt.title('Predicted pose', loc='right')
@@ -223,23 +222,21 @@ class BruteForceDockingTrainer:
             top=False,  # ticks along the top edge are off
             labelbottom=False)  # labels along the bottom
         plt.tick_params(
-            axis='y',  # changes apply to the x-axis
-            which='both',  # both major and minor ticks are affected
-            left=False,  # ticks along the bottom edge are off
-            right=False,  # ticks along the top edge are off
-            labelleft=False)  # labels along the bottom
+            axis='y',
+            which='both',
+            left=False,
+            right=False,
+            labelleft=False)
         plt.savefig('figs/docking_pose_RMSD' + str(rmsd_out.item())[:4] + '.png')
         # plt.show()
 
     def run_trainer(self, train_epochs, resume_training=False, resume_epoch=0):
-        self.train_model(train_epochs, train_stream, valid_stream,
-                         test_stream,
+        self.train_model(train_epochs, train_stream, valid_stream, test_stream,
                          resume_training=resume_training, resume_epoch=resume_epoch)
 
     def plot_evaluation_set(self, check_epoch):
         eval_epochs = 1
-        self.train_model(eval_epochs, train_stream, valid_stream,
-                         test_stream,
+        self.train_model(eval_epochs, train_stream, valid_stream, test_stream,
                          resume_training=True, resume_epoch=check_epoch)
 
 if __name__ == '__main__':
