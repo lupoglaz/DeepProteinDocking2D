@@ -75,9 +75,13 @@ class TorchDockingFFT:
         curr_grid = F.affine_grid(R, size=repr.size(), align_corners=True).type(torch.float)
         return F.grid_sample(repr, curr_grid, align_corners=True)
 
+    ## Tried some weights suggested by Georgy
     # weight_bound = 1.0, weight_crossterm1 = 1.0, weight_crossterm2 = 1.0, weight_bulk = 1.0,
     # weight_bound = 3.0, weight_crossterm1 = -0.3, weight_crossterm2 = -0.3, weight_bulk = 2.8,
     # weight_bound = 3.0, weight_crossterm1 = -0.3, weight_crossterm2 = -0.3, weight_bulk = 30.0,
+    ## Weights learned from model: RECODE_CHECK_BFDOCKING_30epochs DOES NOT WORK WITH RAW BULK BOUNDARY DATASET FEATS
+    # weight_bound = 0.7626, weight_crossterm1, 1.0481, weight_crossterm2 = 0.9259, weight_bulk = 0.9861
+
     def dock_global(self, receptor, ligand, weight_bound=3.0, weight_crossterm1=-0.3, weight_crossterm2=-0.3, weight_bulk=30.0, debug=False):
         initbox_size = receptor.shape[-1]
         # print(receptor.shape)

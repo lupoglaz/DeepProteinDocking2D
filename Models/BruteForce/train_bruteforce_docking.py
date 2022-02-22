@@ -270,13 +270,13 @@ if __name__ == '__main__':
 
     ######################
     train_epochs = 20
-    # experiment = 'RECODE_CHECK_BFDOCKING_30epochs'
+    experiment = 'RECODE_CHECK_BFDOCKING_30epochs'
     # experiment = 'PASS_FFT_DIM_NUMANGLES_EXPERIMENT'
-    experiment = 'SWAP_QUADRANTS_False'
+    # experiment = 'SWAP_QUADRANTS_False'
 
     ######################
     ### Train model from beginning
-    BruteForceDockingTrainer(model, optimizer, experiment).run_trainer(train_epochs)
+    # BruteForceDockingTrainer(model, optimizer, experiment).run_trainer(train_epochs)
 
     ### Resume training model at chosen epoch
     # BruteForceDockingTrainer(model, optimizer, experiment).run_trainer(train_epochs=10, resume_training=True, resume_epoch=20)
