@@ -89,7 +89,7 @@ class TorchDockingFFT:
 
         f_rec = receptor.unsqueeze(0).repeat(self.num_angles,1,1,1)
         f_lig = ligand.unsqueeze(0).repeat(self.num_angles,1,1,1)
-        rot_lig = TorchDockingFFT().rotate(f_lig, self.angles)
+        rot_lig = self.rotate(f_lig, self.angles)
 
         if initbox_size % 2 == 0:
             f_rec = F.pad(f_rec, pad=([pad_size, pad_size, pad_size, pad_size]), mode='constant', value=0)
@@ -108,7 +108,7 @@ class TorchDockingFFT:
                         plt.imshow(rot_lig[i,0,:,:].detach().cpu())
                         plt.show()
 
-        score = TorchDockingFFT().CE_dock_translations(f_rec, rot_lig, weight_bound, weight_crossterm1, weight_crossterm2, weight_bulk)
+        score = self.CE_dock_translations(f_rec, rot_lig, weight_bound, weight_crossterm1, weight_crossterm2, weight_bulk)
         # score = SwapQuadrants2DFunction.apply(score)
 
         return score
@@ -156,12 +156,10 @@ class TorchDockingFFT:
         else:
             return score
 
-
-    @staticmethod
-    def check_FFT_predictions(FFT_score, receptor, ligand, gt_txy, gt_rot):
+    def check_FFT_predictions(self, FFT_score, receptor, ligand, gt_txy, gt_rot):
         print('\n'+'*'*50)
 
-        pred_rot, pred_txy = TorchDockingFFT().extract_transform(FFT_score)
+        pred_rot, pred_txy = self.extract_transform(FFT_score)
         rmsd_out = RMSD(ligand, gt_rot, gt_txy, pred_rot, pred_txy).calc_rmsd()
         print('extracted predicted indices', pred_rot, pred_txy)
         print('gt indices', gt_rot, gt_txy)

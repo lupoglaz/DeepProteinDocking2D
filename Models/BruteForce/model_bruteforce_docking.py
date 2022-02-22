@@ -13,6 +13,7 @@ class BruteForceDocking(nn.Module):
 
     def __init__(self):
         super(BruteForceDocking, self).__init__()
+        self.plot_freq = 10
         self.boundW = nn.Parameter(torch.ones(1, requires_grad=True))
         self.crosstermW1 = nn.Parameter(torch.ones(1, requires_grad=True))
         self.crosstermW2 = nn.Parameter(torch.ones(1, requires_grad=True))
@@ -39,7 +40,7 @@ class BruteForceDocking(nn.Module):
             enn.NormPool(self.feat_type_out_final),
         )
 
-    def forward(self, receptor, ligand, plotting=False):
+    def forward(self, receptor, ligand, train=True, plotting=False, plot_count=1, stream_name='trainset'):
 
         receptor_geomT = enn.GeometricTensor(receptor.unsqueeze(0), self.feat_type_in1)
         ligand_geomT = enn.GeometricTensor(ligand.unsqueeze(0), self.feat_type_in1)
@@ -57,13 +58,14 @@ class BruteForceDocking(nn.Module):
         )
 
         #### Plot shape features
-        if plotting and eval:
-            with torch.no_grad():
-                self.plot_feats(rec_feat, lig_feat, receptor, ligand, FFT_score)
+        if plotting and not train:
+            if plot_count % self.plot_freq == 0:
+                with torch.no_grad():
+                    self.plot_feats(rec_feat, lig_feat, receptor, ligand, FFT_score, plot_count, stream_name)
 
         return FFT_score
 
-    def plot_feats(self, rec_feat, lig_feat, receptor, ligand, FFT_score):
+    def plot_feats(self, rec_feat, lig_feat, receptor, ligand, FFT_score, plot_count=0, stream_name='trainset'):
         print('\nLearned scoring coefficients')
         print('bound', str(self.boundW.item())[:6])
         print('crossterm1', str(self.crosstermW1.item())[:6])
@@ -109,12 +111,13 @@ class BruteForceDocking(nn.Module):
             top=False,  # ticks along the top edge are off
             labelbottom=False)  # labels along the bottom
         plt.tick_params(
-            axis='y',  # changes apply to the x-axis
-            which='both',  # both major and minor ticks are affected
-            left=False,  # ticks along the bottom edge are off
-            right=False,  # ticks along the top edge are off
-            labelleft=False)  # labels along the bottom
-        plt.savefig('figs/docking_feats_MinEnergy' + str(torch.argmin(-FFT_score).item())[:4] + '.png')
+            axis='y',
+            which='both',
+            left=False,
+            right=False,
+            labelleft=False)
+        plt.savefig('figs/rmsd_and_poses/'+stream_name+'_docking_feats'+'_example' + str(plot_count)+'.png')
+        # '_MinEnergy' + str(torch.argmin(-FFT_score).item())[:4] +
         # plt.show()
 
 if __name__ == '__main__':
