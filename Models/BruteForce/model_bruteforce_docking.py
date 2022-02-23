@@ -42,7 +42,7 @@ class BruteForceDocking(nn.Module):
             enn.NormPool(self.feat_type_out_final),
         )
 
-    def forward(self, receptor, ligand, train=True, plotting=False, plot_count=1, stream_name='trainset', energymodel=False, angle=None):
+    def forward(self, receptor, ligand, train=True, plotting=False, plot_count=1, stream_name='trainset', angle=None):
 
         receptor_geomT = enn.GeometricTensor(receptor.unsqueeze(0), self.feat_type_in1)
         ligand_geomT = enn.GeometricTensor(ligand.unsqueeze(0), self.feat_type_in1)
@@ -50,7 +50,7 @@ class BruteForceDocking(nn.Module):
         rec_feat = self.netSE2(receptor_geomT).tensor.squeeze()
         lig_feat = self.netSE2(ligand_geomT).tensor.squeeze()
 
-        FFT_score = TorchDockingFFT(dim=self.dim, num_angles=self.num_angles, angle=None).dock_global(
+        FFT_score = TorchDockingFFT(dim=self.dim, num_angles=self.num_angles, angle=angle).dock_global(
             rec_feat,
             lig_feat,
             weight_bound=self.boundW,

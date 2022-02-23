@@ -19,7 +19,7 @@ class TorchDockingFFT:
         self.dim = dim
         self.num_angles = num_angles
         if self.num_angles == 1:
-            self.angles = angle.cuda()
+            self.angles = angle.squeeze().unsqueeze(0).cuda()
         else:
             self.angles = torch.from_numpy(np.linspace(-np.pi, np.pi, num=self.num_angles)).cuda()
 
