@@ -90,17 +90,17 @@ class DockerEBM(nn.Module):
         with torch.no_grad():
             pred_rot, pred_txy = TorchDockingFFT().extract_transform(FFT_score)
             best_score = FFT_score[pred_txy[0], pred_txy[1]]
-        return -best_score, pred_txy
+        return -best_score, pred_txy, FFT_score
 
 
 class EnergyBasedModel(nn.Module):
-    def __init__(self, num_buf_samples=10, device='cuda', num_samples=10, weight=1.0, step_size=10.0, sample_steps=10,
+    def __init__(self, device='cuda', num_samples=1, weight=1.0, step_size=1, sample_steps=1,
                 FI=False, experiment=None, path_pretrain=None):
         super(EnergyBasedModel, self).__init__()
         self.debug = False
-        self.train = False
-        self.BF_init = False
-        self.wReg = True
+        # self.training = False
+        # self.BF_init = False
+        # self.wReg = True
         self.Force_reg = False
         if self.Force_reg:
             self.k = 1e-3
@@ -151,8 +151,8 @@ class EnergyBasedModel(nn.Module):
         noise_alpha = torch.zeros_like(neg_alpha)
         noise_dr = torch.zeros_like(neg_dr)
 
-        self.requires_grad(False)
-        self.EBMdocker.eval()
+        # self.requires_grad(False)
+        # self.EBMdocker.eval()
 
         neg_alpha.requires_grad_()
         neg_dr.requires_grad_()
@@ -161,18 +161,10 @@ class EnergyBasedModel(nn.Module):
         if temperature == 'cold':
             # self.sig_dr = 0.05
             # self.sig_alpha = 0.5
-            self.sig_dr = 5
-            self.sig_alpha = 5
-
-        if temperature == 'hot':
-            # self.sig_dr = 0.5
+            # self.sig_dr = 5
             # self.sig_alpha = 5
-            self.sig_dr = 10
-            self.sig_alpha = 10
-
-        lastN_neg_out = []
-        lastN_alpha = []
-        lastN_dr = []
+            self.sig_dr = 25
+            self.sig_alpha = 50
 
         for i in range(self.sample_steps):
             if self.debug:
@@ -182,11 +174,7 @@ class EnergyBasedModel(nn.Module):
                     print(neg_dr)
 
             langevin_opt.zero_grad()
-            best_score, neg_dr = self.EBMdocker(receptor, ligand, neg_alpha)
-
-            if self.Force_reg:
-                F_reg = self.k * torch.sqrt(torch.sum(neg_dr.data**2) + self.eps)
-                best_score = best_score + F_reg
+            best_score, neg_dr, FFT_score = self.EBMdocker(receptor, ligand, neg_alpha)
 
             best_score.mean().backward()
             langevin_opt.step()
@@ -201,6 +189,7 @@ class EnergyBasedModel(nn.Module):
             neg_alpha = neg_alpha + noise_alpha.normal_(0, self.sig_alpha)
             clamp_offset = receptor.size(2)//3
             neg_dr.data = neg_dr.data.clamp_(-receptor.size(2)+clamp_offset, receptor.size(2)-clamp_offset)
+            neg_alpha.data = neg_alpha.data.clamp_(-np.pi, np.pi)
 
             # neg_dr.data += noise_dr.normal_(0, self.sig_dr)
             # neg_alpha.data += noise_alpha.normal_(0, self.sig_alpha)
@@ -224,16 +213,16 @@ class EnergyBasedModel(nn.Module):
                     print(neg_alpha)
                     print(neg_dr)
 
-            lastN_neg_out.append(best_score.detach())
-            lastN_alpha.append(neg_alpha_out.detach())
-            lastN_dr.append(neg_dr_out.detach())
-
         # if self.FI:
         #     return neg_alpha_out.detach(), neg_dr_out.detach(), lastN_alpha, lastN_dr, lastN_neg_out
         # else:
         #     return neg_alpha.detach(), neg_dr.detach()
 
-        return neg_alpha.detach(), neg_dr.detach()
+        # self.requires_grad(True)
+        # self.EBMdocker.train()
+        # return neg_alpha.detach(), neg_dr.detach()
+        return neg_alpha.clone().detach(), neg_dr.clone().detach(), FFT_score
+
 
     # def FI_prediction(self, neg_rec_feat, neg_lig_feat, pos_rec_feat, pos_lig_feat, neg_alpha, neg_dr, neg_alpha2,
     #                   neg_dr2, pos_idx,

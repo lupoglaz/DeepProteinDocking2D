@@ -12,7 +12,7 @@ from DeepProteinDocking2D.Models.BruteForce.model_bruteforce_docking import Brut
 from DeepProteinDocking2D.Models.BruteForce.utility_functions import plot_assembly
 from DeepProteinDocking2D.Models.BruteForce.validation_metrics import RMSD
 import matplotlib.pyplot as plt
-# from plot_IP_loss import LossPlotter
+from plot_IP_loss import LossPlotter
 from DeepProteinDocking2D.Models.EnergyBased.model_energybased_sampling import EnergyBasedModel
 
 
@@ -28,8 +28,8 @@ class SampleBuffer:
         return len(self.buffer[i])
 
     def push(self, alphas, drs, index):
-        alphas = alphas.detach().to(device='cpu')
-        drs = drs.detach().to(device='cpu')
+        alphas = alphas.clone().detach().to(device='cpu')
+        drs = drs.clone().detach().to(device='cpu')
 
         for alpha, dr, idx in zip(alphas, drs, index):
             i = idx.item()
@@ -37,10 +37,10 @@ class SampleBuffer:
             if len(self.buffer[i]) > self.max_pos:
                 self.buffer[i].pop(0)
 
-    def get(self, index, num_samples, device='cuda', train=True):
+    def get(self, index, num_samples, device='cuda', training=True):
         alphas = []
         drs = []
-        if not train:
+        if not training:
             # print('EVAL rand init')
             alpha = torch.rand(num_samples, 1) * 2 * np.pi - np.pi
             dr = torch.rand(num_samples, 2) * 50.0 - 25.0
@@ -86,7 +86,7 @@ class EnergyBasedDockingTrainer:
     def __init__(self, cur_model, cur_optimizer, cur_experiment, debug=False, plotting=False):
         self.debug = debug
         self.plotting = plotting
-        self.eval_freq = 1
+        self.eval_freq = 5
         self.save_freq = 1
         self.plot_freq = BruteForceDocking().plot_freq
 
@@ -97,7 +97,7 @@ class EnergyBasedDockingTrainer:
         self.optimizer = cur_optimizer
         self.experiment = cur_experiment
 
-    def run_model(self, data, train=True, plot_count=0, stream_name='trainset'):
+    def run_model(self, data, training=True, plot_count=0, stream_name='trainset'):
         receptor, ligand, gt_txy, gt_rot, pos_idx = data
 
         receptor = receptor.squeeze()
@@ -110,31 +110,40 @@ class EnergyBasedDockingTrainer:
         gt_rot = gt_rot.to(device='cuda', dtype=torch.float)
         gt_txy = gt_txy.to(device='cuda', dtype=torch.float)
 
-        # if train:
-        #     self.model.train()
+        if training:
+            self.model.train()
 
         ### run model and loss calculation
         ##### call model
-        neg_alpha, neg_dr = self.buffer.get(pos_idx, num_samples=1, train=train)
-        pred_rot, pred_txy = self.model(neg_alpha, neg_dr, receptor, ligand, temperature='cold')
+        neg_alpha, neg_dr = self.buffer.get(pos_idx, num_samples=1, training=training)
+        pred_rot, pred_txy, FFT_score = self.model(neg_alpha, neg_dr, receptor, ligand, temperature='cold')
         self.buffer.push(neg_alpha, neg_dr, pos_idx)
 
         ### Encode ground truth transformation index into empty energy grid
         with torch.no_grad():
-            target_flatindex = TorchDockingFFT().encode_transform(gt_rot, gt_txy)
-            pred_flatindex = TorchDockingFFT().encode_transform(pred_rot, pred_txy)
-            rmsd_out = RMSD(ligand, gt_rot, gt_txy, pred_rot, pred_txy).calc_rmsd()
+            target_flatindex = TorchDockingFFT(num_angles=1, angle=None).encode_transform(gt_rot, gt_txy)
+            # pred_flatindex = TorchDockingFFT(num_angles=1, angle=None).encode_transform(pred_rot, pred_txy)
+            rmsd_out = RMSD(ligand, gt_rot, gt_txy, pred_rot.squeeze(), pred_txy.squeeze()).calc_rmsd()
+            # print(target_flatindex.shape, FFT_score.shape)
+            # print(target_flatindex, pred_flatindex)
 
+        if self.debug:
+            print('\npredicted')
+            print(pred_rot, pred_txy)
+            print('\nground truth')
+            print(gt_rot, gt_txy)
         #### Loss functions
         CE_loss = torch.nn.CrossEntropyLoss()
-        loss = CE_loss(pred_flatindex.unsqueeze(0), target_flatindex.unsqueeze(0))
+        # L1_loss = torch.nn.L1Loss()
+        # print(FFT_score.flatten().squeeze().unsqueeze(0).shape, target_flatindex.unsqueeze(0))
+        loss = CE_loss(FFT_score.flatten().unsqueeze(0), target_flatindex.unsqueeze(0)) #+ L1_loss(pred_rot.squeeze(), gt_rot)
 
         ### check parameters and gradients
         ### if weights are frozen or updating
         if self.debug:
             self.check_model_gradients()
 
-        if train:
+        if training:
             self.model.zero_grad()
             loss.backward()
             self.optimizer.step()
@@ -218,7 +227,7 @@ class EnergyBasedDockingTrainer:
                 ### Training epoch
                 train_loss = []
                 for data in tqdm(train_stream):
-                    train_output = [self.run_model(data, train=True)]
+                    train_output = [self.run_model(data, training=True)]
                     train_loss.append(train_output)
                     with open('Log/losses/log_RMSDsTrainset_epoch' + str(epoch) + self.experiment + '.txt', 'a') as fout:
                         fout.write('%f\n' % (train_output[0][-1]))
@@ -235,7 +244,7 @@ class EnergyBasedDockingTrainer:
                     plot_count = 0
                     valid_loss = []
                     for data in tqdm(valid_stream):
-                        valid_output = [self.run_model(data, train=False, plot_count=plot_count, stream_name=stream_name)]
+                        valid_output = [self.run_model(data, training=False, plot_count=plot_count, stream_name=stream_name)]
                         valid_loss.append(valid_output)
                         with open('Log/losses/log_RMSDsValidset_epoch' + str(epoch) + self.experiment + '.txt', 'a') as fout:
                             fout.write('%f\n' % (valid_output[0][-1]))
@@ -251,7 +260,7 @@ class EnergyBasedDockingTrainer:
                     plot_count = 0
                     test_loss = []
                     for data in tqdm(test_stream):
-                        test_output = [self.run_model(data, train=False, plot_count=plot_count, stream_name=stream_name)]
+                        test_output = [self.run_model(data, training=False, plot_count=plot_count, stream_name=stream_name)]
                         test_loss.append(test_output)
                         with open('Log/losses/log_RMSDsTestset_epoch' + str(epoch) + self.experiment + '.txt', 'a') as fout:
                             fout.write('%f\n' % (test_output[0][-1]))
@@ -346,20 +355,24 @@ if __name__ == '__main__':
 
     ######################
     train_epochs = 20
-    experiment = 'first_tests'
+    # experiment = 'first_tests'
+    # experiment = 'first_tests_clamp_LD1_sample1_step1'
+    # experiment = 'first_tests_clamp_LD1_sample1_step1_NOL1rot'
+    experiment = 'first_tests_clamp_LD1_sample1_step1_NOL1rot_sig2550'
+
 
     ######################
     ### Train model from beginning
     EnergyBasedDockingTrainer(model, optimizer, experiment).run_trainer(train_epochs, train_stream, valid_stream, test_stream)
 
     ### Resume training model at chosen epoch
-    # BruteForceDockingTrainer(model, optimizer, experiment).run_trainer(
+    # EnergyBasedDockingTrainer(model, optimizer, experiment).run_trainer(
     #     train_epochs=10, train_stream=train_stream, valid_stream=valid_stream, test_stream=test_stream,
-    #     resume_training=True, resume_epoch=train_epochs)
+    #     resume_training=True, resume_epoch=5)
 
     ## Plot loss from current experiment
-    # LossPlotter(experiment).plot_loss()
-    # LossPlotter(experiment).plot_rmsd_distribution(plot_epoch=30)
+    LossPlotter(experiment).plot_loss()
+    LossPlotter(experiment).plot_rmsd_distribution(plot_epoch=train_epochs)
 
     ### Evaluate model on chosen dataset only and plot at chosen epoch and dataset frequency
     # BruteForceDockingTrainer(model, optimizer, experiment, plotting=True).plot_evaluation_set(
