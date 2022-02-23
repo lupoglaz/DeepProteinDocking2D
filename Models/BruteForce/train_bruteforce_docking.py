@@ -136,7 +136,7 @@ class BruteForceDockingTrainer:
                         fout.write('%f\n' % (train_output[0][-1]))
 
                 avg_trainloss = np.average(train_loss, axis=0)[0, :]
-                print('\nEpoch', epoch, 'Train Loss:', avg_trainloss)
+                print('\nEpoch', epoch, 'Train Loss: Loss, RMSD', avg_trainloss)
                 with open('Log/losses/log_train_' + self.experiment + '.txt', 'a') as fout:
                     fout.write(log_format % (epoch, avg_trainloss[0], avg_trainloss[1]))
 
@@ -154,7 +154,7 @@ class BruteForceDockingTrainer:
                         plot_count += 1
 
                     avg_validloss = np.average(valid_loss, axis=0)[0, :]
-                    print('\nEpoch', epoch, 'VALID LOSS:', avg_validloss)
+                    print('\nEpoch', epoch, 'VALID LOSS: Loss, RMSD', avg_validloss)
                     with open('Log/losses/log_valid_' + self.experiment + '.txt', 'a') as fout:
                         fout.write(log_format % (epoch, avg_validloss[0], avg_validloss[1]))
 
@@ -170,7 +170,7 @@ class BruteForceDockingTrainer:
                         plot_count += 1
 
                     avg_testloss = np.average(test_loss, axis=0)[0, :]
-                    print('\nEpoch', epoch, 'TEST LOSS:', avg_testloss)
+                    print('\nEpoch', epoch, 'TEST LOSS: Loss, RMSD', avg_testloss)
                     with open('Log/losses/log_test_' + self.experiment + '.txt', 'a') as fout:
                         fout.write(log_format % (epoch, avg_testloss[0], avg_testloss[1]))
 
