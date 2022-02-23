@@ -12,7 +12,7 @@ from DeepProteinDocking2D.Models.BruteForce.model_bruteforce_docking import Brut
 from DeepProteinDocking2D.Models.BruteForce.utility_functions import plot_assembly
 from DeepProteinDocking2D.Models.BruteForce.validation_metrics import RMSD
 import matplotlib.pyplot as plt
-from plot_IP_loss import LossPlotter
+from DeepProteinDocking2D.Models.BruteForce.plot_IP_loss import IPLossPlotter
 from DeepProteinDocking2D.Models.EnergyBased.model_energybased_sampling import EnergyBasedModel
 
 
@@ -371,8 +371,8 @@ if __name__ == '__main__':
     #     resume_training=True, resume_epoch=5)
 
     ## Plot loss from current experiment
-    LossPlotter(experiment).plot_loss()
-    LossPlotter(experiment).plot_rmsd_distribution(plot_epoch=train_epochs)
+    IPLossPlotter(experiment).plot_loss()
+    IPLossPlotter(experiment).plot_rmsd_distribution(plot_epoch=train_epochs)
 
     ### Evaluate model on chosen dataset only and plot at chosen epoch and dataset frequency
     # BruteForceDockingTrainer(model, optimizer, experiment, plotting=True).plot_evaluation_set(

@@ -3,7 +3,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import sys
 
-class LossPlotter:
+class IPLossPlotter:
     def __init__(self, experiment=None):
         self.experiment = experiment
         if not experiment:
@@ -108,5 +108,5 @@ if __name__ == "__main__":
     # testcase = 'RECODE_CHECK_BFDOCKING'
 
     testcase = 'FINAL_CHECK_DOCKING'
-    LossPlotter(testcase).plot_loss()
-    LossPlotter(testcase).plot_rmsd_distribution(plot_epoch=30)
+    IPLossPlotter(testcase).plot_loss()
+    IPLossPlotter(testcase).plot_rmsd_distribution(plot_epoch=30)
