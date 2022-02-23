@@ -11,9 +11,11 @@ from e2cnn import gspaces
 
 class BruteForceDocking(nn.Module):
 
-    def __init__(self):
+    def __init__(self, dim=100, num_angles=360):
         super(BruteForceDocking, self).__init__()
         self.plot_freq = 10
+        self.dim = dim
+        self.num_angles = num_angles
         self.boundW = nn.Parameter(torch.ones(1, requires_grad=True))
         self.crosstermW1 = nn.Parameter(torch.ones(1, requires_grad=True))
         self.crosstermW2 = nn.Parameter(torch.ones(1, requires_grad=True))
@@ -40,7 +42,7 @@ class BruteForceDocking(nn.Module):
             enn.NormPool(self.feat_type_out_final),
         )
 
-    def forward(self, receptor, ligand, train=True, plotting=False, plot_count=1, stream_name='trainset'):
+    def forward(self, receptor, ligand, train=True, plotting=False, plot_count=1, stream_name='trainset', energymodel=False, angle=None):
 
         receptor_geomT = enn.GeometricTensor(receptor.unsqueeze(0), self.feat_type_in1)
         ligand_geomT = enn.GeometricTensor(ligand.unsqueeze(0), self.feat_type_in1)
@@ -48,7 +50,7 @@ class BruteForceDocking(nn.Module):
         rec_feat = self.netSE2(receptor_geomT).tensor.squeeze()
         lig_feat = self.netSE2(ligand_geomT).tensor.squeeze()
 
-        FFT_score = TorchDockingFFT(dim=rec_feat.shape[-1]*2, num_angles=360).dock_global(
+        FFT_score = TorchDockingFFT(dim=self.dim, num_angles=self.num_angles, angle=None).dock_global(
             rec_feat,
             lig_feat,
             weight_bound=self.boundW,

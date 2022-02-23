@@ -13,12 +13,15 @@ import numpy as np
 
 
 class TorchDockingFFT:
-    def __init__(self, dim=100, num_angles=360, swap_plot_quadrants=False, debug=False):
+    def __init__(self, dim=100, num_angles=360, angle=None, swap_plot_quadrants=False, debug=False):
         self.debug = debug
         self.swap_plot_quadrants = swap_plot_quadrants
         self.dim = dim
         self.num_angles = num_angles
-        self.angles = torch.from_numpy(np.linspace(-np.pi, np.pi, num=self.num_angles)).cuda()
+        if self.num_angles == 1:
+            self.angles = angle.cuda()
+        else:
+            self.angles = torch.from_numpy(np.linspace(-np.pi, np.pi, num=self.num_angles)).cuda()
 
     def encode_transform(self, gt_rot, gt_txy):
         empty_3D = torch.zeros([self.num_angles, self.dim, self.dim], dtype=torch.double).cuda()
@@ -166,8 +169,12 @@ class TorchDockingFFT:
         print('RMSD', rmsd_out.item())
         print()
 
-        plt.imshow(FFT_score[pred_rot.long(), :, :].detach().cpu())
-        plt.show()
+        if self.num_angles == 1:
+            plt.imshow(FFT_score.detach().cpu())
+            plt.show()
+        else:
+            plt.imshow(FFT_score[pred_rot.long(), :, :].detach().cpu())
+            plt.show()
 
         pair = plot_assembly(receptor.detach().cpu(), ligand.detach().cpu().numpy(), pred_rot.detach().cpu().numpy(),
                              pred_txy.detach().cpu().numpy(), gt_rot.detach().cpu().numpy(), gt_txy.detach().cpu().numpy())
@@ -217,7 +224,13 @@ if __name__ == '__main__':
         gt_rot = gt_rot.to(device='cuda', dtype=torch.float)
         gt_txy = gt_txy.to(device='cuda', dtype=torch.float)
 
-        FFT = TorchDockingFFT(swap_plot_quadrants=True)
+        num_angles = 360
+        # num_angles = 1
+        if num_angles == 1:
+            FFT = TorchDockingFFT(swap_plot_quadrants=False, num_angles=1, angle=torch.ones(1)*np.pi)
+        else:
+            FFT = TorchDockingFFT(swap_plot_quadrants=True)
+
         receptor_stack = FFT.make_boundary(receptor)
         ligand_stack = FFT.make_boundary(ligand)
         FFT_score = FFT.dock_global(receptor_stack, ligand_stack, debug=False)
