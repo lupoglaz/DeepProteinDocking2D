@@ -14,7 +14,7 @@ from DeepProteinDocking2D.Models.BruteForce.validation_metrics import APR
 from DeepProteinDocking2D.Models.BruteForce.model_bruteforce_docking import BruteForceDocking
 
 
-class BruteForceInteractionTrainer(object):
+class BruteForceInteractionTrainer:
     ## run replicates from sbatch script args, if provided
     if len(sys.argv) > 1:
         replicate = str(sys.argv[1])
@@ -26,50 +26,7 @@ class BruteForceInteractionTrainer(object):
     #     print("Creating instance")
     #     return cls(docking_model, docking_optimizer, interaction_model, interaction_optimizer, experiment, training_case, path_pretrain).__new__(BruteForceInteractionTrainer)
 
-    # #### Initialize models here so subsequent calls to class and __init__() don't reset models
-    lr_interaction = 10**0
-    lr_docking = 10**-4
-
-    interaction_model = BruteForceInteraction().to(device=0)
-    interaction_optimizer = optim.Adam(interaction_model.parameters(), lr=lr_interaction)
-
-    docking_model = BruteForceDocking().to(device=0)
-    docking_optimizer = optim.Adam(docking_model.parameters(), lr=lr_docking)
-
-    experiment = 'RECODE_CHECK_INTERACTION'
-    path_pretrain = 'Log/RECODE_CHECK_BFDOCKING_30epochsend.th'
-    training_case = 'A'
-    # training_case = 'B'
-    # training_case = 'C'
-    # training_case = 'scratch'
-    experiment = 'FI_case' + training_case + '_' + experiment
-    if training_case == 'A':
-        print('Training expA')
-        param_to_freeze = 'all'
-        docking_model.load_state_dict(torch.load(path_pretrain)['state_dict'])
-    # CaseB: train with docking model unfrozen
-    if training_case == 'B':
-        print('Training expB')
-        lr_docking = 10 ** -5
-        print('Docking learning rate changed to', lr_docking)
-        experiment = 'case' + training_case + '_lr5change_' + experiment
-        docking_model = BruteForceDocking().to(device=0)
-        docking_optimizer = optim.Adam(docking_model.parameters(), lr=lr_docking)
-        param_to_freeze = None
-        docking_model.load_state_dict(torch.load(path_pretrain)['state_dict'])
-    # CaseC: train with docking model SE2 CNN frozen
-    if training_case == 'C':
-        print('Training expC')
-        param_to_freeze = 'netSE2'  # leave "a" scoring coefficients unfrozen
-        docking_model.load_state_dict(torch.load(path_pretrain)['state_dict'])
-    # Case scratch: train everything from scratch
-    if training_case == 'scratch':
-        print('Training from scratch')
-        param_to_freeze = None
-        experiment = training_case + '_' + experiment
-
-    def __init__(self,
-                 # docking_model, docking_optimizer, interaction_model, interaction_optimizer, experiment, training_case, path_pretrain,
+    def __init__(self, docking_model, docking_optimizer, interaction_model, interaction_optimizer, experiment, training_case, path_pretrain,
                  debug=False, plotting=False):
         # print("RUNNING INIT")
         self.debug = debug
@@ -80,15 +37,15 @@ class BruteForceInteractionTrainer(object):
         self.eval_freq = 1
         self.save_freq = 1
 
-        # self.docking_model = docking_model
-        # self.interaction_model = interaction_model
-        # self.docking_optimizer = docking_optimizer
-        # self.interaction_optimizer = interaction_optimizer
-        # self.experiment = experiment
-        # self.training_case = training_case
-        # self.path_pretrain = path_pretrain
-        # self.set_docking_model_state()
-        # self.freeze_weights()
+        self.docking_model = docking_model
+        self.interaction_model = interaction_model
+        self.docking_optimizer = docking_optimizer
+        self.interaction_optimizer = interaction_optimizer
+        self.experiment = experiment
+        self.training_case = training_case
+        self.path_pretrain = path_pretrain
+        self.set_docking_model_state()
+        self.freeze_weights()
 
     def run_model(self, data, train=True):
         receptor, ligand, gt_interact = data
@@ -160,7 +117,7 @@ class BruteForceInteractionTrainer(object):
     def train_model(self, train_epochs, train_stream, valid_stream, test_stream, resume_training=False,
                     resume_epoch=0):
         ## Freeze weights as needed for training model cases
-        self.freeze_weights()
+        # self.freeze_weights()
 
         if self.plotting:
             self.eval_freq = 1
@@ -192,15 +149,15 @@ class BruteForceInteractionTrainer(object):
                 train_loss.append(train_output)
 
             avg_trainloss = np.average(train_loss, axis=0)[0, :]
-            print('\nEpoch', epoch, 'Train Loss:', avg_trainloss)
+            print('\nEpoch', epoch, 'Train Loss: Loss, Lreg', avg_trainloss)
             with open('Log/losses/log_train_' + self.experiment + '.txt', 'a') as fout:
                 fout.write(log_format % (epoch, avg_trainloss[0], avg_trainloss[1]))
 
             ### evaluate on training and valid set
             ### training set to False downstream in calcAPR() run_model()
             if epoch % self.eval_freq == 0:
-                self.checkAPR(epoch, valid_stream)
-                self.checkAPR(epoch, test_stream)
+                self.checkAPR(epoch, valid_stream, 'valid set')
+                self.checkAPR(epoch, test_stream, 'test set')
 
             #### saving model while training
             if epoch % self.save_freq == 0:
@@ -210,13 +167,14 @@ class BruteForceInteractionTrainer(object):
                 self.save_checkpoint(interaction_checkpoint_dict, 'Log/' + self.experiment + str(epoch) + '.th', self.interaction_model)
                 print('saving interaction model ' + 'Log/' + self.experiment + str(epoch) + '.th')
 
-    def checkAPR(self, check_epoch, datastream):
+    def checkAPR(self, check_epoch, datastream, stream_name=None):
         log_format = '%f\t%f\t%f\t%f\t%f\n'
         log_header = 'Accuracy\tPrecision\tRecall\tF1score\tMCC\n'
-        trainer = BruteForceInteractionTrainer()
-        Accuracy, Precision, Recall, F1score, MCC = APR().calcAPR(datastream, trainer, check_epoch)
+        print('Evaluating ', stream_name)
+        # trainer = BruteForceInteractionTrainer()
+        Accuracy, Precision, Recall, F1score, MCC = APR().calcAPR(datastream, self.run_model, check_epoch)
         # print(Accuracy, Precision, Recall)
-        with open('Log/losses/log_validAPR_' + experiment + '.txt', 'a') as fout:
+        with open('Log/losses/log_validAPR_' + self.experiment + '.txt', 'a') as fout:
             fout.write('Epoch '+str(check_epoch)+'\n')
             fout.write(log_header)
             fout.write(log_format % (Accuracy, Precision, Recall, F1score, MCC))
@@ -344,15 +302,15 @@ if __name__ == '__main__':
     # CUDA_LAUNCH_BLOCKING = 1
     # torch.autograd.set_detect_anomaly(True)
     #########################
-    #
-    # lr_interaction = 10**0
-    # lr_docking = 10**-4
-    #
-    # interaction_model = BruteForceInteraction().to(device=0)
-    # interaction_optimizer = optim.Adam(interaction_model.parameters(), lr=lr_interaction)
-    #
-    # docking_model = BruteForceDocking().to(device=0)
-    # docking_optimizer = optim.Adam(docking_model.parameters(), lr=lr_docking)
+
+    lr_interaction = 10**0
+    lr_docking = 10**-4
+
+    interaction_model = BruteForceInteraction().to(device=0)
+    interaction_optimizer = optim.Adam(interaction_model.parameters(), lr=lr_interaction)
+
+    docking_model = BruteForceDocking().to(device=0)
+    docking_optimizer = optim.Adam(docking_model.parameters(), lr=lr_docking)
 
     # max_size = 400
     # max_size = 50
@@ -373,14 +331,15 @@ if __name__ == '__main__':
     # path_pretrain = 'Log/RECODE_CHECK_BFDOCKING_30epochsend.th'
     path_pretrain = 'Log/FINAL_CHECK_DOCKING30.th'
     training_case = 'A'
-    # training_case = 'B'
-    # training_case = 'C'
-    # training_case = 'scratch'
+    # # training_case = 'B'
+    # # training_case = 'C'
+    # # training_case = 'scratch'
     experiment = 'FI_case' + training_case + '_' + experiment
     train_epochs = 6
     #####################
     ### Train model from beginning
-    BruteForceInteractionTrainer().run_trainer(train_epochs)
+    BruteForceInteractionTrainer(docking_model, docking_optimizer, interaction_model, interaction_optimizer, experiment, training_case, path_pretrain
+                                 ).run_trainer(train_epochs)
 
     ### Resume training model at chosen epoch
     # BruteForceInteractionTrainer().run_trainer(train_epochs, resume_training=True, resume_epoch=6)

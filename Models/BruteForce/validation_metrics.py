@@ -79,12 +79,12 @@ class APR:
     def __init__(self):
         pass
 
-    def calcAPR(self, stream, trainer, epoch=0):
+    def calcAPR(self, stream, run_model, epoch=0):
         print('Calculating Accuracy, Precision, Recall')
         TP, FP, TN, FN = 0, 0, 0, 0
 
         for data in tqdm(stream):
-            tp, fp, tn, fn = trainer.run_model(data, train=False)
+            tp, fp, tn, fn = run_model(data, train=False)
             # print(tp, fp, tn,fn)
             TP += tp
             FP += fp
