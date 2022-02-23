@@ -12,7 +12,7 @@ from DeepProteinDocking2D.Models.BruteForce.model_bruteforce_docking import Brut
 from DeepProteinDocking2D.Models.BruteForce.utility_functions import plot_assembly
 from DeepProteinDocking2D.Models.BruteForce.validation_metrics import RMSD
 import matplotlib.pyplot as plt
-from plot_IP_loss import LossPlotter
+from plot_IP_loss import IPLossPlotter
 
 
 class BruteForceDockingTrainer:
@@ -114,26 +114,7 @@ class BruteForceDockingTrainer:
         log_format = '%d\t%f\t%f\n'
 
         ### Continue training on existing model?
-        if resume_training:
-            ckp_path = 'Log/' + self.experiment + str(resume_epoch) + '.th'
-            self.model, self.optimizer, start_epoch = self.load_ckp(ckp_path)
-            start_epoch += 1
-
-            print(self.model)
-            print(list(self.model.named_parameters()))
-            print('\nRESUMING TRAINING AT EPOCH', start_epoch, '\n')
-        else:
-            start_epoch = 1
-            ### Loss log files
-            with open('Log/losses/log_train_' + self.experiment + '.txt', 'w') as fout:
-                fout.write('Docking Training Loss:\n')
-                fout.write(log_header)
-            with open('Log/losses/log_valid_' + self.experiment + '.txt', 'w') as fout:
-                fout.write('Docking Validation Loss:\n')
-                fout.write(log_header)
-            with open('Log/losses/log_test_' + self.experiment + '.txt', 'w') as fout:
-                fout.write('Docking Testing Loss:\n')
-                fout.write(log_header)
+        start_epoch = self.resume_training_or_not(resume_training, resume_epoch, log_header)
 
         num_epochs = start_epoch + train_epochs
 
@@ -237,6 +218,28 @@ class BruteForceDockingTrainer:
         plt.savefig('figs/rmsd_and_poses/'+stream_name+'_docking_pose_example' + str(plot_count) + '_RMSD' + str(rmsd_out.item())[:4] + '.png')
         # plt.show()
 
+    def resume_training_or_not(self, resume_training, resume_epoch, log_header):
+        if resume_training:
+            ckp_path = 'Log/' + self.experiment + str(resume_epoch) + '.th'
+            self.model, self.optimizer, start_epoch = self.load_ckp(ckp_path)
+            start_epoch += 1
+
+            print(self.model)
+            print(list(self.model.named_parameters()))
+            print('\nRESUMING TRAINING AT EPOCH', start_epoch, '\n')
+        else:
+            start_epoch = 1
+            ### Loss log files
+            with open('Log/losses/log_train_' + self.experiment + '.txt', 'w') as fout:
+                fout.write('Docking Training Loss:\n')
+                fout.write(log_header)
+            with open('Log/losses/log_valid_' + self.experiment + '.txt', 'w') as fout:
+                fout.write('Docking Validation Loss:\n')
+                fout.write(log_header)
+            with open('Log/losses/log_test_' + self.experiment + '.txt', 'w') as fout:
+                fout.write('Docking Testing Loss:\n')
+                fout.write(log_header)
+        return start_epoch
     def run_trainer(self, train_epochs, train_stream, valid_stream, test_stream, resume_training=False, resume_epoch=0):
         self.train_model(train_epochs, train_stream, valid_stream, test_stream,
                          resume_training=resume_training, resume_epoch=resume_epoch)
@@ -276,22 +279,22 @@ if __name__ == '__main__':
     test_stream = get_docking_stream(testset + '.pkl', batch_size=1)
 
     ######################
-    train_epochs = 20
-    experiment = 'FINAL_CHECK_DOCKING'
-    # experiment = 'PARANOIA_CHECK'
+    train_epochs = 1
+    # experiment = 'FINAL_CHECK_DOCKING'
+    experiment = 'PARANOIA_CHECK'
 
     ######################
     ### Train model from beginning
     BruteForceDockingTrainer(model, optimizer, experiment).run_trainer(train_epochs, train_stream, valid_stream, test_stream)
 
     ### Resume training model at chosen epoch
-    # BruteForceDockingTrainer(model, optimizer, experiment).run_trainer(
-    #     train_epochs=10, train_stream=train_stream, valid_stream=valid_stream, test_stream=test_stream,
-    #     resume_training=True, resume_epoch=train_epochs)
+    BruteForceDockingTrainer(model, optimizer, experiment).run_trainer(
+        train_epochs=1, train_stream=train_stream, valid_stream=valid_stream, test_stream=test_stream,
+        resume_training=True, resume_epoch=train_epochs)
 
     ## Plot loss from current experiment
-    # LossPlotter(experiment).plot_loss()
-    # LossPlotter(experiment).plot_rmsd_distribution(plot_epoch=30)
+    IPLossPlotter(experiment).plot_loss()
+    IPLossPlotter(experiment).plot_rmsd_distribution(plot_epoch=2)
 
     ### Evaluate model on chosen dataset only and plot at chosen epoch and dataset frequency
     # BruteForceDockingTrainer(model, optimizer, experiment, plotting=True).plot_evaluation_set(

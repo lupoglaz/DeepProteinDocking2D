@@ -138,7 +138,7 @@ class BruteForceInteractionTrainer(object):
             with torch.no_grad():
                 return self.classify(pred_interact, gt_interact)
 
-        return loss.item(), pred_interact.item()
+        return loss.item(), L_reg.item()
 
     @staticmethod
     def classify(pred_interact, gt_interact):
@@ -165,35 +165,12 @@ class BruteForceInteractionTrainer(object):
         if self.plotting:
             self.eval_freq = 1
 
-        log_header = 'Epoch\tLoss\trmsd\n'
+        log_header = 'Epoch\tLoss\tLreg\n'
         log_format = '%d\t%f\t%f\n'
 
         ### Continue training on existing model?
-        if resume_training:
-            print('Loading docking model at', str(resume_epoch))
-            ckp_path = 'Log/docking_' + self.experiment + str(resume_epoch) + '.th'
-            self.docking_model, self.docking_optimizer, _ = self.load_ckp(ckp_path, self.docking_model, self.docking_optimizer)
-            print('Loading interaction model at', str(resume_epoch))
-            ckp_path = 'Log/' + self.experiment + str(resume_epoch) + '.th'
-            self.interaction_model, self.interaction_optimizer, start_epoch = self.load_ckp(ckp_path, self.interaction_model, self.interaction_optimizer)
+        start_epoch = self.resume_training_or_not(resume_training, resume_epoch, log_header)
 
-            start_epoch += 1
-
-            print('\ndocking model:\n', self.docking_model)
-            ## print model and params being loaded
-            self.check_model_gradients(self.docking_model)
-            print('\ninteraction model:\n', self.interaction_model)
-            ## print model and params being loaded
-            self.check_model_gradients(self.interaction_model)
-
-            print('\nLOADING MODEL AT EPOCH', start_epoch, '\n')
-        else:
-            start_epoch = 1
-            ### Loss log files
-            with open('Log/losses/log_train_' + self.experiment + '.txt', 'w') as fout:
-                fout.write(log_header)
-            # with open('Log/losses/log_test_' + self.testcase + '.txt', 'w') as fout:
-            #     fout.write(log_header)
         num_epochs = start_epoch + train_epochs
 
         for epoch in range(start_epoch, num_epochs):
@@ -259,6 +236,34 @@ class BruteForceInteractionTrainer(object):
             else:
                 print('Unfreeze docking model weights', name)
                 param.requires_grad = True
+
+    def resume_training_or_not(self, resume_training, resume_epoch, log_header):
+        if resume_training:
+            print('Loading docking model at', str(resume_epoch))
+            ckp_path = 'Log/docking_' + self.experiment + str(resume_epoch) + '.th'
+            self.docking_model, self.docking_optimizer, _ = self.load_ckp(ckp_path, self.docking_model, self.docking_optimizer)
+            print('Loading interaction model at', str(resume_epoch))
+            ckp_path = 'Log/' + self.experiment + str(resume_epoch) + '.th'
+            self.interaction_model, self.interaction_optimizer, start_epoch = self.load_ckp(ckp_path, self.interaction_model, self.interaction_optimizer)
+
+            start_epoch += 1
+
+            print('\ndocking model:\n', self.docking_model)
+            ## print model and params being loaded
+            self.check_model_gradients(self.docking_model)
+            print('\ninteraction model:\n', self.interaction_model)
+            ## print model and params being loaded
+            self.check_model_gradients(self.interaction_model)
+
+            print('\nLOADING MODEL AT EPOCH', start_epoch, '\n')
+        else:
+            start_epoch = 1
+            ### Loss log files
+            with open('Log/losses/log_train_' + self.experiment + '.txt', 'w') as fout:
+                fout.write(log_header)
+            # with open('Log/losses/log_test_' + self.testcase + '.txt', 'w') as fout:
+            #     fout.write(log_header)
+        return start_epoch
 
     @staticmethod
     def save_checkpoint(state, filename, model):
@@ -359,12 +364,14 @@ if __name__ == '__main__':
     valid_stream = get_interaction_stream_balanced(validset + '.pkl', batch_size=1, max_size=max_size)
     test_stream = get_interaction_stream_balanced(testset + '.pkl', batch_size=1, max_size=max_size)
 
-    experiment = 'RECODE_CHECK_INTERACTION'
+    # experiment = 'RECODE_CHECK_INTERACTION'
+    experiment = 'PLOT_FREE_ENERGY_HISTOGRAMS'
 
     ##################### Load and freeze/unfreeze params (training, no eval)
     ### path to pretrained docking model
     # path_pretrain = 'Log/IP_1s4v_docking_epoch200.th'
-    path_pretrain = 'Log/RECODE_CHECK_BFDOCKING_30epochsend.th'
+    # path_pretrain = 'Log/RECODE_CHECK_BFDOCKING_30epochsend.th'
+    path_pretrain = 'Log/FINAL_CHECK_DOCKING30.th'
     training_case = 'A'
     # training_case = 'B'
     # training_case = 'C'
@@ -376,7 +383,7 @@ if __name__ == '__main__':
     BruteForceInteractionTrainer().run_trainer(train_epochs)
 
     ### Resume training model at chosen epoch
-    BruteForceInteractionTrainer().run_trainer(train_epochs, resume_training=True, resume_epoch=6)
+    # BruteForceInteractionTrainer().run_trainer(train_epochs, resume_training=True, resume_epoch=6)
 
     ### Evaluate model only and plot, at chosen epoch
     # resume_epoch = 5
