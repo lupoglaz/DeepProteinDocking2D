@@ -48,7 +48,7 @@ class BruteForceDockingTrainer:
 
         ### run model and loss calculation
         ##### call model
-        FFT_score = self.model(receptor, ligand, train=training, plotting=self.plotting, plot_count=plot_count, stream_name=stream_name)
+        FFT_score = self.model(receptor, ligand, training=training, plotting=self.plotting, plot_count=plot_count, stream_name=stream_name)
         FFT_score = FFT_score.flatten()
 
         ### Encode ground truth transformation index into empty energy grid
@@ -278,10 +278,11 @@ if __name__ == '__main__':
     ######################
     train_epochs = 20
     experiment = 'FINAL_CHECK_DOCKING'
+    # experiment = 'PARANOIA_CHECK'
 
     ######################
     ### Train model from beginning
-    # BruteForceDockingTrainer(model, optimizer, experiment).run_trainer(train_epochs, train_stream, valid_stream, test_stream)
+    BruteForceDockingTrainer(model, optimizer, experiment).run_trainer(train_epochs, train_stream, valid_stream, test_stream)
 
     ### Resume training model at chosen epoch
     # BruteForceDockingTrainer(model, optimizer, experiment).run_trainer(
@@ -289,8 +290,8 @@ if __name__ == '__main__':
     #     resume_training=True, resume_epoch=train_epochs)
 
     ## Plot loss from current experiment
-    LossPlotter(experiment).plot_loss()
-    LossPlotter(experiment).plot_rmsd_distribution(plot_epoch=30)
+    # LossPlotter(experiment).plot_loss()
+    # LossPlotter(experiment).plot_rmsd_distribution(plot_epoch=30)
 
     ### Evaluate model on chosen dataset only and plot at chosen epoch and dataset frequency
     # BruteForceDockingTrainer(model, optimizer, experiment, plotting=True).plot_evaluation_set(
