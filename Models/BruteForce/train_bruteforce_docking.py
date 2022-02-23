@@ -30,7 +30,7 @@ class BruteForceDockingTrainer:
         self.optimizer = cur_optimizer
         self.experiment = cur_experiment
 
-    def run_model(self, data, train=True, plot_count=0, stream_name='trainset'):
+    def run_model(self, data, training=True, plot_count=0, stream_name='trainset'):
         receptor, ligand, gt_txy, gt_rot, _ = data
 
         receptor = receptor.squeeze()
@@ -43,12 +43,12 @@ class BruteForceDockingTrainer:
         gt_rot = gt_rot.to(device='cuda', dtype=torch.float)
         gt_txy = gt_txy.to(device='cuda', dtype=torch.float)
 
-        if train:
+        if training:
             self.model.train()
 
         ### run model and loss calculation
         ##### call model
-        FFT_score = self.model(receptor, ligand, train=train, plotting=self.plotting, plot_count=plot_count, stream_name=stream_name)
+        FFT_score = self.model(receptor, ligand, train=training, plotting=self.plotting, plot_count=plot_count, stream_name=stream_name)
         FFT_score = FFT_score.flatten()
 
         ### Encode ground truth transformation index into empty energy grid
@@ -66,14 +66,14 @@ class BruteForceDockingTrainer:
         if self.debug:
             self.check_model_gradients()
 
-        if train:
+        if training:
             self.model.zero_grad()
             loss.backward()
             self.optimizer.step()
         else:
             self.model.eval()
 
-        if self.plotting and not train:
+        if self.plotting and not training:
             if plot_count % self.plot_freq == 0:
                 with torch.no_grad():
                     self.plot_pose(FFT_score, receptor, ligand, gt_rot, gt_txy, plot_count, stream_name)
@@ -149,7 +149,7 @@ class BruteForceDockingTrainer:
                 ### Training epoch
                 train_loss = []
                 for data in tqdm(train_stream):
-                    train_output = [self.run_model(data, train=True)]
+                    train_output = [self.run_model(data, training=True)]
                     train_loss.append(train_output)
                     with open('Log/losses/log_RMSDsTrainset_epoch' + str(epoch) + self.experiment + '.txt', 'a') as fout:
                         fout.write('%f\n' % (train_output[0][-1]))
@@ -166,7 +166,7 @@ class BruteForceDockingTrainer:
                     plot_count = 0
                     valid_loss = []
                     for data in tqdm(valid_stream):
-                        valid_output = [self.run_model(data, train=False, plot_count=plot_count, stream_name=stream_name)]
+                        valid_output = [self.run_model(data, training=False, plot_count=plot_count, stream_name=stream_name)]
                         valid_loss.append(valid_output)
                         with open('Log/losses/log_RMSDsValidset_epoch' + str(epoch) + self.experiment + '.txt', 'a') as fout:
                             fout.write('%f\n' % (valid_output[0][-1]))
@@ -182,7 +182,7 @@ class BruteForceDockingTrainer:
                     plot_count = 0
                     test_loss = []
                     for data in tqdm(test_stream):
-                        test_output = [self.run_model(data, train=False, plot_count=plot_count, stream_name=stream_name)]
+                        test_output = [self.run_model(data, training=False, plot_count=plot_count, stream_name=stream_name)]
                         test_loss.append(test_output)
                         with open('Log/losses/log_RMSDsTestset_epoch' + str(epoch) + self.experiment + '.txt', 'a') as fout:
                             fout.write('%f\n' % (test_output[0][-1]))

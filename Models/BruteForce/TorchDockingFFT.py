@@ -18,7 +18,7 @@ class TorchDockingFFT:
         self.swap_plot_quadrants = swap_plot_quadrants
         self.dim = dim
         self.num_angles = num_angles
-        if self.num_angles == 1:
+        if self.num_angles == 1 and angle:
             self.angles = angle.squeeze().unsqueeze(0).cuda()
         else:
             self.angles = torch.from_numpy(np.linspace(-np.pi, np.pi, num=self.num_angles)).cuda()
@@ -28,7 +28,13 @@ class TorchDockingFFT:
         deg_index_rot = (((gt_rot * 180.0/np.pi) + 180.0) % self.num_angles).type(torch.long)
         centered_txy = gt_txy.type(torch.long)
 
-        empty_3D[deg_index_rot, centered_txy[0], centered_txy[1]] = 1
+        if self.num_angles == 1:
+            # print(empty_3D.shape)
+            # print(centered_txy.shape)
+            # centered_txy = centered_txy.squeeze()
+            empty_3D[0, centered_txy[0], centered_txy[1]] = 1
+        else:
+            empty_3D[deg_index_rot, centered_txy[0], centered_txy[1]] = 1
         target_flatindex = torch.argmax(empty_3D.flatten()).cuda()
         # print(gt_rot, gt_txy)
         # print(deg_index_rot, centered_txy)

@@ -42,7 +42,7 @@ class BruteForceDocking(nn.Module):
             enn.NormPool(self.feat_type_out_final),
         )
 
-    def forward(self, receptor, ligand, train=True, plotting=False, plot_count=1, stream_name='trainset', angle=None):
+    def forward(self, receptor, ligand, training=True, plotting=False, plot_count=1, stream_name='trainset', angle=None):
 
         receptor_geomT = enn.GeometricTensor(receptor.unsqueeze(0), self.feat_type_in1)
         ligand_geomT = enn.GeometricTensor(ligand.unsqueeze(0), self.feat_type_in1)
@@ -60,7 +60,7 @@ class BruteForceDocking(nn.Module):
         )
 
         #### Plot shape features
-        if plotting and not train:
+        if plotting and not training:
             if plot_count % self.plot_freq == 0:
                 with torch.no_grad():
                     self.plot_feats(rec_feat, lig_feat, receptor, ligand, FFT_score, plot_count, stream_name)
