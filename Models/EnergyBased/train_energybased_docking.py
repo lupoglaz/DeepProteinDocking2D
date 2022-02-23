@@ -117,6 +117,7 @@ class EnergyBasedDockingTrainer:
         ##### call model
         neg_alpha, neg_dr = self.buffer.get(pos_idx, num_samples=1, train=train)
         pred_rot, pred_txy = self.model(neg_alpha, neg_dr, receptor, ligand, temperature='cold')
+        self.buffer.push(neg_alpha, neg_dr, pos_idx)
 
         ### Encode ground truth transformation index into empty energy grid
         with torch.no_grad():
@@ -330,7 +331,7 @@ if __name__ == '__main__':
     torch.cuda.manual_seed(random_seed)
     torch.backends.cudnn.deterministic = True
     torch.cuda.set_device(0)
-    # torch.autograd.set_detect_anomaly(True)
+    torch.autograd.set_detect_anomaly(True)
     ######################
     lr = 10 ** -4
     model = EnergyBasedModel().to(device=0)
