@@ -12,10 +12,77 @@ from DeepProteinDocking2D.Models.BruteForce.model_bruteforce_docking import Brut
 from DeepProteinDocking2D.Models.BruteForce.utility_functions import plot_assembly
 from DeepProteinDocking2D.Models.BruteForce.validation_metrics import RMSD
 import matplotlib.pyplot as plt
-from plot_IP_loss import LossPlotter
+# from plot_IP_loss import LossPlotter
+from DeepProteinDocking2D.Models.EnergyBased.model_energybased_sampling import EnergyBasedModel
 
 
-class BruteForceDockingTrainer:
+class SampleBuffer:
+    def __init__(self, num_samples, max_pos=100):
+        self.num_samples = num_samples
+        self.max_pos = max_pos
+        self.buffer = {}
+        for i in range(num_samples):
+            self.buffer[i] = []
+
+    def __len__(self, i):
+        return len(self.buffer[i])
+
+    def push(self, alphas, drs, index):
+        alphas = alphas.detach().to(device='cpu')
+        drs = drs.detach().to(device='cpu')
+
+        for alpha, dr, idx in zip(alphas, drs, index):
+            i = idx.item()
+            self.buffer[i].append((alpha, dr))
+            if len(self.buffer[i]) > self.max_pos:
+                self.buffer[i].pop(0)
+
+    def get(self, index, num_samples, device='cuda', train=True):
+        alphas = []
+        drs = []
+        if not train:
+            # print('EVAL rand init')
+            alpha = torch.rand(num_samples, 1) * 2 * np.pi - np.pi
+            dr = torch.rand(num_samples, 2) * 50.0 - 25.0
+            alphas.append(alpha)
+            drs.append(dr)
+        else:
+            for idx in index:
+                i = idx.item()
+                if len(self.buffer[i]) >= num_samples > 1:
+                    # print('buffer if num_sampler > 1')
+                    lst = random.choices(self.buffer[i], k=num_samples)
+                    alpha = list(map(lambda x: x[0], lst))
+                    dr = list(map(lambda x: x[1], lst))
+                    alphas.append(torch.stack(alpha, dim=0))
+                    drs.append(torch.stack(dr, dim=0))
+                    # print('len buffer >= samples')
+                elif len(self.buffer[i]) == num_samples == 1:
+                    # print('buffer if num_sampler == 1')
+                    lst = self.buffer[i]
+                    alphas.append(lst[0][0])
+                    drs.append(lst[0][1])
+                else:
+                    # print('else rand init')
+                    # alpha = torch.rand(num_samples, 1) * 2 * np.pi - np.pi
+                    # dr = torch.rand(num_samples, 2) * 50.0 - 25.0
+                    # alphas.append(alpha)
+                    # drs.append(dr)
+                    alpha = torch.zeros(num_samples, 1)
+                    dr = torch.zeros(num_samples, 2)
+                    alphas.append(alpha)
+                    drs.append(dr)
+
+        # print('\nalpha', alpha)
+        # print('dr', dr)
+
+        alphas = torch.stack(alphas, dim=0).to(device=device)
+        drs = torch.stack(drs, dim=0).to(device=device)
+
+        return alphas, drs
+
+
+class EnergyBasedDockingTrainer:
     def __init__(self, cur_model, cur_optimizer, cur_experiment, debug=False, plotting=False):
         self.debug = debug
         self.plotting = plotting
@@ -31,7 +98,7 @@ class BruteForceDockingTrainer:
         self.experiment = cur_experiment
 
     def run_model(self, data, train=True, plot_count=0, stream_name='trainset'):
-        receptor, ligand, gt_txy, gt_rot, _ = data
+        receptor, ligand, gt_txy, gt_rot, pos_idx = data
 
         receptor = receptor.squeeze()
         ligand = ligand.squeeze()
@@ -43,23 +110,23 @@ class BruteForceDockingTrainer:
         gt_rot = gt_rot.to(device='cuda', dtype=torch.float)
         gt_txy = gt_txy.to(device='cuda', dtype=torch.float)
 
-        if train:
-            self.model.train()
+        # if train:
+        #     self.model.train()
 
         ### run model and loss calculation
         ##### call model
-        FFT_score = self.model(receptor, ligand, train=train, plotting=self.plotting, plot_count=plot_count, stream_name=stream_name)
-        FFT_score = FFT_score.flatten()
+        neg_alpha, neg_dr = self.buffer.get(pos_idx, num_samples=1, train=train)
+        pred_rot, pred_txy = self.model(neg_alpha, neg_dr, receptor, ligand, temperature='cold')
 
         ### Encode ground truth transformation index into empty energy grid
         with torch.no_grad():
             target_flatindex = TorchDockingFFT().encode_transform(gt_rot, gt_txy)
-            pred_rot, pred_txy = TorchDockingFFT().extract_transform(FFT_score)
+            pred_flatindex = TorchDockingFFT().encode_transform(pred_rot, pred_txy)
             rmsd_out = RMSD(ligand, gt_rot, gt_txy, pred_rot, pred_txy).calc_rmsd()
 
         #### Loss functions
         CE_loss = torch.nn.CrossEntropyLoss()
-        loss = CE_loss(FFT_score.squeeze().unsqueeze(0), target_flatindex.unsqueeze(0))
+        loss = CE_loss(pred_flatindex.unsqueeze(0), target_flatindex.unsqueeze(0))
 
         ### check parameters and gradients
         ### if weights are frozen or updating
@@ -73,10 +140,10 @@ class BruteForceDockingTrainer:
         else:
             self.model.eval()
 
-        if self.plotting and not train:
-            if plot_count % self.plot_freq == 0:
-                with torch.no_grad():
-                    self.plot_pose(FFT_score, receptor, ligand, gt_rot, gt_txy, plot_count, stream_name)
+        # if self.plotting and not train:
+        #     if plot_count % self.plot_freq == 0:
+        #         with torch.no_grad():
+        #             self.plot_pose(FFT_score, receptor, ligand, gt_rot, gt_txy, plot_count, stream_name)
 
         return loss.item(), rmsd_out.item()
 
@@ -109,6 +176,7 @@ class BruteForceDockingTrainer:
 
         if self.plotting:
             self.eval_freq = 1
+        self.buffer = SampleBuffer(len(train_stream))
 
         log_header = 'Epoch\tLoss\trmsd\n'
         log_format = '%d\t%f\t%f\n'
@@ -265,7 +333,7 @@ if __name__ == '__main__':
     # torch.autograd.set_detect_anomaly(True)
     ######################
     lr = 10 ** -4
-    model = BruteForceDocking().to(device=0)
+    model = EnergyBasedModel().to(device=0)
     optimizer = optim.Adam(model.parameters(), lr=lr)
 
     batch_size = 1
@@ -277,11 +345,11 @@ if __name__ == '__main__':
 
     ######################
     train_epochs = 20
-    experiment = 'FINAL_CHECK_DOCKING'
+    experiment = 'first_tests'
 
     ######################
     ### Train model from beginning
-    # BruteForceDockingTrainer(model, optimizer, experiment).run_trainer(train_epochs, train_stream, valid_stream, test_stream)
+    EnergyBasedDockingTrainer(model, optimizer, experiment).run_trainer(train_epochs, train_stream, valid_stream, test_stream)
 
     ### Resume training model at chosen epoch
     # BruteForceDockingTrainer(model, optimizer, experiment).run_trainer(
@@ -289,8 +357,8 @@ if __name__ == '__main__':
     #     resume_training=True, resume_epoch=train_epochs)
 
     ## Plot loss from current experiment
-    LossPlotter(experiment).plot_loss()
-    LossPlotter(experiment).plot_rmsd_distribution(plot_epoch=30)
+    # LossPlotter(experiment).plot_loss()
+    # LossPlotter(experiment).plot_rmsd_distribution(plot_epoch=30)
 
     ### Evaluate model on chosen dataset only and plot at chosen epoch and dataset frequency
     # BruteForceDockingTrainer(model, optimizer, experiment, plotting=True).plot_evaluation_set(
