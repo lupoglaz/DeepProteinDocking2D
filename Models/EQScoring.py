@@ -21,10 +21,10 @@ class EQScoringModel(nn.Module):
         self.mult = ImageCrossMultiply()
         self.repr = repr
 
-        self.boundW = nn.Parameter(torch.ones(1, requires_grad=True))
-        self.crosstermW1 = nn.Parameter(torch.ones(1, requires_grad=True))
-        self.crosstermW2 = nn.Parameter(torch.ones(1, requires_grad=True))
-        self.bulkW = nn.Parameter(torch.ones(1, requires_grad=True))
+        # self.boundW = nn.Parameter(torch.ones(1, requires_grad=True))
+        # self.crosstermW1 = nn.Parameter(torch.ones(1, requires_grad=True))
+        # self.crosstermW2 = nn.Parameter(torch.ones(1, requires_grad=True))
+        # self.bulkW = nn.Parameter(torch.ones(1, requires_grad=True))
 
         self.scorer = nn.Sequential(
             nn.Linear(4, 1, bias=False)
