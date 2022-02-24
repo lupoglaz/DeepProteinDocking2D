@@ -53,7 +53,7 @@ class IPLossPlotter:
         plt.savefig('figs/BF_IP_loss_plots/Lossplot_'+self.experiment+'.png')
         plt.show()
 
-    def plot_rmsd_distribution(self, plot_epoch=1):
+    def plot_rmsd_distribution(self, plot_epoch=1, show=False):
         plt.close()
         # Plot RMSD distribution of all samples across epoch
         train = pd.read_csv("Log/losses/log_RMSDsTrainset_epoch" + str(plot_epoch) + self.experiment + ".txt", sep='\t', header=1, names=['RMSD'])
@@ -66,7 +66,7 @@ class IPLossPlotter:
         bins = int(min([num_train_examples, num_valid_examples, num_test_examples])/2)
 
         fig, ax = plt.subplots(3, figsize=(10,30))
-        plt.suptitle('RMSD distribution: ' + self.experiment)
+        plt.suptitle('RMSD distribution: epoch' + str(plot_epoch) + ' ' + self.experiment)
 
         train_rmsd = ax[0].hist(train['RMSD'].to_numpy(), bins=bins, color='b')
         valid_rmsd = ax[1].hist(valid['RMSD'].to_numpy(), bins=bins, color='r')
@@ -89,7 +89,8 @@ class IPLossPlotter:
         # ax[0].set_ylim([0, 20])
 
         plt.savefig('figs/BF_IP_RMSD_distribution_plots/RMSDplot_epoch'+ str(plot_epoch) + self.experiment + '.png')
-        plt.show()
+        if show:
+            plt.show()
 
 if __name__ == "__main__":
     # testcase = 'newdata_bugfix_docking_100epochs_'
@@ -108,5 +109,6 @@ if __name__ == "__main__":
     # testcase = 'RECODE_CHECK_BFDOCKING'
 
     testcase = 'FINAL_CHECK_DOCKING'
-    IPLossPlotter(testcase).plot_loss()
-    IPLossPlotter(testcase).plot_rmsd_distribution(plot_epoch=30)
+    # IPLossPlotter(testcase).plot_loss()
+    for epoch in range(1, 30):
+        IPLossPlotter(testcase).plot_rmsd_distribution(plot_epoch=epoch, show=False)
