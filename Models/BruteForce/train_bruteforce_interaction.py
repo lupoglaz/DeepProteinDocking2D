@@ -12,7 +12,7 @@ from DeepProteinDocking2D.torchDataset import get_interaction_stream_balanced, g
 from DeepProteinDocking2D.Models.BruteForce.model_bruteforce_interaction import BruteForceInteraction
 from DeepProteinDocking2D.Models.BruteForce.validation_metrics import APR
 from DeepProteinDocking2D.Models.BruteForce.model_bruteforce_docking import BruteForceDocking
-
+from DeepProteinDocking2D.Models.BruteForce.plot_FI_loss import FILossPlotter
 
 class BruteForceInteractionTrainer:
     ## run replicates from sbatch script args, if provided
@@ -47,7 +47,7 @@ class BruteForceInteractionTrainer:
         self.set_docking_model_state()
         self.freeze_weights()
 
-    def run_model(self, data, train=True):
+    def run_model(self, data, training=True):
         receptor, ligand, gt_interact = data
 
         receptor = receptor.squeeze()
@@ -59,14 +59,14 @@ class BruteForceInteractionTrainer:
         ligand = ligand.to(device='cuda', dtype=torch.float).unsqueeze(0)
         gt_interact = gt_interact.to(device='cuda', dtype=torch.float)
 
-        if train:
+        if training:
             self.docking_model.train()
             self.interaction_model.train()
 
         ### run model and loss calculation
         ##### call model(s)
         FFT_score = self.docking_model(receptor, ligand, plotting=self.plotting)
-        pred_interact, deltaF = self.interaction_model(FFT_score, plotting=self.plotting)
+        pred_interact, deltaF, F, F_0 = self.interaction_model(FFT_score, plotting=self.plotting)
 
         ### check parameters and gradients
         ### if weights are frozen or updating
@@ -83,7 +83,7 @@ class BruteForceInteractionTrainer:
         if self.debug:
             print('\n predicted', pred_interact.item(), '; ground truth', gt_interact.item())
 
-        if train:
+        if training:
             self.docking_model.zero_grad()
             self.interaction_model.zero_grad()
             loss.backward(retain_graph=True)
@@ -95,7 +95,12 @@ class BruteForceInteractionTrainer:
             with torch.no_grad():
                 return self.classify(pred_interact, gt_interact)
 
-        return loss.item(), L_reg.item()
+        # if self.plotting and not training:
+        #     # if plot_count % self.plot_freq == 0:
+        #     with torch.no_grad():
+        #         self.plot_pose(FFT_score, receptor, ligand, gt_rot, gt_txy, plot_count, stream_name)
+
+        return loss.item(), L_reg.item(), deltaF.item(), F, F_0, gt_interact.item()
 
     @staticmethod
     def classify(pred_interact, gt_interact):
@@ -122,8 +127,8 @@ class BruteForceInteractionTrainer:
         if self.plotting:
             self.eval_freq = 1
 
-        log_header = 'Epoch\tLoss\tLreg\n'
-        log_format = '%d\t%f\t%f\n'
+        log_header = 'Epoch\tLoss\tLreg\tdeltaF\tF_0\n'
+        log_format = '%d\t%f\t%f\t%f\t%f\n'
 
         ### Continue training on existing model?
         start_epoch = self.resume_training_or_not(resume_training, resume_epoch, log_header)
@@ -145,13 +150,17 @@ class BruteForceInteractionTrainer:
 
             train_loss = []
             for data in tqdm(train_stream):
-                train_output = [self.run_model(data, train=True)]
+                train_output = [self.run_model(data, training=True)]
                 train_loss.append(train_output)
+                with open('Log/losses/log_deltaF_Trainset_epoch' + str(epoch) + self.experiment + '.txt', 'a') as fout:
+                    fout.write('%f\t%f\t%f\t%d\n' % (train_output[0][2], train_output[0][3], train_output[0][4], train_output[0][5]))
+
+            FILossPlotter(self.experiment).plot_deltaF_distribution(plot_epoch=epoch)
 
             avg_trainloss = np.average(train_loss, axis=0)[0, :]
-            print('\nEpoch', epoch, 'Train Loss: Loss, Lreg', avg_trainloss)
+            print('\nEpoch', epoch, 'Train Loss: Loss, Lreg, deltaF, F_0', avg_trainloss)
             with open('Log/losses/log_train_' + self.experiment + '.txt', 'a') as fout:
-                fout.write(log_format % (epoch, avg_trainloss[0], avg_trainloss[1]))
+                fout.write(log_format % (epoch, avg_trainloss[0], avg_trainloss[1], avg_trainloss[2], avg_trainloss[3]))
 
             ### evaluate on training and valid set
             ### training set to False downstream in calcAPR() run_model()
@@ -219,8 +228,9 @@ class BruteForceInteractionTrainer:
             ### Loss log files
             with open('Log/losses/log_train_' + self.experiment + '.txt', 'w') as fout:
                 fout.write(log_header)
-            # with open('Log/losses/log_test_' + self.testcase + '.txt', 'w') as fout:
-            #     fout.write(log_header)
+            with open('Log/losses/log_deltaF_Trainset_epoch' + str(start_epoch) + self.experiment + '.txt', 'w') as fout:
+                fout.write('deltaF\tF\tF_0\tLabel\n')
+
         return start_epoch
 
     @staticmethod
@@ -312,9 +322,9 @@ if __name__ == '__main__':
     docking_model = BruteForceDocking().to(device=0)
     docking_optimizer = optim.Adam(docking_model.parameters(), lr=lr_docking)
 
-    # max_size = 400
+    max_size = 400
     # max_size = 50
-    max_size = 25
+    # max_size = 25
     batch_size = 1
     if batch_size > 1:
         raise NotImplementedError()
@@ -323,17 +333,18 @@ if __name__ == '__main__':
     test_stream = get_interaction_stream_balanced(testset + '.pkl', batch_size=1, max_size=max_size)
 
     # experiment = 'RECODE_CHECK_INTERACTION'
-    experiment = 'PLOT_FREE_ENERGY_HISTOGRAMS'
+    # experiment = 'PLOT_FREE_ENERGY_HISTOGRAMS'
+    experiment = 'FINAL_CHECK_INTERACTION'
 
     ##################### Load and freeze/unfreeze params (training, no eval)
     ### path to pretrained docking model
     # path_pretrain = 'Log/IP_1s4v_docking_epoch200.th'
     # path_pretrain = 'Log/RECODE_CHECK_BFDOCKING_30epochsend.th'
     path_pretrain = 'Log/FINAL_CHECK_DOCKING30.th'
-    training_case = 'A'
-    # # training_case = 'B'
-    # # training_case = 'C'
-    # # training_case = 'scratch'
+    # training_case = 'A' # CaseA: train with docking model frozen
+    # training_case = 'B' # CaseB: train with docking model unfrozen
+    # training_case = 'C' # CaseC: train with docking model SE2 CNN frozen
+    training_case = 'scratch' # Case scratch: train everything from scratch
     experiment = 'FI_case' + training_case + '_' + experiment
     train_epochs = 6
     #####################
@@ -342,7 +353,11 @@ if __name__ == '__main__':
                                  ).run_trainer(train_epochs)
 
     ### Resume training model at chosen epoch
-    # BruteForceInteractionTrainer().run_trainer(train_epochs, resume_training=True, resume_epoch=6)
+    # BruteForceInteractionTrainer(docking_model, docking_optimizer, interaction_model, interaction_optimizer, experiment, training_case, path_pretrain
+    #                              ).run_trainer(train_epochs, resume_training=True, resume_epoch=6)
+
+    ### Plot free energy distributions vs learned F_0 decision threshold
+    # FILossPlotter(experiment).plot_deltaF_distribution(plot_epoch=train_epochs, show=True)
 
     ### Evaluate model only and plot, at chosen epoch
     # resume_epoch = 5

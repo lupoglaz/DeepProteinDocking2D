@@ -11,7 +11,8 @@ class BruteForceInteraction(nn.Module):
     def forward(self, FFT_score, plotting=False):
         E = -FFT_score
 
-        deltaF = -torch.logsumexp(-E, dim=(0, 1, 2)) - self.F_0
+        F = -torch.logsumexp(-E, dim=(0, 1, 2))
+        deltaF = F - self.F_0
         pred_interact = torch.sigmoid(-deltaF)
 
         if self.debug:
@@ -19,7 +20,7 @@ class BruteForceInteraction(nn.Module):
                 print('\n(deltaF - F_0): ', deltaF.item())
                 print('F_0: ', self.F_0.item())
 
-        return pred_interact.squeeze(), deltaF.squeeze()
+        return pred_interact.squeeze(), deltaF.squeeze(), F.item(), self.F_0.item()
 
 
 if __name__ == '__main__':

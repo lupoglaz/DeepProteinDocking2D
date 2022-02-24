@@ -3,7 +3,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import sys
 
-class LossPlotter:
+class FILossPlotter:
     def __init__(self, experiment=None):
         self.experiment = experiment
         if not experiment:
@@ -13,20 +13,20 @@ class LossPlotter:
     def plot_loss(self):
         plt.close()
         #LOSS WITH ROTATION
-        train = pd.read_csv("Log/losses/log_train_"+ self.experiment +".txt", sep='\t', header=1, names=['Epoch',	'Loss',	'rmsd'])
-        valid = pd.read_csv("Log/losses/log_valid_"+ self.experiment +".txt", sep='\t', header=1, names=['Epoch', 'Loss', 'rmsd'])
-        test = pd.read_csv("Log/losses/log_test_"+ self.experiment +".txt", sep='\t', header=1, names=['Epoch', 'Loss', 'rmsd'])
+        train = pd.read_csv("Log/losses/log_train_"+ self.experiment +".txt", sep='\t', header=1, names=['Epoch',	'Loss',	'Lreg'])
+        valid = pd.read_csv("Log/losses/log_valid_"+ self.experiment +".txt", sep='\t', header=1, names=['Epoch', 'Loss', 'Lreg'])
+        test = pd.read_csv("Log/losses/log_test_"+ self.experiment +".txt", sep='\t', header=1, names=['Epoch', 'Loss', 'Lreg'])
 
         num_epochs = len(train['Epoch'].to_numpy())
 
         fig, ax = plt.subplots(2, figsize=(20,10))
-        train_rmsd = ax[0].plot(train['Epoch'].to_numpy(), train['rmsd'].to_numpy())
-        valid_rmsd = ax[0].plot(valid['Epoch'].to_numpy(), valid['rmsd'].to_numpy())
-        test_rmsd = ax[0].plot(test['Epoch'].to_numpy(), test['rmsd'].to_numpy())
-        ax[0].legend(('train rmsd', 'valid rmsd', 'test rmsd'))
+        train_Lreg = ax[0].plot(train['Epoch'].to_numpy(), train['Lreg'].to_numpy())
+        valid_Lreg = ax[0].plot(valid['Epoch'].to_numpy(), valid['Lreg'].to_numpy())
+        test_Lreg = ax[0].plot(test['Epoch'].to_numpy(), test['Lreg'].to_numpy())
+        ax[0].legend(('train Lreg', 'valid Lreg', 'test Lreg'))
 
         ax[0].set_title('Loss: ' + self.experiment)
-        ax[0].set_ylabel('rmsd')
+        ax[0].set_ylabel('Lreg')
         ax[0].grid(visible=True)
         ax[0].set_xticks(np.arange(0, num_epochs+1, num_epochs/10))
         # ax[0].set_yticks(np.arange(0, max(train['Loss'].to_numpy())+1, 10))
@@ -53,43 +53,30 @@ class LossPlotter:
         plt.savefig('figs/BF_IP_loss_plots/Lossplot_'+self.experiment+'.png')
         plt.show()
 
-    def plot_rmsd_distribution(self, plot_epoch=1):
+    def plot_deltaF_distribution(self, plot_epoch=1, show=False):
         plt.close()
         # Plot RMSD distribution of all samples across epoch
-        train = pd.read_csv("Log/losses/log_RMSDsTrainset_epoch" + str(plot_epoch) + self.experiment + ".txt", sep='\t', header=1, names=['RMSD'])
-        valid = pd.read_csv("Log/losses/log_RMSDsValidset_epoch" + str(plot_epoch) + self.experiment + ".txt", sep='\t', header=1, names=['RMSD'])
-        test = pd.read_csv("Log/losses/log_RMSDsTestset_epoch" + str(plot_epoch) + self.experiment + ".txt", sep='\t', header=1, names=['RMSD'])
+        train = pd.read_csv("Log/losses/log_deltaF_Trainset_epoch" + str(plot_epoch) + self.experiment + ".txt", sep='\t', header=0, names=['deltaF', 'F', 'F_0', 'Label'])
 
-        num_train_examples = len(train['RMSD'].to_numpy())
-        num_valid_examples = len(valid['RMSD'].to_numpy())
-        num_test_examples = len(test['RMSD'].to_numpy())
-        bins = int(min([num_train_examples, num_valid_examples, num_test_examples])/2)
+        fig, ax = plt.subplots(figsize=(10,10))
+        plt.suptitle('deltaF distribution: epoch'+ str(plot_epoch) + ' ' + self.experiment)
+        # print(train)
+        num_ticks = len(train)//1000
+        labels = train.Label.unique()
+        F = train['F']
+        binwidth = 2
+        bins = np.arange(min(F), max(F) + binwidth, binwidth)
+        y, x, _ = plt.hist([train.loc[train.Label == x, 'F'] for x in labels], label=labels, bins=bins, rwidth=binwidth, color=['g','r'], alpha=0.25)
+        plt.vlines(train['F_0'].to_numpy()[-1], ymin=0, ymax=y.max()+1, linestyles='dashed', label='F_0', colors='k')
+        ax.set_xticks(np.arange(int(x.min())-1, int(x.max())+1, num_ticks))
+        plt.legend(('(+) interaction', ' (-) interaction', 'final F_0'), prop={'size': 10})
+        ax.set_ylabel('Training set counts')
+        ax.set_xlabel('Free Energy (F)')
+        ax.grid(visible=True)
 
-        fig, ax = plt.subplots(3, figsize=(10,30))
-        plt.suptitle('RMSD distribution: ' + self.experiment)
-
-        train_rmsd = ax[0].hist(train['RMSD'].to_numpy(), bins=bins, color='b')
-        valid_rmsd = ax[1].hist(valid['RMSD'].to_numpy(), bins=bins, color='r')
-        test_rmsd = ax[2].hist(test['RMSD'].to_numpy(), bins=bins, color='g')
-        # plt.legend(('train rmsd', 'valid rmsd', 'test rmsd'))
-
-        ax[0].set_ylabel('Training set counts')
-        ax[0].grid(visible=True)
-        ax[0].set_xticks(np.arange(0, max(train['RMSD'].to_numpy())+1, 10))
-
-        ax[1].set_ylabel('Valid set counts')
-        ax[1].grid(visible=True)
-        ax[1].set_xticks(np.arange(0, max(valid['RMSD'].to_numpy())+1, 10))
-
-        ax[2].set_ylabel('Test set counts')
-        ax[2].grid(visible=True)
-        ax[2].set_xticks(np.arange(0, max(test['RMSD'].to_numpy())+1, 10))
-
-        plt.xlabel('RMSD')
-        # ax[0].set_ylim([0, 20])
-
-        plt.savefig('figs/BF_IP_RMSD_distribution_plots/RMSDplot_epoch'+ str(plot_epoch) + self.experiment + '.png')
-        plt.show()
+        plt.savefig('figs/BF_FI_deltaF_distribution_plots/deltaFplot_epoch'+ str(plot_epoch) + '_' + self.experiment + '.png')
+        if show:
+            plt.show()
 
 if __name__ == "__main__":
     # testcase = 'newdata_bugfix_docking_100epochs_'
@@ -107,6 +94,8 @@ if __name__ == "__main__":
     # testcase = 'rep2_noRandseed_Checkgitmerge_IP_1s4v_docking_10epochs'
     # testcase = 'RECODE_CHECK_BFDOCKING'
 
-    testcase = 'FINAL_CHECK_DOCKING'
-    LossPlotter(testcase).plot_loss()
-    LossPlotter(testcase).plot_rmsd_distribution(plot_epoch=30)
+    # testcase = 'FI_caseA_PLOT_FREE_ENERGY_HISTOGRAMS'
+    testcase = 'scratch_FI_casescratch_FINAL_CHECK_INTERACTION'
+    # FILossPlotter(testcase).plot_loss()
+    FILossPlotter(testcase).plot_deltaF_distribution(plot_epoch=1)
+    pass

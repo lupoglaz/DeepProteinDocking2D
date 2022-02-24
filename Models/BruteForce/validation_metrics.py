@@ -84,7 +84,7 @@ class APR:
         TP, FP, TN, FN = 0, 0, 0, 0
 
         for data in tqdm(stream):
-            tp, fp, tn, fn = run_model(data, train=False)
+            tp, fp, tn, fn = run_model(data, training=False)
             # print(tp, fp, tn,fn)
             TP += tp
             FP += fp
