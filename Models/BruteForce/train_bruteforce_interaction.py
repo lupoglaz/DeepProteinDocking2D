@@ -155,7 +155,7 @@ class BruteForceInteractionTrainer:
                 with open('Log/losses/log_deltaF_Trainset_epoch' + str(epoch) + self.experiment + '.txt', 'a') as fout:
                     fout.write('%f\t%f\t%f\t%d\n' % (train_output[0][2], train_output[0][3], train_output[0][4], train_output[0][5]))
 
-            FILossPlotter(self.experiment).plot_deltaF_distribution(plot_epoch=epoch)
+            FILossPlotter(self.experiment).plot_deltaF_distribution(plot_epoch=epoch, show=False)
 
             avg_trainloss = np.average(train_loss, axis=0)[0, :]
             print('\nEpoch', epoch, 'Train Loss: Loss, Lreg, deltaF, F_0', avg_trainloss)
@@ -349,12 +349,12 @@ if __name__ == '__main__':
     train_epochs = 6
     #####################
     ### Train model from beginning
-    BruteForceInteractionTrainer(docking_model, docking_optimizer, interaction_model, interaction_optimizer, experiment, training_case, path_pretrain
-                                 ).run_trainer(train_epochs)
+    # BruteForceInteractionTrainer(docking_model, docking_optimizer, interaction_model, interaction_optimizer, experiment, training_case, path_pretrain
+    #                              ).run_trainer(train_epochs)
 
     ### Resume training model at chosen epoch
-    # BruteForceInteractionTrainer(docking_model, docking_optimizer, interaction_model, interaction_optimizer, experiment, training_case, path_pretrain
-    #                              ).run_trainer(train_epochs, resume_training=True, resume_epoch=6)
+    BruteForceInteractionTrainer(docking_model, docking_optimizer, interaction_model, interaction_optimizer, experiment, training_case, path_pretrain
+                                 ).run_trainer(train_epochs, resume_training=True, resume_epoch=3)
 
     ### Plot free energy distributions vs learned F_0 decision threshold
     # FILossPlotter(experiment).plot_deltaF_distribution(plot_epoch=train_epochs, show=True)
