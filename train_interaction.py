@@ -26,7 +26,7 @@ sys.path.append('/home/sb1638/')
 torch.cuda.empty_cache()
 
 
-def test(stream, trainer, epoch=0, threshold=0.5):
+def test(stream, trainer, threshold=0.5):
 	TP, FP, TN, FN = 0, 0, 0, 0
 	for data in tqdm(stream):
 		log_dict = trainer.eval(data, threshold=threshold)
@@ -48,7 +48,7 @@ def test(stream, trainer, epoch=0, threshold=0.5):
 	MCC = (TP*TN - FP*FN)/np.sqrt((TP+FP)*(TP+FN)*(TN+FP)*(TN+FN)+1E-5)
 	return Accuracy, Precision, Recall, F1, MCC
 
-def test_threshold(stream, trainer, iter, logger=None):
+def test_threshold(stream, trainer, iter=0, logger=None):
 	all_pred = []
 	all_target = []
 
@@ -127,7 +127,7 @@ def test_threshold(stream, trainer, iter, logger=None):
 	return Accuracy.item(), Precision, Recall, F1, MCC, threshold
 
 
-def write_validloss(filename):
+def write_validloss(filename, epoch=None):
 	log_format = '%f\t%f\t%f\t%f\t%f\n'
 	log_header = 'Accuracy\tPrecision\tRecall\tF1score\tMCC\n'
 	with open('Log/' + str(args.experiment) + '/'+filename, 'a') as fout:
@@ -144,6 +144,7 @@ if __name__=='__main__':
 
 	parser.add_argument('-train', action='store_const', const=lambda:'train', dest='cmd')
 	parser.add_argument('-test', action='store_const', const=lambda:'test', dest='cmd')
+	parser.add_argument('-test_epoch', default=0, type=int)
 
 	parser.add_argument('-resnet', action='store_const', const=lambda:'resnet', dest='model')
 	parser.add_argument('-docker', action='store_const', const=lambda:'docker', dest='model')
@@ -165,9 +166,10 @@ if __name__=='__main__':
 
 	train_stream = get_interaction_stream_balanced('DatasetGeneration/interaction_data_train.pkl', batch_size=args.batch_size, max_size=1000, shuffle=True)
 	train_small_stream = get_interaction_stream('DatasetGeneration/interaction_data_train.pkl', batch_size=args.batch_size, max_size=50)
+	train_stream = train_small_stream
 	valid_stream = get_interaction_stream('DatasetGeneration/interaction_data_valid.pkl', batch_size=args.batch_size, max_size=1000)
 	test_stream = get_interaction_stream('DatasetGeneration/interaction_data_test.pkl', batch_size=args.batch_size, max_size=1000)
-	
+
 	logger = SummaryWriter(Path(args.data_dir)/Path(args.experiment))
 
 	if args.model() == 'resnet':
@@ -229,27 +231,31 @@ if __name__=='__main__':
 				logger.add_scalar("DockFI/Valid/MCC", MCC, epoch)
 
 				## write validation loss to file
-				write_validloss('log_FI_validsetAPR.txt')
+				write_validloss('log_FI_train_smallsetAPR.txt', epoch=epoch)
 			
-			torch.save(model.state_dict(), Path(args.data_dir)/Path(args.experiment)/Path('model.th'))
+			torch.save(model.state_dict(), Path(args.data_dir)/Path(args.experiment)/Path('model_epoch'+str(epoch)+'.th'))
 		
 	#TESTING
 	elif args.cmd() == 'test':
-		trainer.load_checkpoint(Path(args.data_dir)/Path(args.experiment)/Path('model.th'))
+		assert args.test_epoch
+		trainer.load_checkpoint(Path(args.data_dir)/Path(args.experiment)/Path('model_epoch'+str(args.test_epoch)+'.th'))
 		if args.model() == 'docker':
+			iter = 0
 			Accuracy, Precision, Recall, F1, MCC, threshold = test_threshold(train_small_stream, trainer, iter, logger)
 			print(f'Threshold {threshold}')
 			print(f'Threshold Acc: {Accuracy} Prec: {Precision} Rec: {Recall} F1: {F1} MCC: {MCC}')
 		else:
 			threshold = 0.5
 		
-		vAccuracy, vPrecision, vRecall, vF1, vMCC = test(valid_stream, trainer, epoch=0, threshold=threshold)
+		vAccuracy, vPrecision, vRecall, vF1, vMCC = test(valid_stream, trainer, threshold=threshold)
 		print(f'Validation Acc: {vAccuracy} Prec: {vPrecision} Rec: {vRecall} F1: {vF1} MCC: {vMCC}')
 
-		tAccuracy, tPrecision, tRecall, tF1, tMCC = test(test_stream, trainer, 0, threshold=threshold)
+		write_validloss('log_FI_validsetAPR.txt', epoch=None)
+
+		tAccuracy, tPrecision, tRecall, tF1, tMCC = test(test_stream, trainer, threshold=threshold)
 		print(f'Test Acc: {tAccuracy} Prec: {tPrecision} Rec: {tRecall} F1: {tF1} MCC: {tMCC}')
 
-		write_validloss('log_FI_testsetAPR.txt')
+		write_validloss('log_FI_testsetAPR.txt', epoch=args.test_epoch)
 
 	# logger.add_hparams(	{'ModelType': args.model(), 'Pretrain': args.pretrain},
 		# 					{'hparam/valid_acc': vAccuracy, 'hparam/valid_prec': vPrecision, 'hparam/valid_rec': vRecall, 
