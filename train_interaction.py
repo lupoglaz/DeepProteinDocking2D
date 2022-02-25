@@ -167,7 +167,7 @@ if __name__=='__main__':
 	## shuffle=True does not run... ValueError: batch_sampler option is mutually exclusive with batch_size, shuffle, sampler, and drop_last
 	# train_stream = get_interaction_stream_balanced('DatasetGeneration/interaction_data_train.pkl', batch_size=args.batch_size, max_size=1000, shuffle=True)
 
-	train_stream = get_interaction_stream_balanced('DatasetGeneration/interaction_data_train.pkl', batch_size=args.batch_size, max_size=1000)
+	train_stream = get_interaction_stream_balanced('DatasetGeneration/interaction_data_train.pkl', batch_size=args.batch_size, max_size=1000, shuffle=False)
 	train_small_stream = get_interaction_stream('DatasetGeneration/interaction_data_train.pkl', batch_size=args.batch_size, max_size=50)
 	# train_stream = train_small_stream
 	valid_stream = get_interaction_stream('DatasetGeneration/interaction_data_valid.pkl', batch_size=args.batch_size, max_size=1000)
