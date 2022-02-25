@@ -116,9 +116,7 @@ def get_docking_stream(data_path, batch_size = 10, shuffle = False, max_size=100
 def get_interaction_stream_balanced(data_path, batch_size=10, max_size=1000, shuffle=False):
 	dataset = ToyInteractionDataset(path=data_path, max_size=max_size)
 	sampler = BatchSampler(WeightedRandomSampler(weights=dataset.weights, num_samples=len(dataset.weights), replacement=True), batch_size, drop_last=False)
-	trainloader = torch.utils.data.DataLoader(dataset, batch_sampler=sampler, num_workers=0, collate_fn=crop_collate, shuffle=False, pin_memory=True)
-	# sampler = SequentialSampler(WeightedRandomSampler(weights=dataset.weights, num_samples=len(dataset), replacement=True))
-	# trainloader = torch.utils.data.DataLoader(dataset, sampler=sampler, num_workers=0, collate_fn=crop_collate, shuffle=False, pin_memory=True)
+	trainloader = torch.utils.data.DataLoader(dataset, batch_sampler=sampler, num_workers=0, collate_fn=crop_collate, shuffle=shuffle, pin_memory=True)
 	return trainloader
 
 def get_interaction_stream(data_path, batch_size = 10, max_size=1000):
