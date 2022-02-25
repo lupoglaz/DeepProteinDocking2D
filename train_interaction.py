@@ -164,9 +164,10 @@ if __name__=='__main__':
 				print(i, torch.cuda.get_device_name(i), torch.cuda.get_device_capability(i))	
 		torch.cuda.set_device(args.gpu)
 
-	train_stream = get_interaction_stream_balanced('DatasetGeneration/interaction_data_train.pkl', batch_size=args.batch_size, max_size=1000, shuffle=True)
+	# train_stream = get_interaction_stream_balanced('DatasetGeneration/interaction_data_train.pkl', batch_size=args.batch_size, max_size=1000, shuffle=True)
+	train_stream = get_interaction_stream_balanced('DatasetGeneration/interaction_data_train.pkl', batch_size=args.batch_size, max_size=1000, shuffle=False)
 	train_small_stream = get_interaction_stream('DatasetGeneration/interaction_data_train.pkl', batch_size=args.batch_size, max_size=50)
-	train_stream = train_small_stream
+	# train_stream = train_small_stream
 	valid_stream = get_interaction_stream('DatasetGeneration/interaction_data_valid.pkl', batch_size=args.batch_size, max_size=1000)
 	test_stream = get_interaction_stream('DatasetGeneration/interaction_data_test.pkl', batch_size=args.batch_size, max_size=1000)
 
