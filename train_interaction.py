@@ -164,7 +164,9 @@ if __name__=='__main__':
 				print(i, torch.cuda.get_device_name(i), torch.cuda.get_device_capability(i))	
 		torch.cuda.set_device(args.gpu)
 
+	## shuffle=True does not run... ValueError: batch_sampler option is mutually exclusive with batch_size, shuffle, sampler, and drop_last
 	# train_stream = get_interaction_stream_balanced('DatasetGeneration/interaction_data_train.pkl', batch_size=args.batch_size, max_size=1000, shuffle=True)
+
 	train_stream = get_interaction_stream_balanced('DatasetGeneration/interaction_data_train.pkl', batch_size=args.batch_size, max_size=1000, shuffle=False)
 	train_small_stream = get_interaction_stream('DatasetGeneration/interaction_data_train.pkl', batch_size=args.batch_size, max_size=50)
 	# train_stream = train_small_stream
@@ -267,3 +269,4 @@ if __name__=='__main__':
 		raise(ValueError())
 
 # python train_interaction.py -experiment BFInteraction_georgydefaults_check -docker -train -batch_size 8 -num_epochs 10
+# $ python train_interaction.py -experiment GEORGY_BFinteraction_PRETRAIN_shuffleFalse -docker -train -batch_size 8 -num_epochs 10
