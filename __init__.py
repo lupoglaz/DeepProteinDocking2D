@@ -1,2 +1,2 @@
-from .Models.Convolution.ProteinConvolution2D import ProteinConv2D
-from .Models.EQInteraction import RankingLoss
+from DeepProteinDocking2D.Models.Convolution.ProteinConvolution2D import ProteinConv2D
+from DeepProteinDocking2D.Models.EQInteraction import RankingLoss
