@@ -135,7 +135,7 @@ if __name__=='__main__':
 	print(rotation.size())
 	print(index)
 
-	stream = get_interaction_stream_balanced(data_path='DatasetGeneration/interaction_data_train.pkl', batch_size=64, max_size=100, shuffle=True)
+	stream = get_interaction_stream_balanced(data_path='DatasetGeneration/interaction_data_train.pkl', batch_size=64, max_size=100)
 	all_pos = 0
 	for data in stream:
 		receptor, ligand, interaction = data
