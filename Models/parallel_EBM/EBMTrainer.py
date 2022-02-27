@@ -100,7 +100,7 @@ class EBMTrainer:
         if self.FI:
             print("LOAD FImodel ONCE??????")
             ##### load blank model and optimizer, once
-            lr_interaction = 10 ** -7
+            lr_interaction = 10 ** -1
             self.interaction_model = FreeEnergyInteraction().to(device=0)
             self.optimizer_interaction = optim.Adam(self.interaction_model.parameters(), lr=lr_interaction)
 
@@ -127,15 +127,18 @@ class EBMTrainer:
         self.path_IP = '../../EBM_figs/IP_figs/' + self.experiment
         self.path_FI = '../../EBM_figs/FI_figs/' + self.experiment
         self.path_LD = '../../EBM_figs/FI_figs/' + self.experiment + '/LD_steps'
-
-        try:
-            if 'IP' in self.experiment:
-                os.mkdir(self.path_IP)
-            if 'FI' in self.experiment:
-                os.mkdir(self.path_FI)
-                os.mkdir(self.path_LD)
-        except:
-            print('dir already exists')
+        self.path_Fhists = '../../EBM_figs/FI_figs/' + self.experiment + '/freeE_tables'
+        #
+        # try:
+        #     if 'IP' in self.experiment:
+        #         os.mkdir(self.path_IP)
+        #     if 'FI' in self.experiment:
+        #         os.mkdir(self.path_FI)
+        #         os.mkdir(self.path_LD)
+        #         os.mkdir(self.path_Fhists)
+        #
+        # except:
+        #     print('dir already exists')
 
 
     def requires_grad(self, flag=True):
@@ -468,6 +471,8 @@ class EBMTrainer:
         pred_interact, deltaF, F_cold, F_0 = self.interaction_model(Ecold=Energies_cold_grad, Ehot=None)
         # pred_interact, deltaF, F_cold, F_0 = self.interaction_model(Ecold=Energies_cold_grad, Ehot=Energies_hot_grad, Emean=False)
 
+        with torch.no_grad():
+            F_cold = F_cold.data.clamp(-100, 100)
         # #### grad recompute model
 
         if self.debug:
@@ -535,7 +540,7 @@ class EBMTrainer:
                 print('interaction model')
                 self.check_gradients(self.interaction_model, param=None)
 
-            return {"Loss": loss.item()}, F_cold, F_0
+            return {"Loss": loss.item()}, F_cold.item(), F_0.item()
 
         else:
             self.model.eval()
@@ -592,4 +597,4 @@ class FreeEnergyInteraction(nn.Module):
         #     print('\n(deltaF - F_0): ', deltaF.item())
         #     # print('F_0: ', self.F_0.item(), 'F_0 grad', self.F_0.grad)
 
-        return pred_interact.squeeze(), deltaF.squeeze(), Fcold, self.F_0.squeeze()
+        return pred_interact.squeeze(), deltaF.squeeze(), Fcold.squeeze(), self.F_0.squeeze()

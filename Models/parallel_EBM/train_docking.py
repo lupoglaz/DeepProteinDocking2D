@@ -216,7 +216,9 @@ if __name__ == '__main__':
         repr = EQRepresentation()
         model = EQScoringModel(repr=repr).to(device='cuda')
         # optimizer = optim.Adam(model.parameters(), lr=1e-3, betas=(0.0, 0.999))
-        optimizer = optim.Adam(model.parameters(), lr=1e-4)
+        # optimizer = optim.Adam(model.parameters(), lr=1e-4)
+        # optimizer = optim.Adam(model.parameters(), lr=1e-7)
+        optimizer = optim.Adam(model.parameters(), lr=1e-3)
         if args.ablation is None:
             print('My default')
             trainer = EBMTrainer(model, optimizer, num_samples=args.num_samples,
@@ -247,9 +249,6 @@ if __name__ == '__main__':
             # print(Path('Log') / Path('check_IP_LD10_randseed_rep1') / Path('model.th'))
 
         elif args.ablation() == 'FI':
-            # mkdir = 'mkdir -p ../../EBM_figs/'+args.experiment+'/'
-            # os.system(mkdir)
-            # print(mkdir)
             print('Fact of interaction: using parallel, different distribution sigmas, no GS, no AP')
             # max_size = 100
             # max_size = 200
@@ -258,21 +257,21 @@ if __name__ == '__main__':
             # max_size = 20
             # max_size = 50
             max_size = 10
-            # train_stream = get_interaction_stream_balanced('../../DatasetGeneration/interaction_data_train.pkl',
-            #                                                batch_size=args.batch_size,
-            #                                                max_size=max_size
-            #                                                )
-            # valid_stream = get_interaction_stream_balanced('../../DatasetGeneration/interaction_data_valid.pkl', batch_size=1,
-            #                                                max_size=max_size
-            #                                                )
-
-            train_stream = get_interaction_stream('../../DatasetGeneration/interaction_data_train.pkl',
+            train_stream = get_interaction_stream_balanced('../../DatasetGeneration/interaction_data_train.pkl',
                                                            batch_size=args.batch_size,
                                                            max_size=max_size
                                                            )
-            valid_stream = get_interaction_stream('../../DatasetGeneration/interaction_data_valid.pkl', batch_size=1,
+            valid_stream = get_interaction_stream_balanced('../../DatasetGeneration/interaction_data_valid.pkl', batch_size=1,
                                                            max_size=max_size
                                                            )
+            #
+            # train_stream = get_interaction_stream('../../DatasetGeneration/interaction_data_train.pkl',
+            #                                                batch_size=args.batch_size,
+            #                                                max_size=max_size
+            #                                                )
+            # valid_stream = get_interaction_stream('../../DatasetGeneration/interaction_data_valid.pkl', batch_size=1,
+            #                                                max_size=max_size
+            #                                                )
 
             trainer = EBMTrainer(model, optimizer, num_samples=args.num_samples,
                                  num_buf_samples=len(train_stream) * args.batch_size, step_size=args.step_size,
@@ -280,7 +279,26 @@ if __name__ == '__main__':
 
             # trainer.load_checkpoint(Path('Log') / Path('check_IP_LD10_randseed_rep1') / Path('model.th'))
             # print(Path('Log') / Path('check_IP_LD10_randseed_rep1') / Path('model.th'))
+            print('*' * 100)
+            print('Loading pretrained model for EBM:')
+            print('BFInteraction_NOrandseed_GEORGY_PRETRAIN_batch8_epochs10')
+            trainer.load_checkpoint('../../Log/BFInteraction_NOrandseed_GEORGY_PRETRAIN_batch8_epochs10/model_epoch3.th')
 
+            path_IP = '../../EBM_figs/IP_figs/' + args.experiment
+            path_FI = '../../EBM_figs/FI_figs/' + args.experiment
+            path_LD = '../../EBM_figs/FI_figs/' + args.experiment + '/LD_steps'
+            path_Fhists = '../../EBM_figs/FI_figs/' + args.experiment + '/freeE_tables'
+            EBMplotting = EBMPlotter(model, experiment=args.experiment)
+
+            try:
+                if 'IP' in args.experiment:
+                    os.mkdir(path_IP)
+                if 'FI' in args.experiment:
+                    os.mkdir(path_FI)
+                    os.mkdir(path_LD)
+                    os.mkdir(path_Fhists)
+            except:
+                print('dir already exists')
 
 
     elif args.model() == 'docker':
@@ -295,17 +313,11 @@ if __name__ == '__main__':
         min_loss = float('+Inf')
         min_dockerloss = float('+Inf')
 
-        # if args.ablation() == 'FI':
-        #     print('*' * 100)
-        #     print('Loading pretrained model for EBM')
-            # trainer.load_checkpoint(Path('Log') / Path('check_IP_LD10_randseed_rep1') / Path('model.th'))
-            # print(Path('Log') / Path('check_IP_LD10_randseed_rep1') / Path('model.th'))
-            # model, optimizer, start_epoch = load_ckp(Path(args.data_dir) / Path(args.experiment) / Path('model.th'), model, optimizer)
-
-
         # iter = 0
-
         for epoch in range(args.num_epochs):
+            filename_Fhist = path_Fhists+'/log_deltaF_Trainset_epoch'+str(epoch)
+            with open(filename_Fhist+'.txt', 'w') as fout:
+                fout.write('F\tF_0\tLabel\n')
             iter = 0
             # print(last_transform_list)
             pos_list = []
@@ -317,13 +329,12 @@ if __name__ == '__main__':
                     log_dict = trainer.step_parallel(data, epoch=epoch, train=True)
                     logger.add_scalar("DockIP/Loss/Train", log_dict["Loss"], iter*(epoch+1))
                 elif args.ablation() == 'FI':
-                    # print('\nFI parallel')
-                    # print(last_transform_list[iter])
                     receptor, ligand, gt_interact = data
                     # receptor, ligand = pad_shapes(ligand, receptor)
                     data = (receptor, ligand, gt_interact, torch.tensor(iter).unsqueeze(0).cuda())
                     log_dict, F_cold, F_0 = trainer.step_parallel(data, epoch=epoch, train=True)
-                    F_cold = F_cold.detach().cpu()
+                    with open(filename_Fhist+'.txt', 'a') as fout:
+                        fout.write('%f\t%f\t%d\n' % (F_cold, F_0, gt_interact.item()))
                     if gt_interact == 1:
                         pos_ind.append(iter)
                         pos_list.append(F_cold)
@@ -333,12 +344,12 @@ if __name__ == '__main__':
                     logger.add_scalar("DockFI/Loss/Train/", log_dict["Loss"], iter*(epoch+1))
                 else:
                     log_dict = trainer.step(data, epoch=epoch)
-                    logger.add_scalar("DockIP/Loss/Train", log_dict["Loss"], iter)
+                    logger.add_scalar("DockIP/Loss/Train/", log_dict["Loss"], iter)
                 iter += 1
 
-            F_0 = F_0.detach().cpu()
             filename = '../../EBM_figs/FI_figs/'+args.experiment+ '/Emins_F0_scatter_epoch' + str(epoch)
-            EBMPlotter(model).FI_energy_vs_F0(pos_list, neg_list, pos_ind, neg_ind, F_0, filename=filename, epoch=epoch)
+            EBMplotting.FI_energy_vs_F0(pos_list, neg_list, pos_ind, neg_ind, F_0, filename=filename, epoch=epoch)
+            EBMplotting.plot_deltaF_distribution(filename=filename_Fhist, path=path_FI, plot_epoch=epoch, show=False)
 
             if args.ablation() == 'FI':
                 if epoch % 5 == 0 and epoch > 1:
@@ -449,3 +460,4 @@ if __name__ == '__main__':
 # python train_docking.py -data_dir Log -experiment FI_10LD_ebmlr-4nb_lr-0_20ep_recompFreg+1_wReg-5 -LD_steps 10 -train -ebm -num_epochs 20 -batch_size 1 -num_samples 1 -gpu 0 -FI
 # python train_docking.py -data_dir Log -experiment FI_10LD_ebmlr-4nb_lr-2_recompFreg-2_clamptxy-10_100ep -LD_steps 10 -train -ebm -num_epochs 100 -batch_size 1 -num_samples 1 -gpu 0 -FI
 # python train_docking.py -data_dir Log -experiment FI_100ep_noFreg_clampdiv3_zerosinit_box50_s16v4t0_signedscorer_withNP_noNL_lr-2_cold5only -LD_steps 10 -train -ebm -num_epochs 100 -batch_size 1 -num_samples 1 -gpu 0 -FI
+# python train_docking.py -data_dir Log -experiment FI_noFreg_clampdiv3_zerosinit_box50_GEORGYPRETRAIN_CHECKLDPOWER -LD_steps 10 -train -ebm -num_epochs 100 -batch_size 1 -num_samples 1 -gpu 0 -FI
