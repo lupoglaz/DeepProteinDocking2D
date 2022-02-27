@@ -263,7 +263,7 @@ class BruteForceInteractionTrainer:
             print('Training expB')
             lr_docking = 10 ** -5
             print('Docking learning rate changed to', lr_docking)
-            self.experiment = 'case' + self.training_case + '_lr5change_' + self.experiment
+            # self.experiment = 'case' + self.training_case + '_lr5change_' + self.experiment
             self.docking_model = BruteForceDocking().to(device=0)
             self.docking_optimizer = optim.Adam(self.docking_model.parameters(), lr=lr_docking)
             self.param_to_freeze = None
@@ -277,7 +277,7 @@ class BruteForceInteractionTrainer:
         if self.training_case == 'scratch':
             print('Training from scratch')
             self.param_to_freeze = None
-            self.experiment = self.training_case + '_' + self.experiment
+            # self.experiment = self.training_case + '_' + self.experiment
 
     def run_trainer(self, train_epochs, resume_epoch=0, resume_training=False):
         self.train_model(train_epochs, train_stream, valid_stream, test_stream,
@@ -353,11 +353,11 @@ if __name__ == '__main__':
     #                              ).run_trainer(train_epochs)
 
     ### Resume training model at chosen epoch
-    BruteForceInteractionTrainer(docking_model, docking_optimizer, interaction_model, interaction_optimizer, experiment, training_case, path_pretrain
-                                 ).run_trainer(train_epochs, resume_training=True, resume_epoch=3)
-
+    # BruteForceInteractionTrainer(docking_model, docking_optimizer, interaction_model, interaction_optimizer, experiment, training_case, path_pretrain
+    #                              ).run_trainer(train_epochs, resume_training=True, resume_epoch=3)
+    #
     ### Plot free energy distributions vs learned F_0 decision threshold
-    # FILossPlotter(experiment).plot_deltaF_distribution(plot_epoch=train_epochs, show=True)
+    FILossPlotter(experiment).plot_deltaF_distribution(plot_epoch=2, show=True)
 
     ### Evaluate model only and plot, at chosen epoch
     # resume_epoch = 5

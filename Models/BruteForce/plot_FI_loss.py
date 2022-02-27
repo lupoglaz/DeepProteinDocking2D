@@ -56,17 +56,17 @@ class FILossPlotter:
     def plot_deltaF_distribution(self, plot_epoch=1, show=False):
         plt.close()
         # Plot RMSD distribution of all samples across epoch
-        train = pd.read_csv("Log/losses/log_deltaF_Trainset_epoch" + str(plot_epoch) + self.experiment + ".txt", sep='\t', header=0, names=['deltaF', 'F', 'F_0', 'Label'])
+        train = pd.read_csv("Log/losses/log_deltaF_Trainset_epoch" + str(plot_epoch) +'scratch_' + self.experiment + ".txt", sep='\t', header=0, names=['deltaF', 'F', 'F_0', 'Label'])
 
         fig, ax = plt.subplots(figsize=(10,10))
         plt.suptitle('deltaF distribution: epoch'+ str(plot_epoch) + ' ' + self.experiment)
         # print(train)
         num_ticks = len(train)//1000
-        labels = train.Label.unique()
+        labels = sorted(train.Label.unique())
         F = train['F']
         binwidth = 2
         bins = np.arange(min(F), max(F) + binwidth, binwidth)
-        y, x, _ = plt.hist([train.loc[train.Label == x, 'F'] for x in labels], label=labels, bins=bins, rwidth=binwidth, color=['g','r'], alpha=0.25)
+        y, x, _ = plt.hist([train.loc[train.Label == x, 'F'] for x in labels], label=labels, bins=bins, rwidth=binwidth, color=['r','g'], alpha=0.25)
         plt.vlines(train['F_0'].to_numpy()[-1], ymin=0, ymax=y.max()+1, linestyles='dashed', label='F_0', colors='k')
         ax.set_xticks(np.arange(int(x.min())-1, int(x.max())+1, num_ticks))
         plt.legend(('(+) interaction', ' (-) interaction', 'final F_0'), prop={'size': 10})
