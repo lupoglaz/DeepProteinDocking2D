@@ -56,7 +56,7 @@ class FILossPlotter:
     def plot_deltaF_distribution(self, plot_epoch=1, show=False):
         plt.close()
         # Plot RMSD distribution of all samples across epoch
-        train = pd.read_csv("Log/losses/log_deltaF_Trainset_epoch" + str(plot_epoch) +'scratch_' + self.experiment + ".txt", sep='\t', header=0, names=['deltaF', 'F', 'F_0', 'Label'])
+        train = pd.read_csv("Log/losses/log_deltaF_Trainset_epoch" + str(plot_epoch) + self.experiment + ".txt", sep='\t', header=0, names=['deltaF', 'F', 'F_0', 'Label'])
 
         fig, ax = plt.subplots(figsize=(10,10))
         plt.suptitle('deltaF distribution: epoch'+ str(plot_epoch) + ' ' + self.experiment)
