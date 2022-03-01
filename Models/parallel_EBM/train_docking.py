@@ -15,7 +15,7 @@ import warnings
 warnings.filterwarnings("ignore")
 
 from DeepProteinDocking2D.Models import EQScoringModel, EQDockerGPU, CNNInteractionModel, EQRepresentation, EQInteraction
-from DeepProteinDocking2D.torchDataset import get_docking_stream, get_interaction_stream_balanced, get_interaction_stream
+from DeepProteinDocking2D.torchDataset import get_docking_stream, get_interaction_stream_balanced, get_interaction_stream, get_interaction_stream_balanced_singleordering
 from tqdm import tqdm
 
 from EBMTrainer import EBMTrainer
@@ -255,23 +255,32 @@ if __name__ == '__main__':
             # max_size = 2
             # max_size = 10
             # max_size = 20
-            # max_size = 50
-            max_size = 10
-            train_stream = get_interaction_stream_balanced('../../DatasetGeneration/interaction_data_train.pkl',
-                                                           batch_size=args.batch_size,
-                                                           max_size=max_size
-                                                           )
-            valid_stream = get_interaction_stream_balanced('../../DatasetGeneration/interaction_data_valid.pkl', batch_size=1,
-                                                           max_size=max_size
-                                                           )
-            #
-            # train_stream = get_interaction_stream('../../DatasetGeneration/interaction_data_train.pkl',
+            max_size = 50
+            # max_size = 10
+            # train_stream = get_interaction_stream_balanced('../../DatasetGeneration/interaction_data_train.pkl',
             #                                                batch_size=args.batch_size,
             #                                                max_size=max_size
             #                                                )
-            # valid_stream = get_interaction_stream('../../DatasetGeneration/interaction_data_valid.pkl', batch_size=1,
+            # valid_stream = get_interaction_stream_balanced('../../DatasetGeneration/interaction_data_valid.pkl', batch_size=1,
             #                                                max_size=max_size
             #                                                )
+
+            train_stream = get_interaction_stream('../../DatasetGeneration/interaction_data_train.pkl',
+                                                           batch_size=args.batch_size,
+                                                           max_size=max_size
+                                                           )
+            valid_stream = get_interaction_stream('../../DatasetGeneration/interaction_data_valid.pkl', batch_size=1,
+                                                           max_size=max_size
+                                                           )
+
+            # train_stream, sampler = get_interaction_stream_balanced_singleordering('../../DatasetGeneration/interaction_data_train.pkl',
+            #                                                batch_size=args.batch_size,
+            #                                                max_size=max_size
+            #                                                )
+            # valid_stream = get_interaction_stream_balanced('../../DatasetGeneration/interaction_data_valid.pkl', batch_size=1,
+            #                                                max_size=max_size
+            #                                                )
+
 
             trainer = EBMTrainer(model, optimizer, num_samples=args.num_samples,
                                  num_buf_samples=len(train_stream) * args.batch_size, step_size=args.step_size,
@@ -287,7 +296,7 @@ if __name__ == '__main__':
             path_IP = '../../EBM_figs/IP_figs/' + args.experiment
             path_FI = '../../EBM_figs/FI_figs/' + args.experiment
             path_LD = '../../EBM_figs/FI_figs/' + args.experiment + '/LD_steps'
-            path_Fhists = '../../EBM_figs/FI_figs/' + args.experiment + '/freeE_tables'
+            # path_Fhists = '../../EBM_figs/FI_figs/' + args.experiment + '/freeE_tables'
             EBMplotting = EBMPlotter(model, experiment=args.experiment)
 
             try:
@@ -296,7 +305,7 @@ if __name__ == '__main__':
                 if 'FI' in args.experiment:
                     os.mkdir(path_FI)
                     os.mkdir(path_LD)
-                    os.mkdir(path_Fhists)
+                    # os.mkdir(path_Fhists)
             except:
                 print('dir already exists')
 
@@ -315,15 +324,16 @@ if __name__ == '__main__':
 
         # iter = 0
         for epoch in range(args.num_epochs):
-            filename_Fhist = path_Fhists+'/log_deltaF_Trainset_epoch'+str(epoch)
-            with open(filename_Fhist+'.txt', 'w') as fout:
-                fout.write('F\tF_0\tLabel\n')
             iter = 0
-            # print(last_transform_list)
             pos_list = []
             neg_list = []
             pos_ind = []
             neg_ind = []
+            Fhist_list = []
+            # train_stream, _ = get_interaction_stream_balanced_singleordering('../../DatasetGeneration/interaction_data_train.pkl', sampler=sampler,
+            #                                                batch_size=args.batch_size,
+            #                                                max_size=max_size, printout=False
+            #                                                )
             for data in tqdm(train_stream):
                 if args.ablation() == 'parallel_noGSAP':
                     log_dict = trainer.step_parallel(data, epoch=epoch, train=True)
@@ -333,8 +343,7 @@ if __name__ == '__main__':
                     # receptor, ligand = pad_shapes(ligand, receptor)
                     data = (receptor, ligand, gt_interact, torch.tensor(iter).unsqueeze(0).cuda())
                     log_dict, F_cold, F_0 = trainer.step_parallel(data, epoch=epoch, train=True)
-                    with open(filename_Fhist+'.txt', 'a') as fout:
-                        fout.write('%f\t%f\t%d\n' % (F_cold, F_0, gt_interact.item()))
+                    Fhist_list.append([F_cold, F_0, gt_interact.item()])
                     if gt_interact == 1:
                         pos_ind.append(iter)
                         pos_list.append(F_cold)
@@ -347,9 +356,8 @@ if __name__ == '__main__':
                     logger.add_scalar("DockIP/Loss/Train/", log_dict["Loss"], iter)
                 iter += 1
 
-            filename = '../../EBM_figs/FI_figs/'+args.experiment+ '/Emins_F0_scatter_epoch' + str(epoch)
-            EBMplotting.FI_energy_vs_F0(pos_list, neg_list, pos_ind, neg_ind, F_0, filename=filename, epoch=epoch)
-            EBMplotting.plot_deltaF_distribution(filename=filename_Fhist, path=path_FI, plot_epoch=epoch, show=False)
+            EBMplotting.FI_energy_vs_F0(pos_list, neg_list, pos_ind, neg_ind, F_0, filename=path_FI+ '/Emins_F0_scatter_epoch' + str(epoch), epoch=epoch)
+            EBMplotting.plot_deltaF_distribution(Fhist_list, path=path_FI, plot_epoch=epoch, show=False)
 
             if args.ablation() == 'FI':
                 if epoch % 5 == 0 and epoch > 1:

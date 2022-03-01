@@ -7,6 +7,7 @@ from torch.utils.data import Dataset, BatchSampler, WeightedRandomSampler, Seque
 import numpy as np
 # import random
 # random.seed(42)
+from DeepProteinDocking2D.resumable_sampler import ResumableRandomSampler
 
 def crop_collate(batch):
 	r"""
@@ -54,7 +55,7 @@ class ToyDockingDataset(Dataset):
 class ToyInteractionDataset(Dataset):
 	r"""
 	"""
-	def __init__(self, path='toy_dataset_1000.pkl', max_size=100):
+	def __init__(self, path='toy_dataset_1000.pkl', max_size=100, printout=False):
 		r"""
 		"""
 		self.path = path
@@ -85,11 +86,11 @@ class ToyInteractionDataset(Dataset):
 					N_neg += 1
 
 		self.dataset_size = len(self.indexes)
-
-		print ("Dataset file: ", self.path)
-		print ("Dataset size: ", self.dataset_size)
-		print ("Number of proteins: ", len(self.proteins))
-		print ("Positive weight: ", weight, "Number of pos/neg:", N_pos, N_neg)
+		if printout:
+			print ("Dataset file: ", self.path)
+			print ("Dataset size: ", self.dataset_size)
+			print ("Number of proteins: ", len(self.proteins))
+			print ("Positive weight: ", weight, "Number of pos/neg:", N_pos, N_neg)
 
 	def __getitem__(self, index):
 		r"""
@@ -119,28 +120,54 @@ def get_interaction_stream_balanced(data_path, batch_size=10, max_size=1000):
 	trainloader = torch.utils.data.DataLoader(dataset, batch_sampler=sampler, num_workers=0, collate_fn=crop_collate, shuffle=False, pin_memory=True)
 	return trainloader
 
+def get_interaction_stream_balanced_singleordering(data_path, sampler=None, printout=False, batch_size=1, max_size=400):
+	dataset = ToyInteractionDataset(path=data_path, max_size=max_size, printout=printout)
+	# print( torch.FloatTensor(dataset.weights))
+	# print(torch.stack((list(dataset.weights))))
+	sampler = ResumableRandomSampler(dataset, replacement=True)
+	loader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, sampler=sampler, collate_fn=crop_collate, shuffle=False, pin_memory=True)
+	torch.save(sampler.get_state(), "saved_samplerstate.pth")
+	sampler.set_state(torch.load("saved_samplerstate.pth"))
+	return loader, sampler
+
 def get_interaction_stream(data_path, batch_size = 10, max_size=1000):
 	dataset = ToyInteractionDataset(path=data_path, max_size=max_size)
 	trainloader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, num_workers=0, collate_fn=crop_collate, shuffle=False)
 	return trainloader
 
 if __name__=='__main__':
-	stream = get_docking_stream(data_path='DatasetGeneration/docking_data_train.pkl')
-	for data in stream:
-		receptor, ligand, translation, rotation, index = data
-		break
-	print(receptor.size())
-	print(ligand.size())
-	print(translation.size())
-	print(rotation.size())
-	print(index)
+	# stream = get_docking_stream(data_path='DatasetGeneration/docking_data_train.pkl')
+	# for data in stream:
+	# 	receptor, ligand, translation, rotation, index = data
+	# 	break
+	# print(receptor.size())
+	# print(ligand.size())
+	# print(translation.size())
+	# print(rotation.size())
+	# print(index)
+	#
+	# stream = get_interaction_stream_balanced(data_path='DatasetGeneration/interaction_data_train.pkl', batch_size=64, max_size=100)
+	# all_pos = 0
+	# for data in stream:
+	# 	receptor, ligand, interaction = data
+	# 	all_pos += torch.sum(interaction).item()
+	# print(all_pos)
+	# print(receptor.size())
+	# print(ligand.size())
+	# print(interaction)
 
-	stream = get_interaction_stream_balanced(data_path='DatasetGeneration/interaction_data_train.pkl', batch_size=64, max_size=100)
-	all_pos = 0
+	stream, sampler = get_interaction_stream_balanced_singleordering(data_path='DatasetGeneration/interaction_data_train.pkl', batch_size=1, max_size=10)
+	# print(stream)
+	first_sampler = []
 	for data in stream:
 		receptor, ligand, interaction = data
-		all_pos += torch.sum(interaction).item()
-	print(all_pos)
-	print(receptor.size())
-	print(ligand.size())
-	print(interaction)
+		first_sampler.append(interaction)
+
+	stream, _ = get_interaction_stream_balanced_singleordering(data_path='DatasetGeneration/interaction_data_train.pkl', sampler=sampler, batch_size=1, max_size=10)
+	second_sampler = []
+	for data in stream:
+		receptor, ligand, interaction = data
+		second_sampler.append(interaction)
+
+	print(first_sampler)
+	print(second_sampler)

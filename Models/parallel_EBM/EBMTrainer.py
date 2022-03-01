@@ -40,9 +40,13 @@ class SampleBuffer:
         alphas = []
         drs = []
         if not train:
-            # print('EVAL rand init')
-            alpha = torch.rand(num_samples, 1) * 2 * np.pi - np.pi
-            dr = torch.rand(num_samples, 2) * 50.0 - 25.0
+            # print('EVAL init')
+            # alpha = torch.rand(num_samples, 1) * 2 * np.pi - np.pi
+            # dr = torch.rand(num_samples, 2) * 50.0 - 25.0
+            # alphas.append(alpha)
+            # drs.append(dr)
+            alpha = torch.zeros(num_samples, 1)
+            dr = torch.zeros(num_samples, 2)
             alphas.append(alpha)
             drs.append(dr)
         else:
@@ -61,6 +65,14 @@ class SampleBuffer:
                     lst = self.buffer[i]
                     alphas.append(lst[0][0])
                     drs.append(lst[0][1])
+                    # alpha = torch.rand(num_samples, 1) * 2 * np.pi - np.pi
+                    # dr = torch.rand(num_samples, 2) * 50.0 - 25.0
+                    # alphas.append(alpha)
+                    # drs.append(dr)
+                    # alpha = torch.zeros(num_samples, 1)
+                    # dr = torch.zeros(num_samples, 2)
+                    # alphas.append(alpha)
+                    # drs.append(dr)
                 else:
                     # print('else rand init')
                     # alpha = torch.rand(num_samples, 1) * 2 * np.pi - np.pi
@@ -88,9 +100,10 @@ class EBMTrainer:
                  global_step=True, add_positive=True, FI=False, experiment=None, path_pretrain=None):
 
         self.debug = False
+        self.plot_LD_steps = True
         self.train = False
         self.BF_init = False
-        self.wReg = True
+        self.wReg = False
         self.Force_reg = False
         if self.Force_reg:
             self.k = 1e-3
@@ -100,7 +113,7 @@ class EBMTrainer:
         if self.FI:
             print("LOAD FImodel ONCE??????")
             ##### load blank model and optimizer, once
-            lr_interaction = 10 ** -1
+            lr_interaction = 10 ** -2
             self.interaction_model = FreeEnergyInteraction().to(device=0)
             self.optimizer_interaction = optim.Adam(self.interaction_model.parameters(), lr=lr_interaction)
 
@@ -493,7 +506,7 @@ class EBMTrainer:
                                pred_interact=pred_interact.item(),
                                gt_interact=gt_interact.item(),
                                Energyscored=Energies_cold_grad[-1])
-                if self.debug:
+                if self.plot_LD_steps:
                     for i in range(len(lastN_E_cold)):
                         filename_pose = self.path_LD + '/sample' + str(pos_idx.item()) +'_epoch' + str(epoch) + '_LDstep'+str(i+1)
                         EBMPlotter(self.model).plot_pose(receptor, ligand, neg_alpha_list_cold[i].squeeze(),
@@ -505,7 +518,7 @@ class EBMTrainer:
                                                          pred_interact=pred_interact.item(),
                                                          gt_interact=gt_interact.item(),
                                                          plot_LD=True,
-                                                         Energyscored=lastN_E_cold[-1],
+                                                         Energyscored=lastN_E_cold[i],
                                                          LDindex=i)
 
         if self.train:

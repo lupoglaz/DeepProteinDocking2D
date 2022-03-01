@@ -10,24 +10,26 @@ class EBMPlotter:
         self.experiment = experiment
         self.plot_freq = plot_freq
 
-    def plot_deltaF_distribution(self, filename, path, plot_epoch=1, show=False):
+    def plot_deltaF_distribution(self, Fhist_list, path, plot_epoch=1, show=False):
         plt.close()
         # print('plotting deltaF distribution')
         # Plot RMSD distribution of all samples across epoch
-        train = pd.read_csv(filename+'.txt', sep='\t', header=0, names=['F', 'F_0', 'Label'])
-
+        # train = pd.read_csv(filename+'.txt', sep='\t', header=0, names=['F', 'F_0', 'Label'])
+        train = pd.DataFrame(Fhist_list, columns=['F', 'F_0', 'Label'])
         fig, ax = plt.subplots(figsize=(10, 10))
         plt.suptitle('deltaF distribution: epoch' + str(plot_epoch) + ' ' + self.experiment)
         # print(train)
-        labels = train.Label.unique()
-        F = train['F']
-        binwidth = max(F) - min(F) // 10
-        bins = np.arange(min(F), max(F) + binwidth, binwidth)
-        y, x, _ = plt.hist([train.loc[train.Label == x, 'F'] for x in labels], label=labels, bins=bins, rwidth=binwidth,
-                           color=['g', 'r'], alpha=0.5)
+        labels = sorted(train.Label.unique())
+        # print(labels)
+        # F = train['F']
+        # binwidth = ((max(F) - abs(min(F))) // 10) + 1e-1
+        # bins = np.arange(min(F), max(F) + binwidth, binwidth)
+        bins = 20
+        y, x, _ = plt.hist([train.loc[train.Label == x, 'F'] for x in labels], label=labels, bins=bins, #rwidth=binwidth,
+                           color=['r', 'g'], alpha=0.5)
         plt.vlines(train['F_0'].to_numpy()[-1], ymin=-1, ymax=y.max() + 1, linestyles='dashed', label='F_0', colors='k')
         # ax.set_xticks(np.arange(int(x.min()) - 1, int(x.max()) + 1, num_ticks))
-        plt.legend(('(+) interaction', ' (-) interaction', 'final F_0'), prop={'size': 10})
+        plt.legend(('(-) interaction', '(+) interaction', 'final F_0'), prop={'size': 10})
         ax.set_ylabel('Training set counts')
         ax.set_xlabel('Free Energy (F)')
         ax.grid(visible=True)
