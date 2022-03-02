@@ -64,14 +64,14 @@ class SampleBuffer:
                     drs.append(lst[0][1])
                 else:
                     # print('else rand init')
-                    # alpha = torch.rand(num_samples, 1) * 2 * np.pi - np.pi
-                    # dr = torch.rand(num_samples, 2) * 50.0 - 25.0
-                    # alphas.append(alpha)
-                    # drs.append(dr)
-                    alpha = torch.zeros(num_samples, 1)
-                    dr = torch.zeros(num_samples, 2)
+                    alpha = torch.rand(num_samples, 1) * 2 * np.pi - np.pi
+                    dr = torch.rand(num_samples, 2) * 50.0 - 25.0
                     alphas.append(alpha)
                     drs.append(dr)
+                    # alpha = torch.zeros(num_samples, 1)
+                    # dr = torch.zeros(num_samples, 2)
+                    # alphas.append(alpha)
+                    # drs.append(dr)
 
         # print('\nalpha', alpha)
         # print('dr', dr)
@@ -90,8 +90,10 @@ class EnergyBasedDockingTrainer:
         self.save_freq = 1
         self.plot_freq = BruteForceDocking().plot_freq
 
+        self.dockingFFT = TorchDockingFFT(num_angles=1, angle=None, swap_plot_quadrants=False)
         self.dim = TorchDockingFFT().dim
         self.num_angles = TorchDockingFFT().num_angles
+
 
         self.model = cur_model
         self.optimizer = cur_optimizer
@@ -116,13 +118,22 @@ class EnergyBasedDockingTrainer:
         ### run model and loss calculation
         ##### call model
         neg_alpha, neg_dr = self.buffer.get(pos_idx, num_samples=1, training=training)
-        pred_rot, pred_txy, FFT_score = self.model(neg_alpha, neg_dr, receptor, ligand, temperature='cold')
-        self.buffer.push(neg_alpha, neg_dr, pos_idx)
+        pred_rot, pred_txy, FFT_score = self.model(neg_alpha, neg_dr, receptor, ligand, temperature='cold', plot_count=pos_idx.item(), stream_name=stream_name)
+        neg_alpha, neg_dr = pred_rot, pred_txy
 
+        # neg_alpha2, neg_dr2 = self.buffer2.get(pos_idx, num_samples=1, training=training)
+        # pred_rot2, pred_txy2, FFT_score2 = self.model(neg_alpha2, neg_dr2, receptor, ligand, temperature='hot')
+        # neg_alpha2, neg_dr2 = pred_rot2, pred_txy2
+
+        self.buffer.push(neg_alpha, neg_dr, pos_idx)
+        # self.buffer2.push(neg_alpha2, neg_dr2, pos_idx)
+
+        # FFT_score = FFT_score + FFT_score2
+        # print(FFT_score)
         ### Encode ground truth transformation index into empty energy grid
         with torch.no_grad():
-            target_flatindex = TorchDockingFFT(num_angles=1, angle=None).encode_transform(gt_rot, gt_txy)
-            # pred_flatindex = TorchDockingFFT(num_angles=1, angle=None).encode_transform(pred_rot, pred_txy)
+            target_flatindex = self.dockingFFT.encode_transform(gt_rot, gt_txy)
+            # pred_rot, pred_txy = self.dockingFFT.extract_transform(FFT_score)
             rmsd_out = RMSD(ligand, gt_rot, gt_txy, pred_rot.squeeze(), pred_txy.squeeze()).calc_rmsd()
             # print(target_flatindex.shape, FFT_score.shape)
             # print(target_flatindex, pred_flatindex)
@@ -132,11 +143,12 @@ class EnergyBasedDockingTrainer:
             print(pred_rot, pred_txy)
             print('\nground truth')
             print(gt_rot, gt_txy)
+
         #### Loss functions
         CE_loss = torch.nn.CrossEntropyLoss()
-        # L1_loss = torch.nn.L1Loss()
+        L1_loss = torch.nn.L1Loss()
         # print(FFT_score.flatten().squeeze().unsqueeze(0).shape, target_flatindex.unsqueeze(0))
-        loss = CE_loss(FFT_score.flatten().unsqueeze(0), target_flatindex.unsqueeze(0)) #+ L1_loss(pred_rot.squeeze(), gt_rot)
+        loss = CE_loss(FFT_score.flatten().unsqueeze(0), target_flatindex.unsqueeze(0)) + L1_loss(pred_rot.squeeze(), gt_rot)
 
         ### check parameters and gradients
         ### if weights are frozen or updating
@@ -149,6 +161,9 @@ class EnergyBasedDockingTrainer:
             self.optimizer.step()
         else:
             self.model.eval()
+            if plot_count % self.plot_freq == 0:
+                with torch.no_grad():
+                    self.plot_pose(FFT_score, receptor, ligand, gt_rot, gt_txy, pos_idx.item(), stream_name)
 
         # if self.plotting and not train:
         #     if plot_count % self.plot_freq == 0:
@@ -187,6 +202,7 @@ class EnergyBasedDockingTrainer:
         if self.plotting:
             self.eval_freq = 1
         self.buffer = SampleBuffer(len(train_stream))
+        self.buffer2 = SampleBuffer(len(train_stream))
 
         log_header = 'Epoch\tLoss\trmsd\n'
         log_format = '%d\t%f\t%f\n'
@@ -279,11 +295,10 @@ class EnergyBasedDockingTrainer:
                 self.save_checkpoint(checkpoint_dict, 'Log/' + self.experiment + 'end.th')
                 print('saving LAST EPOCH model ' + 'Log/' + self.experiment + str(epoch) + '.th')
 
-    @staticmethod
-    def plot_pose(FFT_score, receptor, ligand, gt_rot, gt_txy, plot_count, stream_name):
+    def plot_pose(self, FFT_score, receptor, ligand, gt_rot, gt_txy, plot_count, stream_name):
         plt.close()
         plt.figure(figsize=(8, 8))
-        pred_rot, pred_txy = TorchDockingFFT().extract_transform(FFT_score)
+        pred_rot, pred_txy = self.dockingFFT.extract_transform(FFT_score)
         print('extracted predicted indices', pred_rot, pred_txy)
         print('gt indices', gt_rot, gt_txy)
         rmsd_out = RMSD(ligand, gt_rot, gt_txy, pred_rot, pred_txy).calc_rmsd()
@@ -340,7 +355,7 @@ if __name__ == '__main__':
     torch.cuda.manual_seed(random_seed)
     torch.backends.cudnn.deterministic = True
     torch.cuda.set_device(0)
-    torch.autograd.set_detect_anomaly(True)
+    # torch.autograd.set_detect_anomaly(True)
     ######################
     lr = 10 ** -4
     model = EnergyBasedModel().to(device=0)
@@ -358,8 +373,21 @@ if __name__ == '__main__':
     # experiment = 'first_tests'
     # experiment = 'first_tests_clamp_LD1_sample1_step1'
     # experiment = 'first_tests_clamp_LD1_sample1_step1_NOL1rot'
-    experiment = 'first_tests_clamp_LD1_sample1_step1_NOL1rot_sig2550'
-
+    # experiment = 'first_tests_clamp_LD1_sample1_step1_NOL1rot_sig2550'
+    # experiment = 'noclamps'
+    # experiment = 'noLDopt'
+    # experiment = 'noLDopt_rotclamp'
+    # experiment = 'noLDopt_rotclamp_evalLDtrain'
+    # experiment = 'noLDopt_rotclamp_randinit_noclonedetach'
+    # experiment = 'cold_rotclamp_randinit_clonedetachbufferandalphadrs+L1rot'
+    # experiment = 'netSE2passedtoEQscoring'
+    # experiment = 'mymodel_noanomalycheck'
+    # experiment = 'coldandhot_check'
+    # experiment = 'coldandhot_check_10LD'
+    # experiment = 'coldandhot_check_1LD'
+    # experiment = 'coldandhot_check_1LD_swapquads'
+    # experiment = 'coldandhot_check_1LD'
+    experiment = 'coldonly_featplots_1LD'
 
     ######################
     ### Train model from beginning

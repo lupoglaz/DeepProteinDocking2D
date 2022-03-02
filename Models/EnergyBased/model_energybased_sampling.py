@@ -12,90 +12,105 @@ import random
 import os
 import sys
 sys.path.append('/home/sb1638/')
+from torch.autograd import Function
+import torch.nn.functional as F
+from e2cnn import nn as enn
+from e2cnn import gspaces
 
-
-# class SampleBuffer:
-#     def __init__(self, num_samples, max_pos=100):
-#         self.num_samples = num_samples
-#         self.max_pos = max_pos
-#         self.buffer = {}
-#         for i in range(num_samples):
-#             self.buffer[i] = []
+# class ImageCrossMultiply(nn.Module):
+#     def __init__(self, full=True):
+#         super(ImageCrossMultiply, self).__init__()
+#         self.full = full
 #
-#     def __len__(self, i):
-#         return len(self.buffer[i])
+#     def forward(self, volume1, volume2, alpha, dr):
+#         batch_size = volume1.size(0)
+#         num_features = volume1.size(1)
+#         volume_size = volume1.size(2)
+#         mults = []
+#         perm = torch.tensor([1, 0], dtype=torch.long, device=volume1.device)
+#         dr = -2.0 * dr[:, perm] / volume_size
+#         T0 = torch.cat([torch.cos(alpha), -torch.sin(alpha)], dim=1)
+#         T1 = torch.cat([torch.sin(alpha), torch.cos(alpha)], dim=1)
+#         t = torch.stack([(T0 * dr).sum(dim=1), (T1 * dr).sum(dim=1)], dim=1)
+#         T01 = torch.stack([T0, T1], dim=1)
+#         A = torch.cat([T01, t.unsqueeze(dim=2)], dim=2)
 #
-#     def push(self, alphas, drs, index):
-#         alphas = alphas.detach().to(device='cpu')
-#         drs = drs.detach().to(device='cpu')
-#
-#         for alpha, dr, idx in zip(alphas, drs, index):
-#             i = idx.item()
-#             self.buffer[i].append((alpha, dr))
-#             if len(self.buffer[i]) > self.max_pos:
-#                 self.buffer[i].pop(0)
-#
-#     def get(self, index, num_samples, device='cuda', train=True):
-#         alphas = []
-#         drs = []
-#         if not train:
-#             # print('EVAL rand init')
-#             alpha = torch.rand(num_samples, 1) * 2 * np.pi - np.pi
-#             dr = torch.rand(num_samples, 2) * 50.0 - 25.0
-#             alphas.append(alpha)
-#             drs.append(dr)
+#         grid = nn.functional.affine_grid(A, size=volume2.size())
+#         volume2 = nn.functional.grid_sample(volume2, grid)
+#         if not self.full:
+#             volume1_unpacked = []
+#             volume2_unpacked = []
+#             for i in range(0, num_features):
+#                 volume1_unpacked.append(volume1[:, 0:num_features - i, :, :])
+#                 volume2_unpacked.append(volume2[:, i:num_features, :, :])
+#             volume1 = torch.cat(volume1_unpacked, dim=1)
+#             volume2 = torch.cat(volume2_unpacked, dim=1)
 #         else:
-#             for idx in index:
-#                 i = idx.item()
-#                 if len(self.buffer[i]) >= num_samples > 1:
-#                     # print('buffer if num_sampler > 1')
-#                     lst = random.choices(self.buffer[i], k=num_samples)
-#                     alpha = list(map(lambda x: x[0], lst))
-#                     dr = list(map(lambda x: x[1], lst))
-#                     alphas.append(torch.stack(alpha, dim=0))
-#                     drs.append(torch.stack(dr, dim=0))
-#                     # print('len buffer >= samples')
-#                 elif len(self.buffer[i]) == num_samples == 1:
-#                     # print('buffer if num_sampler == 1')
-#                     lst = self.buffer[i]
-#                     alphas.append(lst[0][0])
-#                     drs.append(lst[0][1])
-#                 else:
-#                     # print('else rand init')
-#                     # alpha = torch.rand(num_samples, 1) * 2 * np.pi - np.pi
-#                     # dr = torch.rand(num_samples, 2) * 50.0 - 25.0
-#                     # alphas.append(alpha)
-#                     # drs.append(dr)
-#                     alpha = torch.zeros(num_samples, 1)
-#                     dr = torch.zeros(num_samples, 2)
-#                     alphas.append(alpha)
-#                     drs.append(dr)
+#             volume1 = volume1.unsqueeze(dim=2).repeat(1, 1, num_features, 1, 1)
+#             volume2 = volume2.unsqueeze(dim=1).repeat(1, num_features, 1, 1, 1)
+#             volume1 = volume1.view(batch_size, num_features * num_features, volume_size, volume_size)
+#             volume2 = volume2.view(batch_size, num_features * num_features, volume_size, volume_size)
 #
-#         # print('\nalpha', alpha)
-#         # print('dr', dr)
+#         mults = (volume1 * volume2).sum(dim=3).sum(dim=2)
 #
-#         alphas = torch.stack(alphas, dim=0).to(device=device)
-#         drs = torch.stack(drs, dim=0).to(device=device)
+#         return mults, volume2, grid
 #
-#         return alphas, drs
+# class EQScoringModel(nn.Module):
+#     def __init__(self, repr, num_features=1, prot_field_size=50):
+#         super(EQScoringModel, self).__init__()
+#         self.prot_field_size = prot_field_size
+#
+#         self.mult = ImageCrossMultiply()
+#         self.repr = repr
+#         self.SO2 = gspaces.Rot2dOnR2(N=-1, maximum_frequency=4)
+#         self.feat_type_in1 = enn.FieldType(self.SO2, 1 * [self.SO2.trivial_repr])
+#         # self.boundW = nn.Parameter(torch.ones(1, requires_grad=True))
+#         # self.crosstermW1 = nn.Parameter(torch.ones(1, requires_grad=True))
+#         # self.crosstermW2 = nn.Parameter(torch.ones(1, requires_grad=True))
+#         # self.bulkW = nn.Parameter(torch.ones(1, requires_grad=True))
+#
+#         self.scorer = nn.Sequential(
+#             nn.Linear(4, 1, bias=False)
+#         )
+#     #     with torch.no_grad():
+#     #         self.scorer.apply(init_weights)
+#     # #
+#     # def scorer(self, pos_repr):
+#     #     print(pos_repr.shape)
+#         # return self.bulkW * pos_repr[0,0] + self.crosstermW1 * pos_repr[0,1] + self.crosstermW2 * pos_repr[0,2] - self.boundW * pos_repr[0,3]
+#
+#     def forward(self, receptor, ligand, alpha, dr):
+#         receptor_geomT = enn.GeometricTensor(receptor.unsqueeze(0), self.feat_type_in1)
+#         ligand_geomT = enn.GeometricTensor(ligand.unsqueeze(0), self.feat_type_in1)
+#         rec_feat = self.repr(receptor_geomT).tensor
+#         lig_feat = self.repr(ligand_geomT).tensor
+#
+#         pos_repr, _, A = self.mult(rec_feat, lig_feat, alpha, dr)
+#
+#         score = self.scorer(pos_repr)
+#         # print(score.shape)
+#         return score
 
 
 class DockerEBM(nn.Module):
     def __init__(self):
         super(DockerEBM, self).__init__()
         self.docker = BruteForceDocking(dim=100, num_angles=1)
+        self.dockingFFT = TorchDockingFFT(num_angles=1, angle=None, swap_plot_quadrants=False)
 
-    def forward(self, receptor, ligand, rotation):
-        FFT_score = self.docker.forward(receptor, ligand, angle=rotation)
+    def forward(self, receptor, ligand, rotation, plot_count=1, stream_name='trainset'):
+        if 'trainset' not in stream_name:
+            training = False
+        else: training = True
+        FFT_score = self.docker.forward(receptor, ligand, angle=rotation, plotting=True, training=training, plot_count=plot_count, stream_name=stream_name)
         with torch.no_grad():
-            pred_rot, pred_txy = TorchDockingFFT().extract_transform(FFT_score)
+            pred_rot, pred_txy = self.dockingFFT.extract_transform(FFT_score)
             best_score = FFT_score[pred_txy[0], pred_txy[1]]
         return -best_score, pred_txy, FFT_score
 
 
 class EnergyBasedModel(nn.Module):
-    def __init__(self, device='cuda', num_samples=1, weight=1.0, step_size=1, sample_steps=1,
-                FI=False, experiment=None, path_pretrain=None):
+    def __init__(self, device='cuda', num_samples=1, weight=1.0, step_size=1, sample_steps=1, experiment=None):
         super(EnergyBasedModel, self).__init__()
         self.debug = False
         # self.training = False
@@ -106,6 +121,8 @@ class EnergyBasedModel(nn.Module):
             self.k = 1e-3
             self.eps = 1e-7
 
+        # self.repr = BruteForceDocking().netSE2
+        # self.EBMdocker = EQScoringModel(repr=self.repr)
         self.EBMdocker = DockerEBM()
 
         # self.buffer = SampleBuffer(num_buf_samples)
@@ -133,38 +150,28 @@ class EnergyBasedModel(nn.Module):
         except:
             print('dir already exists')
 
-    def requires_grad(self, flag=True):
-        parameters = self.EBMdocker.parameters()
-        for p in parameters:
-            p.requires_grad = flag
-
-    @staticmethod
-    def check_gradients(model, param=None):
-        for n, p in model.named_parameters():
-            if param and param in str(n):
-                print('Name', n, '\nParam', p, '\nGradient', p.grad)
-                return
-            if not param:
-                print('Name', n, '\nParam', p, '\nGradient', p.grad)
-
-    def forward(self, neg_alpha, neg_dr, receptor, ligand, temperature='cold'):
+    def forward(self, neg_alpha, neg_dr, receptor, ligand, temperature='cold', plot_count=1, stream_name='trainset'):
         noise_alpha = torch.zeros_like(neg_alpha)
         noise_dr = torch.zeros_like(neg_dr)
 
         # self.requires_grad(False)
-        # self.EBMdocker.eval()
+        self.EBMdocker.eval()
 
         neg_alpha.requires_grad_()
         neg_dr.requires_grad_()
         langevin_opt = optim.SGD([neg_alpha, neg_dr], lr=self.step_size, momentum=0.0)
 
         if temperature == 'cold':
-            # self.sig_dr = 0.05
-            # self.sig_alpha = 0.5
+            self.sig_dr = 0.05
+            self.sig_alpha = 0.5
             # self.sig_dr = 5
             # self.sig_alpha = 5
-            self.sig_dr = 25
-            self.sig_alpha = 50
+            # self.sig_dr = 25
+            # self.sig_alpha = 50
+
+        if temperature == 'hot':
+            self.sig_dr = 0.5
+            self.sig_alpha = 5
 
         for i in range(self.sample_steps):
             if self.debug:
@@ -174,8 +181,9 @@ class EnergyBasedModel(nn.Module):
                     print(neg_dr)
 
             langevin_opt.zero_grad()
-            best_score, neg_dr, FFT_score = self.EBMdocker(receptor, ligand, neg_alpha)
 
+            best_score, neg_dr, FFT_score = self.EBMdocker(receptor, ligand, neg_alpha, plot_count, stream_name)
+            # best_score = self.EBMdocker(receptor, ligand, neg_alpha, neg_dr)
             best_score.mean().backward()
             langevin_opt.step()
 
@@ -195,10 +203,10 @@ class EnergyBasedModel(nn.Module):
             # neg_alpha.data += noise_alpha.normal_(0, self.sig_alpha)
             # neg_dr.data = neg_dr.data.clamp_(-rec_feat.size(2), rec_feat.size(2))
             # neg_alpha.data = neg_alpha.data.clamp_(-np.pi, np.pi)
-            with torch.no_grad():
+            # with torch.no_grad():
                 # print(neg_alpha.clamp_(-np.pi, np.pi))
-                neg_dr_out = neg_dr.data.clone()
-                neg_alpha_out = neg_alpha.data.clone()
+                # neg_dr_out = neg_dr.data.clone()
+                # neg_alpha_out = neg_alpha.data.clone()
                 # print('transform inside LD')
                 # print(neg_alpha, neg_dr)
                 # print(neg_alpha_out, neg_dr_out)
@@ -219,648 +227,26 @@ class EnergyBasedModel(nn.Module):
         #     return neg_alpha.detach(), neg_dr.detach()
 
         # self.requires_grad(True)
-        # self.EBMdocker.train()
+        self.EBMdocker.train()
         # return neg_alpha.detach(), neg_dr.detach()
+
         return neg_alpha.clone().detach(), neg_dr.clone().detach(), FFT_score
 
+    def requires_grad(self, flag=True):
+        parameters = self.EBMdocker.parameters()
+        for p in parameters:
+            p.requires_grad = flag
 
-    # def FI_prediction(self, neg_rec_feat, neg_lig_feat, pos_rec_feat, pos_lig_feat, neg_alpha, neg_dr, neg_alpha2,
-    #                   neg_dr2, pos_idx,
-    #                   neg_idx, receptor, ligand, gt_interact, epoch):
-    #
-    #     # #### grad recompute model
-    #     if self.debug:
-    #         print("BEFORE LD")
-    #         print(neg_alpha, neg_dr)
-    #     neg_alpha, neg_dr, neg_alpha_list_cold, neg_dr_list_cold, lastN_E_cold = self.langevin(neg_alpha, neg_dr,
-    #                                                                                            neg_rec_feat.detach(),
-    #                                                                                            neg_rec_feat.detach(),
-    #                                                                                            neg_idx, 'cold')
-    #
-    #     # neg_alpha2, neg_dr2, neg_alpha_list_hot, neg_dr_list_hot, lastN_E_hot = self.langevin(neg_alpha2, neg_dr2,
-    #     #                                                 neg_rec_feat.detach(), neg_lig_feat.detach(), neg_idx, 'hot')
-    #
-    #     if self.debug:
-    #         print("After LD")
-    #         print(neg_alpha, neg_dr)
-    #
-    #     if self.train:
-    #         self.model.train()
-    #         self.interaction_model.train()
-    #         self.requires_grad(True)
-    #         self.model.zero_grad()
-    #         self.interaction_model.zero_grad()
-    #     else:
-    #         self.model.eval()
-    #
-    #     pred_interact, deltaF, F_cold, F_0 = self.interaction_model(Ecold=lastN_E_cold, Ehot=None)
-    #
-    #     if self.train:
-    #         BCEloss = torch.nn.BCELoss()
-    #         loss = BCEloss(pred_interact.squeeze(), gt_interact.squeeze().cuda())
-    #
-    #         if self.wReg:
-    #             l1_loss = torch.nn.L1Loss()
-    #             w = 10 ** -5
-    #             L_reg = w * l1_loss(deltaF.squeeze(), torch.zeros(1).squeeze().cuda())
-    #             loss += L_reg
-    #
-    #         loss.backward()
-    #         if self.debug:
-    #             with torch.no_grad():
-    #                 print('\n PREDICTED', pred_interact.item(), '; GROUND TRUTH', gt_interact.item())
-    #                 if torch.round(pred_interact).item() == torch.round(gt_interact).item():
-    #                     print(' GOOD')
-    #                 else:
-    #                     print(' BAD')
-    #
-    #         self.optimizer.step()
-    #         self.optimizer_interaction.step()
-    #         self.buffer.push(neg_alpha, neg_dr, neg_idx)
-    #         # self.buffer2.push(neg_alpha2, neg_dr2, neg_idx)
-    #
-    #         if self.debug:
-    #             print('checking gradients')
-    #             print('pretrain model')
-    #             self.check_gradients(self.model, param='scorer')
-    #             # self.check_gradients(self.model, param=None)
-    #             print('interaction model')
-    #             self.check_gradients(self.interaction_model, param=None)
-    #
-    #         # return {"Loss": loss.item()}, F_cold, F_0
-    #         return loss.item(), F_cold, F_0
-    #
-    #     else:
-    #         self.model.eval()
-    #         if self.debug:
-    #             with torch.no_grad():
-    #                 print('\n PREDICTED', pred_interact.item(), '; GROUND TRUTH', gt_interact.item())
-    #                 if torch.round(pred_interact).item() == torch.round(gt_interact).item():
-    #                     print(' GOOD')
-    #                 else:
-    #                     print(' BAD')
-    #         return self.classify(pred_interact, gt_interact)
-
-    # @staticmethod
-    # def classify(pred_interact, gt_interact):
-    #     threshold = 0.5
-    #     TP, FP, TN, FN = 0, 0, 0, 0
-    #     p = pred_interact.item()
-    #     a = gt_interact.item()
-    #     if p >= threshold and a >= threshold:
-    #         TP += 1
-    #     elif p >= threshold and a < threshold:
-    #         FP += 1
-    #     elif p < threshold and a >= threshold:
-    #         FN += 1
-    #     elif p < threshold and a < threshold:
-    #         TN += 1
-    #     # print('returning', TP, FP, TN, FN)
-    #     return TP, FP, TN, FN
+    @staticmethod
+    def check_gradients(model, param=None):
+        for n, p in model.named_parameters():
+            if param and param in str(n):
+                print('Name', n, '\nParam', p, '\nGradient', p.grad)
+                return
+            if not param:
+                print('Name', n, '\nParam', p, '\nGradient', p.grad)
 
 
-# class FreeEnergyInteraction(nn.Module):
-#     def __init__(self):
-#         super(FreeEnergyInteraction, self).__init__()
-#
-#         self.F_0 = nn.Parameter(torch.zeros(1, requires_grad=True))
-#
-#     def forward(self, Ecold, Ehot=None, Emean=False):
-#         if not Emean:
-#             if Ehot is not None:
-#                 Fcold = -torch.logsumexp(-Ecold, dim=0)
-#                 Fhot = -torch.logsumexp(-Ehot, dim=0)
-#                 deltaF = Fcold + Fhot - self.F_0
-#             else:
-#                 Fcold = -torch.logsumexp(-Ecold, dim=(0))
-#                 deltaF = Fcold - self.F_0
-#         else:
-#             if Ehot is not None:
-#                 Fcold = -torch.mean(-Ecold, dim=(0))
-#                 Fhot = -torch.mean(-Ehot, dim=(0))
-#                 deltaF = Fcold + Fhot - self.F_0
-#             else:
-#                 Fcold = -torch.logsumexp(-Ecold, dim=(0))
-#                 deltaF = Fcold - self.F_0
-#         pred_interact = torch.sigmoid(-deltaF)
-#
-#         # with torch.no_grad():
-#         #     print('\n(deltaF - F_0): ', deltaF.item())
-#         #     # print('F_0: ', self.F_0.item(), 'F_0 grad', self.F_0.grad)
-#
-#         return pred_interact.squeeze(), deltaF.squeeze(), Fcold, self.F_0.squeeze()
 
-    # def IP_prediction(self, pos_rec_feat, pos_lig_feat, neg_rec_feat, neg_lig_feat, pos_alpha, pos_dr, neg_alpha,
-    #                     neg_dr, neg_alpha2, neg_dr2, pos_idx, neg_idx, receptor, ligand, epoch):
-    #
-    #     neg_alpha, neg_dr = self.langevin(neg_alpha, neg_dr, neg_rec_feat.detach(), neg_lig_feat.detach(), 'cold')
-    #     neg_alpha2, neg_dr2 = self.langevin(neg_alpha2, neg_dr2, neg_rec_feat.detach(), neg_lig_feat.detach(), 'hot')
-    #
-    #     if self.train:
-    #         self.model.train()
-    #         self.requires_grad(True)
-    #         self.model.zero_grad()
-    #     else:
-    #         self.model.eval()
-    #
-    #     pos_out, _, _ = self.model.mult(pos_rec_feat, pos_lig_feat, pos_alpha, pos_dr)
-    #     pos_out = self.model.scorer(pos_out)
-    #     L_p = (pos_out + self.weight * pos_out ** 2).mean()
-    #     # L_p = pos_out.mean()
-    #     neg_out, _, _ = self.model.mult(neg_rec_feat, neg_lig_feat, neg_alpha, neg_dr)
-    #     neg_out = self.model.scorer(neg_out)
-    #     L_n = (-neg_out + self.weight * neg_out ** 2).mean()
-    #     # L_n = -neg_out.mean()
-    #     neg_out2, _, _ = self.model.mult(neg_rec_feat, neg_lig_feat, neg_alpha2, neg_dr2)
-    #     neg_out2 = self.model.scorer(neg_out2)
-    #     L_n2 = (-neg_out2 + self.weight * neg_out2 ** 2).mean()
-    #     # L_n2 = -neg_out2.mean()
-    #
-    #     L_n = (L_n + L_n2).mean()
-    #     loss = L_p + L_n
-    #
-    #     if self.train:
-    #         loss.backward()
-    #         self.optimizer.step()
-    #
-    #     if not self.train and self.debug:
-    #         with torch.no_grad():
-    #             # print('\nLearned hot sim contribution', self.hotweight.item())
-    #             # print('\nL_p, L_n, \n', L_p.item(), L_n.item())
-    #             # print('Loss\n', loss.item())
-    #
-    #             filename = self.path_IP + '/IPenergyandpose_epoch' + str(epoch) + '_example' + str(pos_idx.item())
-    #             EBMPlotter(self.model).plot_energy_and_pose(pos_idx, L_p, L_n, epoch, receptor, ligand, pos_alpha, pos_dr,
-    #                                       neg_alpha, neg_dr, filename)
-    #             filename = self.path_IP + '/IPfeats_epoch' + str(epoch) + '_example' + str(pos_idx.item())
-    #             EBMPlotter(self.model).plot_feats(neg_rec_feat, neg_lig_feat, epoch, pos_idx, filename)
-    #
-    #     # never add postive for step parallel and 1D LD buffer
-    #     if self.add_positive:
-    #         # print('AP')
-    #         self.buffer.push(pos_alpha, pos_dr, pos_idx)
-    #         self.buffer2.push(pos_alpha, pos_dr, pos_idx)
-    #
-    #     self.buffer.push(neg_alpha, neg_dr, neg_idx)
-    #     self.buffer2.push(neg_alpha2, neg_dr2, neg_idx)
-    #
-    #     if self.debug:
-    #         print('checking gradients')
-    #         self.check_gradients(self.model)
-    #
-    #     if self.train:
-    #         return {"Loss": loss.item()}
-    #     else:
-    #         return {"Loss": loss.item()}, neg_alpha, neg_dr
-
-    # def load_checkpoint(self, path):
-    #     raw_model = self.model.module if hasattr(self.model, "module") else self.model
-    #     checkpoint = torch.load(path)
-    #     raw_model.load_state_dict(checkpoint)
-
-    # def dock_spatial(self, rec_repr, lig_repr):
-    #     translations = self.conv(rec_repr, lig_repr)
-    #
-    #     batch_size = translations.size(0)
-    #     num_features = translations.size(1)
-    #     L = translations.size(2)
-    #
-    #     translations = translations.view(batch_size, num_features, L * L)
-    #     translations = translations.transpose(1, 2).contiguous().view(batch_size * L * L, num_features)
-    #     scores = self.model.scorer(translations).squeeze()
-    #     scores = scores.view(batch_size, L, L)
-    #
-    #     minval_y, ind_y = torch.min(scores, dim=2, keepdim=False)
-    #     minval_x, ind_x = torch.min(minval_y, dim=1)
-    #     x = ind_x
-    #     y = ind_y[torch.arange(batch_size), ind_x]
-    #
-    #     x -= int(L / 2)
-    #     y -= int(L / 2)
-    #
-    #     return torch.stack([x, y], dim=1).to(dtype=lig_repr.dtype, device=lig_repr.device)
-
-    # def convolve(self, receptor, ligand, conj):
-    #     cplx_rec = torch.fft.rfft2(receptor, dim=(-2, -1))
-    #     cplx_lig = torch.fft.rfft2(ligand, dim=(-2, -1))
-    #
-    #     if conj:
-    #         return torch.fft.irfft2(cplx_rec * torch.conj(cplx_lig), dim=(-2, -1))
-    #     else:
-    #         return torch.fft.irfft2(cplx_rec * cplx_lig, dim=(-2, -1))
-
-    # def rotate(self, repr, angle):
-    #     alpha = angle.detach()
-    #     T0 = torch.cat([torch.cos(alpha), -torch.sin(alpha), torch.zeros_like(alpha)], dim=1)
-    #     T1 = torch.cat([torch.sin(alpha), torch.cos(alpha), torch.zeros_like(alpha)], dim=1)
-    #     R = torch.stack([T0, T1], dim=1)
-    #     curr_grid = nn.functional.affine_grid(R, size=repr.size(), align_corners=True)
-    #     return nn.functional.grid_sample(repr, curr_grid, align_corners=True)
-
-    # def langevin(self, neg_alpha, neg_dr, rec_feat, lig_feat, neg_idx, temperature='cold'):
-    #     noise_alpha = torch.zeros_like(neg_alpha)
-    #     noise_dr = torch.zeros_like(neg_dr)
-    #
-    #     self.requires_grad(False)
-    #     self.model.eval()
-    #
-    #     if self.BF_init:
-    #         ## Sid global step
-    #         with torch.no_grad():
-    #             translations = self.docker.dock_global(rec_feat, lig_feat)
-    #             scores = self.docker.score(translations)
-    #             score, rotation, translation = self.docker.get_conformation(scores)
-    #             neg_alpha = rotation.unsqueeze(0).unsqueeze(0).cuda()
-    #             neg_dr = translation.unsqueeze(0).cuda()
-    #
-    #     if self.global_step:
-    #         with torch.no_grad():
-    #             rlig_feat = self.rotate(lig_feat, neg_alpha)
-    #             neg_dr = self.dock_spatial(rec_feat, rlig_feat)
-    #
-    #     neg_alpha.requires_grad_()
-    #     neg_dr.requires_grad_()
-    #     langevin_opt = optim.SGD([neg_alpha, neg_dr], lr=self.step_size, momentum=0.0)
-    #
-    #     if temperature == 'cold':
-    #         # self.sig_dr = 0.05
-    #         # self.sig_alpha = 0.5
-    #         # self.sig_dr = 5
-    #         # self.sig_alpha = 5
-    #         self.sig_dr = 10
-    #         self.sig_alpha = 10
-    #         # self.sig_dr = 20
-    #         # self.sig_alpha = 20
-    #
-    #     if temperature == 'hot':
-    #         # self.sig_dr = 0.5
-    #         # self.sig_alpha = 5
-    #         # self.sig_dr = 5
-    #         # self.sig_alpha = 5
-    #         # self.sig_dr = 10
-    #         # self.sig_alpha = 10
-    #         self.sig_dr = 20
-    #         self.sig_alpha = 20
-    #
-    #     lastN_neg_out = []
-    #     lastN_alpha = []
-    #     lastN_dr = []
-    #
-    #     for i in range(self.sample_steps):
-    #         if self.debug:
-    #             if i == 0 or i == 1:
-    #                 print('Before RandomForce LD', i)
-    #                 print(neg_alpha)
-    #                 print(neg_dr)
-    #
-    #         langevin_opt.zero_grad()
-    #         pos_repr, _, A = self.model.mult(rec_feat, lig_feat, neg_alpha, neg_dr)
-    #         neg_out = self.model.scorer(pos_repr)
-    #
-    #         if self.Force_reg:
-    #             F_reg = self.k * torch.sqrt(torch.sum(neg_dr.data**2) + self.eps)
-    #             neg_out = neg_out + F_reg
-    #
-    #         neg_out.mean().backward()
-    #         langevin_opt.step()
-    #
-    #         # rand_dr = torch.normal(0, self.sig_dr, size=neg_dr.shape).cuda()
-    #         # neg_dr = neg_dr + rand_dr
-    #         # # neg_dr = neg_dr.clamp(-rec_feat.size(2), rec_feat.size(2))
-    #         # rand_alpha = torch.normal(0, self.sig_alpha, size=neg_alpha.shape).cuda()
-    #         # neg_alpha = neg_alpha + rand_alpha
-    #
-    #         neg_dr = neg_dr + noise_dr.normal_(0, self.sig_dr)
-    #         neg_alpha = neg_alpha + noise_alpha.normal_(0, self.sig_alpha)
-    #         clamp_offset = rec_feat.size(2)//3
-    #         neg_dr.data = neg_dr.data.clamp_(-rec_feat.size(2)+clamp_offset, rec_feat.size(2)-clamp_offset)
-    #
-    #         # neg_dr.data += noise_dr.normal_(0, self.sig_dr)
-    #         # neg_alpha.data += noise_alpha.normal_(0, self.sig_alpha)
-    #         # neg_dr.data = neg_dr.data.clamp_(-rec_feat.size(2), rec_feat.size(2))
-    #         # neg_alpha.data = neg_alpha.data.clamp_(-np.pi, np.pi)
-    #         with torch.no_grad():
-    #             # print(neg_alpha.clamp_(-np.pi, np.pi))
-    #             neg_dr_out = neg_dr.data.clone()
-    #             neg_alpha_out = neg_alpha.data.clone()
-    #             # print('transform inside LD')
-    #             # print(neg_alpha, neg_dr)
-    #             # print(neg_alpha_out, neg_dr_out)
-    #
-    #         # print('inside LD')
-    #         # print(neg_alpha, neg_dr)
-    #         # print(neg_alpha.data, neg_dr.data)
-    #
-    #         if self.debug:
-    #             if i == 0 or i == 1:
-    #                 print('After RandomForce LD', i)
-    #                 print(neg_alpha)
-    #                 print(neg_dr)
-    #
-    #         lastN_neg_out.append(neg_out.detach())
-    #         lastN_alpha.append(neg_alpha_out.detach())
-    #         lastN_dr.append(neg_dr_out.detach())
-    #
-    #     if self.FI:
-    #         return neg_alpha_out.detach(), neg_dr_out.detach(), lastN_alpha, lastN_dr, lastN_neg_out
-    #     else:
-    #         return neg_alpha.detach(), neg_dr.detach()
-
-    # def step_parallel(self, data, epoch=None, train=True, last_transform=None):
-    #     self.requires_grad(True)
-    #     gt_interact = None
-    #     pos_alpha = None
-    #     pos_dr = None
-    #     self.train = train
-    #     if self.FI:
-    #         receptor, ligand, gt_interact, pos_idx = data
-    #         pos_rec = receptor.to(device=self.device, dtype=torch.float32).unsqueeze(dim=1)
-    #         pos_lig = ligand.to(device=self.device, dtype=torch.float32).unsqueeze(dim=1)
-    #         gt_interact = gt_interact.to(device=self.device, dtype=torch.float32)
-    #         pos_idx = pos_idx.to(device=self.device, dtype=torch.long)
-    #     else:
-    #         receptor, ligand, translation, rotation, pos_idx = data
-    #         pos_rec = receptor.to(device=self.device, dtype=torch.float32).unsqueeze(dim=1)
-    #         pos_lig = ligand.to(device=self.device, dtype=torch.float32).unsqueeze(dim=1)
-    #         pos_alpha = rotation.to(device=self.device, dtype=torch.float32).unsqueeze(dim=1)
-    #         pos_dr = translation.to(device=self.device, dtype=torch.float32)
-    #
-    #     batch_size = pos_rec.size(0)
-    #     num_features = pos_rec.size(1)
-    #     L = pos_rec.size(2)
-    #
-    #     neg_alpha, neg_dr = self.buffer.get(pos_idx, num_samples=self.num_samples, train=self.train)
-    #     neg_alpha2, neg_dr2 = self.buffer2.get(pos_idx, num_samples=self.num_samples, train=self.train)
-    #
-    #     # print(neg_alpha, neg_dr)
-    #     # neg_alpha2, neg_dr2 = None, None
-    #
-    #     neg_rec = pos_rec.unsqueeze(dim=1).repeat(1, self.num_samples, 1, 1, 1).view(batch_size * self.num_samples,
-    #                                                                                  num_features, L, L)
-    #     neg_lig = pos_lig.unsqueeze(dim=1).repeat(1, self.num_samples, 1, 1, 1).view(batch_size * self.num_samples,
-    #                                                                                  num_features, L, L)
-    #     neg_idx = pos_idx.unsqueeze(dim=1).repeat(1, self.num_samples).view(batch_size * self.num_samples)
-    #     neg_alpha = neg_alpha.view(batch_size * self.num_samples, -1)
-    #     neg_dr = neg_dr.view(batch_size * self.num_samples, -1)
-    #     neg_alpha2 = neg_alpha2.view(batch_size * self.num_samples, -1)
-    #     neg_dr2 = neg_dr2.view(batch_size * self.num_samples, -1)
-    #
-    #     neg_rec_feat = self.model.repr(neg_rec).tensor
-    #     neg_lig_feat = self.model.repr(neg_lig).tensor
-    #     pos_rec_feat = self.model.repr(pos_rec).tensor
-    #     pos_lig_feat = self.model.repr(pos_lig).tensor
-    #
-    #     if self.FI:
-    #         return self.FI_prediction(neg_rec_feat, neg_lig_feat, pos_rec_feat, pos_lig_feat, neg_alpha, neg_dr, neg_alpha2, neg_dr2,
-    #                                            pos_idx, neg_idx, receptor, ligand, gt_interact, epoch)
-    #     else:
-    #
-    #         return self.IP_prediction(pos_rec_feat, pos_lig_feat, neg_rec_feat, neg_lig_feat,
-    #                                     pos_alpha, pos_dr, neg_alpha, neg_dr, neg_alpha2, neg_dr2,
-    #                                     pos_idx, neg_idx, receptor, ligand, epoch)
-
-    # def IP_prediction(self, pos_rec_feat, pos_lig_feat, neg_rec_feat, neg_lig_feat, pos_alpha, pos_dr, neg_alpha,
-    #                     neg_dr, neg_alpha2, neg_dr2, pos_idx, neg_idx, receptor, ligand, epoch):
-    #
-    #     neg_alpha, neg_dr = self.langevin(neg_alpha, neg_dr, neg_rec_feat.detach(), neg_lig_feat.detach(), neg_idx,
-    #                                       'cold')
-    #     neg_alpha2, neg_dr2 = self.langevin(neg_alpha2, neg_dr2, neg_rec_feat.detach(), neg_lig_feat.detach(), neg_idx,
-    #                                         'hot')
-    #
-    #     if self.train:
-    #         self.model.train()
-    #         self.requires_grad(True)
-    #         self.model.zero_grad()
-    #     else:
-    #         self.model.eval()
-    #
-    #     pos_out, _, _ = self.model.mult(pos_rec_feat, pos_lig_feat, pos_alpha, pos_dr)
-    #     pos_out = self.model.scorer(pos_out)
-    #     L_p = (pos_out + self.weight * pos_out ** 2).mean()
-    #     # L_p = pos_out.mean()
-    #     neg_out, _, _ = self.model.mult(neg_rec_feat, neg_lig_feat, neg_alpha, neg_dr)
-    #     neg_out = self.model.scorer(neg_out)
-    #     L_n = (-neg_out + self.weight * neg_out ** 2).mean()
-    #     # L_n = -neg_out.mean()
-    #     neg_out2, _, _ = self.model.mult(neg_rec_feat, neg_lig_feat, neg_alpha2, neg_dr2)
-    #     neg_out2 = self.model.scorer(neg_out2)
-    #     L_n2 = (-neg_out2 + self.weight * neg_out2 ** 2).mean()
-    #     # L_n2 = -neg_out2.mean()
-    #
-    #     L_n = (L_n + L_n2).mean()
-    #     loss = L_p + L_n
-    #
-    #     if self.train:
-    #         loss.backward()
-    #         self.optimizer.step()
-    #
-    #     if not self.train and self.debug:
-    #         with torch.no_grad():
-    #             # print('\nLearned hot sim contribution', self.hotweight.item())
-    #             # print('\nL_p, L_n, \n', L_p.item(), L_n.item())
-    #             # print('Loss\n', loss.item())
-    #
-    #             filename = self.path_IP + '/IPenergyandpose_epoch' + str(epoch) + '_example' + str(pos_idx.item())
-    #             EBMPlotter(self.model).plot_energy_and_pose(pos_idx, L_p, L_n, epoch, receptor, ligand, pos_alpha, pos_dr,
-    #                                       neg_alpha, neg_dr, filename)
-    #             filename = self.path_IP + '/IPfeats_epoch' + str(epoch) + '_example' + str(pos_idx.item())
-    #             EBMPlotter(self.model).plot_feats(neg_rec_feat, neg_lig_feat, epoch, pos_idx, filename)
-    #
-    #     # never add postive for step parallel and 1D LD buffer
-    #     if self.add_positive:
-    #         # print('AP')
-    #         self.buffer.push(pos_alpha, pos_dr, pos_idx)
-    #         self.buffer2.push(pos_alpha, pos_dr, pos_idx)
-    #
-    #     self.buffer.push(neg_alpha, neg_dr, neg_idx)
-    #     self.buffer2.push(neg_alpha2, neg_dr2, neg_idx)
-    #
-    #     if self.debug:
-    #         print('checking gradients')
-    #         self.check_gradients(self.model)
-    #
-    #     if self.train:
-    #         return {"Loss": loss.item()}
-    #     else:
-    #         return {"Loss": loss.item()}, neg_alpha, neg_dr
-
-    # def recomp_grad(self, neg_rec_feat, neg_lig_feat, neg_alpha_list, neg_dr_list):
-    #     lastN_E_grad = []
-    #     for i in range(len(neg_dr_list)):
-    #         # print('transform RECOMP LD')
-    #         # print(neg_alpha_list[i], neg_dr_list[i])
-    #         E_pred_neg_cold, _, _ = self.model.mult(neg_rec_feat, neg_lig_feat, neg_alpha_list[i], neg_dr_list[i])
-    #         E_pred_neg_cold = self.model.scorer(E_pred_neg_cold)
-    #         if self.Force_reg:
-    #             F_reg = self.k * torch.sqrt(torch.sum(neg_dr_list[i] ** 2) + self.eps)
-    #             E_pred_neg_cold = E_pred_neg_cold + F_reg
-    #         lastN_E_grad.append(E_pred_neg_cold)
-    #         # print(neg_dr_list_cold[i])
-    #         # print(neg_alpha_list_cold[i])
-    #         # print(E_pred_neg_cold)
-    #     return torch.stack(lastN_E_grad, dim=0)
-
-#     def FI_prediction(self, neg_rec_feat, neg_lig_feat, pos_rec_feat, pos_lig_feat, neg_alpha, neg_dr, neg_alpha2, neg_dr2, pos_idx,
-#                                neg_idx, receptor, ligand, gt_interact, epoch):
-#
-#         # #### grad recompute model
-#         if self.debug:
-#             print("BEFORE LD")
-#             print(neg_alpha, neg_dr)
-#         neg_alpha, neg_dr, neg_alpha_list_cold, neg_dr_list_cold, lastN_E_cold = self.langevin(neg_alpha, neg_dr,
-#                                                         neg_rec_feat.detach(), neg_rec_feat.detach(), neg_idx, 'cold')
-#
-#         # neg_alpha2, neg_dr2, neg_alpha_list_hot, neg_dr_list_hot, lastN_E_hot = self.langevin(neg_alpha2, neg_dr2,
-#         #                                                 neg_rec_feat.detach(), neg_lig_feat.detach(), neg_idx, 'hot')
-#
-#         if self.debug:
-#             print("After LD")
-#             print(neg_alpha, neg_dr)
-#
-#         if self.train:
-#             self.model.train()
-#             self.interaction_model.train()
-#             self.requires_grad(True)
-#             self.model.zero_grad()
-#             self.interaction_model.zero_grad()
-#         else:
-#             self.model.eval()
-#
-#         ## no gradient
-#         # Energies = torch.stack(lastN_E_cold, dim=0)
-#         # pred_interact, deltaF = self.interaction_model(Energies)
-#         ## no gradient
-#
-#         Energies_cold_grad = self.recomp_grad(neg_rec_feat, neg_lig_feat, neg_alpha_list_cold, neg_dr_list_cold)
-#         # Energies_hot_grad = self.recomp_grad(neg_rec_feat, neg_lig_feat, neg_alpha_list_hot, neg_dr_list_hot)
-#
-#         pred_interact, deltaF, F_cold, F_0 = self.interaction_model(Ecold=Energies_cold_grad, Ehot=None)
-#         # pred_interact, deltaF, F_cold, F_0 = self.interaction_model(Ecold=Energies_cold_grad, Ehot=Energies_hot_grad, Emean=False)
-#
-#         # #### grad recompute model
-#
-#         if self.debug:
-#             with torch.no_grad():
-#                 print('\nEnergy max and min')
-#                 print(torch.max(Energies_cold_grad).item(), torch.min(Energies_cold_grad).item())
-#                 # print(torch.max(Energies_hot_grad).item(), torch.min(Energies_hot_grad).item())
-#                 # print(torch.max(Energies_cold).item(), torch.min(Energies_cold).item())
-#                 # print(torch.max(Energies_hot).item(), torch.min(Energies_hot).item())
-#
-#         if self.train:
-#             with torch.no_grad():
-#                 filename_feats = self.path_FI + '/Feats_sample' + str(pos_idx.item()) +'_epoch' + str(epoch)
-#                 EBMPlotter(self.model).plot_feats(neg_rec_feat, neg_lig_feat, epoch, pos_idx, filename_feats)
-#                 filename_pose = self.path_FI + '/Pose_sample' + str(pos_idx.item()) +'_epoch' + str(epoch)
-#                 EBMPlotter(self.model).plot_pose(receptor, ligand, neg_alpha.squeeze(), neg_dr.squeeze(), 'Pose after LD', filename_pose,
-#                                pos_idx, epoch,
-#                                pred_interact=pred_interact.item(),
-#                                gt_interact=gt_interact.item(),
-#                                Energyscored=Energies_cold_grad[-1])
-#                 if self.debug:
-#                     for i in range(len(lastN_E_cold)):
-#                         filename_pose = self.path_LD + '/sample' + str(pos_idx.item()) +'_epoch' + str(epoch) + '_LDstep'+str(i+1)
-#                         EBMPlotter(self.model).plot_pose(receptor, ligand, neg_alpha_list_cold[i].squeeze(),
-#                                                          neg_dr_list_cold[i].squeeze(), 'Pose after LD',
-#                                                          filename_pose,
-#                                                          pos_idx, epoch,
-#                                                          gt_rot=neg_alpha_list_cold[0].squeeze().detach().cpu().numpy(),
-#                                                          gt_txy=neg_dr_list_cold[0].squeeze().detach().cpu().numpy(),
-#                                                          pred_interact=pred_interact.item(),
-#                                                          gt_interact=gt_interact.item(),
-#                                                          plot_LD=True,
-#                                                          Energyscored=lastN_E_cold[-1],
-#                                                          LDindex=i)
-#
-#         if self.train:
-#             BCEloss = torch.nn.BCELoss()
-#             loss = BCEloss(pred_interact.squeeze(), gt_interact.squeeze().cuda())
-#
-#             if self.wReg:
-#                 l1_loss = torch.nn.L1Loss()
-#                 w = 10 ** -5
-#                 L_reg = w * l1_loss(deltaF.squeeze(), torch.zeros(1).squeeze().cuda())
-#                 loss += L_reg
-#
-#             loss.backward()
-#             if self.debug:
-#                 with torch.no_grad():
-#                     print('\n PREDICTED', pred_interact.item(), '; GROUND TRUTH', gt_interact.item())
-#                     if torch.round(pred_interact).item() == torch.round(gt_interact).item():
-#                         print(' GOOD')
-#                     else:
-#                         print(' BAD')
-#
-#             self.optimizer.step()
-#             self.optimizer_interaction.step()
-#             self.buffer.push(neg_alpha, neg_dr, neg_idx)
-#             # self.buffer2.push(neg_alpha2, neg_dr2, neg_idx)
-#
-#             if self.debug:
-#                 print('checking gradients')
-#                 print('pretrain model')
-#                 self.check_gradients(self.model, param='scorer')
-#                 # self.check_gradients(self.model, param=None)
-#                 print('interaction model')
-#                 self.check_gradients(self.interaction_model, param=None)
-#
-#             return {"Loss": loss.item()}, F_cold, F_0
-#
-#         else:
-#             self.model.eval()
-#             if self.debug:
-#                 with torch.no_grad():
-#                     print('\n PREDICTED', pred_interact.item(), '; GROUND TRUTH', gt_interact.item())
-#                     if torch.round(pred_interact).item() == torch.round(gt_interact).item():
-#                         print(' GOOD')
-#                     else:
-#                         print(' BAD')
-#             return self.classify(pred_interact, gt_interact)
-#
-#     @staticmethod
-#     def classify(pred_interact, gt_interact):
-#         threshold = 0.5
-#         TP, FP, TN, FN = 0, 0, 0, 0
-#         p = pred_interact.item()
-#         a = gt_interact.item()
-#         if p >= threshold and a >= threshold:
-#             TP += 1
-#         elif p >= threshold and a < threshold:
-#             FP += 1
-#         elif p < threshold and a >= threshold:
-#             FN += 1
-#         elif p < threshold and a < threshold:
-#             TN += 1
-#         # print('returning', TP, FP, TN, FN)
-#         return TP, FP, TN, FN
-#
-# class FreeEnergyInteraction(nn.Module):
-#     def __init__(self):
-#         super(FreeEnergyInteraction, self).__init__()
-#
-#         self.F_0 = nn.Parameter(torch.zeros(1, requires_grad=True))
-#
-#     def forward(self, Ecold, Ehot=None, Emean=False):
-#         if not Emean:
-#             if Ehot is not None:
-#                 Fcold = -torch.logsumexp(-Ecold, dim=0)
-#                 Fhot = -torch.logsumexp(-Ehot, dim=0)
-#                 deltaF = Fcold + Fhot - self.F_0
-#             else:
-#                 Fcold = -torch.logsumexp(-Ecold, dim=(0))
-#                 deltaF = Fcold - self.F_0
-#         else:
-#             if Ehot is not None:
-#                 Fcold = -torch.mean(-Ecold, dim=(0))
-#                 Fhot = -torch.mean(-Ehot, dim=(0))
-#                 deltaF = Fcold + Fhot - self.F_0
-#             else:
-#                 Fcold = -torch.logsumexp(-Ecold, dim=(0))
-#                 deltaF = Fcold - self.F_0
-#         pred_interact = torch.sigmoid(-deltaF)
-#
-#         # with torch.no_grad():
-#         #     print('\n(deltaF - F_0): ', deltaF.item())
-#         #     # print('F_0: ', self.F_0.item(), 'F_0 grad', self.F_0.grad)
-#
-#         return pred_interact.squeeze(), deltaF.squeeze(), Fcold, self.F_0.squeeze()
+if __name__ == "__main__":
+    pass
