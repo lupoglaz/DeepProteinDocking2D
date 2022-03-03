@@ -45,6 +45,8 @@ class BruteForceDockingTrainer:
 
         if training:
             self.model.train()
+        else:
+            self.model.eval()
 
         ### run model and loss calculation
         ##### call model
@@ -240,7 +242,8 @@ class BruteForceDockingTrainer:
                 fout.write('Docking Testing Loss:\n')
                 fout.write(log_header)
         return start_epoch
-    def run_trainer(self, train_epochs, train_stream, valid_stream, test_stream, resume_training=False, resume_epoch=0):
+
+    def run_trainer(self, train_epochs, train_stream=None, valid_stream=None, test_stream=None, resume_training=False, resume_epoch=0):
         self.train_model(train_epochs, train_stream, valid_stream, test_stream,
                          resume_training=resume_training, resume_epoch=resume_epoch)
 

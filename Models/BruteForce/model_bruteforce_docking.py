@@ -11,9 +11,9 @@ from e2cnn import gspaces
 
 class BruteForceDocking(nn.Module):
 
-    def __init__(self, dim=100, num_angles=360):
+    def __init__(self, dim=100, num_angles=360, plot_freq=10):
         super(BruteForceDocking, self).__init__()
-        self.plot_freq = 10
+        self.plot_freq = plot_freq
         self.dim = dim
         self.num_angles = num_angles
         self.boundW = nn.Parameter(torch.ones(1, requires_grad=True))
