@@ -12,10 +12,10 @@ import random
 import os
 import sys
 sys.path.append('/home/sb1638/')
-from torch.autograd import Function
-import torch.nn.functional as F
-from e2cnn import nn as enn
-from e2cnn import gspaces
+# from torch.autograd import Function
+# import torch.nn.functional as F
+# from e2cnn import nn as enn
+# from e2cnn import gspaces
 
 # class ImageCrossMultiply(nn.Module):
 #     def __init__(self, full=True):
@@ -93,10 +93,11 @@ from e2cnn import gspaces
 
 
 class DockerEBM(nn.Module):
-    def __init__(self):
+    def __init__(self, num_angles=1):
         super(DockerEBM, self).__init__()
-        self.docker = BruteForceDocking(dim=100, num_angles=1)
-        self.dockingFFT = TorchDockingFFT(num_angles=1, angle=None, swap_plot_quadrants=False)
+        self.num_angles = num_angles
+        self.docker = BruteForceDocking(dim=100, num_angles=self.num_angles)
+        self.dockingFFT = TorchDockingFFT(num_angles=self.num_angles, angle=None, swap_plot_quadrants=False)
 
     def forward(self, receptor, ligand, rotation, plot_count=1, stream_name='trainset'):
         if 'trainset' not in stream_name:
@@ -110,7 +111,7 @@ class DockerEBM(nn.Module):
 
 
 class EnergyBasedModel(nn.Module):
-    def __init__(self, device='cuda', num_samples=1, weight=1.0, step_size=1, sample_steps=1, experiment=None):
+    def __init__(self, num_angles=1, device='cuda', num_samples=1, weight=1.0, step_size=1, sample_steps=1, experiment=None):
         super(EnergyBasedModel, self).__init__()
         self.debug = False
         # self.training = False
@@ -121,9 +122,11 @@ class EnergyBasedModel(nn.Module):
             self.k = 1e-3
             self.eps = 1e-7
 
+        self.num_angles = num_angles
+
         # self.repr = BruteForceDocking().netSE2
         # self.EBMdocker = EQScoringModel(repr=self.repr)
-        self.EBMdocker = DockerEBM()
+        self.EBMdocker = DockerEBM(num_angles=self.num_angles)
 
         # self.buffer = SampleBuffer(num_buf_samples)
         # self.buffer2 = SampleBuffer(num_buf_samples)
@@ -170,8 +173,10 @@ class EnergyBasedModel(nn.Module):
             # self.sig_alpha = 50
 
         if temperature == 'hot':
-            self.sig_dr = 0.5
-            self.sig_alpha = 5
+            # self.sig_dr = 0.5
+            # self.sig_alpha = 5
+            self.sig_dr = 10
+            self.sig_alpha = 10
 
         for i in range(self.sample_steps):
             if self.debug:
@@ -182,38 +187,18 @@ class EnergyBasedModel(nn.Module):
 
             langevin_opt.zero_grad()
 
+            # best_score, neg_dr, FFT_score = self.EBMdocker(receptor, ligand, neg_alpha, plot_count, stream_name)
             best_score, neg_dr, FFT_score = self.EBMdocker(receptor, ligand, neg_alpha, plot_count, stream_name)
+
             # best_score = self.EBMdocker(receptor, ligand, neg_alpha, neg_dr)
             best_score.mean().backward()
             langevin_opt.step()
-
-            # rand_dr = torch.normal(0, self.sig_dr, size=neg_dr.shape).cuda()
-            # neg_dr = neg_dr + rand_dr
-            # # neg_dr = neg_dr.clamp(-rec_feat.size(2), rec_feat.size(2))
-            # rand_alpha = torch.normal(0, self.sig_alpha, size=neg_alpha.shape).cuda()
-            # neg_alpha = neg_alpha + rand_alpha
 
             neg_dr = neg_dr + noise_dr.normal_(0, self.sig_dr)
             neg_alpha = neg_alpha + noise_alpha.normal_(0, self.sig_alpha)
             clamp_offset = receptor.size(2)//3
             neg_dr.data = neg_dr.data.clamp_(-receptor.size(2)+clamp_offset, receptor.size(2)-clamp_offset)
             neg_alpha.data = neg_alpha.data.clamp_(-np.pi, np.pi)
-
-            # neg_dr.data += noise_dr.normal_(0, self.sig_dr)
-            # neg_alpha.data += noise_alpha.normal_(0, self.sig_alpha)
-            # neg_dr.data = neg_dr.data.clamp_(-rec_feat.size(2), rec_feat.size(2))
-            # neg_alpha.data = neg_alpha.data.clamp_(-np.pi, np.pi)
-            # with torch.no_grad():
-                # print(neg_alpha.clamp_(-np.pi, np.pi))
-                # neg_dr_out = neg_dr.data.clone()
-                # neg_alpha_out = neg_alpha.data.clone()
-                # print('transform inside LD')
-                # print(neg_alpha, neg_dr)
-                # print(neg_alpha_out, neg_dr_out)
-
-            # print('inside LD')
-            # print(neg_alpha, neg_dr)
-            # print(neg_alpha.data, neg_dr.data)
 
             if self.debug:
                 if i == 0 or i == 1:
@@ -228,7 +213,6 @@ class EnergyBasedModel(nn.Module):
 
         # self.requires_grad(True)
         self.EBMdocker.train()
-        # return neg_alpha.detach(), neg_dr.detach()
 
         return neg_alpha.clone().detach(), neg_dr.clone().detach(), FFT_score
 

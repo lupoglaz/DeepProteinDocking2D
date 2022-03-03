@@ -8,7 +8,7 @@ import numpy as np
 from tqdm import tqdm
 from DeepProteinDocking2D.torchDataset import get_docking_stream
 from DeepProteinDocking2D.Models.BruteForce.TorchDockingFFT import TorchDockingFFT
-from DeepProteinDocking2D.Models.BruteForce.model_bruteforce_docking import BruteForceDocking
+from DeepProteinDocking2D.Models.BruteForce.train_bruteforce_docking import BruteForceDockingTrainer, BruteForceDocking
 from DeepProteinDocking2D.Models.BruteForce.utility_functions import plot_assembly
 from DeepProteinDocking2D.Models.BruteForce.validation_metrics import RMSD
 import matplotlib.pyplot as plt
@@ -42,8 +42,12 @@ class SampleBuffer:
         drs = []
         if not training:
             # print('EVAL rand init')
-            alpha = torch.rand(num_samples, 1) * 2 * np.pi - np.pi
-            dr = torch.rand(num_samples, 2) * 50.0 - 25.0
+            # alpha = torch.rand(num_samples, 1) * 2 * np.pi - np.pi
+            # dr = torch.rand(num_samples, 2) * 50.0 - 25.0
+            # alphas.append(alpha)
+            # drs.append(dr)
+            alpha = torch.zeros(num_samples, 1)
+            dr = torch.zeros(num_samples, 2)
             alphas.append(alpha)
             drs.append(dr)
         else:
@@ -64,14 +68,14 @@ class SampleBuffer:
                     drs.append(lst[0][1])
                 else:
                     # print('else rand init')
-                    alpha = torch.rand(num_samples, 1) * 2 * np.pi - np.pi
-                    dr = torch.rand(num_samples, 2) * 50.0 - 25.0
-                    alphas.append(alpha)
-                    drs.append(dr)
-                    # alpha = torch.zeros(num_samples, 1)
-                    # dr = torch.zeros(num_samples, 2)
+                    # alpha = torch.rand(num_samples, 1) * 2 * np.pi - np.pi
+                    # dr = torch.rand(num_samples, 2) * 50.0 - 25.0
                     # alphas.append(alpha)
                     # drs.append(dr)
+                    alpha = torch.zeros(num_samples, 1)
+                    dr = torch.zeros(num_samples, 2)
+                    alphas.append(alpha)
+                    drs.append(dr)
 
         # print('\nalpha', alpha)
         # print('dr', dr)
@@ -86,7 +90,7 @@ class EnergyBasedDockingTrainer:
     def __init__(self, cur_model, cur_optimizer, cur_experiment, debug=False, plotting=False):
         self.debug = debug
         self.plotting = plotting
-        self.eval_freq = 5
+        self.eval_freq = 1
         self.save_freq = 1
         self.plot_freq = BruteForceDocking().plot_freq
 
@@ -114,6 +118,8 @@ class EnergyBasedDockingTrainer:
 
         if training:
             self.model.train()
+        else:
+            self.model.eval()
 
         ### run model and loss calculation
         ##### call model
@@ -121,22 +127,24 @@ class EnergyBasedDockingTrainer:
         pred_rot, pred_txy, FFT_score = self.model(neg_alpha, neg_dr, receptor, ligand, temperature='cold', plot_count=pos_idx.item(), stream_name=stream_name)
         neg_alpha, neg_dr = pred_rot, pred_txy
 
-        # neg_alpha2, neg_dr2 = self.buffer2.get(pos_idx, num_samples=1, training=training)
-        # pred_rot2, pred_txy2, FFT_score2 = self.model(neg_alpha2, neg_dr2, receptor, ligand, temperature='hot')
-        # neg_alpha2, neg_dr2 = pred_rot2, pred_txy2
+        neg_alpha2, neg_dr2 = self.buffer2.get(pos_idx, num_samples=1, training=training)
+        pred_rot2, pred_txy2, FFT_score2 = self.model(neg_alpha2, neg_dr2, receptor, ligand, temperature='hot')
+        neg_alpha2, neg_dr2 = pred_rot2, pred_txy2
 
         self.buffer.push(neg_alpha, neg_dr, pos_idx)
-        # self.buffer2.push(neg_alpha2, neg_dr2, pos_idx)
-
-        # FFT_score = FFT_score + FFT_score2
+        self.buffer2.push(neg_alpha2, neg_dr2, pos_idx)
+        # pred_rot = (pred_rot + pred_rot2)/2
+        # pred_txy = (pred_txy + pred_txy2)/2
+        # FFT_score = (FFT_score + FFT_score2)/2
         # print(FFT_score)
         ### Encode ground truth transformation index into empty energy grid
         with torch.no_grad():
             target_flatindex = self.dockingFFT.encode_transform(gt_rot, gt_txy)
-            # pred_rot, pred_txy = self.dockingFFT.extract_transform(FFT_score)
             rmsd_out = RMSD(ligand, gt_rot, gt_txy, pred_rot.squeeze(), pred_txy.squeeze()).calc_rmsd()
             # print(target_flatindex.shape, FFT_score.shape)
             # print(target_flatindex, pred_flatindex)
+            if not training:
+                pred_rot, pred_txy = self.dockingFFT.extract_transform(FFT_score)
 
         if self.debug:
             print('\npredicted')
@@ -147,9 +155,12 @@ class EnergyBasedDockingTrainer:
         #### Loss functions
         CE_loss = torch.nn.CrossEntropyLoss()
         L1_loss = torch.nn.L1Loss()
-        # print(FFT_score.flatten().squeeze().unsqueeze(0).shape, target_flatindex.unsqueeze(0))
-        loss = CE_loss(FFT_score.flatten().unsqueeze(0), target_flatindex.unsqueeze(0)) + L1_loss(pred_rot.squeeze(), gt_rot)
+        # L2_loss = torch.nn.MSELoss()
 
+        # print(FFT_score.flatten().squeeze().unsqueeze(0).shape, target_flatindex.unsqueeze(0))
+        loss = CE_loss(FFT_score.flatten().unsqueeze(0), target_flatindex.unsqueeze(0)) #+ L1_loss(pred_rot.squeeze(), gt_rot)
+        loss = loss + L1_loss(pred_rot.squeeze(), gt_rot)
+        # loss = loss + L2_loss(pred_rot.squeeze(), gt_rot)
         ### check parameters and gradients
         ### if weights are frozen or updating
         if self.debug:
@@ -186,7 +197,7 @@ class EnergyBasedDockingTrainer:
     def check_model_gradients(self):
         for n, p in self.model.named_parameters():
             if p.requires_grad:
-                print(n, p, p.grad)
+                print('name', n, 'param', p, 'gradient', p.grad)
 
     ## Unused SE2 net has own Kaiming He weight initialization.
     def weights_init(self):
@@ -201,9 +212,10 @@ class EnergyBasedDockingTrainer:
 
         if self.plotting:
             self.eval_freq = 1
-        self.buffer = SampleBuffer(len(train_stream))
-        self.buffer2 = SampleBuffer(len(train_stream))
-
+        # self.buffer = SampleBuffer(len(train_stream))
+        # self.buffer2 = SampleBuffer(len(train_stream))
+        self.buffer = SampleBuffer(1000)
+        self.buffer2 = SampleBuffer(1000)
         log_header = 'Epoch\tLoss\trmsd\n'
         log_format = '%d\t%f\t%f\n'
 
@@ -330,7 +342,7 @@ class EnergyBasedDockingTrainer:
         plt.savefig('figs/rmsd_and_poses/'+stream_name+'_docking_pose_example' + str(plot_count) + '_RMSD' + str(rmsd_out.item())[:4] + '.png')
         # plt.show()
 
-    def run_trainer(self, train_epochs, train_stream, valid_stream, test_stream, resume_training=False, resume_epoch=0):
+    def run_trainer(self, train_epochs, train_stream=None, valid_stream=None, test_stream=None, resume_training=False, resume_epoch=0):
         self.train_model(train_epochs, train_stream, valid_stream, test_stream,
                          resume_training=resume_training, resume_epoch=resume_epoch)
 
@@ -356,10 +368,10 @@ if __name__ == '__main__':
     torch.backends.cudnn.deterministic = True
     torch.cuda.set_device(0)
     # torch.autograd.set_detect_anomaly(True)
-    ######################
-    lr = 10 ** -4
-    model = EnergyBasedModel().to(device=0)
-    optimizer = optim.Adam(model.parameters(), lr=lr)
+    # ######################
+    # lr = 10 ** -4
+    # model = EnergyBasedModel(sample_steps=10).to(device=0)
+    # optimizer = optim.Adam(model.parameters(), lr=lr)
 
     batch_size = 1
     if batch_size > 1:
@@ -369,7 +381,6 @@ if __name__ == '__main__':
     test_stream = get_docking_stream(testset + '.pkl', batch_size=1)
 
     ######################
-    train_epochs = 20
     # experiment = 'first_tests'
     # experiment = 'first_tests_clamp_LD1_sample1_step1'
     # experiment = 'first_tests_clamp_LD1_sample1_step1_NOL1rot'
@@ -387,21 +398,51 @@ if __name__ == '__main__':
     # experiment = 'coldandhot_check_1LD'
     # experiment = 'coldandhot_check_1LD_swapquads'
     # experiment = 'coldandhot_check_1LD'
-    experiment = 'coldonly_featplots_1LD'
+    # experiment = 'coldonly_featplots_1LD'
+    # experiment = 'coldonly_bruteforceEval'
+    # experiment = 'coldonly_10LD_bruteforceEval'
+    # experiment = 'coldonly_10LD_bruteforceEval_hot5dr5alpha'
+    # experiment = 'coldonly_1LD_bruteforceEval_hot5dr5alpha_zerosinits'
+    # experiment = 'coldonly_1LD_bruteforceEval_hot5dr5alpha_zerosinits_lr-3'
+    # experiment = 'coldonly_1LD_bruteforceEval_hot5dr5alpha_zerosinits_lr-3_noclamprot'
+    # experiment = 'hotcold_avgFFTscore_1LD_bruteforceEval_hot5dr5alpha_zerosinits_lr-3_noclamprot'
+    # experiment = 'hotcold_avgFFTscore_1LD_bruteforceEval_hot5dr5alpha_zerosinits_lr-4_noclamprot'
+    # experiment = 'hotcold_5,5,10,10_avgFFTscore_avgtxyavgrot_1LD_bruteforceEval_zerosinits_lr-4_noclamprot'
+    # experiment = 'hotcold_1LD_bruteforceEval_zerosinits_lr-4_noclamprot'
+    # experiment = 'hotcold_nobesttxy_1LD_bruteforceEval_zerosinits_lr-4_noclamprot'
+    # experiment = 'hotcold_nobesttxy_1LD_bruteforceEval_zerosinits_lr-4_noclamprot'
+    # experiment = 'hot10coldp5_1LD_bruteforceEval_zerosinits_lr-4_L2lossrot'
+    # experiment = 'hot10coldp5_1LD_bruteforceEval_zerosinits_lr-4_evalextractrottxy'
+    experiment = 'hot10coldp5_1LD_bruteforceEval_zerosinits_lr-4_evalextractrottxy_360deg'
 
     ######################
+    lr = 10 ** -4
+    LD_steps = 1
+    model = EnergyBasedModel(num_angles=1, sample_steps=LD_steps).to(device=0)
+    optimizer = optim.Adam(model.parameters(), lr=lr)
+    train_epochs = 10
+    ######################
     ### Train model from beginning
-    EnergyBasedDockingTrainer(model, optimizer, experiment).run_trainer(train_epochs, train_stream, valid_stream, test_stream)
+    EnergyBasedDockingTrainer(model, optimizer, experiment, debug=False).run_trainer(train_epochs, train_stream, valid_stream=None, test_stream=None)
 
     ### Resume training model at chosen epoch
     # EnergyBasedDockingTrainer(model, optimizer, experiment).run_trainer(
     #     train_epochs=10, train_stream=train_stream, valid_stream=valid_stream, test_stream=test_stream,
     #     resume_training=True, resume_epoch=5)
 
-    ## Plot loss from current experiment
-    IPLossPlotter(experiment).plot_loss()
-    IPLossPlotter(experiment).plot_rmsd_distribution(plot_epoch=train_epochs)
+    ### Evaluate model using all 360 angles (or less).
+    EnergyBasedDockingTrainer(model, optimizer, experiment, plotting=True).run_trainer(
+        train_epochs=1, valid_stream=valid_stream, test_stream=None,
+        resume_training=True, resume_epoch=train_epochs)
 
-    ### Evaluate model on chosen dataset only and plot at chosen epoch and dataset frequency
-    # BruteForceDockingTrainer(model, optimizer, experiment, plotting=True).plot_evaluation_set(
-    #     check_epoch=30, valid_stream=valid_stream, test_stream=test_stream)
+    ### Evaluate model using all 360 angles (or less).
+    # model = EnergyBasedModel(num_angles=360, sample_steps=LD_steps).to(device=0)
+    # model = EnergyBasedModel(num_angles=1, sample_steps=100).to(device=0)
+    # model = EnergyBasedModel(num_angles=360, sample_steps=LD_steps).to(device=0)
+    # EnergyBasedDockingTrainer(model, optimizer, experiment, plotting=True).run_trainer(
+    #     train_epochs=1, valid_stream=valid_stream, test_stream=test_stream,
+    #     resume_training=True, resume_epoch=train_epochs)
+
+    ## Plot loss from current experiment
+    # IPLossPlotter(experiment).plot_loss()
+    # IPLossPlotter(experiment).plot_rmsd_distribution(plot_epoch=train_epochs)
