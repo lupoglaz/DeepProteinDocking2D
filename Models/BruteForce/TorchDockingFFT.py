@@ -32,7 +32,7 @@ class TorchDockingFFT:
             # print(empty_3D.shape)
             # print(centered_txy.shape)
             # centered_txy = centered_txy.squeeze()
-            empty_3D[0, centered_txy[0], centered_txy[1]] = 1
+            empty_3D[:, centered_txy[0], centered_txy[1]] = 1
         else:
             empty_3D[deg_index_rot, centered_txy[0], centered_txy[1]] = 1
         target_flatindex = torch.argmax(empty_3D.flatten()).cuda()
