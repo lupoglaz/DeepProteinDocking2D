@@ -91,7 +91,7 @@ class TorchDockingFFT:
     ## Weights learned from model: RECODE_CHECK_BFDOCKING_30epochs DOES NOT WORK WITH RAW BULK BOUNDARY DATASET FEATS
     # weight_bound = 0.7626, weight_crossterm1, 1.0481, weight_crossterm2 = 0.9259, weight_bulk = 0.9861
 
-    def dock_global(self, receptor, ligand, weight_bound=3.0, weight_crossterm1=-0.3, weight_crossterm2=-0.3, weight_bulk=30.0, debug=False):
+    def dock_global(self, receptor, ligand, weight_bound=3.0, weight_crossterm1=-0.3, weight_crossterm2=-0.3, weight_bulk=30.0):
         initbox_size = receptor.shape[-1]
         # print(receptor.shape)
         pad_size = initbox_size // 2
@@ -108,10 +108,11 @@ class TorchDockingFFT:
             rot_lig = F.pad(rot_lig, pad=([pad_size, pad_size+1, pad_size, pad_size+1]), mode='constant', value=0)
         # print('padded shape', f_rec.shape)
 
-        if debug:
+        if self.debug:
             with torch.no_grad():
                 step = 30
                 for i in range(rot_lig.shape[0]):
+                    print(i)
                     if i % step == 0:
                         plt.title('Torch '+str(i)+' degree rotation')
                         plt.imshow(rot_lig[i,0,:,:].detach().cpu())

@@ -99,37 +99,30 @@ class DockerEBM(nn.Module):
         self.docker = BruteForceDocking(dim=100, num_angles=self.num_angles)
         self.dockingFFT = TorchDockingFFT(num_angles=self.num_angles, angle=None, swap_plot_quadrants=False)
 
-    def forward(self, receptor, ligand, rotation, plot_count=1, stream_name='trainset'):
+    def forward(self, receptor, ligand, rotation, plot_count=1, stream_name='trainset', plotting=False):
         if 'trainset' not in stream_name:
             training = False
         else: training = True
-        FFT_score = self.docker.forward(receptor, ligand, angle=rotation, plotting=True, training=training, plot_count=plot_count, stream_name=stream_name)
+        FFT_score = self.docker.forward(receptor, ligand, angle=rotation, plotting=plotting, training=training, plot_count=plot_count, stream_name=stream_name)
         with torch.no_grad():
             pred_rot, pred_txy = self.dockingFFT.extract_transform(FFT_score)
-            best_score = FFT_score[pred_txy[0], pred_txy[1]]
-        return -best_score, pred_txy, FFT_score
+            deg_index_rot = (((pred_rot * 180.0 / np.pi) + 180.0) % self.num_angles).type(torch.long)
+            if self.num_angles == 1:
+                best_score = FFT_score[pred_txy[0], pred_txy[1]]
+            else:
+                best_score = FFT_score[deg_index_rot, pred_txy[0], pred_txy[1]]
+        minE = -best_score
+        return minE, pred_txy, pred_rot, FFT_score
+
 
 
 class EnergyBasedModel(nn.Module):
     def __init__(self, num_angles=1, device='cuda', num_samples=1, weight=1.0, step_size=1, sample_steps=1, experiment=None):
         super(EnergyBasedModel, self).__init__()
         self.debug = False
-        # self.training = False
-        # self.BF_init = False
-        # self.wReg = True
-        self.Force_reg = False
-        if self.Force_reg:
-            self.k = 1e-3
-            self.eps = 1e-7
-
         self.num_angles = num_angles
 
-        # self.repr = BruteForceDocking().netSE2
-        # self.EBMdocker = EQScoringModel(repr=self.repr)
         self.EBMdocker = DockerEBM(num_angles=self.num_angles)
-
-        # self.buffer = SampleBuffer(num_buf_samples)
-        # self.buffer2 = SampleBuffer(num_buf_samples)
 
         self.num_samples = num_samples
         self.sample_steps = sample_steps
@@ -140,81 +133,68 @@ class EnergyBasedModel(nn.Module):
         self.plot_idx = 0
 
         self.experiment = experiment
-        # self.path_IP = 'figs/IP_figs/' + self.experiment
-        # self.path_FI = 'figs/FI_figs/' + self.experiment
-        # self.path_LD = 'figs/FI_figs/' + self.experiment + '/LD_steps'
-
-        try:
-            if 'IP' in self.experiment:
-                os.mkdir(self.path_IP)
-            if 'FI' in self.experiment:
-                os.mkdir(self.path_FI)
-                os.mkdir(self.path_LD)
-        except:
-            print('dir already exists')
 
     def forward(self, neg_alpha, neg_dr, receptor, ligand, temperature='cold', plot_count=1, stream_name='trainset'):
-        noise_alpha = torch.zeros_like(neg_alpha)
-        noise_dr = torch.zeros_like(neg_dr)
 
-        # self.requires_grad(False)
+        noise_alpha = torch.zeros_like(neg_alpha)
+        # noise_dr = torch.zeros_like(neg_dr)
+
         self.EBMdocker.eval()
 
         neg_alpha.requires_grad_()
-        neg_dr.requires_grad_()
-        langevin_opt = optim.SGD([neg_alpha, neg_dr], lr=self.step_size, momentum=0.0)
+        # neg_dr.requires_grad_()
+        # langevin_opt = optim.SGD([neg_alpha, neg_dr], lr=self.step_size, momentum=0.0)
+        langevin_opt = optim.SGD([neg_alpha], lr=self.step_size, momentum=0.0)
 
         if temperature == 'cold':
-            self.sig_dr = 0.05
-            self.sig_alpha = 0.5
-            # self.sig_dr = 5
-            # self.sig_alpha = 5
-            # self.sig_dr = 25
-            # self.sig_alpha = 50
+            # self.sig_dr = 0.05
+            # self.sig_alpha = 0.5
+            self.sig_alpha = 6.28
 
         if temperature == 'hot':
             # self.sig_dr = 0.5
-            # self.sig_alpha = 5
-            self.sig_dr = 10
-            self.sig_alpha = 10
+            self.sig_alpha = 5
+
+        # if self.sample_steps == 0:
+        #     print('evaluating with brute force')
+        #     minE, neg_dr, neg_alpha, FFT_score = self.EBMdocker(receptor, ligand, neg_alpha, plot_count, stream_name, plotting=True)
+        #     return neg_alpha.unsqueeze(0).clone(), neg_dr.unsqueeze(0).clone(), FFT_score, minE
+        #
+        # if 'trainset' not in stream_name:
+        #     # print('eval')
+        #     self.sample_steps = 1
 
         for i in range(self.sample_steps):
-            if self.debug:
-                if i == 0 or i == 1:
-                    print('Before RandomForce LD', i)
-                    print(neg_alpha)
-                    print(neg_dr)
+            plotting = False
+            if i == self.sample_steps - 1:
+                plotting = True
 
             langevin_opt.zero_grad()
 
-            # best_score, neg_dr, FFT_score = self.EBMdocker(receptor, ligand, neg_alpha, plot_count, stream_name)
-            best_score, neg_dr, FFT_score = self.EBMdocker(receptor, ligand, neg_alpha, plot_count, stream_name)
+            # neg_alpha = neg_alpha + noise_alpha.normal_(0, self.sig_alpha)
+            # # neg_alpha.data = neg_alpha.data.clamp_(-np.pi, np.pi)
+            # # neg_dr = neg_dr + noise_dr.normal_(0, self.sig_dr)
+            # # clamp_offset = receptor.size(2)//3
+            # # neg_dr.data = neg_dr.data.clamp_(-receptor.size(2)+clamp_offset, receptor.size(2)-clamp_offset)
 
-            # best_score = self.EBMdocker(receptor, ligand, neg_alpha, neg_dr)
-            best_score.mean().backward()
+            minE, neg_dr, pred_rot, FFT_score = self.EBMdocker(receptor, ligand, neg_alpha, plot_count, stream_name, plotting=plotting)
+
+            # print('negdr in LD', temperature, neg_dr)
+            # print('negalpha in LD', temperature, neg_alpha)
+            minE.mean().backward(retain_graph=True)
+
+            # minE.mean().backward()
             langevin_opt.step()
 
-            neg_dr = neg_dr + noise_dr.normal_(0, self.sig_dr)
             neg_alpha = neg_alpha + noise_alpha.normal_(0, self.sig_alpha)
-            clamp_offset = receptor.size(2)//3
-            neg_dr.data = neg_dr.data.clamp_(-receptor.size(2)+clamp_offset, receptor.size(2)-clamp_offset)
-            neg_alpha.data = neg_alpha.data.clamp_(-np.pi, np.pi)
+            # neg_alpha.data = neg_alpha.data.clamp_(-np.pi, np.pi)
+            # neg_dr = neg_dr + noise_dr.normal_(0, self.sig_dr)
+            # clamp_offset = receptor.size(2)//3
+            # neg_dr.data = neg_dr.data.clamp_(-receptor.size(2)+clamp_offset, receptor.size(2)-clamp_offset)
 
-            if self.debug:
-                if i == 0 or i == 1:
-                    print('After RandomForce LD', i)
-                    print(neg_alpha)
-                    print(neg_dr)
-
-        # if self.FI:
-        #     return neg_alpha_out.detach(), neg_dr_out.detach(), lastN_alpha, lastN_dr, lastN_neg_out
-        # else:
-        #     return neg_alpha.detach(), neg_dr.detach()
-
-        # self.requires_grad(True)
         self.EBMdocker.train()
 
-        return neg_alpha.clone().detach(), neg_dr.clone().detach(), FFT_score
+        return neg_alpha.clone(), neg_dr.clone(), FFT_score, minE
 
     def requires_grad(self, flag=True):
         parameters = self.EBMdocker.parameters()
@@ -229,8 +209,6 @@ class EnergyBasedModel(nn.Module):
                 return
             if not param:
                 print('Name', n, '\nParam', p, '\nGradient', p.grad)
-
-
 
 if __name__ == "__main__":
     pass
