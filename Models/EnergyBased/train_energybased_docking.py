@@ -227,7 +227,7 @@ class EnergyBasedDockingTrainer:
             self.optimizer.step()
         else:
             self.model.eval()
-            if plot_count % self.plot_freq == 0:
+            if self.plotting and plot_count % self.plot_freq == 0:
                 with torch.no_grad():
                     self.plot_pose(receptor, ligand, gt_rot, gt_txy, pred_rot.squeeze(), pred_txy.squeeze(), pos_idx.item(), stream_name)
 
@@ -429,58 +429,33 @@ if __name__ == '__main__':
     test_stream = get_docking_stream(testset + '.pkl', batch_size=1)
 
     ######################
-    # experiment = 'cold_1LD_lr-4_stepAFTERdockercall_+energyloss_nomodeleval_gradcheck'
-    # experiment = 'cold_1LD_lr-4_FFTscoreonly_gradcheck_modeleval'
-    # experiment = 'cold_1LD_lr-4_FFTscoreonly_gradcheck_modeleval_retaingraph'
-    # experiment = 'cold_1LD_lr-4_FFTscoreonly_gradcheck_modeleval_retaingraph'
-    # experiment = 'cold_1LD_lr-4_minE_gradcheck'
-    # experiment = 'cold_1LD_lr-4_FFTscoreCE_minE_gradcheck'
-    # experiment = 'cold_1LD_lr-4_FFTscoreCE_minE'
-    # experiment = 'cold_1LD_lr-4_FFTscoreCE_doublestep'
-    # experiment = 'cold_1LD_lr-4_FFTscoreCE_doublestep_noreqgrad'
-    # experiment = 'cold_1LD_lr-4_FFTscoreCE_doublestep_withreqgrad'
-    # experiment = 'cold_1LD_lr-4_FFTscoreCE_noreqgrad'
-    # experiment = 'cold_10LD_lr-4_FFTscoreCE_noreqgrad'
-    # experiment = 'cold_1LD_lr-4_FFTscoreCE_noreqgrad_stepafter_randinit'
-    # experiment = 'hot_1LD_lr-4_FFTscoreCE_noreqgrad_stepafter_randinit'
-    # experiment = 'cold_1LD_lr-4_FFTscoreCE_noreqgrad_stepafter_randinit'
-    # experiment = 'coldhot_10LD_lr-4_FFTscoreCE_noreqgrad_stepafter_randinit_FFTscoresAvg'
-    # experiment = 'coldonly_learnRotationLDonly_reqgrad_avgrmsdout'
-    # experiment = 'coldonly_learnRotationLDonly_reqgrad'
-    # experiment = 'coldonly_learnRotationLDonly_reqgrad_noclamp_randalpha'
-    # experiment = 'coldonly_10LD_learnRotationLDonly_reqgrad_noclamp_randalpha'
-    # experiment = 'coldonly_10LD_learnRotationLDonly_reqgrad_noclamp_randalpha_negalphadoublestep_noContLD_noOpt_nodetach_noFFTalpha'
-    # experiment = 'coldonly_10LD_learnRotationLDonly_reqgrad_noclamp_randalpha_negalphadoublestep_noContLD_noOpt_nodetach_noFFTalpha'
-    # experiment = 'coldonly_10LD_learnRotationLDonly_checkBFeval_samplesteps=0'
-    # experiment = 'coldonly_10LD_learnRotationLDonly_noBFeval_sigma=pi'
-    # experiment = 'coldonly_1LD_learnRotationLDonly_noBFeval'
-    # experiment = 'coldonly_10LD_learnRotationLDonly_noBFeval_sigma=pi_LDopt'
-    # experiment = 'coldonly_1LD_learnRotationLDonly_noBFeval_sigma=pi_LDopt_passdockingFFT'
-    # experiment = 'coldonly_1LD_learnRotationLDonly_noBFeval_sigma=pi_LDopt_passdockingFFT_rotindex'
-    # experiment = 'coldonly_1LD_learnRotationLDonly_sigma=pi_LDopt_passdockingFFT_rotindex'
-    # experiment = 'coldonly_1LD_learnRotationLDonly_sigma=pi_LDopt_passdockingFFT_rotindex_nopassFFTscoretoplotting'
-    # experiment = 'coldonly_10LD_learnRotationLDonly_sigma=pi_LDopt_passdockingFFT_rotindex_nopassFFTscoretoplotting'
-    # experiment = 'coldonly_10LD_learnRotationLDonly_LDopt_passdockingFFT_rotindex_nopassFFTscoretoplotting'
     # experiment = 'coldonly_1LD_learnRotationLDonly_LDopt_passdockingFFT_rotindex_5ep'
-    experiment = 'coldonly_1LD_learnRotationLDonly_LDopt_passdockingFFT_rotindex_5ep_sig2pi_lr-3'
+    # experiment = 'coldonly_1LD_learnRotationLDonly_LDopt_passdockingFFT_rotindex_5ep_sig2pi_lr-3'
+    # experiment = 'coldonly_1LD_learnRotationLDonly_LDopt_passdockingFFT_rotindex_5ep_sig1_lr-3'
+    # experiment = 'coldonly_1LD_learnRotationLDonly_LDopt_passdockingFFT_rotindex_5ep_sig2_lr-3'
+    # experiment = 'coldonly_1LD_learnRotationLDonly_LDopt_passdockingFFT_rotindex_5ep_sig3_lr-3'
+    # experiment = 'coldonly_1LD_learnRotationLDonly_LDopt_passdockingFFT_rotindex_10ep_sig2_lr-4'
+    # experiment = 'coldonly_1LD_learnRotationLDonly_LDopt_passdockingFFT_rotindex_3ep_sig2_lr-3'
+    # experiment = 'coldonly_1LD_learnRotationLDonly_LDopt_passdockingFFT_rotindex_3ep_sig3_lr-3'
+    # experiment = 'coldonly_1LD_learnRotationLDonly_LDopt_passdockingFFT_rotindex_3ep_sig3_lr-2'
+    # experiment = 'coldonly_1LD_learnRotationLDonly_LDopt_passdockingFFT_rotindex_5ep_sig3_lr-2'
+    experiment = 'coldonly_1LD_learnRotationLDonly_LDopt_passdockingFFT_rotindex_3ep_sig3_lr-2'
 
     ######################
-    lr = 10 ** -3
+    lr = 10 ** -2
     LD_steps = 1
     model = EnergyBasedModel(num_angles=1, sample_steps=LD_steps).to(device=0)
     optimizer = optim.Adam(model.parameters(), lr=lr)
-    train_epochs = 5
+    train_epochs = 3
     ######################
     dockingFFT = TorchDockingFFT(num_angles=1, angle=None, swap_plot_quadrants=False, debug=False)
 
     ### Train model from beginning
-    # EnergyBasedDockingTrainer(dockingFFT, model, optimizer, experiment, debug=False).run_trainer(train_epochs, train_stream=train_stream, valid_stream=None, test_stream=None)
+    EnergyBasedDockingTrainer(dockingFFT, model, optimizer, experiment, debug=False).run_trainer(train_epochs, train_stream=train_stream, valid_stream=None, test_stream=None)
 
     ### Evaluate model using all 360 angles (or less).
-    # model = EnergyBasedModel(num_angles=360, sample_steps=0).to(device=0)
-    # dockingFFT = TorchDockingFFT(num_angles=360, angle=None, swap_plot_quadrants=False, debug=False)
-    # model = EnergyBasedModel(num_angles=360, sample_steps=1).to(device=0)
-    EnergyBasedDockingTrainer(dockingFFT, model, optimizer, experiment, plotting=True).run_trainer(
+    eval_model = EnergyBasedModel(num_angles=360, sample_steps=0).to(device=0)
+    EnergyBasedDockingTrainer(dockingFFT, eval_model, optimizer, experiment, plotting=False).run_trainer(
         train_epochs=1, train_stream=None, valid_stream=valid_stream, test_stream=test_stream,
         resume_training=True, resume_epoch=train_epochs)
 

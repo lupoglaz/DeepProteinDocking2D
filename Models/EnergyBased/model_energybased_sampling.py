@@ -149,16 +149,18 @@ class EnergyBasedModel(nn.Module):
         if temperature == 'cold':
             # self.sig_dr = 0.05
             # self.sig_alpha = 0.5
-            self.sig_alpha = 6.28
+            # self.sig_alpha = 6.28
+            self.sig_alpha = 3
+            # self.sig_alpha = 2
 
         if temperature == 'hot':
             # self.sig_dr = 0.5
             self.sig_alpha = 5
 
-        # if self.sample_steps == 0:
-        #     print('evaluating with brute force')
-        #     minE, neg_dr, neg_alpha, FFT_score = self.EBMdocker(receptor, ligand, neg_alpha, plot_count, stream_name, plotting=True)
-        #     return neg_alpha.unsqueeze(0).clone(), neg_dr.unsqueeze(0).clone(), FFT_score, minE
+        if self.sample_steps == 0:
+            # print('evaluating with brute force')
+            minE, neg_dr, neg_alpha, FFT_score = self.EBMdocker(receptor, ligand, neg_alpha, plot_count, stream_name, plotting=True)
+            return neg_alpha.unsqueeze(0).clone(), neg_dr.unsqueeze(0).clone(), FFT_score, minE
         #
         # if 'trainset' not in stream_name:
         #     # print('eval')
