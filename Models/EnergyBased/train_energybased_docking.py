@@ -88,6 +88,7 @@ class SampleBuffer:
 
 class EnergyBasedDockingTrainer:
     def __init__(self, dockingFFT, cur_model, cur_optimizer, cur_experiment, debug=False, plotting=False):
+
         self.debug = debug
         self.plotting = plotting
         self.eval_freq = 1
@@ -102,6 +103,9 @@ class EnergyBasedDockingTrainer:
         self.model = cur_model
         self.optimizer = cur_optimizer
         self.experiment = cur_experiment
+
+        self.buffer2 = SampleBuffer(880)
+        self.buffer = SampleBuffer(880)
 
     def encode_rotation(self, gt_rot, pred_rot):
         empty_1D_target = torch.zeros([360], dtype=torch.double).cuda()
@@ -138,18 +142,19 @@ class EnergyBasedDockingTrainer:
         # pos_rot, pos_txy, GT_FFT_score, GT_minE = self.model(gt_rot, gt_txy, receptor, ligand, temperature='cold')
 
         neg_alpha, neg_dr = self.buffer.get(pos_idx, num_samples=1, training=training)
-        pred_rot, pred_txy, FFT_score, minE = self.model(neg_alpha, neg_dr, receptor, ligand, temperature='cold', plot_count=pos_idx.item(), stream_name=stream_name)
+        pred_rot, pred_txy, FFT_score, minE = self.model(neg_alpha, neg_dr, receptor, ligand, temperature='cold', plot_count=pos_idx.item(), stream_name=stream_name, plotting=self.plotting)
         neg_alpha, neg_dr = pred_rot, pred_txy
         self.buffer.push(neg_alpha, neg_dr, pos_idx)
 
-        # neg_alpha2, neg_dr2 = self.buffer2.get(pos_idx, num_samples=1, training=training)
-        # pred_rot2, pred_txy2, FFT_score2, minE2 = self.model(neg_alpha2, neg_dr2, receptor, ligand, temperature='hot')
-        # neg_alpha2, neg_dr2 = pred_rot2, pred_txy2
-        # self.buffer2.push(neg_alpha2, neg_dr2, pos_idx)
+        neg_alpha2, neg_dr2 = self.buffer2.get(pos_idx, num_samples=1, training=training)
+        pred_rot2, pred_txy2, FFT_score2, minE2 = self.model(neg_alpha2, neg_dr2, receptor, ligand, temperature='hot')
+        neg_alpha2, neg_dr2 = pred_rot2, pred_txy2
+        self.buffer2.push(neg_alpha2, neg_dr2, pos_idx)
         #
         # # pred_rot = (pred_rot + pred_rot2)/2
         # # pred_txy = (pred_txy + pred_txy2)/2
         # FFT_score_avg = (FFT_score + FFT_score2)/2
+        FFT_score_sum = (FFT_score + FFT_score2)
 
         # FFT_score = -FFT_score
         # print(FFT_score)
@@ -157,16 +162,8 @@ class EnergyBasedDockingTrainer:
         with torch.no_grad():
             target_flatindex = self.dockingFFT.encode_transform(gt_rot, gt_txy)
             rmsd_out = RMSD(ligand, gt_rot, gt_txy, pred_rot.squeeze(), pred_txy.squeeze()).calc_rmsd()
-            target_rotindex, pred_rotindex = self.encode_rotation(gt_rot, pred_rot)
+            # target_rotindex, pred_rotindex = self.encode_rotation(gt_rot, pred_rot)
 
-            # rmsd_out2 = RMSD(ligand, gt_rot, gt_txy, pred_rot2.squeeze(), pred_txy2.squeeze()).calc_rmsd()
-            # rmsd_out = (rmsd_out + rmsd_out2)/2
-            # print(target_flatindex.shape, FFT_score.shape)
-            # print(target_flatindex, pred_flatindex)
-            # if not training:
-            #     pred_rot, pred_txy = self.dockingFFT.extract_transform(FFT_score)
-                # GT_minE = torch.sum(GT_minE)
-                # pred_minE = torch.sum(pred_minE)
 
         if self.debug:
             print('\npredicted')
@@ -183,38 +180,16 @@ class EnergyBasedDockingTrainer:
         # print(loss.shape)
         # print(FFT_score.shape, target_flatindex.shape)
         # print(pred_rotindex.shape, target_rotindex.shape)
-        txy_loss = CE_loss(FFT_score.flatten().unsqueeze(0), target_flatindex.unsqueeze(0))
-        rot_loss = CE_loss(pred_rotindex.flatten().unsqueeze(0), target_rotindex.unsqueeze(0))
-        loss = txy_loss + rot_loss
+        # txy_loss = CE_loss(FFT_score.flatten().unsqueeze(0), target_flatindex.unsqueeze(0))
+        # rot_loss = CE_loss(pred_rotindex.flatten().unsqueeze(0), target_rotindex.unsqueeze(0))
+        # loss = txy_loss + rot_loss
         # loss = txy_loss
+        # rot_loss = L1_loss(pred_rot.squeeze(), gt_rot)
+        # loss = rot_loss
 
-        # print(loss.shape)
-        # print(rmsd_out.shape)
-        # pos_rot, pos_txy, GT_FFT_score = self.model(gt_rot, gt_txy, receptor, ligand, temperature='cold')
-
-        # GT_minE = torch.sum(GT_minE)
-        # pred_minE = torch.sum(pred_minE)
-        # pred_minE2 = torch.sum(pred_minE2)
-        # # energydistloss = -GT_minE + pred_minE
-        # energydistloss = -GT_minE + (pred_minE + pred_minE2)/2
-        # loss = energydistloss
-        # loss = loss + energydistloss
-
-        # rotloss = L1_loss(pred_rot.squeeze(), gt_rot) * (receptor.shape[-1]/2)
-        # loss = loss + rotloss
-        # print(FFT_score.flatten().squeeze().unsqueeze(0).shape, target_flatindex.unsqueeze(0))
         # loss = CE_loss(FFT_score.flatten().unsqueeze(0), target_flatindex.unsqueeze(0))
-        # loss = loss + L1_loss(pred_rot.squeeze(), gt_rot)
-        # loss = loss + L2_loss(pred_rot.squeeze(), gt_rot)
+        loss = CE_loss(FFT_score_sum.flatten().unsqueeze(0), target_flatindex.unsqueeze(0))
 
-        # rotloss = L1_loss(pred_rot.squeeze(), gt_rot) * (receptor.shape[-1]/2)
-        # # txyloss = L1_loss(pred_txy.squeeze(), gt_txy)
-        # # loss = loss + txyloss
-        # loss = loss + rotloss
-        # loss = loss + rmsd_out
-
-        # txyloss = loss
-        # loss =
 
         ### check parameters and gradients
         ### if weights are frozen or updating
@@ -259,11 +234,9 @@ class EnergyBasedDockingTrainer:
     def train_model(self, train_epochs, train_stream=None, valid_stream=None, test_stream=None,
                     resume_training=False,
                     resume_epoch=0):
-
         if self.plotting:
             self.eval_freq = 1
-        self.buffer = SampleBuffer(880)
-        self.buffer2 = SampleBuffer(880)
+
         log_header = 'Epoch\tLoss\trmsd\n'
         log_format = '%d\t%f\t%f\n'
 
@@ -429,33 +402,37 @@ if __name__ == '__main__':
     test_stream = get_docking_stream(testset + '.pkl', batch_size=1)
 
     ######################
-    # experiment = 'coldonly_1LD_learnRotationLDonly_LDopt_passdockingFFT_rotindex_5ep'
-    # experiment = 'coldonly_1LD_learnRotationLDonly_LDopt_passdockingFFT_rotindex_5ep_sig2pi_lr-3'
-    # experiment = 'coldonly_1LD_learnRotationLDonly_LDopt_passdockingFFT_rotindex_5ep_sig1_lr-3'
-    # experiment = 'coldonly_1LD_learnRotationLDonly_LDopt_passdockingFFT_rotindex_5ep_sig2_lr-3'
-    # experiment = 'coldonly_1LD_learnRotationLDonly_LDopt_passdockingFFT_rotindex_5ep_sig3_lr-3'
-    # experiment = 'coldonly_1LD_learnRotationLDonly_LDopt_passdockingFFT_rotindex_10ep_sig2_lr-4'
-    # experiment = 'coldonly_1LD_learnRotationLDonly_LDopt_passdockingFFT_rotindex_3ep_sig2_lr-3'
-    # experiment = 'coldonly_1LD_learnRotationLDonly_LDopt_passdockingFFT_rotindex_3ep_sig3_lr-3'
-    # experiment = 'coldonly_1LD_learnRotationLDonly_LDopt_passdockingFFT_rotindex_3ep_sig3_lr-2'
-    # experiment = 'coldonly_1LD_learnRotationLDonly_LDopt_passdockingFFT_rotindex_5ep_sig3_lr-2'
-    experiment = 'coldonly_1LD_learnRotationLDonly_LDopt_passdockingFFT_rotindex_3ep_sig3_lr-2'
-
+    # experiment = 'coldonly_1LD_learnRotationLDonly_LDopt_passdockingFFT_rotindex_3ep_sig3_lr-2_NOrotlossonly'
+    # experiment = 'coldp5hot5_1LD_learnRotationLDonly_3ep_lr-2_sumFFTscore'
+    # experiment = 'coldp5hot5_1LD_learnRotationLDonly_lr-3_sumFFTscore_20ep'
+    # experiment = 'coldp5hot5_1LD_learnRotationLDonly_lr-2_sumFFTscore_3ep_rotclamp' # 15rmsd test set, best so far
+    # experiment = 'coldp5hot5_1LD_learnRotationLDonly_lr-2_sumFFTscore_3ep_rotclamp_doublestep'
+    # experiment = 'coldp5hot5_1LD_learnRotationLDonly_lr-2_sumFFTscore_3ep_rotclamp'
+    # experiment = 'coldp5hot5_10LD_learnRotationLDonly_lr-2_sumFFTscore_3ep_rotclamp'
+    # experiment = 'coldp5hot5_1LD_learnRotationLDonly_lr-2_sumFFTscore_3ep_rotclamp_noLDeval' # best model so far, rmsds 18 valid, 14 test
+    # experiment = 'coldp5hot5_10LD_learnRotationLDonly_lr-2_sumFFTscore_1ep_rotclamp_noLDeval' # feats are zeros
+    # experiment = 'coldp5hot5_10LD_learnRotationLDonly_lr-2_sumFFTscore_1ep_rotclamp_withLDeval' # also feats are zeros
+    # experiment = 'coldp5hot5_10LD_learnRotationLDonly_lr-2_sumFFTscore_1ep_rotclamp_withLDeval_gradcheck'
+    # experiment = 'coldp5hot5_10LD_learnRotationLDonly_lr-2_sumFFTscore_1ep_rotclamp_noLDeval_gradcheck'
+    # experiment = 'cold2hot10_1LD_learnRotationLDonly_lr-2_sumFFTscore_1ep_rotclamp_noLDeval'
+    # experiment = 'cold2hot10_1LD_learnRotationLDonly_lr-3_sumFFTscore_1ep_rotclamp_noLDeval'
+    experiment = 'coldp5hot5_1LD_learnRotationLDonly_lr-2_sumFFTscore_3ep_rotclamp_noLDeval_rep' # best model so far, rmsds 18 valid, 14 test
     ######################
     lr = 10 ** -2
     LD_steps = 1
     model = EnergyBasedModel(num_angles=1, sample_steps=LD_steps).to(device=0)
     optimizer = optim.Adam(model.parameters(), lr=lr)
+    dockingFFT = TorchDockingFFT(num_angles=1, angle=None, swap_plot_quadrants=False, debug=False)
+    debug = False
+
     train_epochs = 3
     ######################
-    dockingFFT = TorchDockingFFT(num_angles=1, angle=None, swap_plot_quadrants=False, debug=False)
-
     ### Train model from beginning
-    EnergyBasedDockingTrainer(dockingFFT, model, optimizer, experiment, debug=False).run_trainer(train_epochs, train_stream=train_stream, valid_stream=None, test_stream=None)
+    EnergyBasedDockingTrainer(dockingFFT, model, optimizer, experiment, debug=debug).run_trainer(train_epochs, train_stream=train_stream, valid_stream=None, test_stream=None)
 
     ### Evaluate model using all 360 angles (or less).
-    eval_model = EnergyBasedModel(num_angles=360, sample_steps=0).to(device=0)
-    EnergyBasedDockingTrainer(dockingFFT, eval_model, optimizer, experiment, plotting=False).run_trainer(
+    eval_model = EnergyBasedModel(num_angles=360).to(device=0)
+    EnergyBasedDockingTrainer(dockingFFT, eval_model, optimizer, experiment, plotting=True).run_trainer(
         train_epochs=1, train_stream=None, valid_stream=valid_stream, test_stream=test_stream,
         resume_training=True, resume_epoch=train_epochs)
 
