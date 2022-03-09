@@ -61,11 +61,12 @@ class SampleBuffer:
                     alphas.append(torch.stack(alpha, dim=0))
                     drs.append(torch.stack(dr, dim=0))
                     # print('len buffer >= samples')
-                # elif len(self.buffer[i]) == num_samples == 1:
-                #     # print('buffer if num_sampler == 1')
-                #     lst = self.buffer[i]
-                #     alphas.append(lst[0][0])
-                #     drs.append(lst[0][1])
+                elif len(self.buffer[i]) == num_samples == 1:
+                    # print('buffer if num_sampler == 1')
+                    lst = self.buffer[i]
+                    alphas.append(lst[0][0])
+                    # drs.append(lst[0][1])
+                    drs.append(torch.zeros(num_samples, 2))
                 else:
                     # print('else rand init')
                     alpha = torch.rand(num_samples, 1) * 2 * np.pi - np.pi
@@ -146,15 +147,15 @@ class EnergyBasedDockingTrainer:
         neg_alpha, neg_dr = pred_rot, pred_txy
         self.buffer.push(neg_alpha, neg_dr, pos_idx)
 
-        neg_alpha2, neg_dr2 = self.buffer2.get(pos_idx, num_samples=1, training=training)
-        pred_rot2, pred_txy2, FFT_score2, minE2 = self.model(neg_alpha2, neg_dr2, receptor, ligand, temperature='hot')
-        neg_alpha2, neg_dr2 = pred_rot2, pred_txy2
-        self.buffer2.push(neg_alpha2, neg_dr2, pos_idx)
+        # neg_alpha2, neg_dr2 = self.buffer2.get(pos_idx, num_samples=1, training=training)
+        # pred_rot2, pred_txy2, FFT_score2, minE2 = self.model(neg_alpha2, neg_dr2, receptor, ligand, temperature='hot')
+        # neg_alpha2, neg_dr2 = pred_rot2, pred_txy2
+        # self.buffer2.push(neg_alpha2, neg_dr2, pos_idx)
         #
         # # pred_rot = (pred_rot + pred_rot2)/2
         # # pred_txy = (pred_txy + pred_txy2)/2
         # FFT_score_avg = (FFT_score + FFT_score2)/2
-        FFT_score_sum = (FFT_score + FFT_score2)
+        # FFT_score_sum = (FFT_score + FFT_score2)
 
         # FFT_score = -FFT_score
         # print(FFT_score)
@@ -187,8 +188,8 @@ class EnergyBasedDockingTrainer:
         # rot_loss = L1_loss(pred_rot.squeeze(), gt_rot)
         # loss = rot_loss
 
-        # loss = CE_loss(FFT_score.flatten().unsqueeze(0), target_flatindex.unsqueeze(0))
-        loss = CE_loss(FFT_score_sum.flatten().unsqueeze(0), target_flatindex.unsqueeze(0))
+        loss = CE_loss(FFT_score.flatten().unsqueeze(0), target_flatindex.unsqueeze(0))
+        # loss = CE_loss(FFT_score_sum.flatten().unsqueeze(0), target_flatindex.unsqueeze(0))
 
 
         ### check parameters and gradients
@@ -416,30 +417,42 @@ if __name__ == '__main__':
     # experiment = 'coldp5hot5_10LD_learnRotationLDonly_lr-2_sumFFTscore_1ep_rotclamp_noLDeval_gradcheck'
     # experiment = 'cold2hot10_1LD_learnRotationLDonly_lr-2_sumFFTscore_1ep_rotclamp_noLDeval'
     # experiment = 'cold2hot10_1LD_learnRotationLDonly_lr-3_sumFFTscore_1ep_rotclamp_noLDeval'
-    experiment = 'coldp5hot5_1LD_learnRotationLDonly_lr-2_sumFFTscore_3ep_rotclamp_noLDeval_rep' # best model so far, rmsds 18 valid, 14 test
+    # experiment = 'coldp5hot5_1LD_learnRotationLDonly_lr-2_sumFFTscore_3ep_rotclamp_noLDeval_rep' # best model so far, rmsds 18 valid, 14 test
+    # experiment = 'coldonly_005sigma'
+    # experiment = 'coldonly_2sigma'
+    # experiment = 'coldonly_2sigma_10LD'
+    # experiment = 'coldonly_005sigma_10LD'
+    # experiment = 'coldonly_005sigma_10LD_step0p1_noclamp'
+    # experiment = 'coldonly_005sigma_10LD_step0p1_noclamp_10ep_lr-3'
+    # experiment = 'coldonly_005sigma_1LD_step0p1_noclamp_10ep_lr-3_contLD'
+    experiment = 'coldonly_005sigma_10LD_step0p1_noclamp_lr-2_contLD' # tied with best model so far, rmsds 18 valid, 14 test
+
     ######################
     lr = 10 ** -2
-    LD_steps = 1
+    LD_steps = 10
+    debug = False
+
     model = EnergyBasedModel(num_angles=1, sample_steps=LD_steps).to(device=0)
     optimizer = optim.Adam(model.parameters(), lr=lr)
-    dockingFFT = TorchDockingFFT(num_angles=1, angle=None, swap_plot_quadrants=False, debug=False)
-    debug = False
+    dockingFFT = TorchDockingFFT(num_angles=1, angle=None, swap_plot_quadrants=False, debug=debug)
 
     train_epochs = 3
     ######################
     ### Train model from beginning
     EnergyBasedDockingTrainer(dockingFFT, model, optimizer, experiment, debug=debug).run_trainer(train_epochs, train_stream=train_stream, valid_stream=None, test_stream=None)
 
+    ### Resume training model at chosen epoch
+    # EnergyBasedDockingTrainer(dockingFFT, model, optimizer, experiment, plotting=False).run_trainer(
+    #     train_epochs=3, train_stream=train_stream, valid_stream=valid_stream, test_stream=test_stream,
+    #     resume_training=True, resume_epoch=3)
+
     ### Evaluate model using all 360 angles (or less).
     eval_model = EnergyBasedModel(num_angles=360).to(device=0)
-    EnergyBasedDockingTrainer(dockingFFT, eval_model, optimizer, experiment, plotting=True).run_trainer(
+    EnergyBasedDockingTrainer(dockingFFT, eval_model, optimizer, experiment, plotting=False).run_trainer(
         train_epochs=1, train_stream=None, valid_stream=valid_stream, test_stream=test_stream,
         resume_training=True, resume_epoch=train_epochs)
 
-    ### Resume training model at chosen epoch
-    # EnergyBasedDockingTrainer(model, optimizer, experiment).run_trainer(
-    #     train_epochs=1, train_stream=train_stream, valid_stream=valid_stream, test_stream=test_stream,
-    #     resume_training=True, resume_epoch=10)
+
 
     ## Plot loss from current experiment
     # IPLossPlotter(experiment).plot_loss()

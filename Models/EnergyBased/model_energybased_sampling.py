@@ -116,7 +116,7 @@ class DockerEBM(nn.Module):
 
 
 class EnergyBasedModel(nn.Module):
-    def __init__(self, num_angles=1, device='cuda', num_samples=1, weight=1.0, step_size=1, sample_steps=1, experiment=None):
+    def __init__(self, num_angles=1, device='cuda', num_samples=1, weight=1.0, step_size=0.1, sample_steps=1, experiment=None):
         super(EnergyBasedModel, self).__init__()
         self.debug = False
         self.num_angles = num_angles
@@ -134,6 +134,7 @@ class EnergyBasedModel(nn.Module):
         self.experiment = experiment
 
     def forward(self, neg_alpha, neg_dr, receptor, ligand, temperature='cold', plot_count=1, stream_name='trainset', plotting=False):
+        # TODO: plot FFTscores and softmax(FFTscores)
 
         if self.num_angles > 1:
             # if self.sample_steps == 0:
@@ -151,8 +152,10 @@ class EnergyBasedModel(nn.Module):
             # self.sig_dr = 0.05
             # self.sig_alpha = 0.5
             # self.sig_alpha = 6.28
-            self.sig_alpha = 0.5
+            # self.sig_alpha = 0.5
             # self.sig_alpha = 2
+            self.sig_alpha = 0.05
+
 
         if temperature == 'hot':
             # self.sig_dr = 0.5
@@ -167,13 +170,12 @@ class EnergyBasedModel(nn.Module):
 
             minE, neg_dr, pred_rot, FFT_score = self.EBMdocker(receptor, ligand, neg_alpha, plot_count, stream_name, plotting=plotting)
 
-            # print('negdr in LD', temperature, neg_dr)
-            # print('negalpha in LD', temperature, neg_alpha)
             minE.mean().backward(retain_graph=True)
             langevin_opt.step()
 
             neg_alpha = neg_alpha + noise_alpha.normal_(0, self.sig_alpha)
-            neg_alpha.data = neg_alpha.data.clamp_(-np.pi, np.pi)
+            # neg_alpha.data = neg_alpha.data.clamp_(-np.pi, np.pi)
+            # TODO: add if statement to clamp alpha changes per iteration (5 degree?)
 
         # self.EBMdocker.train()
 
