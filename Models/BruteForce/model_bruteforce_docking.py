@@ -11,8 +11,9 @@ from e2cnn import gspaces
 
 class BruteForceDocking(nn.Module):
 
-    def __init__(self, dim=100, num_angles=360, plot_freq=10):
+    def __init__(self, dim=100, num_angles=360, plot_freq=10, debug=False):
         super(BruteForceDocking, self).__init__()
+        self.debug = debug
         self.plot_freq = plot_freq
         self.dim = dim
         self.num_angles = num_angles
@@ -50,7 +51,7 @@ class BruteForceDocking(nn.Module):
         rec_feat = self.netSE2(receptor_geomT).tensor.squeeze()
         lig_feat = self.netSE2(ligand_geomT).tensor.squeeze()
 
-        FFT_score = TorchDockingFFT(dim=self.dim, num_angles=self.num_angles, angle=angle).dock_global(
+        FFT_score = TorchDockingFFT(dim=self.dim, num_angles=self.num_angles, angle=angle, debug=self.debug).dock_global(
             rec_feat,
             lig_feat,
             weight_bound=self.boundW,

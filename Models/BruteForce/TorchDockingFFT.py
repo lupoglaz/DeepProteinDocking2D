@@ -91,7 +91,7 @@ class TorchDockingFFT:
     ## Weights learned from model: RECODE_CHECK_BFDOCKING_30epochs DOES NOT WORK WITH RAW BULK BOUNDARY DATASET FEATS
     # weight_bound = 0.7626, weight_crossterm1, 1.0481, weight_crossterm2 = 0.9259, weight_bulk = 0.9861
 
-    def dock_global(self, receptor, ligand, weight_bound=3.0, weight_crossterm1=-0.3, weight_crossterm2=-0.3, weight_bulk=30.0):
+    def dock_global(self, receptor, ligand, weight_bound = 3.0, weight_crossterm1 = 0.3, weight_crossterm2 = 0.3, weight_bulk = 30.0):
         initbox_size = receptor.shape[-1]
         # print(receptor.shape)
         pad_size = initbox_size // 2
@@ -240,7 +240,7 @@ if __name__ == '__main__':
 
         receptor_stack = FFT.make_boundary(receptor)
         ligand_stack = FFT.make_boundary(ligand)
-        FFT_score = FFT.dock_global(receptor_stack, ligand_stack, debug=False)
+        FFT_score = FFT.dock_global(receptor_stack, ligand_stack)
 
         FFT.check_FFT_predictions(FFT_score, receptor, ligand, gt_txy, gt_rot)
 

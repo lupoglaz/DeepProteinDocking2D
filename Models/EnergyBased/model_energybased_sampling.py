@@ -93,11 +93,12 @@ sys.path.append('/home/sb1638/')
 
 
 class DockerEBM(nn.Module):
-    def __init__(self, num_angles=1):
+    def __init__(self, dockingFFT, num_angles=1, debug=False):
         super(DockerEBM, self).__init__()
         self.num_angles = num_angles
-        self.docker = BruteForceDocking(dim=100, num_angles=self.num_angles)
-        self.dockingFFT = TorchDockingFFT(num_angles=self.num_angles, angle=None, swap_plot_quadrants=False)
+        self.docker = BruteForceDocking(dim=100, num_angles=self.num_angles, debug=debug)
+        self.dockingFFT = dockingFFT
+        # self.dockingFFT = TorchDockingFFT(num_angles=self.num_angles, angle=None, swap_plot_quadrants=False, debug=debug)
 
     def forward(self, receptor, ligand, rotation, plot_count=1, stream_name='trainset', plotting=False):
         if 'trainset' not in stream_name:
@@ -116,12 +117,12 @@ class DockerEBM(nn.Module):
 
 
 class EnergyBasedModel(nn.Module):
-    def __init__(self, num_angles=1, device='cuda', num_samples=1, weight=1.0, step_size=0.1, sample_steps=1, experiment=None):
+    def __init__(self, dockingFFT, num_angles=1, device='cuda', num_samples=1, weight=1.0, step_size=0.1, sample_steps=1, experiment=None, debug=False):
         super(EnergyBasedModel, self).__init__()
-        self.debug = False
+        self.debug = debug
         self.num_angles = num_angles
 
-        self.EBMdocker = DockerEBM(num_angles=self.num_angles)
+        self.EBMdocker = DockerEBM(dockingFFT, num_angles=self.num_angles, debug=self.debug)
 
         self.num_samples = num_samples
         self.sample_steps = sample_steps
