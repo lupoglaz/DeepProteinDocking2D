@@ -17,104 +17,58 @@ sys.path.append('/home/sb1638/')
 # from e2cnn import nn as enn
 # from e2cnn import gspaces
 
-# class ImageCrossMultiply(nn.Module):
-#     def __init__(self, full=True):
-#         super(ImageCrossMultiply, self).__init__()
-#         self.full = full
-#
-#     def forward(self, volume1, volume2, alpha, dr):
-#         batch_size = volume1.size(0)
-#         num_features = volume1.size(1)
-#         volume_size = volume1.size(2)
-#         mults = []
-#         perm = torch.tensor([1, 0], dtype=torch.long, device=volume1.device)
-#         dr = -2.0 * dr[:, perm] / volume_size
-#         T0 = torch.cat([torch.cos(alpha), -torch.sin(alpha)], dim=1)
-#         T1 = torch.cat([torch.sin(alpha), torch.cos(alpha)], dim=1)
-#         t = torch.stack([(T0 * dr).sum(dim=1), (T1 * dr).sum(dim=1)], dim=1)
-#         T01 = torch.stack([T0, T1], dim=1)
-#         A = torch.cat([T01, t.unsqueeze(dim=2)], dim=2)
-#
-#         grid = nn.functional.affine_grid(A, size=volume2.size())
-#         volume2 = nn.functional.grid_sample(volume2, grid)
-#         if not self.full:
-#             volume1_unpacked = []
-#             volume2_unpacked = []
-#             for i in range(0, num_features):
-#                 volume1_unpacked.append(volume1[:, 0:num_features - i, :, :])
-#                 volume2_unpacked.append(volume2[:, i:num_features, :, :])
-#             volume1 = torch.cat(volume1_unpacked, dim=1)
-#             volume2 = torch.cat(volume2_unpacked, dim=1)
-#         else:
-#             volume1 = volume1.unsqueeze(dim=2).repeat(1, 1, num_features, 1, 1)
-#             volume2 = volume2.unsqueeze(dim=1).repeat(1, num_features, 1, 1, 1)
-#             volume1 = volume1.view(batch_size, num_features * num_features, volume_size, volume_size)
-#             volume2 = volume2.view(batch_size, num_features * num_features, volume_size, volume_size)
-#
-#         mults = (volume1 * volume2).sum(dim=3).sum(dim=2)
-#
-#         return mults, volume2, grid
-#
-# class EQScoringModel(nn.Module):
-#     def __init__(self, repr, num_features=1, prot_field_size=50):
-#         super(EQScoringModel, self).__init__()
-#         self.prot_field_size = prot_field_size
-#
-#         self.mult = ImageCrossMultiply()
-#         self.repr = repr
-#         self.SO2 = gspaces.Rot2dOnR2(N=-1, maximum_frequency=4)
-#         self.feat_type_in1 = enn.FieldType(self.SO2, 1 * [self.SO2.trivial_repr])
-#         # self.boundW = nn.Parameter(torch.ones(1, requires_grad=True))
-#         # self.crosstermW1 = nn.Parameter(torch.ones(1, requires_grad=True))
-#         # self.crosstermW2 = nn.Parameter(torch.ones(1, requires_grad=True))
-#         # self.bulkW = nn.Parameter(torch.ones(1, requires_grad=True))
-#
-#         self.scorer = nn.Sequential(
-#             nn.Linear(4, 1, bias=False)
-#         )
-#     #     with torch.no_grad():
-#     #         self.scorer.apply(init_weights)
-#     # #
-#     # def scorer(self, pos_repr):
-#     #     print(pos_repr.shape)
-#         # return self.bulkW * pos_repr[0,0] + self.crosstermW1 * pos_repr[0,1] + self.crosstermW2 * pos_repr[0,2] - self.boundW * pos_repr[0,3]
-#
-#     def forward(self, receptor, ligand, alpha, dr):
-#         receptor_geomT = enn.GeometricTensor(receptor.unsqueeze(0), self.feat_type_in1)
-#         ligand_geomT = enn.GeometricTensor(ligand.unsqueeze(0), self.feat_type_in1)
-#         rec_feat = self.repr(receptor_geomT).tensor
-#         lig_feat = self.repr(ligand_geomT).tensor
-#
-#         pos_repr, _, A = self.mult(rec_feat, lig_feat, alpha, dr)
-#
-#         score = self.scorer(pos_repr)
-#         # print(score.shape)
-#         return score
-
-
 class DockerEBM(nn.Module):
     def __init__(self, dockingFFT, num_angles=1, debug=False):
         super(DockerEBM, self).__init__()
         self.num_angles = num_angles
         self.docker = BruteForceDocking(dim=100, num_angles=self.num_angles, debug=debug)
         self.dockingFFT = dockingFFT
-        # self.dockingFFT = TorchDockingFFT(num_angles=self.num_angles, angle=None, swap_plot_quadrants=False, debug=debug)
+        self.softmax = torch.nn.Softmax(dim=0)
 
     def forward(self, receptor, ligand, rotation, plot_count=1, stream_name='trainset', plotting=False):
         if 'trainset' not in stream_name:
             training = False
         else: training = True
+
         FFT_score = self.docker.forward(receptor, ligand, angle=rotation, plotting=plotting, training=training, plot_count=plot_count, stream_name=stream_name)
+        # E_softmax = (self.softmax(FFT_score) * FFT_score)
+
         with torch.no_grad():
             pred_rot, pred_txy = self.dockingFFT.extract_transform(FFT_score)
             deg_index_rot = (((pred_rot * 180.0 / np.pi) + 180.0) % self.num_angles).type(torch.long)
+            E_softmax = (self.softmax(FFT_score) * FFT_score)
+
             if self.num_angles == 1:
                 best_score = FFT_score[pred_txy[0], pred_txy[1]]
             else:
                 best_score = FFT_score[deg_index_rot, pred_txy[0], pred_txy[1]]
-        minE = -best_score
-        return minE, pred_txy, pred_rot, FFT_score
+                if plotting and plot_count % 10 == 0:
+                    self.plot_rotE_surface(FFT_score, pred_txy, E_softmax, stream_name, plot_count)
 
+        minE = -best_score
+
+        return minE, pred_txy, pred_rot, FFT_score
+        # return minE, pred_txy, pred_rot, E_softmax
+
+    def plot_rotE_surface(self, FFT_score, pred_txy, E_softmax, stream_name, plot_count):
+        plt.close()
+        fig, ax = plt.subplots(1, 2, figsize=(20, 10))
+        mintxy_energies = []
+        mintxy_energies_softmax = []
+        for i in range(self.num_angles):
+            minimumEnergy = -FFT_score[i, pred_txy[0], pred_txy[1]].detach().cpu()
+            mintxy_energies.append(minimumEnergy)
+            minimumEnergy_softmax = -E_softmax[i, pred_txy[0], pred_txy[1]].detach().cpu()
+            mintxy_energies_softmax.append(minimumEnergy_softmax)
+        # print(mintxy_energies_softmax)
+        xrange = np.arange(0, 2 * np.pi, 2 * np.pi / 360)
+        softmax_hardmax_minEnergies = stream_name + '_softmax_hardmax' + '_example' + str(plot_count)
+        ax[0].plot(xrange, mintxy_energies)
+        # ax[1].set_title('Hardmax')
+        ax[1].plot(xrange, mintxy_energies_softmax)
+        ax[1].set_title('Softmax')
+        plt.suptitle(softmax_hardmax_minEnergies)
+        plt.savefig('figs/rmsd_and_poses/' + softmax_hardmax_minEnergies + '.png')
 
 class EnergyBasedModel(nn.Module):
     def __init__(self, dockingFFT, num_angles=1, device='cuda', num_samples=1, weight=1.0, step_size=0.1, sample_steps=1, experiment=None, debug=False):

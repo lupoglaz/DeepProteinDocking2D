@@ -426,30 +426,34 @@ if __name__ == '__main__':
     # experiment = 'coldonly_005sigma_10LD_step0p1_noclamp_10ep_lr-3'
     # experiment = 'coldonly_005sigma_1LD_step0p1_noclamp_10ep_lr-3_contLD'
     # experiment = 'coldonly_005sigma_10LD_step0p1_noclamp_lr-2_contLD' # tied with best model so far, rmsds 18 valid, 14 test
-    experiment = 'coldonly_005sigma_10LD_step0p1_noclamp_lr-2_contLD_checkdebugplotting'
+    # experiment = 'coldonly_005sigma_1LD_step0p1_noclamp_lr-2_contLD_checkdebugplotting'
+    # experiment = 'coldonly_005sigma_1LD_step0p1_noclamp_lr-2_contLD_plottingmaxvssoftmax'
+    # experiment = 'coldonly_005sigma_1LD_step0p1_noclamp_lr-2_contLD_FFTsoftmax'
+    experiment = 'coldonly_005sigma_10LD_step0p1_noclamp_contLD_lr-3_10ep'
 
     ######################
-    lr = 10 ** -2
+    lr = 10 ** -3
     LD_steps = 10
-    debug = True
+    debug = False
+    plotting = False
 
     dockingFFT = TorchDockingFFT(num_angles=1, angle=None, swap_plot_quadrants=False, debug=debug)
     model = EnergyBasedModel(dockingFFT, num_angles=1, sample_steps=LD_steps, debug=debug).to(device=0)
     optimizer = optim.Adam(model.parameters(), lr=lr)
 
-    train_epochs = 3
+    train_epochs = 10
     ######################
     ### Train model from beginning
     EnergyBasedDockingTrainer(dockingFFT, model, optimizer, experiment, debug=debug).run_trainer(train_epochs, train_stream=train_stream, valid_stream=None, test_stream=None)
 
     ### Resume training model at chosen epoch
-    # EnergyBasedDockingTrainer(dockingFFT, model, optimizer, experiment, plotting=False).run_trainer(
-    #     train_epochs=3, train_stream=train_stream, valid_stream=valid_stream, test_stream=test_stream,
-    #     resume_training=True, resume_epoch=3)
+    # EnergyBasedDockingTrainer(dockingFFT, model, optimizer, experiment, plotting=False, debug=True).run_trainer(
+    #     train_epochs=1, train_stream=train_stream, valid_stream=valid_stream, test_stream=test_stream,
+    #     resume_training=True, resume_epoch=train_epochs)
 
     ### Evaluate model using all 360 angles (or less).
     eval_model = EnergyBasedModel(dockingFFT, num_angles=360).to(device=0)
-    EnergyBasedDockingTrainer(dockingFFT, eval_model, optimizer, experiment, plotting=False).run_trainer(
+    EnergyBasedDockingTrainer(dockingFFT, eval_model, optimizer, experiment, plotting=plotting).run_trainer(
         train_epochs=1, train_stream=None, valid_stream=valid_stream, test_stream=test_stream,
         resume_training=True, resume_epoch=train_epochs)
 
