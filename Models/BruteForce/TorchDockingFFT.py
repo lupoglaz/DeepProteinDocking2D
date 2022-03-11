@@ -18,6 +18,7 @@ class TorchDockingFFT:
         self.swap_plot_quadrants = swap_plot_quadrants
         self.dim = dim
         self.num_angles = num_angles
+        self.angle = angle
         if self.num_angles == 1 and angle:
             self.angles = angle.squeeze().unsqueeze(0).cuda()
         else:
@@ -112,7 +113,7 @@ class TorchDockingFFT:
             with torch.no_grad():
                 step = 30
                 for i in range(rot_lig.shape[0]):
-                    print(i)
+                    print(self.angle)
                     if i % step == 0:
                         plt.title('Torch '+str(i)+' degree rotation')
                         plt.imshow(rot_lig[i,0,:,:].detach().cpu())

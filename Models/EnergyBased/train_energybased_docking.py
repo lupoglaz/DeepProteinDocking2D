@@ -108,17 +108,17 @@ class EnergyBasedDockingTrainer:
         self.buffer2 = SampleBuffer(880)
         self.buffer = SampleBuffer(880)
 
-    def encode_rotation(self, gt_rot, pred_rot):
-        empty_1D_target = torch.zeros([360], dtype=torch.double).cuda()
-        deg_index_rot = (((gt_rot * 180.0/np.pi) + 180.0) % 360).type(torch.long)
-        empty_1D_target[deg_index_rot] = 1
-        target_rotindex = torch.argmax(empty_1D_target.flatten()).cuda()
-
-        empty_1D_pred = torch.zeros([360], dtype=torch.double).cuda()
-        deg_index_rot = (((pred_rot * 180.0/np.pi) + 180.0) % 360).type(torch.long)
-        empty_1D_pred[deg_index_rot] = 1
-        pred_rotindex = empty_1D_pred
-        return target_rotindex, pred_rotindex
+    # def encode_rotation(self, gt_rot, pred_rot):
+    #     empty_1D_target = torch.zeros([360], dtype=torch.double).cuda()
+    #     deg_index_rot = (((gt_rot * 180.0/np.pi) + 180.0) % 360).type(torch.long)
+    #     empty_1D_target[deg_index_rot] = 1
+    #     target_rotindex = torch.argmax(empty_1D_target.flatten()).cuda()
+    #
+    #     empty_1D_pred = torch.zeros([360], dtype=torch.double).cuda()
+    #     deg_index_rot = (((pred_rot * 180.0/np.pi) + 180.0) % 360).type(torch.long)
+    #     empty_1D_pred[deg_index_rot] = 1
+    #     pred_rotindex = empty_1D_pred
+    #     return target_rotindex, pred_rotindex
 
     def run_model(self, data, training=True, plot_count=0, stream_name='trainset'):
         receptor, ligand, gt_txy, gt_rot, pos_idx = data
@@ -143,7 +143,7 @@ class EnergyBasedDockingTrainer:
         # pos_rot, pos_txy, GT_FFT_score, GT_minE = self.model(gt_rot, gt_txy, receptor, ligand, temperature='cold')
 
         neg_alpha, neg_dr = self.buffer.get(pos_idx, num_samples=1, training=training)
-        pred_rot, pred_txy, FFT_score, minE = self.model(neg_alpha, neg_dr, receptor, ligand, temperature='cold', plot_count=pos_idx.item(), stream_name=stream_name, plotting=self.plotting)
+        Energy, pred_rot, pred_txy, FFT_score = self.model(neg_alpha, neg_dr, receptor, ligand, temperature='cold', plot_count=pos_idx.item(), stream_name=stream_name, plotting=self.plotting)
         neg_alpha, neg_dr = pred_rot, pred_txy
         self.buffer.push(neg_alpha, neg_dr, pos_idx)
 
@@ -175,18 +175,6 @@ class EnergyBasedDockingTrainer:
         #### Loss functions
         CE_loss = torch.nn.CrossEntropyLoss()
         # L1_loss = torch.nn.L1Loss()
-        # L2_loss = torch.nn.MSELoss()
-        # print(GT_minE.shape, minE.shape)
-        # loss = (GT_minE**2) + -(minE**2)
-        # print(loss.shape)
-        # print(FFT_score.shape, target_flatindex.shape)
-        # print(pred_rotindex.shape, target_rotindex.shape)
-        # txy_loss = CE_loss(FFT_score.flatten().unsqueeze(0), target_flatindex.unsqueeze(0))
-        # rot_loss = CE_loss(pred_rotindex.flatten().unsqueeze(0), target_rotindex.unsqueeze(0))
-        # loss = txy_loss + rot_loss
-        # loss = txy_loss
-        # rot_loss = L1_loss(pred_rot.squeeze(), gt_rot)
-        # loss = rot_loss
 
         loss = CE_loss(FFT_score.flatten().unsqueeze(0), target_flatindex.unsqueeze(0))
         # loss = CE_loss(FFT_score_sum.flatten().unsqueeze(0), target_flatindex.unsqueeze(0))
@@ -429,26 +417,48 @@ if __name__ == '__main__':
     # experiment = 'coldonly_005sigma_1LD_step0p1_noclamp_lr-2_contLD_checkdebugplotting'
     # experiment = 'coldonly_005sigma_1LD_step0p1_noclamp_lr-2_contLD_plottingmaxvssoftmax'
     # experiment = 'coldonly_005sigma_1LD_step0p1_noclamp_lr-2_contLD_FFTsoftmax'
-    experiment = 'coldonly_005sigma_10LD_step0p1_noclamp_contLD_lr-3_10ep'
+    # experiment = 'coldonly_005sigma_10LD_step0p1_noclamp_contLD_lr-3_10ep'
+    # experiment = 'coldonly_05sigma_10LD_step0p1_noclamp_contLD_lr-3_10ep'
+    # experiment = 'coldonly_0p01sigma_step0p01_10LD_noclamp_contLD_lr-3_10ep'
+    # experiment = 'coldonly_0p01sigma_step1_10LD_noclamp_contLD_lr-3_10ep'
+    # experiment = 'coldonly_0p1sigma_step10_10LD_noclamp_contLD_lr-3_10ep'
+    # experiment = 'coldonly_clampedrot+step_10LD_noclamp_contLD_lr-3_10ep'
+    # experiment = 'coldonly_nomaxclamp_10LD_contLD_lr-3_10ep_sigma0p5'
+    # experiment = 'coldonly_nomaxclamp_10LD_lr-3_5ep_sigma0p5_NOcontLD'
+    # experiment = 'coldonly_nomaxclamp_10LD_lr-3_sigma0p05_contLD_20ep'
+    # experiment = 'coldonly_maxclamp_10LD_lr-3_sigma0p05_contLD_20ep'
+    # experiment = 'coldonly_maxclamp_10LD_lr-3_sigma0p05_contLD_20ep_EsoftmaxLD'
+    # experiment = 'coldonly_maxclamp_10LD_lr-3_sigma0p05_contLD_20ep_MinEofEsoftmaxsqueezexFFT'
+    # experiment = 'coldonly_NOmaxclamp_1LD_lr-3_sigma0p05_contLD_20ep_bestscoreSoftmaxFFT'
+    # experiment = 'coldonly_maxclamp_1LD_lr-3_sigma0p05_contLD_20ep_SoftmaxMinE_FFTscoreCEloss'
+    # experiment = 'coldonly_maxclamp_10LD_lr-2_sigma0p05_contLD_20ep_SoftmaxMinE_FFTscoreCEloss'
+    # experiment = 'coldonly_maxclamp_10LD_lr-2_sigma0p05_contLD_10ep_SoftmaxMinE_FFTscoreCEloss'
+    # experiment = 'coldonly_maxclamp_1LD_lr-2_sigma0p05_contLD_10ep_meanEforLD'
+    # experiment = 'coldonly_maxclamp_1LD_lr-2_sigma0p05_contLD_10ep_meansoftmaxEforLD'
+    # experiment = 'coldonly_maxclamp_1LD_lr-2_sigma0p05_contLD_10ep_sumEforLD'
+    # experiment = 'coldonly_maxclamp_10LD_lr-2_sigma0p05_contLD_10ep_0p001xEandstepLD'
+    experiment = 'coldonly_maxclamp_10LD_lr-2_sigma0p05_contLD_10ep_minsoftmaxNOmultFFTinLD'
 
     ######################
-    lr = 10 ** -3
+    lr = 10 ** -2
     LD_steps = 10
     debug = False
-    plotting = False
+    # debug = True
+    # plotting = False
+    plotting = True
 
     dockingFFT = TorchDockingFFT(num_angles=1, angle=None, swap_plot_quadrants=False, debug=debug)
     model = EnergyBasedModel(dockingFFT, num_angles=1, sample_steps=LD_steps, debug=debug).to(device=0)
     optimizer = optim.Adam(model.parameters(), lr=lr)
 
-    train_epochs = 10
+    train_epochs = 5
     ######################
     ### Train model from beginning
     EnergyBasedDockingTrainer(dockingFFT, model, optimizer, experiment, debug=debug).run_trainer(train_epochs, train_stream=train_stream, valid_stream=None, test_stream=None)
 
     ### Resume training model at chosen epoch
-    # EnergyBasedDockingTrainer(dockingFFT, model, optimizer, experiment, plotting=False, debug=True).run_trainer(
-    #     train_epochs=1, train_stream=train_stream, valid_stream=valid_stream, test_stream=test_stream,
+    # EnergyBasedDockingTrainer(dockingFFT, model, optimizer, experiment, plotting=plotting, debug=debug).run_trainer(
+    #     train_epochs=train_epochs, train_stream=train_stream, valid_stream=valid_stream, test_stream=test_stream,
     #     resume_training=True, resume_epoch=train_epochs)
 
     ### Evaluate model using all 360 angles (or less).
@@ -456,8 +466,6 @@ if __name__ == '__main__':
     EnergyBasedDockingTrainer(dockingFFT, eval_model, optimizer, experiment, plotting=plotting).run_trainer(
         train_epochs=1, train_stream=None, valid_stream=valid_stream, test_stream=test_stream,
         resume_training=True, resume_epoch=train_epochs)
-
-
 
     ## Plot loss from current experiment
     # IPLossPlotter(experiment).plot_loss()
