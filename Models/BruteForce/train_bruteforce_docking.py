@@ -283,13 +283,20 @@ if __name__ == '__main__':
 
     ######################
     train_epochs = 30
+    # train_epochs = 10
+
     # experiment = 'FINAL_CHECK_DOCKING'
     # experiment = 'PARANOIA_CHECK'
-    experiment = 'RMSD_ADDED_TO_LOSS_30ep'
+    # experiment = 'RMSD_ADDED_TO_LOSS_30ep'
+    # experiment = 'TROCH_DIV_TRUNC'
+    # experiment = 'TROCH_DIV_NONE'
+    # experiment = 'TROCH_DIV_FLOOR'
+    # experiment = 'TROCH_DIV_FLOOR_INDmodDIM^2'
+    experiment = 'TROCH_DIV_FMOD_TRUNC'
 
     ######################
     ### Train model from beginning
-    # BruteForceDockingTrainer(model, optimizer, experiment).run_trainer(train_epochs, train_stream, valid_stream, test_stream)
+    BruteForceDockingTrainer(model, optimizer, experiment).run_trainer(train_epochs, train_stream, valid_stream, test_stream)
 
     ### Resume training model at chosen epoch
     # BruteForceDockingTrainer(model, optimizer, experiment).run_trainer(
@@ -297,8 +304,8 @@ if __name__ == '__main__':
     #     resume_training=True, resume_epoch=train_epochs)
 
     ## Plot loss from current experiment
-    # IPLossPlotter(experiment).plot_loss()
-    IPLossPlotter(experiment).plot_rmsd_distribution(plot_epoch=train_epochs+1, show=True)
+    IPLossPlotter(experiment).plot_loss()
+    IPLossPlotter(experiment).plot_rmsd_distribution(plot_epoch=train_epochs, show=True)
 
     ### Evaluate model on chosen dataset only and plot at chosen epoch and dataset frequency
     # BruteForceDockingTrainer(model, optimizer, experiment, plotting=True).plot_evaluation_set(
