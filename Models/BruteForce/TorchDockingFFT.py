@@ -48,15 +48,16 @@ class TorchDockingFFT:
 
         # XYind = torch.remainder(pred_index, self.dim ** 2)
         # XYind = pred_index % self.dim ** 2
-        XYind = torch.fmod(pred_index, self.dim**2)
+        # XYind = torch.fmod(pred_index, self.dim**2)
+        XYind = torch.remainder(pred_index, self.dim ** 2)
         if self.swap_plot_quadrants:
             # pred_X = XYind // self.dim - self.dim//2
             # pred_Y = XYind % self.dim - self.dim//2
-            pred_X = torch.div(XYind, self.dim, rounding_mode='trunc') - self.dim//2
+            pred_X = torch.div(XYind, self.dim, rounding_mode='floor') - self.dim//2
             pred_Y = torch.fmod(XYind, self.dim) - self.dim//2
         else:
             # pred_X = XYind // self.dim
-            pred_X = torch.div(XYind, self.dim, rounding_mode='trunc')
+            pred_X = torch.div(XYind, self.dim, rounding_mode='floor')
             pred_Y = torch.fmod(XYind, self.dim)
         # Just to make translation values look nice in terms of + or - signs
         if pred_X > self.dim//2:
