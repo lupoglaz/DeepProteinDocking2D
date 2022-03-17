@@ -142,6 +142,14 @@ class BruteForceDockingTrainer:
                 with open('Log/losses/log_train_' + self.experiment + '.txt', 'a') as fout:
                     fout.write(log_format % (epoch, avg_trainloss[0], avg_trainloss[1]))
 
+                #### saving model while training
+                if epoch % self.save_freq == 0:
+                    self.save_checkpoint(checkpoint_dict, 'Log/' + self.experiment + str(epoch) + '.th')
+                    print('saving model ' + 'Log/' + self.experiment + str(epoch) + '.th')
+                if epoch == num_epochs - 1:
+                    self.save_checkpoint(checkpoint_dict, 'Log/' + self.experiment + 'end.th')
+                    print('saving LAST EPOCH model ' + 'Log/' + self.experiment + str(epoch) + '.th')
+
             ### Evaluation epoch
             if epoch % self.eval_freq == 0 or epoch == 1:
                 if valid_stream:
@@ -175,14 +183,6 @@ class BruteForceDockingTrainer:
                     print('\nEpoch', epoch, 'TEST LOSS: Loss, RMSD', avg_testloss)
                     with open('Log/losses/log_test_' + self.experiment + '.txt', 'a') as fout:
                         fout.write(log_format % (epoch, avg_testloss[0], avg_testloss[1]))
-
-            #### saving model while training
-            if epoch % self.save_freq == 0:
-                self.save_checkpoint(checkpoint_dict, 'Log/' + self.experiment + str(epoch) + '.th')
-                print('saving model ' + 'Log/' + self.experiment + str(epoch) + '.th')
-            if epoch == num_epochs - 1:
-                self.save_checkpoint(checkpoint_dict, 'Log/' + self.experiment + 'end.th')
-                print('saving LAST EPOCH model ' + 'Log/' + self.experiment + str(epoch) + '.th')
 
     @staticmethod
     def plot_pose(FFT_score, receptor, ligand, gt_rot, gt_txy, plot_count, stream_name):
@@ -277,7 +277,7 @@ if __name__ == '__main__':
     batch_size = 1
     if batch_size > 1:
         raise NotImplementedError()
-    train_stream = get_docking_stream(trainset + '.pkl', batch_size=batch_size)
+    train_stream = get_docking_stream(trainset + '.pkl', batch_size=batch_size, max_size=100)
     valid_stream = get_docking_stream(validset + '.pkl', batch_size=1)
     test_stream = get_docking_stream(testset + '.pkl', batch_size=1)
 
@@ -292,21 +292,33 @@ if __name__ == '__main__':
     # experiment = 'TROCH_DIV_NONE'
     # experiment = 'TROCH_DIV_FLOOR'
     # experiment = 'TROCH_DIV_FLOOR_INDmodDIM^2'
-    experiment = 'TROCH_DIV_FMOD_TRUNC'
+    # experiment = 'TROCH_DIV_FMOD_TRUNC'
+    # experiment = 'TROCH_DIV_FMOD_TRUNC_MAXFREQ=5'
+    # experiment = 'TROCH_DIV_FMOD_TRUNC_1s7vfeats'
+    # experiment = 'SMALLDATA_10EXAMPLES'
+    # experiment = 'SMALLDATA_20EXAMPLES'
+    # experiment = 'SMALLDATA_30EXAMPLES'
+    # experiment = 'SMALLDATA_40EXAMPLES'
+    # experiment = 'SMALLDATA_50EXAMPLES'
+    # experiment = 'SMALLDATA_60EXAMPLES'
+    # experiment = 'SMALLDATA_70EXAMPLES'
+    # experiment = 'SMALLDATA_80EXAMPLES' ## best test rmsd 5.3
+    # experiment = 'SMALLDATA_90EXAMPLES'
+    experiment = 'SMALLDATA_100EXAMPLES' ## best test rmsd 5.1
 
     ######################
     ### Train model from beginning
-    BruteForceDockingTrainer(model, optimizer, experiment).run_trainer(train_epochs, train_stream, valid_stream, test_stream)
+    BruteForceDockingTrainer(model, optimizer, experiment).run_trainer(train_epochs, train_stream, valid_stream=None, test_stream=None)
 
     ### Resume training model at chosen epoch
-    # BruteForceDockingTrainer(model, optimizer, experiment).run_trainer(
-    #     train_epochs=1, train_stream=train_stream, valid_stream=valid_stream, test_stream=test_stream,
-    #     resume_training=True, resume_epoch=train_epochs)
+    BruteForceDockingTrainer(model, optimizer, experiment).run_trainer(
+        train_epochs=1, train_stream=None, valid_stream=valid_stream, test_stream=test_stream,
+        resume_training=True, resume_epoch=train_epochs-1)
+
+    ### Evaluate model on chosen dataset only and plot at chosen epoch and dataset frequency
+    # BruteForceDockingTrainer(model, optimizer, experiment, plotting=False).plot_evaluation_set(
+    #     check_epoch=30, train_stream=train_stream, valid_stream=valid_stream, test_stream=test_stream)
 
     ## Plot loss from current experiment
     IPLossPlotter(experiment).plot_loss()
     IPLossPlotter(experiment).plot_rmsd_distribution(plot_epoch=train_epochs, show=True)
-
-    ### Evaluate model on chosen dataset only and plot at chosen epoch and dataset frequency
-    # BruteForceDockingTrainer(model, optimizer, experiment, plotting=True).plot_evaluation_set(
-    #     check_epoch=30, valid_stream=valid_stream, test_stream=test_stream)
