@@ -111,8 +111,9 @@ class IPLossPlotter:
 
         plt.xlabel('RMSD')
         # ax[0].set_ylim([0, 20])
-
-        plt.savefig('figs/BF_IP_RMSD_distribution_plots/RMSDplot_epoch'+ str(plot_epoch) + self.experiment + '.png')
+        avg_validRMSD = str(valid['RMSD'].mean())[:4]
+        avg_testRMSD = str(test['RMSD'].mean())[:4]
+        plt.savefig('figs/BF_IP_RMSD_distribution_plots/RMSDplot_epoch'+ str(plot_epoch) + '_vRMSD' + avg_validRMSD + '_tRMSD' + avg_testRMSD + self.experiment + '.png')
         if show:
             plt.show()
 

@@ -17,74 +17,52 @@ from DeepProteinDocking2D.Models.EnergyBased.model_energybased_sampling import E
 
 
 class SampleBuffer:
-    def __init__(self, num_samples, max_pos=100):
-        self.num_samples = num_samples
+    def __init__(self, num_examples, max_pos=100):
+        self.num_examples = num_examples
         self.max_pos = max_pos
         self.buffer = {}
-        for i in range(num_samples):
+        for i in range(num_examples):
             self.buffer[i] = []
 
     def __len__(self, i):
         return len(self.buffer[i])
 
-    def push(self, alphas, drs, index):
+    def push(self, alphas, index):
         alphas = alphas.clone().detach().float().to(device='cpu')
-        drs = drs.clone().detach().float().to(device='cpu')
-
-        for alpha, dr, idx in zip(alphas, drs, index):
+        for alpha, idx in zip(alphas, index):
             i = idx.item()
-            self.buffer[i].append((alpha, dr))
+            self.buffer[i].append((alpha))
             if len(self.buffer[i]) > self.max_pos:
                 self.buffer[i].pop(0)
+            # print('buffer push\n', self.buffer[i])
 
-    def get(self, index, num_samples, device='cuda', training=True):
+    def get(self, index, samples_per_example, device='cuda', training=True):
         alphas = []
-        drs = []
         if not training:
-            # print('EVAL rand init')
-            alpha = torch.rand(num_samples, 1) * 2 * np.pi - np.pi
-            # dr = torch.rand(num_samples, 2) * 50.0 - 25.0
+            # print('EVAL zeros init')
+            alpha = torch.zeros(samples_per_example, 1)
             alphas.append(alpha)
-            # drs.append(dr)
-            # alpha = torch.zeros(num_samples, 1)
-            dr = torch.zeros(num_samples, 2)
-            # alphas.append(alpha)
-            drs.append(dr)
         else:
             for idx in index:
                 i = idx.item()
-                if len(self.buffer[i]) >= num_samples > 1:
-                    # print('buffer if num_sampler > 1')
-                    lst = random.choices(self.buffer[i], k=num_samples)
-                    alpha = list(map(lambda x: x[0], lst))
-                    dr = list(map(lambda x: x[1], lst))
-                    alphas.append(torch.stack(alpha, dim=0))
-                    drs.append(torch.stack(dr, dim=0))
-                    # print('len buffer >= samples')
-                elif len(self.buffer[i]) == num_samples == 1:
-                    # print('buffer if num_sampler == 1')
-                    lst = self.buffer[i]
-                    alphas.append(lst[0][0])
-                    # drs.append(lst[0][1])
-                    drs.append(torch.zeros(num_samples, 2))
-                else:
-                    # print('else rand init')
-                    alpha = torch.rand(num_samples, 1) * 2 * np.pi - np.pi
-                    # dr = torch.rand(num_samples, 2) * 50.0 - 25.0
+                buffer_idx_len = len(self.buffer[i])
+                if buffer_idx_len < samples_per_example:
+                    # print('epoch 0 init')
+                    alpha = torch.zeros(samples_per_example, 1)
                     alphas.append(alpha)
-                    # drs.append(dr)
-                    # alpha = torch.zeros(num_samples, 1)
-                    dr = torch.zeros(num_samples, 2)
-                    # alphas.append(alpha)
-                    drs.append(dr)
+                else:
+                    # print('continuous LD picking previous rotation')
+                    # alpha = torch.rand(samples_per_example, 1) * 2 * np.pi - np.pi
+                    alpha = self.buffer[i][-1]
+                    alphas.append(alpha)
+                # print('buffer get\n', self.buffer[i])
 
         # print('\nalpha', alpha)
         # print('dr', dr)
 
         alphas = torch.stack(alphas, dim=0).to(device=device)
-        drs = torch.stack(drs, dim=0).to(device=device)
 
-        return alphas, drs
+        return alphas
 
 
 class EnergyBasedDockingTrainer:
@@ -105,8 +83,9 @@ class EnergyBasedDockingTrainer:
         self.optimizer = cur_optimizer
         self.experiment = cur_experiment
 
-        self.buffer2 = SampleBuffer(880)
-        self.buffer = SampleBuffer(880)
+        num_examples = max(len(train_stream), len(valid_stream), len(test_stream))
+        self.buffer = SampleBuffer(num_examples=num_examples)
+        # self.buffer2 = SampleBuffer(880)
 
     # def encode_rotation(self, gt_rot, pred_rot):
     #     empty_1D_target = torch.zeros([360], dtype=torch.double).cuda()
@@ -140,25 +119,11 @@ class EnergyBasedDockingTrainer:
 
         ### run model and loss calculation
         ##### call model
-        # pos_rot, pos_txy, GT_FFT_score, GT_minE = self.model(gt_rot, gt_txy, receptor, ligand, temperature='cold')
+        neg_alpha = self.buffer.get(pos_idx, samples_per_example=1, training=training)
+        Energy, pred_rot, pred_txy, FFT_score = self.model(neg_alpha, receptor, ligand, temperature='cold', plot_count=pos_idx.item(), stream_name=stream_name, plotting=self.plotting)
+        neg_alpha = pred_rot
+        self.buffer.push(neg_alpha, pos_idx)
 
-        neg_alpha, neg_dr = self.buffer.get(pos_idx, num_samples=1, training=training)
-        Energy, pred_rot, pred_txy, FFT_score = self.model(neg_alpha, neg_dr, receptor, ligand, temperature='cold', plot_count=pos_idx.item(), stream_name=stream_name, plotting=self.plotting)
-        neg_alpha, neg_dr = pred_rot, pred_txy
-        self.buffer.push(neg_alpha, neg_dr, pos_idx)
-
-        # neg_alpha2, neg_dr2 = self.buffer2.get(pos_idx, num_samples=1, training=training)
-        # pred_rot2, pred_txy2, FFT_score2, minE2 = self.model(neg_alpha2, neg_dr2, receptor, ligand, temperature='hot')
-        # neg_alpha2, neg_dr2 = pred_rot2, pred_txy2
-        # self.buffer2.push(neg_alpha2, neg_dr2, pos_idx)
-        #
-        # # pred_rot = (pred_rot + pred_rot2)/2
-        # # pred_txy = (pred_txy + pred_txy2)/2
-        # FFT_score_avg = (FFT_score + FFT_score2)/2
-        # FFT_score_sum = (FFT_score + FFT_score2)
-
-        # FFT_score = -FFT_score
-        # print(FFT_score)
         ### Encode ground truth transformation index into empty energy grid
         with torch.no_grad():
             target_flatindex = self.dockingFFT.encode_transform(gt_rot, gt_txy)
@@ -177,6 +142,8 @@ class EnergyBasedDockingTrainer:
         # L1_loss = torch.nn.L1Loss()
 
         loss = CE_loss(FFT_score.flatten().unsqueeze(0), target_flatindex.unsqueeze(0))
+        # loss = loss + CE_loss(pred_rotindex.unsqueeze(0), target_rotindex.unsqueeze(0))
+
         # loss = CE_loss(FFT_score_sum.flatten().unsqueeze(0), target_flatindex.unsqueeze(0))
 
 
@@ -235,9 +202,15 @@ class EnergyBasedDockingTrainer:
             self.model, self.optimizer, start_epoch = self.load_ckp(ckp_path)
             start_epoch += 1
 
-            print(self.model)
-            print(list(self.model.named_parameters()))
+            # print(self.model)
+            # print(list(self.model.named_parameters()))
             print('\nRESUMING TRAINING AT EPOCH', start_epoch, '\n')
+            with open('Log/losses/log_RMSDsTrainset_epoch' + str(start_epoch) + self.experiment + '.txt', 'w') as fout:
+                fout.write('Training RMSD\n')
+            with open('Log/losses/log_RMSDsValidset_epoch' + str(start_epoch) + self.experiment + '.txt', 'w') as fout:
+                fout.write('Validation RMSD\n')
+            with open('Log/losses/log_RMSDsTestset_epoch' + str(start_epoch) + self.experiment + '.txt', 'w') as fout:
+                fout.write('Testing RMSD\n')
         else:
             start_epoch = 1
             ### Loss log files
@@ -275,6 +248,14 @@ class EnergyBasedDockingTrainer:
                 with open('Log/losses/log_train_' + self.experiment + '.txt', 'a') as fout:
                     fout.write(log_format % (epoch, avg_trainloss[0], avg_trainloss[1]))
 
+                #### saving model while training
+                if epoch % self.save_freq == 0:
+                    self.save_checkpoint(checkpoint_dict, 'Log/' + self.experiment + str(epoch) + '.th')
+                    print('saving model ' + 'Log/' + self.experiment + str(epoch) + '.th')
+                if epoch == num_epochs - 1:
+                    self.save_checkpoint(checkpoint_dict, 'Log/' + self.experiment + 'end.th')
+                    print('saving LAST EPOCH model ' + 'Log/' + self.experiment + str(epoch) + '.th')
+
             ### Evaluation epoch
             if epoch % self.eval_freq == 0 or epoch == 1:
                 if valid_stream:
@@ -309,13 +290,7 @@ class EnergyBasedDockingTrainer:
                     with open('Log/losses/log_test_' + self.experiment + '.txt', 'a') as fout:
                         fout.write(log_format % (epoch, avg_testloss[0], avg_testloss[1]))
 
-            #### saving model while training
-            if epoch % self.save_freq == 0:
-                self.save_checkpoint(checkpoint_dict, 'Log/' + self.experiment + str(epoch) + '.th')
-                print('saving model ' + 'Log/' + self.experiment + str(epoch) + '.th')
-            if epoch == num_epochs - 1:
-                self.save_checkpoint(checkpoint_dict, 'Log/' + self.experiment + 'end.th')
-                print('saving LAST EPOCH model ' + 'Log/' + self.experiment + str(epoch) + '.th')
+
 
     def plot_pose(self, receptor, ligand, gt_rot, gt_txy, pred_rot, pred_txy, plot_count, stream_name):
         plt.close()
@@ -386,26 +361,11 @@ if __name__ == '__main__':
     batch_size = 1
     if batch_size > 1:
         raise NotImplementedError()
-    train_stream = get_docking_stream(trainset + '.pkl', batch_size=batch_size)
+    train_stream = get_docking_stream(trainset + '.pkl', batch_size)
     valid_stream = get_docking_stream(validset + '.pkl', batch_size=1)
     test_stream = get_docking_stream(testset + '.pkl', batch_size=1)
 
     ######################
-    # experiment = 'coldonly_1LD_learnRotationLDonly_LDopt_passdockingFFT_rotindex_3ep_sig3_lr-2_NOrotlossonly'
-    # experiment = 'coldp5hot5_1LD_learnRotationLDonly_3ep_lr-2_sumFFTscore'
-    # experiment = 'coldp5hot5_1LD_learnRotationLDonly_lr-3_sumFFTscore_20ep'
-    # experiment = 'coldp5hot5_1LD_learnRotationLDonly_lr-2_sumFFTscore_3ep_rotclamp' # 15rmsd test set, best so far
-    # experiment = 'coldp5hot5_1LD_learnRotationLDonly_lr-2_sumFFTscore_3ep_rotclamp_doublestep'
-    # experiment = 'coldp5hot5_1LD_learnRotationLDonly_lr-2_sumFFTscore_3ep_rotclamp'
-    # experiment = 'coldp5hot5_10LD_learnRotationLDonly_lr-2_sumFFTscore_3ep_rotclamp'
-    # experiment = 'coldp5hot5_1LD_learnRotationLDonly_lr-2_sumFFTscore_3ep_rotclamp_noLDeval' # best model so far, rmsds 18 valid, 14 test
-    # experiment = 'coldp5hot5_10LD_learnRotationLDonly_lr-2_sumFFTscore_1ep_rotclamp_noLDeval' # feats are zeros
-    # experiment = 'coldp5hot5_10LD_learnRotationLDonly_lr-2_sumFFTscore_1ep_rotclamp_withLDeval' # also feats are zeros
-    # experiment = 'coldp5hot5_10LD_learnRotationLDonly_lr-2_sumFFTscore_1ep_rotclamp_withLDeval_gradcheck'
-    # experiment = 'coldp5hot5_10LD_learnRotationLDonly_lr-2_sumFFTscore_1ep_rotclamp_noLDeval_gradcheck'
-    # experiment = 'cold2hot10_1LD_learnRotationLDonly_lr-2_sumFFTscore_1ep_rotclamp_noLDeval'
-    # experiment = 'cold2hot10_1LD_learnRotationLDonly_lr-3_sumFFTscore_1ep_rotclamp_noLDeval'
-    # experiment = 'coldp5hot5_1LD_learnRotationLDonly_lr-2_sumFFTscore_3ep_rotclamp_noLDeval_rep' # best model so far, rmsds 18 valid, 14 test
     # experiment = 'coldonly_005sigma'
     # experiment = 'coldonly_2sigma'
     # experiment = 'coldonly_2sigma_10LD'
@@ -437,36 +397,168 @@ if __name__ == '__main__':
     # experiment = 'coldonly_maxclamp_1LD_lr-2_sigma0p05_contLD_10ep_meansoftmaxEforLD'
     # experiment = 'coldonly_maxclamp_1LD_lr-2_sigma0p05_contLD_10ep_sumEforLD'
     # experiment = 'coldonly_maxclamp_10LD_lr-2_sigma0p05_contLD_10ep_0p001xEandstepLD'
-    experiment = 'coldonly_maxclamp_10LD_lr-2_sigma0p05_contLD_10ep_minsoftmaxNOmultFFTinLD'
+    # experiment = 'coldonly_maxclamp_10LD_lr-2_sigma0p05_contLD_10ep_minsoftmaxNOmultFFTinLD'
+    # experiment = 'coldonly_maxclamp_10LD_lr-2_sigma0p05_contLD_10ep_minsoftmaxNOmultFFTinLD_Einversepropalpha'
+    # experiment = 'coldonly_maxclamp_10LD_lr-2_contLD_minsoftmaxNOmultFFTinLD_Einversepropalpha_PRINTsigalpha'
+    # experiment = 'coldonly_maxclamp_10LD_lr-2_contLD_minFFT_Einversepropalpha'
+    # experiment = 'coldonly_maxclamp_10LD_lr-2_contLD_minsoftmaxFFT_EinvPropAlphax1000'
+    # experiment = 'coldonly_maxclamp_10LD_lr-3_20ep_contLD_minsoftmaxFFT_EinvPropAlphax1000'
+    # experiment = 'coldonly_maxclamp_1LD_lr-3_20ep_contLD_minsoftmaxFFT_EinvPropAlphax1e4'
+    # experiment = 'coldonly_maxclamp_1LD_lr-3_20ep_contLD_minsoftmaxFFT_EinvPropAlphax1e6'
+    # experiment = 'coldonly_maxclamp_1LD_lr-3_100ep_contLD_minsoftmaxFFT'
+    # experiment = 'coldonly_maxclamp_1LD_lr-4_100ep_contLD_minsoftmaxFFT'
+    # experiment = 'coldonly_maxclamp_1LD_lr-2_sigma0p05_contLD_20ep_minsoftmax_Einv1e3sigalpha'
+    # experiment = 'coldonly_maxclamp_10LD_lr-2_sigma0p05_contLD_5ep_minsoftmax_Einv1e3sigalpha'
+    # experiment = 'coldonly_maxclamp_10LD_lr-2_sigma0p05_contLD_10ep_minsoftmax'
+    # experiment = 'coldonly_maxclamp_10LD_lr-2_sigma0p05_contLD_10ep_minsoftmax_Einv1e3sigalpha==step'
+    # experiment = 'coldonly_maxclamp_1LD_lr-2_sigma0p05_contLD_4ep_minsoftmax_Einv1e3sigalpha==step'
+    # experiment = 'coldonly_maxclamp_10LD_lr-2_sigma0p05_contLD_4ep_minsoftmax_Einv1e3sigalpha==step_CErotloss'
+    # experiment = 'coldonly_maxclamp0p05_10LD_lr-2_sigma0p05_contLD_4ep_minsoftmax_Einv1e3sigalpha==step'
+    # experiment = 'coldonly_maxclamp0p15_10LD_lr-2_sigma0p05_contLD_4ep_minsoftmax_Einv1e3sigalpha==step'
+    # experiment = 'coldonly_maxclamp0p05_10LD_lr-2_sigma0p05_contLD_4ep_minsoftmax_Einv1e3sigalpha==step_dockereval'
+    # experiment = 'coldonly_maxclamp0p05_10LD_lr-1_sigma0p05_contLD_4ep_minsoftmax_Einv1e3sigalpha==step_dockereval'
+    # experiment = 'coldonly_maxclamp0p05_10LD_lr-3_sigma0p05_contLD_4ep_minsoftmax_Einv1e3sigalpha==step_dockereval'
+    # experiment = 'coldonly_maxclamp0p05_10LD_lr-2_sigma0p05_contLD_4ep_minsoftmax_Einv1e3sigalpha==step'
+    # experiment = 'coldonly_maxclamp0p05_10LD_lr-2_sigma0p05_contLD_4ep_minsoftmax_Einv1e3sigalpha==step_dockereval'
+    # experiment = 'coldonly_maxclamp0p20_10LD_lr-2_sigma0p05_contLD_4ep_minsoftmax_Einv1e3sigalpha==step_dockereval'
+    # experiment = 'coldonly_nomaxclamp_10LD_lr-2_sigma0p05_contLD_4ep_minsoftmax_Einv1e3sigalpha==step_dockereval'
+    # experiment = 'coldonly_nomaxclamp_10LD_lr-2_sigma0p05_contLD_4ep_minsoftmax_Einv1e3sigalpha==step_NOdockereval'
+    # experiment = 'coldonly_nomaxclamp_10LD_lr-2_sigma0p05_contLD_4ep_minsoftmax_Einv1e3sigalpha==step_WITHdockereval'
+    # experiment = 'coldonly_nomaxclamp_10LD_lr-2_sigma0p05_contLD_4ep_minsoftmax_Einv1e3sigalpha==step_WITHdockereval'
+    # experiment = 'coldonly_nomaxclamp_10LD_lr-2_sigma0p05_contLD_4ep_minsoftmax_Einv1e2sigalpha==step_WITHdockereval'
+    # experiment = 'coldonly_nomaxclamp_10LD_lr-2_sigma0p05_contLD_4ep_minsoftmax_Einv1e1sigalpha==step_WITHdockereval'
+    # experiment = 'coldonly_nomaxclamp_10LD_lr-2_sigma0p05_contLD_10ep_minsoftmax_Einv1e1sigalpha==step_WITHdockereval' #epoch 6 best, check hists
+    # experiment = 'coldonly_nomaxclamp_10LD_lr-2_sigma0p05_contLD_10ep_minsoftmax_Einv1e1sigalpha==step_WITHdockereval'
+    # experiment = 'coldonly_nomaxclamp_1LD_lr-3_sigma0p05_contLD_100ep_minsoftmax_Einv1e1sigalpha==step_WITHdockereval'
+    # experiment = 'coldonly_nomaxclamp_10LD_lr-3_sigma0p05_contLD_20ep_minsoftmax_Einv1e1sigalpha==step_WITHdockereval'
+    # experiment = 'coldonly_nomaxclamp_10LD_lr-2_sigma0p05_contLD_5ep_minsoftmax_Einv1e1sigalpha==step_WITHdockereval'
+    # experiment = 'coldonly_nomaxclamp_10LD_lr-2_sigma0p05_contLD_5ep_minsoftmax_Einv1e1sigalpha==step_WITHdockereval_noretaingraph'
+    # experiment = 'cold_0p1rmaxclamp_10LD_lr-2_contLD_5ep_minsoftmax_Einv1e1sigalpha==step_noretaingraph'
+    # experiment = 'cold_0p05rmaxclamp_10LD_lr-2_contLD_5ep_minsoftmax_Einv1e1sigalpha==step_noretaingraph'
+    # experiment = 'cold_0p01rmaxclamp_10LD_lr-2_contLD_5ep_minsoftmax_Einv1e1sigalpha==step_noretaingraph'
+    # experiment = 'cold_0p05rmaxclamp_10LD_lr-2_contLD_5ep_minsoftmax_Einv1e1sigalpha1step'
+    # experiment = 'cold_0p05rmaxclamp_10LD_lr-2_contLD_5ep_minsoftmax_Einv1e1sigalpha==step_softmaxBFeval'
+    # experiment = 'cold_0p05rmaxclamp_10LD_lr-2_contLD_5ep_minsoftmax_Einv1e1sigalpha==step_softmaxBFeval_rep1'
+    # experiment = 'cold_0p05rmaxclamp_10LD_lr-2_contLD_5ep_minsoftmax_Einv1e1sigalpha==step_softmaxBFeval_rep2'
+    # experiment = 'cold_0p05rmaxclamp_10LD_lr-2_contLD_5ep_minsoftmax_Einv1e1sigalpha==step_FFTBFeval_rep1'
+    # experiment = 'cold_0p05rmaxclamp_10LD_lr-2_contLD_5ep_minsoftmax_Einv1e1sigalpha==step_FFTBFeval_rep2'
+    # experiment = 'cold_0p05rmaxclamp_10LD_lr-2_contLD_10ep_minsoftmax_Einv1e1sigalpha==step_softmaxBFeval'
+    # experiment = 'cold_0p05rmaxclamp_1LD_lr-2_contLD_100ep_minsoftmax_Einv1e1sigalpha==step_softmaxBFeval' # works < 10ep. ep 7; RMSD 17.4, 15.35
+    # experiment = 'cold_0p05rmaxclamp_1LD_lr-2_contLD_10ep_minsoftmax_Einv1e1sigalpha==step_softmaxBFeval_rep1'
+    # experiment = 'cold_0p05rmaxclamp_1LD_lr-2_contLD_10ep_minsoftmax_Einv1e1sigalpha==step_softmaxBFeval_rep2'
+    # experiment = 'cold_0p05rmaxclamp_1LD_lr-1_contLD_10ep_minsoftmax_Einv1e1sigalpha==step_softmaxBFeval'
+    # experiment = 'cold_0p05rmaxclamp_1LD_lr-3_contLD_10ep_minsoftmax_Einv1e1sigalpha==step_softmaxBFeval'
+    # experiment = 'cold_0p05rmaxclamp_1LD_lr-3_NOcontLD_10ep_SMminEval_Einv1e1sigalpha==step'
+    # experiment = 'cold_0p05rmaxclamp_10LD_lr-2_NOcontLD_10ep_SMminEval_Einv1e1sigalpha==step'
+    # experiment = 'cold_0p05rmaxclamp_10LD_lr-2_NOcontLD_10ep_SMminEval_Einv1e1sigalpha==step_0rotinit'
+    # experiment = 'cold_0p05rmaxclamp_10LD_lr-2_NOcontLD_10ep_SMminEval_Einv1e2sigalpha==step_0rotinit'
+    # experiment = 'cold_0p05rmaxclamp_10LD_lr-2_NOcontLD_10ep_SMminEval_Einv1e3sigalpha==step_0rotinit'
+    # experiment = 'cold_0p05rmaxclamp_1LD_lr-2_NOcontLD_10ep_SMminEval_Einv1e1sigalpha==step_0rotinit_printalph'
+    # experiment = 'cold_0p05rmaxclamp_1LD_lr-2_NOcontLD_10ep_SMminEval_Einv1e0sigalpha==step_0rotinit'
+    # experiment = 'cold_0p05rmaxclamp_1LD_lr-2_NOcontLD_10ep_SMminEval_Einv1e1sigalpha==step_0rotinit_torchdiv'
+    # experiment = 'cold_0p05rmaxclamp_1LD_lr-2_NOcontLD_10ep_SMminEval_Einv1e1sigalpha==step_0rotinit_divfixed'
+    # experiment = 'cold_0p05rmaxclamp_1LD_lr-2_NOcontLD_10ep_SMminEval_Einv1e1sigalpha==step_0rotinit_divfloor'
+    # experiment = 'cold_NOmaxclamp_1LD_lr-2_NOcontLD_10ep_SMminEval_Einv1e1sigalpha==step_0rotinit_divfloor'
+    # experiment = 'cold_NOmaxclamp_10LD_lr-2_NOcontLD_10ep_SMminEval_Einv1e1sigalpha==step_0rotinit_divfloor' # best yet, ep3 RMSD 13 both
+    # experiment = 'cold_NOmaxclamp_10LD_lr-2_NOcontLD_5ep_SMminEval_Einv1e1sigalpha==step_0rotinit_divfloor_rep1'
+    # experiment = 'cold_NOmaxclamp_10LD_lr-2_NOcontLD_5ep_SMminEval_Einv1e1sigalpha==step_minEtracker'
+    # experiment = 'cold_NOmaxclamp_10LD_lr-2_5ep_SMminEval_Einv1e1sigalpha==step_minEtracker_contLD'
+    # experiment = 'cold_NOmaxclamp_10LD_lr-2_10ep_SMminEval_Einv1e1sigalpha==step_minEtracker_contLD' #3ep RMSD 14 and 12
+    # experiment = 'cold_NOmaxclamp_10LD_lr-2_10ep_SMminEval_Einvsigalpha==step_minEtracker_contLD'
+    # experiment = 'cold_NOmaxclamp_10LD_lr-2_10ep_SMminEval_Einv1e2sigalpha==step_minEtracker_contLD'
+    # experiment = 'cold_NOmaxclamp_10LD_lr-2_10ep_SMminEval_Einv1e3sigalpha==step_minEtracker_contLD'
+    # experiment = 'cold_NOmaxclamp_10LD_lr-2_5ep_SMminEval_Einv1e2sigalpha==step_minEtracker_contLD_rep1'
+    # experiment = 'cold_NOmaxclamp_10LD_lr-2_5ep_SMminEval_Einv1e2sigalpha==step_minEtracker_contLD_rep1'
+    # experiment = 'cold_NOmaxclamp_10LD_lr-2_5ep_SMminEval_Einv1e1sigalpha==step_minEtracker_contLD_rep1'
+    # experiment = 'cold_NOmaxclamp_10LD_lr-2_5ep_SMminEval_Einv1e1sigalpha==step_minEtracker_contLD_rep2'
+    # experiment = 'cold_NOmaxclamp_10LD_lr-2_5ep_SMminEval_Einv1e1sigalpha==step_minEtracker_contLD_rep3'
+    # experiment = 'cold_NOmaxclamp_10LD_lr-2_5ep_SMminEval_Einv1e1sigalpha==step_minEtracker_contLD_nodrsbuffercheck'
+    # experiment = 'cold_NOmaxclamp_10LD_lr-2_10ep_SMminEval_Einv1e1sigalpha==step_minEtracker_contLD_nodrsbuffercheck'
+    # experiment = 'cold_NOmaxclamp_10LD_lr-2_10ep_SMminEval_Einv1e1sigalpha==step_minEtracker_contLD_buffercheck'
+    # experiment = 'cold_1LD_lr-2_10ep_contLD_Einv1e1'
+    # experiment = 'cold_10LD_lr-2_5ep_contLD_Einv1e1'
+    # experiment = 'cold_10LD_lr-2_10ep_contLD_Einv1e1'
+    # experiment = 'cold_10LD_lr-2_10ep_contLD_Einv1e1_printbuffer'
+    # experiment = 'cold_10LD_lr-2_10ep_contLD_Einv1e2' ## !!!! trained on 10 examples, 10 epochs lowest RMSD yet ep7 12.11, 11.18
+    # experiment = 'cold_10LD_lr-2_10ep_contLD_Einv1e2_rep1' ## works
+    # experiment = 'cold_10LD_lr-2_10ep_contLD_Einv1e1_10ex' !!!! RMSD yet ep8 9.87, 8.37
+    # experiment = 'cold_10LD_lr-2_10ep_contLD_Einv1e3_10ex'
+    # experiment = 'cold_10LD_lr-2_10ep_contLD_Einv1e4_10ex'
+    # experiment = 'cold_10LD_lr-2_10ep_contLD_Einv1e5_10ex'
+    # experiment = 'cold_10LD_lr-2_10ep_contLD_Einv1e6_10ex'
+    # experiment = 'cold_10LD_lr-2_100ep_contLD_Einv1e3_10ex_lr-3'
+    # experiment = 'cold_10LD_100ep_contLD_Einv1e3_10ex_lr-2'
+    # experiment = 'cold_10LD_10ep_contLD_Einv1e3_20ex_lr-2'
+    # experiment = 'cold_10LD_10ep_contLD_Einv1e3_100ex_lr-2'
+    # experiment = 'cold_10LD_10ep_contLD_Einv1e3_10ex_lr-2'
+    # experiment = 'cold_10LD_10ep_NOcontLD_Einv1e3_10ex_lr-2'
+    # experiment = 'cold_10LD_10ep_RANDcontLD_Einv1e3_10ex_lr-2'
+    # experiment = 'cold_10LD_10ep_contLD_Einv1e3_10ex_lr-2_rep2'
+    # experiment = 'cold_10LD_10ep_contLD_Einv1e3_10ex_lr-2_nobestFFTsaving'
+    # experiment = 'cold_10LD_10ep_contLD_Einv1e3_10ex_lr-2_bestFFTsavingwithgrad'
+    # experiment = 'cold_20LD_10ep_contLD_Einv1e3_10ex_lr-2_bestFFTsavingwithgrad'
+    # experiment = 'cold_5LD_10ep_contLD_Einv1e3_10ex_lr-2_bestFFTsavingwithgrad'
+    # experiment = 'cold_1LD_10ep_contLD_Einv1e3_10ex_lr-2_bestFFTsavingwithgrad'
+    # experiment = 'cold_1LD_10ep_contLD_Einv1e3_10ex_lr-2_bestFFTsavingwithgrad'
+    # experiment = 'cold_10LD_10ep_contLD_Einv1e3_10ex_lr-2_bestFFTsavingwithgrad_maxclamp05'
+    # experiment = 'cold_20LD_10ep_contLD_Einv1e3_10ex_lr-2_bestFFTsavingwithgrad_maxclamp05'
+    # experiment = 'cold_30LD_10ep_contLD_Einv1e3_10ex_lr-2_bestFFTsavingwithgrad_maxclamp05'
+    # experiment = 'cold_20LD_10ep_contLD_Einv1e3_10ex_lr-2_NObestFFTsavingwithgrad'
+    # experiment = 'cold_30LD_10ep_contLD_Einv1e3_10ex_lr-2_NObestFFTsavingwithgrad'
+    # experiment = 'cold_10LD_10ep_10ex_lr-2_contLD_Einv1e3_FFTbestsaved'
+    # experiment = 'cold_10LD_10ep_10ex_lr-2_contLD_FFTbestsaved_Ethreshold-02sig=0'
+    # experiment = 'cold_10LD_10ep_lr-2_contLD_FFTbestsaved_invEthreshold-02sig=0'
+    # experiment = 'cold_10LD_10ep_lr-2_contLD_FFTbestsaved_invE1e3threshold-0p1sig=0'
+    # experiment = 'cold_10LD_10ep_10ex_lr-2_contLD_FFTbestsaved_invE1e3threshold-0p1sig=0'
+    # experiment = 'cold_10LD_10ep_10ex_lr-2_contLD_FFTbestsaved_invE1e3threshold-0p2sig=0_printsigma'
+    # experiment = 'cold_10LD_10ep_10ex_lr-2_contLD_FFTbestsaved_invE1e3threshold-0p3sig=0_printsigma'
+    # experiment = 'cold_10LD_10ep_10ex_lr-2_contLD_FFTbestsaved_invE1e3threshold-0p3sig=0_printsigma_nobestFFT'
+    # experiment = 'cold_10LD_10ep_10ex_lr-2_contLD_FFTbestsaved_invE1e3threshold-0p5sig=0_printsigma_nobestFFT'
+    # experiment = 'cold_10LD_10ep_10ex_lr-2_contLD_FFTbestsaved_threshold-0p5_Einv1e3_printsigma'
+    # experiment = 'cold_10LD_10ep_10ex_lr-2_contLD_FFTbestsaved_threshold-0p5_Einv1e6_else_printsigma'
+    # experiment = 'cold_10LD_100ep_10ex_lr-2_threshold-0p2_Einv1e6_else_printsigma'
+    # experiment = 'cold_10LD_10ep_100ex_lr-2_sigmaPIx1e6^E_printsigma'
+    # experiment = 'cold_10LD_10ep_fullsetex_lr-2_sigmaPIx1e6^E_printsigma'
+    # experiment = 'cold_10LD_10ep_fullsetex_lr-4_sigmaPIx1e6^E_printsigma'
+    experiment = 'cold_10LD_50ep_fullsetex_lr-3_sigmaPIx1e6^E_printsigma'
 
     ######################
-    lr = 10 ** -2
+    lr = 10 ** -3 # any lr != 1e-2 not as good
     LD_steps = 10
     debug = False
     # debug = True
-    # plotting = False
-    plotting = True
+    plotting = False
+    # plotting = True
+    show = False
+    # show = True
 
     dockingFFT = TorchDockingFFT(num_angles=1, angle=None, swap_plot_quadrants=False, debug=debug)
     model = EnergyBasedModel(dockingFFT, num_angles=1, sample_steps=LD_steps, debug=debug).to(device=0)
     optimizer = optim.Adam(model.parameters(), lr=lr)
 
-    train_epochs = 5
+    train_epochs = 50
+    continue_epochs = 1
     ######################
     ### Train model from beginning
     EnergyBasedDockingTrainer(dockingFFT, model, optimizer, experiment, debug=debug).run_trainer(train_epochs, train_stream=train_stream, valid_stream=None, test_stream=None)
 
     ### Resume training model at chosen epoch
-    # EnergyBasedDockingTrainer(dockingFFT, model, optimizer, experiment, plotting=plotting, debug=debug).run_trainer(
-    #     train_epochs=train_epochs, train_stream=train_stream, valid_stream=valid_stream, test_stream=test_stream,
+    # EnergyBasedDockingTrainer(dockingFFT, model, optimizer, experiment, plotting=True, debug=debug).run_trainer(
+    #     train_epochs=1, train_stream=train_stream, valid_stream=None, test_stream=None,
     #     resume_training=True, resume_epoch=train_epochs)
 
-    ### Evaluate model using all 360 angles (or less).
-    eval_model = EnergyBasedModel(dockingFFT, num_angles=360).to(device=0)
-    EnergyBasedDockingTrainer(dockingFFT, eval_model, optimizer, experiment, plotting=plotting).run_trainer(
-        train_epochs=1, train_stream=None, valid_stream=valid_stream, test_stream=test_stream,
-        resume_training=True, resume_epoch=train_epochs)
+    ### Plot poses and features of validation set
+    # EnergyBasedDockingTrainer(dockingFFT, model, optimizer, experiment, plotting=True, debug=debug).run_trainer(
+    #     train_epochs=1, train_stream=None, valid_stream=valid_stream, test_stream=valid_stream,
+    #     resume_training=True, resume_epoch=5)
 
-    ## Plot loss from current experiment
-    # IPLossPlotter(experiment).plot_loss()
-    IPLossPlotter(experiment).plot_rmsd_distribution(plot_epoch=train_epochs+1, show=True, eval_only=True)
+    for train_epochs in range(continue_epochs, train_epochs):
+        ### Evaluate model using all 360 angles (or less).
+        eval_model = EnergyBasedModel(dockingFFT, num_angles=360).to(device=0)
+        EnergyBasedDockingTrainer(dockingFFT, eval_model, optimizer, experiment, plotting=plotting).run_trainer(
+            train_epochs=1, train_stream=None, valid_stream=valid_stream, test_stream=test_stream,
+            resume_training=True, resume_epoch=train_epochs)
+
+        ## Plot loss from current experiment
+        # IPLossPlotter(experiment).plot_loss()
+        IPLossPlotter(experiment).plot_rmsd_distribution(plot_epoch=train_epochs+1, show=show, eval_only=True)
