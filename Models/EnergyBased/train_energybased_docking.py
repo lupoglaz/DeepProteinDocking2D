@@ -101,7 +101,7 @@ class EnergyBasedDockingTrainer:
 
     def run_model(self, data, training=True, plot_count=0, stream_name='trainset'):
         receptor, ligand, gt_txy, gt_rot, pos_idx = data
-
+        # print(pos_idx)
         receptor = receptor.squeeze()
         ligand = ligand.squeeze()
         gt_txy = gt_txy.squeeze()
@@ -120,9 +120,8 @@ class EnergyBasedDockingTrainer:
         ### run model and loss calculation
         ##### call model
         neg_alpha = self.buffer.get(pos_idx, samples_per_example=1, training=training)
-        Energy, pred_rot, pred_txy, FFT_score = self.model(neg_alpha, receptor, ligand, temperature='cold', plot_count=pos_idx.item(), stream_name=stream_name, plotting=self.plotting)
-        neg_alpha = pred_rot
-        self.buffer.push(neg_alpha, pos_idx)
+        pred_rot, pred_txy, FFT_score = self.model(neg_alpha, receptor, ligand, temperature='cold', plot_count=pos_idx.item(), stream_name=stream_name, plotting=self.plotting)
+        self.buffer.push(pred_rot, pos_idx)
 
         ### Encode ground truth transformation index into empty energy grid
         with torch.no_grad():
@@ -197,32 +196,7 @@ class EnergyBasedDockingTrainer:
         log_format = '%d\t%f\t%f\n'
 
         ### Continue training on existing model?
-        if resume_training:
-            ckp_path = 'Log/' + self.experiment + str(resume_epoch) + '.th'
-            self.model, self.optimizer, start_epoch = self.load_ckp(ckp_path)
-            start_epoch += 1
-
-            # print(self.model)
-            # print(list(self.model.named_parameters()))
-            print('\nRESUMING TRAINING AT EPOCH', start_epoch, '\n')
-            with open('Log/losses/log_RMSDsTrainset_epoch' + str(start_epoch) + self.experiment + '.txt', 'w') as fout:
-                fout.write('Training RMSD\n')
-            with open('Log/losses/log_RMSDsValidset_epoch' + str(start_epoch) + self.experiment + '.txt', 'w') as fout:
-                fout.write('Validation RMSD\n')
-            with open('Log/losses/log_RMSDsTestset_epoch' + str(start_epoch) + self.experiment + '.txt', 'w') as fout:
-                fout.write('Testing RMSD\n')
-        else:
-            start_epoch = 1
-            ### Loss log files
-            with open('Log/losses/log_train_' + self.experiment + '.txt', 'w') as fout:
-                fout.write('Docking Training Loss:\n')
-                fout.write(log_header)
-            with open('Log/losses/log_valid_' + self.experiment + '.txt', 'w') as fout:
-                fout.write('Docking Validation Loss:\n')
-                fout.write(log_header)
-            with open('Log/losses/log_test_' + self.experiment + '.txt', 'w') as fout:
-                fout.write('Docking Testing Loss:\n')
-                fout.write(log_header)
+        start_epoch = self.resume_training_or_not(resume_training, resume_epoch, log_header)
 
         num_epochs = start_epoch + train_epochs
 
@@ -290,7 +264,34 @@ class EnergyBasedDockingTrainer:
                     with open('Log/losses/log_test_' + self.experiment + '.txt', 'a') as fout:
                         fout.write(log_format % (epoch, avg_testloss[0], avg_testloss[1]))
 
+    def resume_training_or_not(self, resume_training, resume_epoch, log_header):
+        if resume_training:
+            ckp_path = 'Log/' + self.experiment + str(resume_epoch) + '.th'
+            self.model, self.optimizer, start_epoch = self.load_ckp(ckp_path)
+            start_epoch += 1
 
+            # print(self.model)
+            # print(list(self.model.named_parameters()))
+            print('\nRESUMING TRAINING AT EPOCH', start_epoch, '\n')
+            with open('Log/losses/log_RMSDsTrainset_epoch' + str(start_epoch) + self.experiment + '.txt', 'w') as fout:
+                fout.write('Training RMSD\n')
+            with open('Log/losses/log_RMSDsValidset_epoch' + str(start_epoch) + self.experiment + '.txt', 'w') as fout:
+                fout.write('Validation RMSD\n')
+            with open('Log/losses/log_RMSDsTestset_epoch' + str(start_epoch) + self.experiment + '.txt', 'w') as fout:
+                fout.write('Testing RMSD\n')
+        else:
+            start_epoch = 1
+            ### Loss log files
+            with open('Log/losses/log_train_' + self.experiment + '.txt', 'w') as fout:
+                fout.write('Docking Training Loss:\n')
+                fout.write(log_header)
+            with open('Log/losses/log_valid_' + self.experiment + '.txt', 'w') as fout:
+                fout.write('Docking Validation Loss:\n')
+                fout.write(log_header)
+            with open('Log/losses/log_test_' + self.experiment + '.txt', 'w') as fout:
+                fout.write('Docking Testing Loss:\n')
+                fout.write(log_header)
+        return start_epoch
 
     def plot_pose(self, receptor, ligand, gt_rot, gt_txy, pred_rot, pred_txy, plot_count, stream_name):
         plt.close()
@@ -366,164 +367,23 @@ if __name__ == '__main__':
     test_stream = get_docking_stream(testset + '.pkl', batch_size=1)
 
     ######################
-    # experiment = 'coldonly_005sigma'
-    # experiment = 'coldonly_2sigma'
-    # experiment = 'coldonly_2sigma_10LD'
-    # experiment = 'coldonly_005sigma_10LD'
-    # experiment = 'coldonly_005sigma_10LD_step0p1_noclamp'
-    # experiment = 'coldonly_005sigma_10LD_step0p1_noclamp_10ep_lr-3'
-    # experiment = 'coldonly_005sigma_1LD_step0p1_noclamp_10ep_lr-3_contLD'
-    # experiment = 'coldonly_005sigma_10LD_step0p1_noclamp_lr-2_contLD' # tied with best model so far, rmsds 18 valid, 14 test
-    # experiment = 'coldonly_005sigma_1LD_step0p1_noclamp_lr-2_contLD_checkdebugplotting'
-    # experiment = 'coldonly_005sigma_1LD_step0p1_noclamp_lr-2_contLD_plottingmaxvssoftmax'
-    # experiment = 'coldonly_005sigma_1LD_step0p1_noclamp_lr-2_contLD_FFTsoftmax'
-    # experiment = 'coldonly_005sigma_10LD_step0p1_noclamp_contLD_lr-3_10ep'
-    # experiment = 'coldonly_05sigma_10LD_step0p1_noclamp_contLD_lr-3_10ep'
-    # experiment = 'coldonly_0p01sigma_step0p01_10LD_noclamp_contLD_lr-3_10ep'
-    # experiment = 'coldonly_0p01sigma_step1_10LD_noclamp_contLD_lr-3_10ep'
-    # experiment = 'coldonly_0p1sigma_step10_10LD_noclamp_contLD_lr-3_10ep'
-    # experiment = 'coldonly_clampedrot+step_10LD_noclamp_contLD_lr-3_10ep'
-    # experiment = 'coldonly_nomaxclamp_10LD_contLD_lr-3_10ep_sigma0p5'
-    # experiment = 'coldonly_nomaxclamp_10LD_lr-3_5ep_sigma0p5_NOcontLD'
-    # experiment = 'coldonly_nomaxclamp_10LD_lr-3_sigma0p05_contLD_20ep'
-    # experiment = 'coldonly_maxclamp_10LD_lr-3_sigma0p05_contLD_20ep'
-    # experiment = 'coldonly_maxclamp_10LD_lr-3_sigma0p05_contLD_20ep_EsoftmaxLD'
-    # experiment = 'coldonly_maxclamp_10LD_lr-3_sigma0p05_contLD_20ep_MinEofEsoftmaxsqueezexFFT'
-    # experiment = 'coldonly_NOmaxclamp_1LD_lr-3_sigma0p05_contLD_20ep_bestscoreSoftmaxFFT'
-    # experiment = 'coldonly_maxclamp_1LD_lr-3_sigma0p05_contLD_20ep_SoftmaxMinE_FFTscoreCEloss'
-    # experiment = 'coldonly_maxclamp_10LD_lr-2_sigma0p05_contLD_20ep_SoftmaxMinE_FFTscoreCEloss'
-    # experiment = 'coldonly_maxclamp_10LD_lr-2_sigma0p05_contLD_10ep_SoftmaxMinE_FFTscoreCEloss'
-    # experiment = 'coldonly_maxclamp_1LD_lr-2_sigma0p05_contLD_10ep_meanEforLD'
-    # experiment = 'coldonly_maxclamp_1LD_lr-2_sigma0p05_contLD_10ep_meansoftmaxEforLD'
-    # experiment = 'coldonly_maxclamp_1LD_lr-2_sigma0p05_contLD_10ep_sumEforLD'
-    # experiment = 'coldonly_maxclamp_10LD_lr-2_sigma0p05_contLD_10ep_0p001xEandstepLD'
-    # experiment = 'coldonly_maxclamp_10LD_lr-2_sigma0p05_contLD_10ep_minsoftmaxNOmultFFTinLD'
-    # experiment = 'coldonly_maxclamp_10LD_lr-2_sigma0p05_contLD_10ep_minsoftmaxNOmultFFTinLD_Einversepropalpha'
-    # experiment = 'coldonly_maxclamp_10LD_lr-2_contLD_minsoftmaxNOmultFFTinLD_Einversepropalpha_PRINTsigalpha'
-    # experiment = 'coldonly_maxclamp_10LD_lr-2_contLD_minFFT_Einversepropalpha'
-    # experiment = 'coldonly_maxclamp_10LD_lr-2_contLD_minsoftmaxFFT_EinvPropAlphax1000'
-    # experiment = 'coldonly_maxclamp_10LD_lr-3_20ep_contLD_minsoftmaxFFT_EinvPropAlphax1000'
-    # experiment = 'coldonly_maxclamp_1LD_lr-3_20ep_contLD_minsoftmaxFFT_EinvPropAlphax1e4'
-    # experiment = 'coldonly_maxclamp_1LD_lr-3_20ep_contLD_minsoftmaxFFT_EinvPropAlphax1e6'
-    # experiment = 'coldonly_maxclamp_1LD_lr-3_100ep_contLD_minsoftmaxFFT'
-    # experiment = 'coldonly_maxclamp_1LD_lr-4_100ep_contLD_minsoftmaxFFT'
-    # experiment = 'coldonly_maxclamp_1LD_lr-2_sigma0p05_contLD_20ep_minsoftmax_Einv1e3sigalpha'
-    # experiment = 'coldonly_maxclamp_10LD_lr-2_sigma0p05_contLD_5ep_minsoftmax_Einv1e3sigalpha'
-    # experiment = 'coldonly_maxclamp_10LD_lr-2_sigma0p05_contLD_10ep_minsoftmax'
-    # experiment = 'coldonly_maxclamp_10LD_lr-2_sigma0p05_contLD_10ep_minsoftmax_Einv1e3sigalpha==step'
-    # experiment = 'coldonly_maxclamp_1LD_lr-2_sigma0p05_contLD_4ep_minsoftmax_Einv1e3sigalpha==step'
-    # experiment = 'coldonly_maxclamp_10LD_lr-2_sigma0p05_contLD_4ep_minsoftmax_Einv1e3sigalpha==step_CErotloss'
-    # experiment = 'coldonly_maxclamp0p05_10LD_lr-2_sigma0p05_contLD_4ep_minsoftmax_Einv1e3sigalpha==step'
-    # experiment = 'coldonly_maxclamp0p15_10LD_lr-2_sigma0p05_contLD_4ep_minsoftmax_Einv1e3sigalpha==step'
-    # experiment = 'coldonly_maxclamp0p05_10LD_lr-2_sigma0p05_contLD_4ep_minsoftmax_Einv1e3sigalpha==step_dockereval'
-    # experiment = 'coldonly_maxclamp0p05_10LD_lr-1_sigma0p05_contLD_4ep_minsoftmax_Einv1e3sigalpha==step_dockereval'
-    # experiment = 'coldonly_maxclamp0p05_10LD_lr-3_sigma0p05_contLD_4ep_minsoftmax_Einv1e3sigalpha==step_dockereval'
-    # experiment = 'coldonly_maxclamp0p05_10LD_lr-2_sigma0p05_contLD_4ep_minsoftmax_Einv1e3sigalpha==step'
-    # experiment = 'coldonly_maxclamp0p05_10LD_lr-2_sigma0p05_contLD_4ep_minsoftmax_Einv1e3sigalpha==step_dockereval'
-    # experiment = 'coldonly_maxclamp0p20_10LD_lr-2_sigma0p05_contLD_4ep_minsoftmax_Einv1e3sigalpha==step_dockereval'
-    # experiment = 'coldonly_nomaxclamp_10LD_lr-2_sigma0p05_contLD_4ep_minsoftmax_Einv1e3sigalpha==step_dockereval'
-    # experiment = 'coldonly_nomaxclamp_10LD_lr-2_sigma0p05_contLD_4ep_minsoftmax_Einv1e3sigalpha==step_NOdockereval'
-    # experiment = 'coldonly_nomaxclamp_10LD_lr-2_sigma0p05_contLD_4ep_minsoftmax_Einv1e3sigalpha==step_WITHdockereval'
-    # experiment = 'coldonly_nomaxclamp_10LD_lr-2_sigma0p05_contLD_4ep_minsoftmax_Einv1e3sigalpha==step_WITHdockereval'
-    # experiment = 'coldonly_nomaxclamp_10LD_lr-2_sigma0p05_contLD_4ep_minsoftmax_Einv1e2sigalpha==step_WITHdockereval'
-    # experiment = 'coldonly_nomaxclamp_10LD_lr-2_sigma0p05_contLD_4ep_minsoftmax_Einv1e1sigalpha==step_WITHdockereval'
-    # experiment = 'coldonly_nomaxclamp_10LD_lr-2_sigma0p05_contLD_10ep_minsoftmax_Einv1e1sigalpha==step_WITHdockereval' #epoch 6 best, check hists
-    # experiment = 'coldonly_nomaxclamp_10LD_lr-2_sigma0p05_contLD_10ep_minsoftmax_Einv1e1sigalpha==step_WITHdockereval'
-    # experiment = 'coldonly_nomaxclamp_1LD_lr-3_sigma0p05_contLD_100ep_minsoftmax_Einv1e1sigalpha==step_WITHdockereval'
-    # experiment = 'coldonly_nomaxclamp_10LD_lr-3_sigma0p05_contLD_20ep_minsoftmax_Einv1e1sigalpha==step_WITHdockereval'
-    # experiment = 'coldonly_nomaxclamp_10LD_lr-2_sigma0p05_contLD_5ep_minsoftmax_Einv1e1sigalpha==step_WITHdockereval'
-    # experiment = 'coldonly_nomaxclamp_10LD_lr-2_sigma0p05_contLD_5ep_minsoftmax_Einv1e1sigalpha==step_WITHdockereval_noretaingraph'
-    # experiment = 'cold_0p1rmaxclamp_10LD_lr-2_contLD_5ep_minsoftmax_Einv1e1sigalpha==step_noretaingraph'
-    # experiment = 'cold_0p05rmaxclamp_10LD_lr-2_contLD_5ep_minsoftmax_Einv1e1sigalpha==step_noretaingraph'
-    # experiment = 'cold_0p01rmaxclamp_10LD_lr-2_contLD_5ep_minsoftmax_Einv1e1sigalpha==step_noretaingraph'
-    # experiment = 'cold_0p05rmaxclamp_10LD_lr-2_contLD_5ep_minsoftmax_Einv1e1sigalpha1step'
-    # experiment = 'cold_0p05rmaxclamp_10LD_lr-2_contLD_5ep_minsoftmax_Einv1e1sigalpha==step_softmaxBFeval'
-    # experiment = 'cold_0p05rmaxclamp_10LD_lr-2_contLD_5ep_minsoftmax_Einv1e1sigalpha==step_softmaxBFeval_rep1'
-    # experiment = 'cold_0p05rmaxclamp_10LD_lr-2_contLD_5ep_minsoftmax_Einv1e1sigalpha==step_softmaxBFeval_rep2'
-    # experiment = 'cold_0p05rmaxclamp_10LD_lr-2_contLD_5ep_minsoftmax_Einv1e1sigalpha==step_FFTBFeval_rep1'
-    # experiment = 'cold_0p05rmaxclamp_10LD_lr-2_contLD_5ep_minsoftmax_Einv1e1sigalpha==step_FFTBFeval_rep2'
-    # experiment = 'cold_0p05rmaxclamp_10LD_lr-2_contLD_10ep_minsoftmax_Einv1e1sigalpha==step_softmaxBFeval'
-    # experiment = 'cold_0p05rmaxclamp_1LD_lr-2_contLD_100ep_minsoftmax_Einv1e1sigalpha==step_softmaxBFeval' # works < 10ep. ep 7; RMSD 17.4, 15.35
-    # experiment = 'cold_0p05rmaxclamp_1LD_lr-2_contLD_10ep_minsoftmax_Einv1e1sigalpha==step_softmaxBFeval_rep1'
-    # experiment = 'cold_0p05rmaxclamp_1LD_lr-2_contLD_10ep_minsoftmax_Einv1e1sigalpha==step_softmaxBFeval_rep2'
-    # experiment = 'cold_0p05rmaxclamp_1LD_lr-1_contLD_10ep_minsoftmax_Einv1e1sigalpha==step_softmaxBFeval'
-    # experiment = 'cold_0p05rmaxclamp_1LD_lr-3_contLD_10ep_minsoftmax_Einv1e1sigalpha==step_softmaxBFeval'
-    # experiment = 'cold_0p05rmaxclamp_1LD_lr-3_NOcontLD_10ep_SMminEval_Einv1e1sigalpha==step'
-    # experiment = 'cold_0p05rmaxclamp_10LD_lr-2_NOcontLD_10ep_SMminEval_Einv1e1sigalpha==step'
-    # experiment = 'cold_0p05rmaxclamp_10LD_lr-2_NOcontLD_10ep_SMminEval_Einv1e1sigalpha==step_0rotinit'
-    # experiment = 'cold_0p05rmaxclamp_10LD_lr-2_NOcontLD_10ep_SMminEval_Einv1e2sigalpha==step_0rotinit'
-    # experiment = 'cold_0p05rmaxclamp_10LD_lr-2_NOcontLD_10ep_SMminEval_Einv1e3sigalpha==step_0rotinit'
-    # experiment = 'cold_0p05rmaxclamp_1LD_lr-2_NOcontLD_10ep_SMminEval_Einv1e1sigalpha==step_0rotinit_printalph'
-    # experiment = 'cold_0p05rmaxclamp_1LD_lr-2_NOcontLD_10ep_SMminEval_Einv1e0sigalpha==step_0rotinit'
-    # experiment = 'cold_0p05rmaxclamp_1LD_lr-2_NOcontLD_10ep_SMminEval_Einv1e1sigalpha==step_0rotinit_torchdiv'
-    # experiment = 'cold_0p05rmaxclamp_1LD_lr-2_NOcontLD_10ep_SMminEval_Einv1e1sigalpha==step_0rotinit_divfixed'
-    # experiment = 'cold_0p05rmaxclamp_1LD_lr-2_NOcontLD_10ep_SMminEval_Einv1e1sigalpha==step_0rotinit_divfloor'
-    # experiment = 'cold_NOmaxclamp_1LD_lr-2_NOcontLD_10ep_SMminEval_Einv1e1sigalpha==step_0rotinit_divfloor'
-    # experiment = 'cold_NOmaxclamp_10LD_lr-2_NOcontLD_10ep_SMminEval_Einv1e1sigalpha==step_0rotinit_divfloor' # best yet, ep3 RMSD 13 both
-    # experiment = 'cold_NOmaxclamp_10LD_lr-2_NOcontLD_5ep_SMminEval_Einv1e1sigalpha==step_0rotinit_divfloor_rep1'
-    # experiment = 'cold_NOmaxclamp_10LD_lr-2_NOcontLD_5ep_SMminEval_Einv1e1sigalpha==step_minEtracker'
-    # experiment = 'cold_NOmaxclamp_10LD_lr-2_5ep_SMminEval_Einv1e1sigalpha==step_minEtracker_contLD'
-    # experiment = 'cold_NOmaxclamp_10LD_lr-2_10ep_SMminEval_Einv1e1sigalpha==step_minEtracker_contLD' #3ep RMSD 14 and 12
-    # experiment = 'cold_NOmaxclamp_10LD_lr-2_10ep_SMminEval_Einvsigalpha==step_minEtracker_contLD'
-    # experiment = 'cold_NOmaxclamp_10LD_lr-2_10ep_SMminEval_Einv1e2sigalpha==step_minEtracker_contLD'
-    # experiment = 'cold_NOmaxclamp_10LD_lr-2_10ep_SMminEval_Einv1e3sigalpha==step_minEtracker_contLD'
-    # experiment = 'cold_NOmaxclamp_10LD_lr-2_5ep_SMminEval_Einv1e2sigalpha==step_minEtracker_contLD_rep1'
-    # experiment = 'cold_NOmaxclamp_10LD_lr-2_5ep_SMminEval_Einv1e2sigalpha==step_minEtracker_contLD_rep1'
-    # experiment = 'cold_NOmaxclamp_10LD_lr-2_5ep_SMminEval_Einv1e1sigalpha==step_minEtracker_contLD_rep1'
-    # experiment = 'cold_NOmaxclamp_10LD_lr-2_5ep_SMminEval_Einv1e1sigalpha==step_minEtracker_contLD_rep2'
-    # experiment = 'cold_NOmaxclamp_10LD_lr-2_5ep_SMminEval_Einv1e1sigalpha==step_minEtracker_contLD_rep3'
-    # experiment = 'cold_NOmaxclamp_10LD_lr-2_5ep_SMminEval_Einv1e1sigalpha==step_minEtracker_contLD_nodrsbuffercheck'
-    # experiment = 'cold_NOmaxclamp_10LD_lr-2_10ep_SMminEval_Einv1e1sigalpha==step_minEtracker_contLD_nodrsbuffercheck'
-    # experiment = 'cold_NOmaxclamp_10LD_lr-2_10ep_SMminEval_Einv1e1sigalpha==step_minEtracker_contLD_buffercheck'
-    # experiment = 'cold_1LD_lr-2_10ep_contLD_Einv1e1'
-    # experiment = 'cold_10LD_lr-2_5ep_contLD_Einv1e1'
-    # experiment = 'cold_10LD_lr-2_10ep_contLD_Einv1e1'
-    # experiment = 'cold_10LD_lr-2_10ep_contLD_Einv1e1_printbuffer'
     # experiment = 'cold_10LD_lr-2_10ep_contLD_Einv1e2' ## !!!! trained on 10 examples, 10 epochs lowest RMSD yet ep7 12.11, 11.18
     # experiment = 'cold_10LD_lr-2_10ep_contLD_Einv1e2_rep1' ## works
     # experiment = 'cold_10LD_lr-2_10ep_contLD_Einv1e1_10ex' !!!! RMSD yet ep8 9.87, 8.37
-    # experiment = 'cold_10LD_lr-2_10ep_contLD_Einv1e3_10ex'
-    # experiment = 'cold_10LD_lr-2_10ep_contLD_Einv1e4_10ex'
-    # experiment = 'cold_10LD_lr-2_10ep_contLD_Einv1e5_10ex'
-    # experiment = 'cold_10LD_lr-2_10ep_contLD_Einv1e6_10ex'
-    # experiment = 'cold_10LD_lr-2_100ep_contLD_Einv1e3_10ex_lr-3'
-    # experiment = 'cold_10LD_100ep_contLD_Einv1e3_10ex_lr-2'
-    # experiment = 'cold_10LD_10ep_contLD_Einv1e3_20ex_lr-2'
-    # experiment = 'cold_10LD_10ep_contLD_Einv1e3_100ex_lr-2'
-    # experiment = 'cold_10LD_10ep_contLD_Einv1e3_10ex_lr-2'
-    # experiment = 'cold_10LD_10ep_NOcontLD_Einv1e3_10ex_lr-2'
-    # experiment = 'cold_10LD_10ep_RANDcontLD_Einv1e3_10ex_lr-2'
-    # experiment = 'cold_10LD_10ep_contLD_Einv1e3_10ex_lr-2_rep2'
-    # experiment = 'cold_10LD_10ep_contLD_Einv1e3_10ex_lr-2_nobestFFTsaving'
-    # experiment = 'cold_10LD_10ep_contLD_Einv1e3_10ex_lr-2_bestFFTsavingwithgrad'
-    # experiment = 'cold_20LD_10ep_contLD_Einv1e3_10ex_lr-2_bestFFTsavingwithgrad'
-    # experiment = 'cold_5LD_10ep_contLD_Einv1e3_10ex_lr-2_bestFFTsavingwithgrad'
-    # experiment = 'cold_1LD_10ep_contLD_Einv1e3_10ex_lr-2_bestFFTsavingwithgrad'
-    # experiment = 'cold_1LD_10ep_contLD_Einv1e3_10ex_lr-2_bestFFTsavingwithgrad'
-    # experiment = 'cold_10LD_10ep_contLD_Einv1e3_10ex_lr-2_bestFFTsavingwithgrad_maxclamp05'
-    # experiment = 'cold_20LD_10ep_contLD_Einv1e3_10ex_lr-2_bestFFTsavingwithgrad_maxclamp05'
-    # experiment = 'cold_30LD_10ep_contLD_Einv1e3_10ex_lr-2_bestFFTsavingwithgrad_maxclamp05'
-    # experiment = 'cold_20LD_10ep_contLD_Einv1e3_10ex_lr-2_NObestFFTsavingwithgrad'
-    # experiment = 'cold_30LD_10ep_contLD_Einv1e3_10ex_lr-2_NObestFFTsavingwithgrad'
-    # experiment = 'cold_10LD_10ep_10ex_lr-2_contLD_Einv1e3_FFTbestsaved'
-    # experiment = 'cold_10LD_10ep_10ex_lr-2_contLD_FFTbestsaved_Ethreshold-02sig=0'
-    # experiment = 'cold_10LD_10ep_lr-2_contLD_FFTbestsaved_invEthreshold-02sig=0'
-    # experiment = 'cold_10LD_10ep_lr-2_contLD_FFTbestsaved_invE1e3threshold-0p1sig=0'
-    # experiment = 'cold_10LD_10ep_10ex_lr-2_contLD_FFTbestsaved_invE1e3threshold-0p1sig=0'
-    # experiment = 'cold_10LD_10ep_10ex_lr-2_contLD_FFTbestsaved_invE1e3threshold-0p2sig=0_printsigma'
-    # experiment = 'cold_10LD_10ep_10ex_lr-2_contLD_FFTbestsaved_invE1e3threshold-0p3sig=0_printsigma'
-    # experiment = 'cold_10LD_10ep_10ex_lr-2_contLD_FFTbestsaved_invE1e3threshold-0p3sig=0_printsigma_nobestFFT'
-    # experiment = 'cold_10LD_10ep_10ex_lr-2_contLD_FFTbestsaved_invE1e3threshold-0p5sig=0_printsigma_nobestFFT'
-    # experiment = 'cold_10LD_10ep_10ex_lr-2_contLD_FFTbestsaved_threshold-0p5_Einv1e3_printsigma'
-    # experiment = 'cold_10LD_10ep_10ex_lr-2_contLD_FFTbestsaved_threshold-0p5_Einv1e6_else_printsigma'
-    # experiment = 'cold_10LD_100ep_10ex_lr-2_threshold-0p2_Einv1e6_else_printsigma'
-    # experiment = 'cold_10LD_10ep_100ex_lr-2_sigmaPIx1e6^E_printsigma'
-    # experiment = 'cold_10LD_10ep_fullsetex_lr-2_sigmaPIx1e6^E_printsigma'
-    # experiment = 'cold_10LD_10ep_fullsetex_lr-4_sigmaPIx1e6^E_printsigma'
-    experiment = 'cold_10LD_50ep_fullsetex_lr-3_sigmaPIx1e6^E_printsigma'
+    # experiment = 'testing_sigmadecay_supergaussian_1LD_lr-2_testingcoeffs_step1_nosm_n4a10bpi'
+    # experiment = 'testing_sigmadecay_supergaussian_10LD_lr-2_testingcoeffs_step1_nosm_n4a5b1'
+    # experiment = 'testing_sigmadecay_supergaussian_10LD_lr-3_step1_withsm_a0p5b1n10' ### softmax is not the way, gets shrunken down to unpredictably small
+    # experiment = 'testing_sigmadecay_supergaussian_10LD_lr-3_step1_withsm_a0p8b1n4'
+    # experiment = 'testing_sigmadecay_supergaussian_10LD_lr-3_step1_NOsm_a2p5b1n2'
+    # experiment = 'testing_sigmadecay_supergaussian_10LD_lr-3_step1_NOsm_a0p5b1n2_5ep_learnedA'
+    # experiment = 'testing_10LD_lr-3_stepsched0p95'
+    # experiment = 'testing_10LD_lr-2_step10sched0p8_sig0p05_10ep'
+    # experiment = 'testing_10LD_lr-2_step10sched0p8_sigmaa0p2b0p5n2_5ep'
+    # experiment = 'testing_10LD_lr-2_step10sched0p8_sigmaa0p5n2_5ep' # worth improving
+    experiment = 'testing_10LD_lr-2_step10sched0p8_sigmaa0p5n2_5ep'
 
     ######################
-    lr = 10 ** -3 # any lr != 1e-2 not as good
+    lr = 10 ** -2 # any lr != 1e-2 not as good
     LD_steps = 10
     debug = False
     # debug = True
@@ -536,7 +396,7 @@ if __name__ == '__main__':
     model = EnergyBasedModel(dockingFFT, num_angles=1, sample_steps=LD_steps, debug=debug).to(device=0)
     optimizer = optim.Adam(model.parameters(), lr=lr)
 
-    train_epochs = 50
+    train_epochs = 5
     continue_epochs = 1
     ######################
     ### Train model from beginning
@@ -552,13 +412,15 @@ if __name__ == '__main__':
     #     train_epochs=1, train_stream=None, valid_stream=valid_stream, test_stream=valid_stream,
     #     resume_training=True, resume_epoch=5)
 
-    for train_epochs in range(continue_epochs, train_epochs):
+    for epoch in range(continue_epochs+1, train_epochs):
         ### Evaluate model using all 360 angles (or less).
+        if train_epochs-1 == epoch:
+            plotting = True
         eval_model = EnergyBasedModel(dockingFFT, num_angles=360).to(device=0)
         EnergyBasedDockingTrainer(dockingFFT, eval_model, optimizer, experiment, plotting=plotting).run_trainer(
             train_epochs=1, train_stream=None, valid_stream=valid_stream, test_stream=test_stream,
-            resume_training=True, resume_epoch=train_epochs)
+            resume_training=True, resume_epoch=epoch)
 
         ## Plot loss from current experiment
         # IPLossPlotter(experiment).plot_loss()
-        IPLossPlotter(experiment).plot_rmsd_distribution(plot_epoch=train_epochs+1, show=show, eval_only=True)
+        IPLossPlotter(experiment).plot_rmsd_distribution(plot_epoch=epoch+1, show=show, eval_only=True)

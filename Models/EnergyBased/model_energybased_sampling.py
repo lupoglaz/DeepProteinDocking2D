@@ -31,7 +31,7 @@ class DockerEBM(nn.Module):
         else: training = True
 
         FFT_score = self.docker.forward(receptor, ligand, angle=rotation, plotting=plotting, training=training, plot_count=plot_count, stream_name=stream_name)
-        E_softmax = self.softmax(FFT_score).squeeze()
+        E_softmax = self.softmax(FFT_score).squeeze() #* FFT_score
 
         with torch.no_grad():
             pred_rot, pred_txy = self.dockingFFT.extract_transform(FFT_score)
@@ -45,12 +45,12 @@ class DockerEBM(nn.Module):
                 best_score = E_softmax[deg_index_rot, pred_txy[0], pred_txy[1]]
 
                 if plotting and plot_count % 10 == 0:
+                    # E_softmax = FFT_score
                     self.plot_rotE_surface(FFT_score, pred_txy, E_softmax, stream_name, plot_count)
 
         Energy = -best_score
 
         return Energy, pred_txy, pred_rot, FFT_score
-
 
     def plot_rotE_surface(self, FFT_score, pred_txy, E_softmax, stream_name, plot_count):
         plt.close()
@@ -74,7 +74,7 @@ class DockerEBM(nn.Module):
 
 
 class EnergyBasedModel(nn.Module):
-    def __init__(self, dockingFFT, num_angles=1, step_size=1, sample_steps=1, experiment=None, debug=False):
+    def __init__(self, dockingFFT, num_angles=1, step_size=10, sample_steps=1, FI=False, experiment=None, debug=False):
         super(EnergyBasedModel, self).__init__()
         self.debug = debug
         self.num_angles = num_angles
@@ -86,76 +86,61 @@ class EnergyBasedModel(nn.Module):
         self.plot_idx = 0
 
         self.experiment = experiment
+        self.FI = FI
+        self.sig_alpha = 0.05
 
     def forward(self, neg_alpha, receptor, ligand, temperature='cold', plot_count=1, stream_name='trainset', plotting=False):
-        self.minE = torch.inf
+        self.EBMdocker.eval()
+
+        # self.minE = torch.inf
 
         if self.num_angles > 1:
             ### evaluate with brute force
-            Energy, neg_dr, neg_alpha, FFT_score = self.EBMdocker(receptor, ligand, neg_alpha, plot_count, stream_name, plotting=plotting)
-            return Energy, neg_alpha.unsqueeze(0).clone(), neg_dr.unsqueeze(0).clone(), FFT_score
+            _, neg_dr, neg_alpha, FFT_score = self.EBMdocker(receptor, ligand, neg_alpha, plot_count, stream_name, plotting=plotting)
+            return neg_alpha.unsqueeze(0).clone(), neg_dr.unsqueeze(0).clone(), FFT_score
 
         noise_alpha = torch.zeros_like(neg_alpha)
-        self.EBMdocker.eval()
 
         neg_alpha.requires_grad_()
         langevin_opt = optim.SGD([neg_alpha], lr=self.step_size, momentum=0.0)
-
+        langevin_scheduler = optim.lr_scheduler.ExponentialLR(langevin_opt, gamma=0.8)
+        FFT_score_list = []
         for i in range(self.sample_steps):
-            if i == self.sample_steps - 1:
+            if i > 1 and i == self.sample_steps - 1:
                 plotting = True
+                # print('\nEnergy', Energy)
+                # print('sigma', self.sig_alpha)
+                # print(langevin_scheduler.get_last_lr())
 
             langevin_opt.zero_grad()
 
-            Energy, neg_dr, pred_rot, FFT_score = self.EBMdocker(receptor, ligand, neg_alpha, plot_count, stream_name, plotting=plotting)
+            Energy, neg_dr, _, FFT_score = self.EBMdocker(receptor, ligand, neg_alpha, plot_count, stream_name, plotting=plotting)
 
-            # print(Energy)
-            # with torch.no_grad():
-            #     if Energy < -0.1:
-            #         self.sig_alpha = 0.01
-            #     else:
-            #         self.sig_alpha = -1/(Energy*1e3)
-            #         self.sig_alpha = self.sig_alpha.type(torch.float)
-
-                # self.sig_alpha = -1/(Energy)
-                # self.sig_alpha = -1/(Energy*1e1)
-                # self.sig_alpha = -1/(Energy*1e2)
-                # self.sig_alpha = -1/(Energy*1e4)
-                # self.sig_alpha = -1/(Energy*1e5)
-                # self.sig_alpha = -1/(Energy*1e6)
-                # self.step_size = self.sig_alpha
-            #     # print(self.sig_alpha)
-            with torch.no_grad():
-                self.sig_alpha = np.pi*(1e6**Energy)
-                self.step_size = self.sig_alpha
-                self.sig_alpha = self.sig_alpha.type(torch.float)
-                # if Energy < -0.2:
-                # #     self.sig_alpha = 0
-                # #     self.step_size = 0
-                # # # else:
-                #     self.sig_alpha = -1/(Energy*1e6)
-                #     self.step_size = self.sig_alpha
-                #     self.sig_alpha = self.sig_alpha.type(torch.float)
-                # else:
-                #     self.sig_alpha = -1/(Energy)
-                #     self.step_size = self.sig_alpha
-                #     self.sig_alpha = self.sig_alpha.type(torch.float)
-                # print(Energy.item(), self.sig_alpha)
+            a = 0.5
+            # b = 0.5
+            n = 2
+            self.sig_alpha = float(a*torch.exp(-(Energy/a)**n))
 
             Energy.backward()
             langevin_opt.step()
+            langevin_scheduler.step()
 
             rand_rot = noise_alpha.normal_(0, self.sig_alpha)
             neg_alpha = neg_alpha + rand_rot
+            # print(rand_rot)
             # neg_alpha = neg_alpha + rand_rot.data.clamp(-0.05, 0.05)
 
             # if Energy < self.minE:
             #     self.minE = Energy
             #     FFT_score_best = FFT_score
+            FFT_score_list.append(FFT_score)
+
+        if self.FI:
+            FFT_score = torch.stack((FFT_score_list), dim=0)
 
         self.EBMdocker.train()
 
-        return Energy, neg_alpha.clone(), neg_dr.clone(), FFT_score#_best
+        return neg_alpha.clone(), neg_dr.clone(), FFT_score#_best
 
     def requires_grad(self, flag=True):
         parameters = self.EBMdocker.parameters()
