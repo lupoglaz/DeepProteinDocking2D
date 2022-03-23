@@ -120,7 +120,7 @@ class EnergyBasedDockingTrainer:
         ### run model and loss calculation
         ##### call model
         neg_alpha = self.buffer.get(pos_idx, samples_per_example=1, training=training)
-        pred_rot, pred_txy, FFT_score = self.model(neg_alpha, receptor, ligand, temperature='cold', plot_count=pos_idx.item(), stream_name=stream_name, plotting=self.plotting)
+        free_energy, pred_rot, pred_txy, FFT_score = self.model(neg_alpha, receptor, ligand, temperature='cold', plot_count=pos_idx.item(), stream_name=stream_name, plotting=self.plotting)
         self.buffer.push(pred_rot, pos_idx)
 
         ### Encode ground truth transformation index into empty energy grid
@@ -140,11 +140,11 @@ class EnergyBasedDockingTrainer:
         CE_loss = torch.nn.CrossEntropyLoss()
         # L1_loss = torch.nn.L1Loss()
 
-        loss = CE_loss(FFT_score.flatten().unsqueeze(0), target_flatindex.unsqueeze(0))
-        # loss = loss + CE_loss(pred_rotindex.unsqueeze(0), target_rotindex.unsqueeze(0))
+        # print(free_energy)
+        # w = 1e-10
+        # L_reg = w * L1_loss(free_energy, torch.zeros(1).squeeze().cuda())
 
-        # loss = CE_loss(FFT_score_sum.flatten().unsqueeze(0), target_flatindex.unsqueeze(0))
-
+        loss = CE_loss(FFT_score.flatten().unsqueeze(0), target_flatindex.unsqueeze(0)) #+ L_reg
 
         ### check parameters and gradients
         ### if weights are frozen or updating
@@ -217,6 +217,9 @@ class EnergyBasedDockingTrainer:
                     with open('Log/losses/log_RMSDsTrainset_epoch' + str(epoch) + self.experiment + '.txt', 'a') as fout:
                         fout.write('%f\n' % (train_output[0][-1]))
 
+                # scheduler.step()
+                # print(scheduler.get_last_lr())
+
                 avg_trainloss = np.average(train_loss, axis=0)[0, :]
                 print('\nEpoch', epoch, 'Train Loss:', avg_trainloss)
                 with open('Log/losses/log_train_' + self.experiment + '.txt', 'a') as fout:
@@ -264,11 +267,13 @@ class EnergyBasedDockingTrainer:
                     with open('Log/losses/log_test_' + self.experiment + '.txt', 'a') as fout:
                         fout.write(log_format % (epoch, avg_testloss[0], avg_testloss[1]))
 
-    def resume_training_or_not(self, resume_training, resume_epoch, log_header):
+    def resume_training_or_not(self, resume_training, resume_epoch, log_header, bf_path=None):
         if resume_training:
             ckp_path = 'Log/' + self.experiment + str(resume_epoch) + '.th'
             self.model, self.optimizer, start_epoch = self.load_ckp(ckp_path)
             start_epoch += 1
+            # if bf_path:
+            #     self.model, _, _ = self.load_ckp(bf_path)
 
             # print(self.model)
             # print(list(self.model.named_parameters()))
@@ -362,28 +367,28 @@ if __name__ == '__main__':
     batch_size = 1
     if batch_size > 1:
         raise NotImplementedError()
-    train_stream = get_docking_stream(trainset + '.pkl', batch_size)
+    train_stream = get_docking_stream(trainset + '.pkl', batch_size, max_size=20)
     valid_stream = get_docking_stream(validset + '.pkl', batch_size=1)
     test_stream = get_docking_stream(testset + '.pkl', batch_size=1)
 
     ######################
-    # experiment = 'cold_10LD_lr-2_10ep_contLD_Einv1e2' ## !!!! trained on 10 examples, 10 epochs lowest RMSD yet ep7 12.11, 11.18
-    # experiment = 'cold_10LD_lr-2_10ep_contLD_Einv1e2_rep1' ## works
-    # experiment = 'cold_10LD_lr-2_10ep_contLD_Einv1e1_10ex' !!!! RMSD yet ep8 9.87, 8.37
-    # experiment = 'testing_sigmadecay_supergaussian_1LD_lr-2_testingcoeffs_step1_nosm_n4a10bpi'
-    # experiment = 'testing_sigmadecay_supergaussian_10LD_lr-2_testingcoeffs_step1_nosm_n4a5b1'
-    # experiment = 'testing_sigmadecay_supergaussian_10LD_lr-3_step1_withsm_a0p5b1n10' ### softmax is not the way, gets shrunken down to unpredictably small
-    # experiment = 'testing_sigmadecay_supergaussian_10LD_lr-3_step1_withsm_a0p8b1n4'
-    # experiment = 'testing_sigmadecay_supergaussian_10LD_lr-3_step1_NOsm_a2p5b1n2'
-    # experiment = 'testing_sigmadecay_supergaussian_10LD_lr-3_step1_NOsm_a0p5b1n2_5ep_learnedA'
-    # experiment = 'testing_10LD_lr-3_stepsched0p95'
-    # experiment = 'testing_10LD_lr-2_step10sched0p8_sig0p05_10ep'
-    # experiment = 'testing_10LD_lr-2_step10sched0p8_sigmaa0p2b0p5n2_5ep'
-    # experiment = 'testing_10LD_lr-2_step10sched0p8_sigmaa0p5n2_5ep' # worth improving
-    experiment = 'testing_10LD_lr-2_step10sched0p8_sigmaa0p5n2_5ep'
+    # experiment = 'check_softmax_plot'
+    # experiment = 'check_softmax_plot_10ex'
+    # experiment = 'freeEnergy_withLreg_10ex'
+    # experiment = 'freeEnergy_10LD_lr-2_fullset'
+    # experiment = 'freeEnergy_100LD_lr-2_10ex'
+    # experiment = 'freeEnergy_10LD_lr-2_10ex'
+    # experiment = 'freeEnergy_10LD_lr-2_fullset'
+    # experiment = 'freeEnergy_10LD_lr-3_fullset_10ep_a1b1n2'
+    # experiment = 'freeEnergy_10LD_lr-3_10ex_10ep_a1p5b1n4'
+    # experiment = 'freeEnergy_10LD_lr-3_10ex_10ep_a1p5b1n4_sched0p9'
+    # experiment = 'freeEnergy_10LD_lr-4_10ex_10ep_a1p5b1n4'
+    # experiment = 'freeEnergy_10LD_lr-3_10ex_5ep_a1p5b1n4_nolse'
+    # experiment = 'freeEnergy_10LD_lr-3_10ex_10ep_a1p5b1n4_logexpmean'
+    experiment = 'freeEnergy_10LD_lr-3_20ex_10ep_a1p5b1n4_lse'
 
     ######################
-    lr = 10 ** -2 # any lr != 1e-2 not as good
+    lr = 10 ** -3 # any lr != 1e-2 not as good
     LD_steps = 10
     debug = False
     # debug = True
@@ -395,8 +400,9 @@ if __name__ == '__main__':
     dockingFFT = TorchDockingFFT(num_angles=1, angle=None, swap_plot_quadrants=False, debug=debug)
     model = EnergyBasedModel(dockingFFT, num_angles=1, sample_steps=LD_steps, debug=debug).to(device=0)
     optimizer = optim.Adam(model.parameters(), lr=lr)
+    # scheduler = optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.95)
 
-    train_epochs = 5
+    train_epochs = 10
     continue_epochs = 1
     ######################
     ### Train model from beginning
