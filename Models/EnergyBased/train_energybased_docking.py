@@ -86,19 +86,7 @@ class EnergyBasedDockingTrainer:
         num_examples = max(len(train_stream), len(valid_stream), len(test_stream))
         self.buffer = SampleBuffer(num_examples=num_examples)
         # self.buffer2 = SampleBuffer(880)
-
-    # def encode_rotation(self, gt_rot, pred_rot):
-    #     empty_1D_target = torch.zeros([360], dtype=torch.double).cuda()
-    #     deg_index_rot = (((gt_rot * 180.0/np.pi) + 180.0) % 360).type(torch.long)
-    #     empty_1D_target[deg_index_rot] = 1
-    #     target_rotindex = torch.argmax(empty_1D_target.flatten()).cuda()
-    #
-    #     empty_1D_pred = torch.zeros([360], dtype=torch.double).cuda()
-    #     deg_index_rot = (((pred_rot * 180.0/np.pi) + 180.0) % 360).type(torch.long)
-    #     empty_1D_pred[deg_index_rot] = 1
-    #     pred_rotindex = empty_1D_pred
-    #     return target_rotindex, pred_rotindex
-
+        self.weight = self.dim
     def run_model(self, data, training=True, plot_count=0, stream_name='trainset'):
         receptor, ligand, gt_txy, gt_rot, pos_idx = data
         # print(pos_idx)
@@ -119,16 +107,19 @@ class EnergyBasedDockingTrainer:
 
         ### run model and loss calculation
         ##### call model
+        ### Langevin Dynamics
+        # neg_alpha = self.buffer.get(pos_idx, samples_per_example=1, training=training)
+        # free_energy, pred_rot, pred_txy, FFT_score = self.model(neg_alpha, receptor, ligand, plot_count=pos_idx.item(), stream_name=stream_name, plotting=self.plotting)
+        # self.buffer.push(pred_rot, pos_idx)
+
         neg_alpha = self.buffer.get(pos_idx, samples_per_example=1, training=training)
-        free_energy, pred_rot, pred_txy, FFT_score = self.model(neg_alpha, receptor, ligand, temperature='cold', plot_count=pos_idx.item(), stream_name=stream_name, plotting=self.plotting)
+        pos_free_energy, neg_free_energy, pred_rot, pred_txy, FFT_score = self.model(gt_rot, neg_alpha, receptor, ligand, plot_count=pos_idx.item(), stream_name=stream_name, plotting=self.plotting)
         self.buffer.push(pred_rot, pos_idx)
 
         ### Encode ground truth transformation index into empty energy grid
         with torch.no_grad():
-            target_flatindex = self.dockingFFT.encode_transform(gt_rot, gt_txy)
             rmsd_out = RMSD(ligand, gt_rot, gt_txy, pred_rot.squeeze(), pred_txy.squeeze()).calc_rmsd()
-            # target_rotindex, pred_rotindex = self.encode_rotation(gt_rot, pred_rot)
-
+            target_flatindex = self.dockingFFT.encode_transform(gt_rot, gt_txy)
 
         if self.debug:
             print('\npredicted')
@@ -138,13 +129,13 @@ class EnergyBasedDockingTrainer:
 
         #### Loss functions
         CE_loss = torch.nn.CrossEntropyLoss()
+        loss = CE_loss(FFT_score.flatten().unsqueeze(0), target_flatindex.unsqueeze(0))
+
+        # Lp = (pos_free_energy*self.weight).mean()
+        # Ln = (neg_free_energy*self.weight).mean()
         # L1_loss = torch.nn.L1Loss()
-
-        # print(free_energy)
-        # w = 1e-10
-        # L_reg = w * L1_loss(free_energy, torch.zeros(1).squeeze().cuda())
-
-        loss = CE_loss(FFT_score.flatten().unsqueeze(0), target_flatindex.unsqueeze(0)) #+ L_reg
+        # loss += L1_loss(Lp, Ln)
+        # print(Lp, Ln, loss)
 
         ### check parameters and gradients
         ### if weights are frozen or updating
@@ -152,10 +143,12 @@ class EnergyBasedDockingTrainer:
             self.check_model_gradients()
 
         if training:
+            # loss = CE_loss(FFT_score.flatten().unsqueeze(0), target_flatindex.unsqueeze(0))
             self.model.zero_grad()
             loss.backward()
             self.optimizer.step()
         else:
+            loss = torch.zeros(1)
             self.model.eval()
             if self.plotting and plot_count % self.plot_freq == 0:
                 with torch.no_grad():
@@ -367,29 +360,23 @@ if __name__ == '__main__':
     batch_size = 1
     if batch_size > 1:
         raise NotImplementedError()
-    train_stream = get_docking_stream(trainset + '.pkl', batch_size, max_size=20)
+    train_stream = get_docking_stream(trainset + '.pkl', batch_size)
     valid_stream = get_docking_stream(validset + '.pkl', batch_size=1)
     test_stream = get_docking_stream(testset + '.pkl', batch_size=1)
 
     ######################
-    # experiment = 'check_softmax_plot'
-    # experiment = 'check_softmax_plot_10ex'
-    # experiment = 'freeEnergy_withLreg_10ex'
-    # experiment = 'freeEnergy_10LD_lr-2_fullset'
-    # experiment = 'freeEnergy_100LD_lr-2_10ex'
-    # experiment = 'freeEnergy_10LD_lr-2_10ex'
-    # experiment = 'freeEnergy_10LD_lr-2_fullset'
-    # experiment = 'freeEnergy_10LD_lr-3_fullset_10ep_a1b1n2'
-    # experiment = 'freeEnergy_10LD_lr-3_10ex_10ep_a1p5b1n4'
-    # experiment = 'freeEnergy_10LD_lr-3_10ex_10ep_a1p5b1n4_sched0p9'
-    # experiment = 'freeEnergy_10LD_lr-4_10ex_10ep_a1p5b1n4'
-    # experiment = 'freeEnergy_10LD_lr-3_10ex_5ep_a1p5b1n4_nolse'
-    # experiment = 'freeEnergy_10LD_lr-3_10ex_10ep_a1p5b1n4_logexpmean'
-    experiment = 'freeEnergy_10LD_lr-3_20ex_10ep_a1p5b1n4_lse'
+    # experiment = 'testing_mixedmodel'
+    # experiment = 'testing_mixedmodel_MH'
+    # experiment = 'testing_mixedmodel_MH_nofreeE_nograd' # kind of works, slow loss but goes down
+    # experiment = 'testing_mixedmodel_MH_nofreeE_nograd_lr-2_10ex'
+    # experiment = 'testing_mixedmodel_MH_nofreeE_nograd_lr-2_10ex_posnegFFTmeans'
+    # experiment = 'testing_mixedmodel_MH_nofreeE_nograd_lr-2_10ex_posexactnegmeanFFT'
+    # experiment = 'testing_mixedmodel_MH_nofreeE_nograd_lr-2_posexactnegmeanFFT_posinloop_10ex'
+    experiment = 'posexampleonly_fullset_10ep_lr-2'
 
     ######################
-    lr = 10 ** -3 # any lr != 1e-2 not as good
-    LD_steps = 10
+    lr = 10 ** -2
+    LD_steps = 1
     debug = False
     # debug = True
     plotting = False
@@ -400,7 +387,7 @@ if __name__ == '__main__':
     dockingFFT = TorchDockingFFT(num_angles=1, angle=None, swap_plot_quadrants=False, debug=debug)
     model = EnergyBasedModel(dockingFFT, num_angles=1, sample_steps=LD_steps, debug=debug).to(device=0)
     optimizer = optim.Adam(model.parameters(), lr=lr)
-    # scheduler = optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.95)
+    # scheduler = optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.5)
 
     train_epochs = 10
     continue_epochs = 1
@@ -418,9 +405,11 @@ if __name__ == '__main__':
     #     train_epochs=1, train_stream=None, valid_stream=valid_stream, test_stream=valid_stream,
     #     resume_training=True, resume_epoch=5)
 
-    for epoch in range(continue_epochs+1, train_epochs):
+    start = continue_epochs+1
+    stop = train_epochs
+    for epoch in range(start, stop):
         ### Evaluate model using all 360 angles (or less).
-        if train_epochs-1 == epoch:
+        if stop-1 == epoch:
             plotting = True
         eval_model = EnergyBasedModel(dockingFFT, num_angles=360).to(device=0)
         EnergyBasedDockingTrainer(dockingFFT, eval_model, optimizer, experiment, plotting=plotting).run_trainer(
