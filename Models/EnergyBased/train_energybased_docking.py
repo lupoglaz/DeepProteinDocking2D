@@ -79,9 +79,8 @@ class EnergyBasedDockingTrainer:
         self.experiment = cur_experiment
 
         num_examples = max(len(train_stream), len(valid_stream), len(test_stream))
-        self.trainbuffer = SampleBuffer(num_examples=num_examples)
+        # self.trainbuffer = SampleBuffer(num_examples=num_examples)
         self.evalbuffer = SampleBuffer(num_examples=num_examples)
-        self.weight = self.dim
 
     def run_model(self, data, training=True, plot_count=0, stream_name='trainset'):
         receptor, ligand, gt_txy, gt_rot, pos_idx = data
@@ -103,22 +102,15 @@ class EnergyBasedDockingTrainer:
 
         ### run model and loss calculation
         ##### call model
-        ### Langevin Dynamics
-        # neg_alpha = self.buffer.get(pos_idx, samples_per_example=1, training=training)
-        # free_energy, pred_rot, pred_txy, FFT_score = self.model(neg_alpha, receptor, ligand, plot_count=pos_idx.item(), stream_name=stream_name, plotting=self.plotting)
-        # self.buffer.push(pred_rot, pos_idx)
-        # if training:
-        #     # neg_alpha = self.trainbuffer.get(pos_idx, samples_per_example=1, training=training)
-        #     neg_alpha = None
-        #     neg_energy, pred_rot, pred_txy, FFT_score = self.model(gt_rot, neg_alpha, receptor, ligand, plot_count=pos_idx.item(), stream_name=stream_name, plotting=self.plotting)
-        #     # self.trainbuffer.push(pred_rot, pos_idx)
-        # else:
-        #     neg_alpha = self.evalbuffer.get(pos_idx, samples_per_example=1, training=training)
-        #     neg_energy, pred_rot, pred_txy, FFT_score = self.model(gt_rot, neg_alpha, receptor, ligand, plot_count=pos_idx.item(), stream_name=stream_name, plotting=self.plotting, training=training)
-        #     self.evalbuffer.push(pred_rot, pos_idx)
-        #     # print(neg_alpha, pred_rot)
+        if training:
+            neg_energy, pred_rot, pred_txy, FFT_score = self.model(gt_rot, receptor, ligand, plot_count=pos_idx.item(), stream_name=stream_name, plotting=self.plotting)
+        else:
+            alpha = self.evalbuffer.get(pos_idx, samples_per_example=1)
+            energy, pred_rot, pred_txy, FFT_score = self.model(alpha, receptor, ligand, plot_count=pos_idx.item(), stream_name=stream_name, plotting=self.plotting, training=False)
+            self.evalbuffer.push(pred_rot, pos_idx)
+            # print(neg_alpha, pred_rot)
 
-        neg_energy, pred_rot, pred_txy, FFT_score = self.model(gt_rot, receptor, ligand, plot_count=pos_idx.item(), stream_name=stream_name, plotting=self.plotting)
+        # neg_energy, pred_rot, pred_txy, FFT_score = self.model(gt_rot, receptor, ligand, plot_count=pos_idx.item(), stream_name=stream_name, plotting=self.plotting)
 
         ### Encode ground truth transformation index into empty energy grid
         with torch.no_grad():
@@ -375,7 +367,9 @@ if __name__ == '__main__':
     # experiment = 'BSmodel_test'
     # experiment = 'BSmodel_LDeval_test'
     # experiment = 'BSmodel_train_andbufferLDeval_test'
-    experiment = 'BSmodel_check'
+    # experiment = 'BSmodel_check'
+    # experiment = 'BSmodel_MHalgo_eval'
+    experiment = 'BSmodel_MHalgo_freeEeval'
 
     ######################
     lr = 10 ** -2
@@ -387,9 +381,10 @@ if __name__ == '__main__':
     show = False
     # show = True
 
-    dockingFFT = TorchDockingFFT(num_angles=1, angle=None, swap_plot_quadrants=False, debug=debug)
-    model = EnergyBasedModel(dockingFFT, num_angles=1, IP=True, sample_steps=LD_steps, debug=debug).to(device=0)
-    optimizer = optim.Adam(model.parameters(), lr=lr)
+    # dockingFFT = TorchDockingFFT(num_angles=1, angle=None, swap_plot_quadrants=False, debug=debug)
+    # model = EnergyBasedModel(dockingFFT, num_angles=1, IP=True, sample_steps=LD_steps, debug=debug).to(device=0)
+    # optimizer = optim.Adam(model.parameters(), lr=lr)
+
     # scheduler = optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.5)
 
     train_epochs = 5
@@ -408,17 +403,49 @@ if __name__ == '__main__':
     #     train_epochs=1, train_stream=None, valid_stream=valid_stream, #test_stream=valid_stream,
     #     resume_training=True, resume_epoch=train_epochs)
 
-    start = train_epochs-2
+    # ## Brute force eval and plotting
+    # start = train_epochs-1
+    # stop = train_epochs
+    # eval_angles = 360
+    # for epoch in range(start, stop):
+    #     ### Evaluate model using all 360 angles (or less).
+    #     if stop-1 == epoch:
+    #         plotting = True
+    #     eval_model = EnergyBasedModel(dockingFFT, num_angles=eval_angles, IP=True).to(device=0)
+    #     EnergyBasedDockingTrainer(dockingFFT, eval_model, optimizer, experiment, plotting=plotting).run_trainer(
+    #         train_epochs=1, train_stream=None, valid_stream=valid_stream, test_stream=test_stream,
+    #         resume_training=True, resume_epoch=epoch)
+    #
+    #     ## Plot loss from current experiment
+    #     # IPLossPlotter(experiment).plot_loss()
+    #     IPLossPlotter(experiment).plot_rmsd_distribution(plot_epoch=epoch+1, show=show, eval_only=True)
+
+    ########### Metropolis-Hastings eval on ideal learned energy surface
+    dockingFFT = TorchDockingFFT(num_angles=1, angle=None, swap_plot_quadrants=False, debug=debug)
+    model = EnergyBasedModel(dockingFFT, num_angles=1, IP_MH=True, sample_steps=LD_steps, debug=debug).to(device=0)
+    optimizer = optim.Adam(model.parameters(), lr=lr)
+
+    # EnergyBasedDockingTrainer(dockingFFT, model, optimizer, experiment, debug=debug).run_trainer(train_epochs, train_stream=train_stream)
+
+    ## Sampling based eval and plotting
+    start = train_epochs - 1
     stop = train_epochs
     for epoch in range(start, stop):
-        ### Evaluate model using all 360 angles (or less).
-        if stop-1 == epoch:
+        if stop - 1 == epoch:
             plotting = True
-        eval_model = EnergyBasedModel(dockingFFT, num_angles=360).to(device=0)
-        EnergyBasedDockingTrainer(dockingFFT, eval_model, optimizer, experiment, plotting=plotting).run_trainer(
-            train_epochs=1, train_stream=None, valid_stream=valid_stream, test_stream=test_stream,
-            resume_training=True, resume_epoch=epoch)
-
-        ## Plot loss from current experiment
-        # IPLossPlotter(experiment).plot_loss()
-        IPLossPlotter(experiment).plot_rmsd_distribution(plot_epoch=epoch+1, show=show, eval_only=True)
+            # eval_model = EnergyBasedModel(dockingFFT, num_angles=360, sample_steps=LD_steps, IP=True).to(device=0)
+            # EnergyBasedDockingTrainer(dockingFFT, eval_model, optimizer, experiment, plotting=plotting).run_trainer(
+            #     train_epochs=1, train_stream=None, valid_stream=valid_stream, test_stream=test_stream,
+            #     resume_training=True, resume_epoch=epoch)
+            ## Plot loss from current experiment
+            # IPLossPlotter(experiment).plot_loss()
+            # IPLossPlotter(experiment).plot_rmsd_distribution(plot_epoch=epoch + 1, show=show, eval_only=True)
+            eval_model = EnergyBasedModel(dockingFFT, num_angles=1, sample_steps=LD_steps, IP_MH=True).to(device=0)
+            EnergyBasedDockingTrainer(dockingFFT, eval_model, optimizer, experiment, plotting=plotting).run_trainer(
+                train_epochs=1, train_stream=None, valid_stream=valid_stream, test_stream=None,
+                resume_training=True, resume_epoch=epoch)
+        else:
+            eval_model = EnergyBasedModel(dockingFFT, num_angles=1, sample_steps=LD_steps, IP_MH=True).to(device=0)
+            EnergyBasedDockingTrainer(dockingFFT, eval_model, optimizer, experiment, plotting=False).run_trainer(
+                train_epochs=1, train_stream=None, valid_stream=valid_stream, test_stream=None,
+                resume_training=True, resume_epoch=epoch)

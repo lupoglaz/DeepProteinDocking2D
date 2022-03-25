@@ -18,12 +18,12 @@ sys.path.append('/home/sb1638/')
 # from e2cnn import gspaces
 
 
-class DockerIP(nn.Module):
+class Docker(nn.Module):
     def __init__(self, dockingFFT, num_angles=1, debug=False):
-        super(DockerIP, self).__init__()
+        super(Docker, self).__init__()
         self.num_angles = num_angles
         self.dim = 100
-        self.docker = BruteForceDocking(dim=self.dim, num_angles=self.num_angles, debug=debug)
+        self.dockingConv = BruteForceDocking(dim=self.dim, num_angles=self.num_angles, debug=debug)
         self.dockingFFT = dockingFFT
 
     def forward(self, receptor, ligand, rotation, plot_count=1, stream_name='trainset', plotting=False):
@@ -31,18 +31,23 @@ class DockerIP(nn.Module):
             training = False
         else: training = True
 
-        FFT_score = self.docker.forward(receptor, ligand, angle=rotation, plotting=plotting, training=training, plot_count=plot_count, stream_name=stream_name)
+        if self.num_angles == 360:
+            stream_name = 'BFeval_'+stream_name
+        else:
+            plotting=False
+
+        FFT_score = self.dockingConv.forward(receptor, ligand, angle=rotation, plotting=plotting, training=training, plot_count=plot_count, stream_name=stream_name)
 
         with torch.no_grad():
             pred_rot, pred_txy = self.dockingFFT.extract_transform(FFT_score)
-            deg_index_rot = (((pred_rot * 180.0 / np.pi) + 180.0) % self.num_angles).type(torch.long)
 
-            if self.num_angles == 1:
-                best_score = FFT_score[pred_txy[0], pred_txy[1]]
-            else:
+            if len(FFT_score.shape) > 2:
+                deg_index_rot = (((pred_rot * 180.0 / np.pi) + 180.0) % self.num_angles).type(torch.long)
                 best_score = FFT_score[deg_index_rot, pred_txy[0], pred_txy[1]]
-                if plotting and plot_count % 10 == 0:
+                if plotting and self.num_angles == 360 and plot_count % 10 == 0:
                     self.plot_rotE_surface(FFT_score, pred_txy, stream_name, plot_count)
+            else:
+                best_score = FFT_score[pred_txy[0], pred_txy[1]]
 
         lowest_energy = -best_score
 
@@ -51,97 +56,97 @@ class DockerIP(nn.Module):
     def plot_rotE_surface(self, FFT_score, pred_txy, stream_name, plot_count):
         plt.close()
         mintxy_energies = []
-        for i in range(self.num_angles):
-            minimumEnergy = -FFT_score[i, pred_txy[0], pred_txy[1]].detach().cpu()
+        if self.num_angles == 1:
+            minimumEnergy = -FFT_score[pred_txy[0], pred_txy[1]].detach().cpu()
             mintxy_energies.append(minimumEnergy)
+        else:
+            for i in range(self.num_angles):
+                minimumEnergy = -FFT_score[i, pred_txy[0], pred_txy[1]].detach().cpu()
+                mintxy_energies.append(minimumEnergy)
 
-        xrange = np.arange(0, 2 * np.pi, 2 * np.pi / 360)
+        xrange = np.arange(0, 2 * np.pi, 2 * np.pi / self.num_angles)
         hardmin_minEnergies = stream_name + '_hardmin' + '_example' + str(plot_count)
         plt.plot(xrange, mintxy_energies)
         plt.title('hardmin')
         plt.savefig('figs/rmsd_and_poses/' + hardmin_minEnergies + '.png')
 
 
-class DockerFI(nn.Module):
-    def __init__(self, dockingFFT, num_angles=1, debug=False):
-        super(DockerFI, self).__init__()
-        self.num_angles = num_angles
-        self.dim = 100
-        self.docker = BruteForceDocking(dim=self.dim, num_angles=self.num_angles, debug=debug)
-        self.dockingFFT = dockingFFT
+# class DockerFI(nn.Module):
+#     def __init__(self, dockingFFT, num_angles=1, debug=False):
+#         super(DockerFI, self).__init__()
+#         self.num_angles = num_angles
+#         self.dim = 100
+#         self.docker = BruteForceDocking(dim=self.dim, num_angles=self.num_angles, debug=debug)
+#         self.dockingFFT = dockingFFT
+#
+#     def forward(self, receptor, ligand, rotation, plot_count=1, stream_name='trainset', plotting=False):
+#         if 'trainset' not in stream_name:
+#             training = False
+#         else:
+#             training = True
+#
+#         FFT_score = self.docker.forward(receptor, ligand, angle=rotation, plotting=plotting, training=training,
+#                                         plot_count=plot_count, stream_name=stream_name)
+#
+#         # free_energy = -torch.log(torch.exp(FFT_score).mean())
+#         free_energy = -(torch.logsumexp(FFT_score, dim=(0, 1)) - torch.log(torch.tensor(self.dim**2)))
+#
+#         with torch.no_grad():
+#             pred_rot, pred_txy = self.dockingFFT.extract_transform(FFT_score)
+#             # best_score = -FFT_score[pred_txy[0], pred_txy[1]]
+#
+#         if not training:
+#             if plotting and plot_count % 10 == 0:
+#                 free_energy_list = []
+#                 lowest_energy_list = []
+#                 for i in range(self.num_angles):
+#                     # free_energy = -torch.log(torch.exp(FFT_score[i,:,:]).mean())
+#                     free_energy = -(torch.logsumexp(FFT_score[i,:,:], dim=(0, 1)) - torch.log(torch.tensor(self.dim**2)))
+#                     pred_rot_slice, pred_txy_slice = self.dockingFFT.extract_transform(FFT_score[i,:,:])
+#                     lowest_energy = -FFT_score[i, pred_txy_slice[0], pred_txy_slice[1]]
+#                     free_energy_list.append(free_energy)
+#                     lowest_energy_list.append(lowest_energy)
+#
+#                 plt.close()
+#                 fig, ax = plt.subplots(1, 2, figsize=(20, 10))
+#                 xrange = np.arange(0, 2 * np.pi, 2 * np.pi / 360)
+#                 ax[0].plot(xrange, free_energy_list)
+#                 ax[1].plot(xrange, lowest_energy_list)
+#                 ax[1].set_title('Hardmin')
+#                 freeE_hardmax_minEnergies = stream_name + '_softmax_hardmax' + '_example' + str(plot_count)
+#                 plt.savefig('figs/rmsd_and_poses/' + freeE_hardmax_minEnergies + '.png')
+#
+#         return free_energy, pred_rot, pred_txy, FFT_score
 
-    def forward(self, receptor, ligand, rotation, plot_count=1, stream_name='trainset', plotting=False):
-        if 'trainset' not in stream_name:
-            training = False
-        else:
-            training = True
-
-        FFT_score = self.docker.forward(receptor, ligand, angle=rotation, plotting=plotting, training=training,
-                                        plot_count=plot_count, stream_name=stream_name)
-
-        # free_energy = -torch.log(torch.exp(FFT_score).mean())
-        free_energy = -(torch.logsumexp(FFT_score, dim=(0, 1)) - torch.log(torch.tensor(self.dim**2)))
-        with torch.no_grad():
-            pred_rot, pred_txy = self.dockingFFT.extract_transform(FFT_score)
-            best_score = -FFT_score[pred_txy[0], pred_txy[1]]
-
-            if self.num_angles > 1:
-                deg_rot_index = (((pred_rot * 180.0 / np.pi) + 180.0) % self.num_angles).type(torch.long)
-                best_score = -FFT_score[deg_rot_index, pred_txy[0], pred_txy[1]]
-
-                if plotting and plot_count % 10 == 0:
-                    # free_energy_list = []
-                    lowest_energy_list = []
-                    for i in range(self.num_angles):
-                        # free_energy = -torch.log(torch.exp(FFT_score[i,:,:]).mean())
-                        free_energy = -(torch.logsumexp(FFT_score[i,:,:], dim=(0, 1)) - torch.log(torch.tensor(self.dim**2)))
-                        pred_rot_slice, pred_txy_slice = self.dockingFFT.extract_transform(FFT_score[i,:,:])
-                        lowest_energy = -FFT_score[i, pred_txy_slice[0], pred_txy_slice[1]]
-                        # free_energy_list.append(free_energy)
-                        lowest_energy_list.append(lowest_energy)
-
-                    plt.close()
-                    fig, ax = plt.subplots(1, 2, figsize=(20, 10))
-                    xrange = np.arange(0, 2 * np.pi, 2 * np.pi / 360)
-                    # ax[0].plot(xrange, free_energy_list)
-                    ax[1].plot(xrange, lowest_energy_list)
-                    ax[1].set_title('Hardmin')
-                    freeE_hardmax_minEnergies = stream_name + '_softmax_hardmax' + '_example' + str(plot_count)
-                    plt.savefig('figs/rmsd_and_poses/' + freeE_hardmax_minEnergies + '.png')
-
-        # score_out = best_score
-
-        return free_energy, pred_rot, pred_txy, FFT_score
-
-    def plot_rotE_surface(self, FFT_score, pred_txy, E_softmax, stream_name, plot_count):
-        plt.close()
-        fig, ax = plt.subplots(1, 2, figsize=(20, 10))
-        mintxy_energies = []
-        mintxy_energies_softmax = []
-        for i in range(self.num_angles):
-            minimumEnergy = -FFT_score[i, pred_txy[0], pred_txy[1]].detach().cpu()
-            mintxy_energies.append(minimumEnergy)
-            minimumEnergy_softmax = -E_softmax[i, pred_txy[0], pred_txy[1]].detach().cpu()
-            mintxy_energies_softmax.append(minimumEnergy_softmax)
-        # print(mintxy_energies_softmax)
-        xrange = np.arange(0, 2 * np.pi, 2 * np.pi / 360)
-        softmax_hardmax_minEnergies = stream_name + '_softmax_hardmax' + '_example' + str(plot_count)
-        ax[0].plot(xrange, mintxy_energies)
-        # ax[1].set_title('Hardmax')
-        ax[1].plot(xrange, mintxy_energies_softmax)
-        ax[1].set_title('Softmax')
-        plt.suptitle(softmax_hardmax_minEnergies)
-        plt.savefig('figs/rmsd_and_poses/' + softmax_hardmax_minEnergies + '.png')
+    # def plot_rotE_surface(self, FFT_score, pred_txy, E_softmax, stream_name, plot_count):
+    #     plt.close()
+    #     fig, ax = plt.subplots(1, 2, figsize=(20, 10))
+    #     mintxy_energies = []
+    #     mintxy_energies_softmax = []
+    #     for i in range(self.num_angles):
+    #         minimumEnergy = -FFT_score[i, pred_txy[0], pred_txy[1]].detach().cpu()
+    #         mintxy_energies.append(minimumEnergy)
+    #         minimumEnergy_softmax = -E_softmax[i, pred_txy[0], pred_txy[1]].detach().cpu()
+    #         mintxy_energies_softmax.append(minimumEnergy_softmax)
+    #     # print(mintxy_energies_softmax)
+    #     xrange = np.arange(0, 2 * np.pi, 2 * np.pi / 360)
+    #     softmax_hardmax_minEnergies = stream_name + '_softmax_hardmax' + '_example' + str(plot_count)
+    #     ax[0].plot(xrange, mintxy_energies)
+    #     # ax[1].set_title('Hardmax')
+    #     ax[1].plot(xrange, mintxy_energies_softmax)
+    #     ax[1].set_title('Softmax')
+    #     plt.suptitle(softmax_hardmax_minEnergies)
+    #     plt.savefig('figs/rmsd_and_poses/' + softmax_hardmax_minEnergies + '.png')
 
 
 class EnergyBasedModel(nn.Module):
-    def __init__(self, dockingFFT, num_angles=1, step_size=10, sample_steps=1, IP=True, FI=False, experiment=None, debug=False):
+    def __init__(self, dockingFFT, num_angles=1, step_size=10, sample_steps=10, IP=False, IP_MH=False, FI=False, experiment=None, debug=False):
         super(EnergyBasedModel, self).__init__()
         self.debug = debug
         self.num_angles = num_angles
 
-        self.IPdocker = DockerIP(dockingFFT, num_angles=self.num_angles, debug=self.debug)
-        self.FIdocker = DockerFI(dockingFFT, num_angles=self.num_angles, debug=self.debug)
+        self.docker = Docker(dockingFFT, num_angles=self.num_angles, debug=self.debug)
+        # self.FIdocker = DockerFI(dockingFFT, num_angles=self.num_angles, debug=self.debug)
 
         self.sample_steps = sample_steps
         self.step_size = step_size
@@ -151,31 +156,100 @@ class EnergyBasedModel(nn.Module):
         self.sig_alpha = 0.5
 
         self.IP = IP
+        self.IP_MH = IP_MH
         self.FI = FI
 
-    def forward(self, alpha, receptor, ligand, plot_count=1, stream_name='trainset', plotting=False):
+    def forward(self, alpha, receptor, ligand, plot_count=1, stream_name='trainset', plotting=False, training=True):
         if self.IP:
             ## BS model brute force eval
-
             if self.num_angles > 1:
                 ### evaluate with brute force
                 alpha = 0
-                self.IPdocker.eval()
-                lowest_energy, alpha, dr, FFT_score = self.IPdocker(receptor, ligand, alpha, plot_count,
+                self.docker.eval()
+                lowest_energy, alpha, dr, FFT_score = self.docker(receptor, ligand, alpha, plot_count,
                                                                           stream_name, plotting=plotting)
+
                 return lowest_energy, alpha.unsqueeze(0).clone(), dr.unsqueeze(0).clone(), FFT_score
 
             ## train giving the ground truth rotation
-            lowest_energy, _, dr, FFT_score = self.IPdocker(receptor, ligand, alpha,
+            lowest_energy, _, dr, FFT_score = self.docker(receptor, ligand, alpha,
                                                                       plot_count=plot_count, stream_name=stream_name,
                                                                       plotting=plotting)
 
             return lowest_energy, alpha.unsqueeze(0).clone(), dr.clone(), FFT_score
 
+        if self.IP_MH:
+            if not training:
+                debug = False
+
+                self.docker.eval()
+                self.previous = None
+                noise_alpha = torch.zeros_like(alpha)
+                prob_list = []
+                for i in range(self.sample_steps):
+                    if i == self.sample_steps - 1:
+                        plotting = True
+                    else:
+                        plotting=False
+                    rand_rot = noise_alpha.normal_(0, self.sig_alpha)
+                    alpha_out = alpha + rand_rot
+
+                    _, _, dr, FFT_score = self.docker(receptor, ligand, alpha_out,
+                                                                              plot_count=plot_count, stream_name=stream_name,
+                                                                              plotting=plotting)
+
+                    energy = -(torch.logsumexp(FFT_score, dim=(0, 1)) - torch.log(torch.tensor(100**2)))
+
+                    if self.previous is not None:
+                        # print(self.previous)
+                        a, b, n = 30, 0.5, 2
+                        self.sig_alpha = float(b * torch.exp(-((energy-self.previous) / a) ** n))
+                        self.step_size = self.sig_alpha
+                        prob = min(torch.exp(-(energy-self.previous)).item(), 1)
+                        rand0to1 = torch.rand(1).cuda()
+                        prob_list.append(prob)
+                        # print('current', energy.item(), 'previous', self.previous.item(), 'alpha_out', alpha_out.item(), 'prev alpha', alpha.item())
+                        if energy < self.previous:
+                            if debug:
+                                print('accept <')
+                                print('current', energy.item(), 'previous',self.previous.item(),  'alpha_out', alpha_out.item(), 'prev alpha', alpha.item())
+                                print('alpha', alpha_out)
+                            self.previous = energy
+                            alpha = alpha_out
+                        elif energy > self.previous and prob > rand0to1:
+                            if debug:
+                                print('accept > and prob', prob, ' >', rand0to1.item())
+                                print('current', energy.item(), 'previous',self.previous.item(),  'alpha_out', alpha_out.item(), 'prev alpha', alpha.item())
+                                print('alpha', alpha_out)
+                            self.previous = energy
+                            alpha = alpha_out
+                        else:
+                            if debug:
+                                print('reject')
+                            alpha_out = alpha.unsqueeze(0)
+                    else:
+                        self.previous = energy
+
+                if debug:
+                    plt.close()
+                    xrange = np.arange(0, len(prob_list))
+                    # y = prob_list
+                    y = sorted(prob_list)[::-1]
+                    plt.scatter(xrange, y)
+                    plt.show()
+                return energy, alpha_out.unsqueeze(0).clone(), dr.clone(), FFT_score
+
+            else:
+                ## train giving the ground truth rotation
+                lowest_energy, _, dr, FFT_score = self.docker(receptor, ligand, alpha,
+                                                                          plot_count=plot_count, stream_name=stream_name,
+                                                                          plotting=plotting)
+
+                return lowest_energy, alpha.unsqueeze(0).clone(), dr.clone(), FFT_score
+
         if self.FI:
             pass
-            # noise_alpha = torch.zeros_like(neg_alpha)
-            #
+
             # prob = torch.exp(-beta*(energy-previous))
             # if energy < previous:
             #     accept
