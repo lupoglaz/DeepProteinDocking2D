@@ -109,6 +109,7 @@ class EnergyBasedDockingTrainer:
             energy, pred_rot, pred_txy, FFT_score = self.model(alpha, receptor, ligand, plot_count=pos_idx.item(), stream_name=stream_name, plotting=self.plotting, training=False)
             self.evalbuffer.push(pred_rot, pos_idx)
             # print(neg_alpha, pred_rot)
+            # pred_txy = gt_txy
 
         # neg_energy, pred_rot, pred_txy, FFT_score = self.model(gt_rot, receptor, ligand, plot_count=pos_idx.item(), stream_name=stream_name, plotting=self.plotting)
 
@@ -373,7 +374,7 @@ if __name__ == '__main__':
 
     ######################
     lr = 10 ** -2
-    LD_steps = 10
+    LD_steps = 100
     debug = False
     # debug = True
     plotting = False
@@ -442,8 +443,9 @@ if __name__ == '__main__':
             # IPLossPlotter(experiment).plot_rmsd_distribution(plot_epoch=epoch + 1, show=show, eval_only=True)
             eval_model = EnergyBasedModel(dockingFFT, num_angles=1, sample_steps=LD_steps, IP_MH=True).to(device=0)
             EnergyBasedDockingTrainer(dockingFFT, eval_model, optimizer, experiment, plotting=plotting).run_trainer(
-                train_epochs=1, train_stream=None, valid_stream=valid_stream, test_stream=None,
+                train_epochs=1, train_stream=None, valid_stream=valid_stream, test_stream=test_stream,
                 resume_training=True, resume_epoch=epoch)
+            IPLossPlotter(experiment).plot_rmsd_distribution(plot_epoch=epoch + 1, show=show, eval_only=True)
         else:
             eval_model = EnergyBasedModel(dockingFFT, num_angles=1, sample_steps=LD_steps, IP_MH=True).to(device=0)
             EnergyBasedDockingTrainer(dockingFFT, eval_model, optimizer, experiment, plotting=False).run_trainer(

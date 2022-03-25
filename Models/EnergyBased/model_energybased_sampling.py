@@ -129,12 +129,11 @@ class EnergyBasedModel(nn.Module):
                     _, _, dr, FFT_score = self.docker(receptor, ligand, alpha_out,
                                                                               plot_count=plot_count, stream_name=stream_name,
                                                                               plotting=plotting)
-
                     energy = -(torch.logsumexp(FFT_score, dim=(0, 1)) - torch.log(torch.tensor(100**2)))
 
                     if self.previous is not None:
                         # print(self.previous)
-                        a, b, n = 30, 0.5, 2
+                        a, b, n = 30, 1, 2
                         self.sig_alpha = float(b * torch.exp(-((energy-self.previous) / a) ** n))
                         self.step_size = self.sig_alpha
                         prob = min(torch.exp(-(energy-self.previous)).item(), 1)
@@ -148,6 +147,7 @@ class EnergyBasedModel(nn.Module):
                                 print('alpha', alpha_out)
                             self.previous = energy
                             alpha = alpha_out
+                            dr_out = dr
                         elif energy > self.previous and prob > rand0to1:
                             if debug:
                                 print('accept > and prob', prob, ' >', rand0to1.item())
@@ -155,10 +155,15 @@ class EnergyBasedModel(nn.Module):
                                 print('alpha', alpha_out)
                             self.previous = energy
                             alpha = alpha_out
+                            dr_out = dr
                         else:
                             if debug:
                                 print('reject')
                             alpha_out = alpha.unsqueeze(0)
+                            _, _, dr_out, FFT_score = self.docker(receptor, ligand, alpha_out,
+                                                              plot_count=plot_count, stream_name=stream_name,
+                                                              plotting=plotting)
+
                     else:
                         self.previous = energy
 
@@ -169,7 +174,7 @@ class EnergyBasedModel(nn.Module):
                     y = sorted(prob_list)[::-1]
                     plt.scatter(xrange, y)
                     plt.show()
-                return energy, alpha_out.unsqueeze(0).clone(), dr.clone(), FFT_score
+                return energy, alpha_out.unsqueeze(0).clone(), dr_out.clone(), FFT_score
 
             else:
                 ## train giving the ground truth rotation
