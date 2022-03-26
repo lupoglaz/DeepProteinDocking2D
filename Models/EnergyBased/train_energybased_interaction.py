@@ -119,13 +119,12 @@ class EnergyBasedInteractionTrainer:
 
         ### run model and loss calculation
         ##### call model
-        neg_alpha = self.buffer.get(pos_idx, samples_per_example=1, training=training)
-        Energy, pred_rot, pred_txy, FFT_score = self.docking_model(neg_alpha, receptor, ligand, temperature='cold',
-                                                           plot_count=pos_idx.item(), stream_name=stream_name,
-                                                           plotting=self.plotting)
-        neg_alpha = pred_rot
-        self.buffer.push(neg_alpha, pos_idx)
-        pred_interact, deltaF, F, F_0 = self.interaction_model(FFT_score, plotting=self.plotting)
+        alpha = self.buffer.get(pos_idx, samples_per_example=1)
+        energy, pred_rot, pred_txy, FFT_score = self.docking_model(alpha, receptor, ligand, plot_count=pos_idx.item(),
+                                                           stream_name=stream_name, plotting=self.plotting,
+                                                           training=False)
+        self.buffer.push(pred_rot, pos_idx)
+        pred_interact, deltaF, F, F_0 = self.interaction_model(FFT_score.unsqueeze(0), plotting=self.plotting)
 
         ### check parameters and gradients
         ### if weights are frozen or updating
@@ -373,10 +372,27 @@ if __name__ == '__main__':
     # CUDA_LAUNCH_BLOCKING = 1
     # torch.autograd.set_detect_anomaly(True)
     #########################
+    # max_size = 400
+    # max_size = 100
+    max_size = 50
+    # max_size = 25
+    batch_size = 1
+    if batch_size > 1:
+        raise NotImplementedError()
+    train_stream = get_interaction_stream_balanced(trainset + '.pkl', batch_size=batch_size, max_size=max_size)
+    valid_stream = get_interaction_stream(validset + '.pkl', batch_size=1, max_size=max_size)
+    test_stream = get_interaction_stream(testset + '.pkl', batch_size=1, max_size=max_size)
+    ######################
+    # experiment = 'EBM_FI_23ex_1LD_10ep'
+    # experiment = 'EBM_FI_50ex_1LD_10ep'
+    # experiment = 'EBM_FI_100ex_1LD_10ep'
+    # experiment = 'EBM_FI_25ex_10LD_6ep'
+    # experiment = 'EBM_FI_25ex_10LD_6ep_stackFFT'
+    experiment = 'MHsamp_testing_BFeval'
 
-    lr_interaction = 10**0
-    lr_docking = 10**-4
-    LD_steps = 10
+    lr_interaction = 10 ** 0
+    lr_docking = 10 ** -4
+    LD_steps = 100
     debug = False
     # debug = True
     plotting = False
@@ -391,28 +407,14 @@ if __name__ == '__main__':
     docking_model = EnergyBasedModel(dockingFFT, num_angles=1, sample_steps=LD_steps, FI=True, debug=debug).to(device=0)
     docking_optimizer = optim.Adam(docking_model.parameters(), lr=lr_docking)
 
-    # max_size = 400
-    # max_size = 100
-    # max_size = 50
-    max_size = 25
-    batch_size = 1
-    if batch_size > 1:
-        raise NotImplementedError()
-    train_stream = get_interaction_stream_balanced(trainset + '.pkl', batch_size=batch_size, max_size=max_size)
-    valid_stream = get_interaction_stream(validset + '.pkl', batch_size=1)
-    test_stream = get_interaction_stream(testset + '.pkl', batch_size=1)
-    ######################
-    # experiment = 'EBM_FI_23ex_1LD_10ep'
-    # experiment = 'EBM_FI_50ex_1LD_10ep'
-    # experiment = 'EBM_FI_100ex_1LD_10ep'
-    # experiment = 'EBM_FI_25ex_10LD_6ep'
-    experiment = 'EBM_FI_25ex_10LD_6ep_stackFFT'
-
     train_epochs = 6
     # continue_epochs = 1
     ######################
     ### Train model from beginning
-    EnergyBasedInteractionTrainer(docking_model, docking_optimizer, interaction_model, interaction_optimizer, experiment, debug=debug).run_trainer(train_epochs, train_stream=train_stream)
-
+    # EnergyBasedInteractionTrainer(docking_model, docking_optimizer, interaction_model, interaction_optimizer, experiment, debug=debug).run_trainer(train_epochs, train_stream=train_stream)
     EnergyBasedInteractionTrainer(docking_model, docking_optimizer, interaction_model, interaction_optimizer, experiment, debug=debug
-                                  ).run_trainer(resume_epoch=train_epochs, resume_training=True, train_epochs=1, train_stream=train_stream, valid_stream=valid_stream, test_stream=test_stream)
+                                  ).run_trainer(train_epochs, train_stream=train_stream, valid_stream=valid_stream, test_stream=test_stream)
+
+
+    # EnergyBasedInteractionTrainer(docking_model, docking_optimizer, interaction_model, interaction_optimizer, experiment, debug=debug
+    #                               ).run_trainer(resume_epoch=train_epochs, resume_training=True, train_epochs=1, train_stream=train_stream, valid_stream=valid_stream, test_stream=None)
