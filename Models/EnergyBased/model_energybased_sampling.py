@@ -112,69 +112,8 @@ class EnergyBasedModel(nn.Module):
 
         if self.IP_MH:
             if not training:
-                debug = False
-
                 self.docker.eval()
-                self.previous = None
-                noise_alpha = torch.zeros_like(alpha)
-                prob_list = []
-                for i in range(self.sample_steps):
-                    if i == self.sample_steps - 1:
-                        plotting = True
-                    else:
-                        plotting=False
-                    rand_rot = noise_alpha.normal_(0, self.sig_alpha)
-                    alpha_out = alpha + rand_rot
-
-                    _, _, dr, FFT_score = self.docker(receptor, ligand, alpha_out,
-                                                                              plot_count=plot_count, stream_name=stream_name,
-                                                                              plotting=plotting)
-                    energy = -(torch.logsumexp(FFT_score, dim=(0, 1)) - torch.log(torch.tensor(100**2)))
-
-                    if self.previous is not None:
-                        # print(self.previous)
-                        a, b, n = 30, 1, 2
-                        self.sig_alpha = float(b * torch.exp(-((energy-self.previous) / a) ** n))
-                        self.step_size = self.sig_alpha
-                        prob = min(torch.exp(-(energy-self.previous)).item(), 1)
-                        rand0to1 = torch.rand(1).cuda()
-                        prob_list.append(prob)
-                        # print('current', energy.item(), 'previous', self.previous.item(), 'alpha_out', alpha_out.item(), 'prev alpha', alpha.item())
-                        if energy < self.previous:
-                            if debug:
-                                print('accept <')
-                                print('current', energy.item(), 'previous',self.previous.item(),  'alpha_out', alpha_out.item(), 'prev alpha', alpha.item())
-                                print('alpha', alpha_out)
-                            self.previous = energy
-                            alpha = alpha_out
-                            dr_out = dr
-                        elif energy > self.previous and prob > rand0to1:
-                            if debug:
-                                print('accept > and prob', prob, ' >', rand0to1.item())
-                                print('current', energy.item(), 'previous',self.previous.item(),  'alpha_out', alpha_out.item(), 'prev alpha', alpha.item())
-                                print('alpha', alpha_out)
-                            self.previous = energy
-                            alpha = alpha_out
-                            dr_out = dr
-                        else:
-                            if debug:
-                                print('reject')
-                            alpha_out = alpha.unsqueeze(0)
-                            _, _, dr_out, FFT_score = self.docker(receptor, ligand, alpha_out,
-                                                              plot_count=plot_count, stream_name=stream_name,
-                                                              plotting=plotting)
-
-                    else:
-                        self.previous = energy
-
-                if debug:
-                    plt.close()
-                    xrange = np.arange(0, len(prob_list))
-                    # y = prob_list
-                    y = sorted(prob_list)[::-1]
-                    plt.scatter(xrange, y)
-                    plt.show()
-                return energy, alpha_out.unsqueeze(0).clone(), dr_out.clone(), FFT_score
+                return self.MCsampling(alpha, receptor, ligand, plot_count, stream_name)
 
             else:
                 ## train giving the ground truth rotation
@@ -185,15 +124,95 @@ class EnergyBasedModel(nn.Module):
                 return lowest_energy, alpha.unsqueeze(0).clone(), dr.clone(), FFT_score
 
         if self.FI:
-            pass
+            return self.MCsampling(alpha, receptor, ligand, plot_count, stream_name)
 
-            # prob = torch.exp(-beta*(energy-previous))
-            # if energy < previous:
-            #     accept
-            # elif energy > previous and rand0to1 < prob:
-            #     accept
-            # else:
-            #     neg_alpha_out = neg_alpha.unsqueeze(0)
+    def MCsampling(self, alpha, receptor, ligand, plot_count, stream_name):
+        debug = False
+
+        self.previous = None
+        noise_alpha = torch.zeros_like(alpha)
+        prob_list = []
+        for i in range(self.sample_steps):
+            if i == self.sample_steps - 1:
+                plotting = True
+            else:
+                plotting = False
+            rand_rot = noise_alpha.normal_(0, self.sig_alpha)
+            alpha_out = alpha + rand_rot
+
+            _, _, dr, FFT_score = self.docker(receptor, ligand, alpha_out,
+                                              plot_count=plot_count, stream_name=stream_name,
+                                              plotting=plotting)
+            energy = -(torch.logsumexp(FFT_score, dim=(0, 1)) - torch.log(torch.tensor(100 ** 2)))
+
+            if self.previous is not None:
+                # print(self.previous)
+                # a, b, n = 30, 1, 2 # RMSD 10 both, 100steps
+                # a, b, n = 20, 1, 2 # RMSD 11, 100steps
+                # a, b, n = 10, 1, 2 # RMSD 13, 100steps
+                # a, b, n = 10, 1, 2 # RMSD 13, 100steps
+                ### no decay, 100 steps RMSD 20.5
+                # a, b, n = 30, 1, 2 # 10steps RMSD 30
+                # a, b, n = 30, 1, 4 # 100steps RMSD 8.5
+                # a, b, n = 20, 1, 4 # 100steps RMSD 9.39
+                # a, b, n = 40, 1, 4 # 100steps RMSD 7.39
+                # a, b, n = 40, 1, 6 # 100steps RMSD 8.30
+                # a, b, n = 40, 2, 4 # 100steps RMSD 7.01
+                # a, b, n = 40, 3, 4 # 100steps RMSD 5.55
+                # a, b, n = 50, 3, 4 # 100steps RMSD  6.51
+                # a, b, n = 30, 3, 4 # 100steps RMSD 8.19
+                # a, b, n = 40, 4, 4 # 100steps RMSD 5.01
+                # a, b, n = 40, 4, 4 # replicate works 100steps RMSD 5.01
+                # a, b, n = 40, 5, 4 # 100steps RMSD 8.22
+                # a, b, n = 40, 4, 4 # 50steps RMSD 10.88
+                # a, b, n = 40, 4, 4 # 100steps No-lse RMSD 6.37
+                a, b, n = 40, 4, 4  # 10steps RMSD 28.27
+
+                self.sig_alpha = float(b * torch.exp(-((energy - self.previous) / a) ** n))
+                self.step_size = self.sig_alpha
+                prob = min(torch.exp(-(energy - self.previous)).item(), 1)
+                rand0to1 = torch.rand(1).cuda()
+                prob_list.append(prob)
+                # print('current', energy.item(), 'previous', self.previous.item(), 'alpha_out', alpha_out.item(), 'prev alpha', alpha.item())
+                if energy < self.previous:
+                    if debug:
+                        print('accept <')
+                        print('current', energy.item(), 'previous', self.previous.item(), 'alpha_out', alpha_out.item(),
+                              'prev alpha', alpha.item())
+                        print('alpha', alpha_out)
+                    self.previous = energy
+                    alpha = alpha_out
+                    dr_out = dr
+                    FFT_score_out = FFT_score
+                elif energy > self.previous and prob > rand0to1:
+                    if debug:
+                        print('accept > and prob', prob, ' >', rand0to1.item())
+                        print('current', energy.item(), 'previous', self.previous.item(), 'alpha_out', alpha_out.item(),
+                              'prev alpha', alpha.item())
+                        print('alpha', alpha_out)
+                    self.previous = energy
+                    alpha = alpha_out
+                    dr_out = dr
+                    FFT_score_out = FFT_score
+                else:
+                    if debug:
+                        print('reject')
+                    alpha_out = alpha.unsqueeze(0)
+                    _, _, dr_out, FFT_score_out = self.docker(receptor, ligand, alpha_out,
+                                                          plot_count=plot_count, stream_name=stream_name,
+                                                          plotting=plotting)
+
+            else:
+                self.previous = energy
+
+        if debug:
+            plt.close()
+            xrange = np.arange(0, len(prob_list))
+            # y = prob_list
+            y = sorted(prob_list)[::-1]
+            plt.scatter(xrange, y)
+            plt.show()
+        return energy, alpha_out.unsqueeze(0).clone(), dr_out.clone(), FFT_score_out
 
     # def forward(self, pos_alpha, neg_alpha, receptor, ligand, plot_count=1, stream_name='trainset', plotting=False, training=True):
     #     ### evaluate with ld
