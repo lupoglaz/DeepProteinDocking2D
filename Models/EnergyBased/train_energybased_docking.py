@@ -374,7 +374,7 @@ if __name__ == '__main__':
 
     ######################
     lr = 10 ** -2
-    LD_steps = 10
+    LD_steps = 100
     debug = False
     # debug = True
     plotting = False
@@ -442,10 +442,16 @@ if __name__ == '__main__':
             # IPLossPlotter(experiment).plot_loss()
             # IPLossPlotter(experiment).plot_rmsd_distribution(plot_epoch=epoch + 1, show=show, eval_only=True)
 
-            eval_model = EnergyBasedModel(dockingFFT, num_angles=1, sample_steps=LD_steps, IP_MH=True).to(device=0)
-            EnergyBasedDockingTrainer(dockingFFT, eval_model, optimizer, experiment, plotting=plotting).run_trainer(
-                train_epochs=1, train_stream=None, valid_stream=valid_stream, test_stream=None,
-                resume_training=True, resume_epoch=epoch)
+            # eval_model = EnergyBasedModel(dockingFFT, num_angles=1, sample_steps=LD_steps, IP_MH=True).to(device=0)
+            # EnergyBasedDockingTrainer(dockingFFT, eval_model, optimizer, experiment, plotting=plotting).run_trainer(
+            #     train_epochs=1, train_stream=None, valid_stream=valid_stream, test_stream=None,
+            #     resume_training=True, resume_epoch=epoch)
+
+            ### EBM eval, not very good RMSD 38.2
+            # eval_model = EnergyBasedModel(dockingFFT, num_angles=1, sample_steps=LD_steps, IP_EBM=True).to(device=0)
+            # EnergyBasedDockingTrainer(dockingFFT, eval_model, optimizer, experiment, plotting=plotting).run_trainer(
+            #     train_epochs=1, train_stream=None, valid_stream=valid_stream, test_stream=None,
+            #     resume_training=True, resume_epoch=epoch)
 
             # IPLossPlotter(experiment).plot_rmsd_distribution(plot_epoch=epoch + 1, show=show, eval_only=True)
 
