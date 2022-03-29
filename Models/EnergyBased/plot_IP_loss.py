@@ -10,7 +10,7 @@ class IPLossPlotter:
             print('no experiment name given')
             sys.exit()
 
-    def plot_loss(self):
+    def plot_loss(self, ylim=20):
         plt.close()
         #LOSS WITH ROTATION
         train = pd.read_csv("Log/losses/log_train_"+ self.experiment +".txt", sep='\t', header=1, names=['Epoch',	'Loss',	'rmsd'])
@@ -47,8 +47,8 @@ class IPLossPlotter:
         # ax[0].set_yticks(np.arange(0, max(train['rmsd'].to_numpy())+1, 10))
 
         plt.xlabel('Epochs')
-        ax[0].set_ylim([0,20])
-        ax[1].set_ylim([0,20])
+        ax[0].set_ylim([0,ylim])
+        ax[1].set_ylim([0,ylim])
 
         plt.savefig('figs/BF_IP_loss_plots/Lossplot_'+self.experiment+'.png')
         plt.show()
