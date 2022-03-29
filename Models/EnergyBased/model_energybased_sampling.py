@@ -64,7 +64,7 @@ class Docker(nn.Module):
 
 
 class EnergyBasedModel(nn.Module):
-    def __init__(self, dockingFFT, num_angles=1, step_size=10, sample_steps=10, IP=False, IP_MH=False, IP_EBM=False, FI=False, experiment=None, debug=False):
+    def __init__(self, dockingFFT, num_angles=1, step_size=10, sample_steps=10, IP=False, IP_MC=False, IP_EBM=False, FI=False, experiment=None, debug=False):
         super(EnergyBasedModel, self).__init__()
         self.debug = debug
         self.num_angles = num_angles
@@ -76,10 +76,13 @@ class EnergyBasedModel(nn.Module):
         self.plot_idx = 0
 
         self.experiment = experiment
-        self.sig_alpha = 0.5
+        self.sig_alpha = 2
+        self.step_size = self.sig_alpha
+        self.BETA = 1
+
 
         self.IP = IP
-        self.IP_MH = IP_MH
+        self.IP_MC = IP_MC
         self.IP_EBM = IP_EBM
 
         self.FI = FI
@@ -102,7 +105,7 @@ class EnergyBasedModel(nn.Module):
 
                 return lowest_energy, alpha.unsqueeze(0).clone(), dr.unsqueeze(0).clone(), FFT_score
 
-        if self.IP_MH:
+        if self.IP_MC:
             if training:
                 ## train giving the ground truth rotation
                 lowest_energy, _, dr, FFT_score = self.docker(receptor, ligand, alpha,
@@ -124,7 +127,7 @@ class EnergyBasedModel(nn.Module):
 
                 return lowest_energy, alpha.unsqueeze(0).clone(), dr.clone(), FFT_score
             else:
-                ## MC sampling eval
+                ## EBM sampling eval
                 self.docker.eval()
                 return self.langevin(alpha, receptor, ligand, plot_count, stream_name)
 
@@ -141,89 +144,75 @@ class EnergyBasedModel(nn.Module):
 
     def MCsampling(self, alpha, receptor, ligand, plot_count, stream_name, debug=False):
 
-        self.previous = None
+        _, _, dr, FFT_score = self.docker(receptor, ligand, alpha,
+                                          plot_count=plot_count, stream_name=stream_name,
+                                          plotting=False)
+        betaE = -self.BETA * FFT_score
+        free_energy = -1 / self.BETA *(torch.logsumexp(-betaE, dim=(0, 1)) - torch.log(torch.tensor(100 ** 2)))
+
         noise_alpha = torch.zeros_like(alpha)
         prob_list = []
+        acceptance = []
         for i in range(self.sample_steps):
             if i == self.sample_steps - 1:
                 plotting = True
             else:
                 plotting = False
             rand_rot = noise_alpha.normal_(0, self.sig_alpha)
-            alpha_out = alpha + rand_rot
+            alpha_new = alpha + rand_rot
 
-            _, _, dr, FFT_score = self.docker(receptor, ligand, alpha_out,
+            _, _, dr_new, FFT_score_new = self.docker(receptor, ligand, alpha_new,
                                               plot_count=plot_count, stream_name=stream_name,
                                               plotting=plotting)
-            energy = -(torch.logsumexp(FFT_score, dim=(0, 1)) - torch.log(torch.tensor(100 ** 2)))
+            betaE_new = -self.BETA * FFT_score_new
+            free_energy_new = -1/self.BETA*(torch.logsumexp(-betaE_new, dim=(0, 1)) - torch.log(torch.tensor(100 ** 2)))
 
-            if self.previous is not None:
-                # print(self.previous)
-                # a, b, n = 30, 1, 2 # RMSD 10 both, 100steps
-                # a, b, n = 20, 1, 2 # RMSD 11, 100steps
-                # a, b, n = 10, 1, 2 # RMSD 13, 100steps
-                # a, b, n = 10, 1, 2 # RMSD 13, 100steps
-                ### no decay, 100 steps RMSD 20.5
-                # a, b, n = 30, 1, 2 # 10steps RMSD 30
-                # a, b, n = 30, 1, 4 # 100steps RMSD 8.5
-                # a, b, n = 20, 1, 4 # 100steps RMSD 9.39
-                # a, b, n = 40, 1, 4 # 100steps RMSD 7.39
-                # a, b, n = 40, 1, 6 # 100steps RMSD 8.30
-                # a, b, n = 40, 2, 4 # 100steps RMSD 7.01
-                # a, b, n = 40, 3, 4 # 100steps RMSD 5.55
-                # a, b, n = 50, 3, 4 # 100steps RMSD  6.51
-                # a, b, n = 30, 3, 4 # 100steps RMSD 8.19
-                # a, b, n = 40, 4, 4 # 100steps RMSD 5.01
-                # a, b, n = 40, 4, 4 # replicate works 100steps RMSD 5.01
-                # a, b, n = 40, 5, 4 # 100steps RMSD 8.22
-                # a, b, n = 40, 4, 4 # 50steps RMSD 10.88
-                # a, b, n = 40, 4, 4 # 100steps No-lse RMSD 6.37
-                # a, b, n = 40, 4, 4  # 10steps RMSD 28.27
-                # a, b, n = 40, 4, 4  # 180steps RMSD 5.3
-                a, b, n = 40, 4, 4  # 75steps RMSD 8.50
-                self.sig_alpha = float(b * torch.exp(-((energy - self.previous) / a) ** n))
-                self.step_size = self.sig_alpha
-                prob = min(torch.exp(-(energy - self.previous)).item(), 1)
+            # print(self.previous)
+            # a, b, n = 40, 4, 4  #
+            # self.sig_alpha = float(b * torch.exp(-self.BETA*((free_energy_new - free_energy) / a) ** n))
+            # self.step_size = self.sig_alpha
+
+            if free_energy_new <= free_energy:
+                acceptance.append(1)
+                prob_list.append(1)
+                if debug:
+                    print('accept <')
+                    print('current', free_energy_new.item(), 'previous', free_energy.item(), 'alpha', alpha.item(),
+                          'prev alpha', alpha.item())
+                free_energy = free_energy_new
+                alpha = alpha_new
+                dr = dr_new
+                FFT_score = FFT_score_new
+            else:
+                prob = min(torch.exp(-self.BETA * (free_energy_new - free_energy)).item(), 1)
                 rand0to1 = torch.rand(1).cuda()
                 prob_list.append(prob)
-                if energy < self.previous:
-                    if debug:
-                        print('accept <')
-                        print('current', energy.item(), 'previous', self.previous.item(), 'alpha_out', alpha_out.item(),
-                              'prev alpha', alpha.item())
-                        print('alpha', alpha_out)
-                    self.previous = energy
-                    alpha = alpha_out
-                    dr_out = dr
-                    FFT_score_out = FFT_score
-                elif energy > self.previous and prob > rand0to1:
+                if prob > rand0to1:
+                    acceptance.append(1)
                     if debug:
                         print('accept > and prob', prob, ' >', rand0to1.item())
-                        print('current', energy.item(), 'previous', self.previous.item(), 'alpha_out', alpha_out.item(),
+                        print('current', free_energy_new.item(), 'previous', free_energy.item(), 'alpha', alpha.item(),
                               'prev alpha', alpha.item())
-                        print('alpha', alpha_out)
-                    self.previous = energy
-                    alpha = alpha_out
-                    dr_out = dr
-                    FFT_score_out = FFT_score
+                    free_energy = free_energy_new
+                    alpha = alpha_new
+                    dr = dr_new
+                    FFT_score = FFT_score_new
                 else:
                     if debug:
                         print('reject')
-                    alpha_out = alpha.unsqueeze(0)
-                    _, _, dr_out, FFT_score_out = self.docker(receptor, ligand, alpha_out,
-                                                          plot_count=plot_count, stream_name=stream_name,
-                                                          plotting=plotting)
-            else:
-                self.previous = energy
+                    pass
 
-        if debug:
-            plt.close()
-            xrange = np.arange(0, len(prob_list))
-            # y = prob_list
-            y = sorted(prob_list)[::-1]
-            plt.scatter(xrange, y)
-            plt.show()
-        return energy, alpha_out.unsqueeze(0).clone(), dr_out.clone(), FFT_score_out
+        # if debug:
+        print('acceptance rate', acceptance)
+        print(sum(acceptance)/self.sample_steps)
+        #     plt.close()
+        #     xrange = np.arange(0, len(prob_list))
+        #     y = prob_list
+        #     # y = sorted(prob_list)[::-1]
+        #     plt.scatter(xrange, y)
+        #     plt.show()
+
+        return free_energy, alpha.unsqueeze(0).clone(), dr.clone(), FFT_score
 
     def langevin(self, alpha, receptor, ligand, plot_count, stream_name, plotting=False, debug=False):
 
