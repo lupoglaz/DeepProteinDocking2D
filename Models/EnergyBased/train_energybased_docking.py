@@ -363,7 +363,7 @@ if __name__ == '__main__':
     ### For IP MC eval: sigma alpha 1 RMSD 10, 1.5 RMSD 7.81, 2 RMSD 6.59, 2.5 RMSD 7.44, 1.25, RMSD 6.82, pi/2 RMSD 8.79
     ######################
     lr = 10 ** -2
-    LD_steps = 100
+    sample_steps = 100
     debug = False
     # debug = True
     plotting = False
@@ -411,10 +411,10 @@ if __name__ == '__main__':
 
     ########### Metropolis-Hastings eval on ideal learned energy surface
     dockingFFT = TorchDockingFFT(num_angles=1, angle=None, swap_plot_quadrants=False, debug=debug)
-    model = EnergyBasedModel(dockingFFT, num_angles=1, IP=True, sample_steps=LD_steps, debug=debug).to(device=0)
+    model = EnergyBasedModel(dockingFFT, num_angles=1, IP=True, sample_steps=sample_steps, debug=debug).to(device=0)
     optimizer = optim.Adam(model.parameters(), lr=lr)
 
-    monte_carlo_eval = EnergyBasedModel(dockingFFT, num_angles=1, sample_steps=LD_steps, IP_MC=True).to(device=0)
+    monte_carlo_eval = EnergyBasedModel(dockingFFT, num_angles=1, sample_steps=sample_steps, IP_MC=True).to(device=0)
     EnergyBasedDockingTrainer(dockingFFT, monte_carlo_eval, optimizer, experiment, plotting=plotting).run_trainer(
         train_epochs=1, train_stream=None, valid_stream=valid_stream, test_stream=None,
         resume_training=True, resume_epoch=train_epochs)
