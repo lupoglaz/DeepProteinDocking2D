@@ -101,6 +101,8 @@ class EnergyBasedInteractionTrainer:
         num_examples = max(len(train_stream), len(valid_stream), len(test_stream))
         self.buffer = SampleBuffer(num_examples=num_examples)
 
+        self.sig_alpha = 2
+
     def run_model(self, data, pos_idx=torch.tensor([0]), training=True, stream_name='trainset'):
         receptor, ligand, gt_interact = data
 
@@ -116,21 +118,25 @@ class EnergyBasedInteractionTrainer:
         if training:
             self.docking_model.train()
             self.interaction_model.train()
+        else:
+            self.docking_model.eval()
+            self.interaction_model.eval()
 
         ### run model and loss calculation
         ##### call model
         alpha = self.buffer.get(pos_idx, samples_per_example=1)
-        energy, pred_rot, pred_txy, FFT_score = self.docking_model(alpha, receptor, ligand, plot_count=pos_idx.item(),
+        energy, pred_rot, pred_txy, FFT_score, FFT_score_stack = self.docking_model(alpha, receptor, ligand, sig_alpha=self.sig_alpha, plot_count=pos_idx.item(),
                                                            stream_name=stream_name, plotting=self.plotting,
-                                                           training=False)
+                                                           training=training)
         self.buffer.push(pred_rot, pos_idx)
-        pred_interact, deltaF, F, F_0 = self.interaction_model(FFT_score.unsqueeze(0), plotting=self.plotting)
+        pred_interact, deltaF, F, F_0 = self.interaction_model(FFT_score_stack.unsqueeze(0), plotting=self.plotting, debug=True)
 
         ### check parameters and gradients
         ### if weights are frozen or updating
         if self.debug:
             self.check_model_gradients(self.docking_model)
             self.check_model_gradients(self.interaction_model)
+            print('\n predicted', pred_interact.item(), '; ground truth', gt_interact.item())
 
         #### Loss functions
         BCEloss = torch.nn.BCELoss()
@@ -138,8 +144,7 @@ class EnergyBasedInteractionTrainer:
         w = 10**-5
         L_reg = w * l1_loss(deltaF, torch.zeros(1).squeeze().cuda())
         loss = BCEloss(pred_interact, gt_interact) + L_reg
-        if self.debug:
-            print('\n predicted', pred_interact.item(), '; ground truth', gt_interact.item())
+        print('\n predicted', pred_interact.item(), '; ground truth', gt_interact.item())
 
         if training:
             self.docking_model.zero_grad()
@@ -214,6 +219,11 @@ class EnergyBasedInteractionTrainer:
                 with open('Log/losses/log_deltaF_Trainset_epoch' + str(epoch) + self.experiment + '.txt', 'a') as fout:
                     fout.write('%f\t%f\t%f\t%d\n' % (train_output[0][2], train_output[0][3], train_output[0][4], train_output[0][5]))
                 pos_idx+=1
+
+            sigma_optimizer.step()
+            scheduler.step()
+            self.sig_alpha = scheduler.get_last_lr()[0]
+            print('sigma alpha', self.sig_alpha)
 
             # FILossPlotter(self.experiment).plot_deltaF_distribution(plot_epoch=epoch, show=False)
 
@@ -388,11 +398,15 @@ if __name__ == '__main__':
     # experiment = 'EBM_FI_100ex_1LD_10ep'
     # experiment = 'EBM_FI_25ex_10LD_6ep'
     # experiment = 'EBM_FI_25ex_10LD_6ep_stackFFT'
-    experiment = 'MHsamp_testing_BFeval'
+    # experiment = 'MHsamp_testing_BFeval'
+    # experiment = 'MCcodereview_sampling'
+    # experiment = 'MCcodereview_sampling_lr-0FI_lr-4IP'
+    # experiment = 'MCcodereview_sampling_lr-1FI_lr-3IP'
+    experiment = 'MCcodereview_sampling_lr-1FI_lr-3IP_MCeval_FFTstack'
 
-    lr_interaction = 10 ** 0
-    lr_docking = 10 ** -4
-    LD_steps = 100
+    lr_interaction = 10 ** -1
+    lr_docking = 10 ** -3
+    sample_steps = 10
     debug = False
     # debug = True
     plotting = False
@@ -404,10 +418,13 @@ if __name__ == '__main__':
     interaction_optimizer = optim.Adam(interaction_model.parameters(), lr=lr_interaction)
 
     dockingFFT = TorchDockingFFT(num_angles=1, angle=None, swap_plot_quadrants=False, debug=debug)
-    docking_model = EnergyBasedModel(dockingFFT, num_angles=1, sample_steps=LD_steps, FI=True, debug=debug).to(device=0)
+    docking_model = EnergyBasedModel(dockingFFT, num_angles=1, sample_steps=sample_steps, FI=True, debug=debug).to(device=0)
     docking_optimizer = optim.Adam(docking_model.parameters(), lr=lr_docking)
 
-    train_epochs = 6
+    sigma_optimizer = optim.Adam(docking_model.parameters(), lr=2)
+    scheduler = optim.lr_scheduler.ExponentialLR(sigma_optimizer, gamma=0.95)
+
+    train_epochs = 20
     # continue_epochs = 1
     ######################
     ### Train model from beginning

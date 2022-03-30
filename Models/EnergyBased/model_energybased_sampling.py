@@ -87,7 +87,11 @@ class EnergyBasedModel(nn.Module):
 
         self.FI = FI
 
-    def forward(self, alpha, receptor, ligand, plot_count=1, stream_name='trainset', plotting=False, training=True):
+    def forward(self, alpha, receptor, ligand, sig_alpha=None, plot_count=1, stream_name='trainset', plotting=False, training=True):
+        if sig_alpha:
+            self.sig_alpha = sig_alpha
+            self.step_size = sig_alpha
+
         if self.IP:
             if training:
                 ## train giving the ground truth rotation
@@ -133,14 +137,18 @@ class EnergyBasedModel(nn.Module):
 
         if self.FI:
             if training:
+                # print('training')
                 ## MC sampling for Fact of interaction training
                 return self.MCsampling(alpha, receptor, ligand, plot_count, stream_name, debug=False)
             else:
                 ### evaluate with brute force
+                # self.docker.eval()
+                # lowest_energy, _, dr, FFT_score = self.docker(receptor, ligand, alpha, plot_count,
+                #                                                            stream_name, plotting=plotting)
+                # return lowest_energy, alpha.unsqueeze(0).clone(), dr.unsqueeze(0).clone(), FFT_score
                 self.docker.eval()
-                lowest_energy, _, dr, FFT_score = self.docker(receptor, ligand, alpha, plot_count,
-                                                                           stream_name, plotting=plotting)
-                return lowest_energy, alpha.unsqueeze(0).clone(), dr.unsqueeze(0).clone(), FFT_score
+                return self.MCsampling(alpha, receptor, ligand, plot_count, stream_name, debug=False)
+
 
     def MCsampling(self, alpha, receptor, ligand, plot_count, stream_name, debug=False):
 
@@ -153,6 +161,11 @@ class EnergyBasedModel(nn.Module):
         noise_alpha = torch.zeros_like(alpha)
         prob_list = []
         acceptance = []
+        if self.FI:
+            FFT_score_list = []
+            FFT_score_list.append(FFT_score)
+            FFT_score_stack = torch.stack(FFT_score_list)
+
         for i in range(self.sample_steps):
             if i == self.sample_steps - 1:
                 plotting = True
@@ -183,6 +196,8 @@ class EnergyBasedModel(nn.Module):
                 alpha = alpha_new
                 dr = dr_new
                 FFT_score = FFT_score_new
+                if self.FI:
+                    FFT_score_list.append(FFT_score)
             else:
                 prob = min(torch.exp(-self.BETA * (free_energy_new - free_energy)).item(), 1)
                 rand0to1 = torch.rand(1).cuda()
@@ -197,22 +212,28 @@ class EnergyBasedModel(nn.Module):
                     alpha = alpha_new
                     dr = dr_new
                     FFT_score = FFT_score_new
+                    if self.FI:
+                        FFT_score_list.append(FFT_score)
                 else:
                     if debug:
                         print('reject')
                     pass
 
-        # if debug:
-        print('acceptance rate', acceptance)
-        print(sum(acceptance)/self.sample_steps)
+        if debug:
+            print('acceptance rate', acceptance)
+            print(sum(acceptance)/self.sample_steps)
         #     plt.close()
         #     xrange = np.arange(0, len(prob_list))
         #     y = prob_list
         #     # y = sorted(prob_list)[::-1]
         #     plt.scatter(xrange, y)
         #     plt.show()
+        if self.FI:
+            # print(FFT_score_list)
+            FFT_score_stack = torch.stack(FFT_score_list)
+            # print(FFT_score.shape)
 
-        return free_energy, alpha.unsqueeze(0).clone(), dr.clone(), FFT_score
+        return free_energy, alpha.unsqueeze(0).clone(), dr.clone(), FFT_score, FFT_score_stack.squeeze()
 
     def langevin(self, alpha, receptor, ligand, plot_count, stream_name, plotting=False, debug=False):
 
