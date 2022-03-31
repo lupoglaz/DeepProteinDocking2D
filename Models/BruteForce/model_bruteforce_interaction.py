@@ -21,7 +21,7 @@ class BruteForceInteraction(nn.Module):
                 print('\n(F - F_0): ', deltaF.item())
                 print('F_0: ', self.F_0.item())
 
-        return pred_interact.squeeze(), deltaF.squeeze(), F.item(), self.F_0.item()
+        return pred_interact.squeeze(), deltaF.squeeze(), F, self.F_0
 
 
 if __name__ == '__main__':
