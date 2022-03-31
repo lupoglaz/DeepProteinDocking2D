@@ -61,15 +61,21 @@ class FILossPlotter:
         fig, ax = plt.subplots(figsize=(10,10))
         plt.suptitle('deltaF distribution: epoch'+ str(plot_epoch) + ' ' + self.experiment)
         # print(train)
-        num_ticks = len(train)//1000
+        # num_ticks = len(train)// (len(train)/10)
+        # num_ticks = 10
         labels = sorted(train.Label.unique())
         F = train['F']
-        binwidth = 2
+        binwidth = 5
         bins = np.arange(min(F), max(F) + binwidth, binwidth)
-        y, x, _ = plt.hist([train.loc[train.Label == x, 'F'] for x in labels], label=labels, bins=bins, rwidth=binwidth, color=['r','g'], alpha=0.25)
+        hist_data = [train.loc[train.Label == x, 'F'] for x in labels]
+
+        y, x, _ = plt.hist(hist_data, label=labels, bins=bins, rwidth=binwidth, color=['r','g'], alpha=0.5)
+
         plt.vlines(train['F_0'].to_numpy()[-1], ymin=0, ymax=y.max()+1, linestyles='dashed', label='F_0', colors='k')
-        ax.set_xticks(np.arange(int(x.min())-1, int(x.max())+1, num_ticks))
-        plt.legend(('(+) interaction', ' (-) interaction', 'final F_0'), prop={'size': 10})
+        # ax.set_xticks(np.arange(int(x.min())-1, int(x.max())+1, num_ticks), rotation=45)
+        xlim = 150
+        ax.set_xlim([-xlim, xlim])
+        plt.legend(('non-interaction (-)', ' interaction (+)', 'final F_0'), prop={'size': 10})
         ax.set_ylabel('Training set counts')
         ax.set_xlabel('Free Energy (F)')
         ax.grid(visible=True)
@@ -97,5 +103,5 @@ if __name__ == "__main__":
     # testcase = 'FI_caseA_PLOT_FREE_ENERGY_HISTOGRAMS'
     testcase = 'scratch_FI_casescratch_FINAL_CHECK_INTERACTION'
     # FILossPlotter(testcase).plot_loss()
-    FILossPlotter(testcase).plot_deltaF_distribution(plot_epoch=1)
+    FILossPlotter(testcase).plot_deltaF_distribution(plot_epoch=1, show=True)
     pass
