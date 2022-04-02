@@ -7,12 +7,14 @@ class BruteForceInteraction(nn.Module):
         super(BruteForceInteraction, self).__init__()
         # self.debug = False
         self.F_0 = nn.Parameter(torch.zeros(1, requires_grad=True))
+        self.logdimsq = torch.log(torch.tensor(100 ** 2))
 
     def forward(self, FFT_score, plotting=False, debug=False):
         E = -FFT_score
         if len(E.shape) > 3:
             E = E.squeeze()
-        F = -torch.logsumexp(-E, dim=(0, 1, 2))
+        # F = -torch.logsumexp(-E, dim=(0, 1, 2))
+        F = -(torch.logsumexp(-E, dim=(0, 1, 2)) - self.logdimsq)
         deltaF = F - self.F_0
         pred_interact = torch.sigmoid(-deltaF)
 
