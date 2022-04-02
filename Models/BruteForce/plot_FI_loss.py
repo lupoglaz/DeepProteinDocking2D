@@ -65,16 +65,16 @@ class FILossPlotter:
         # num_ticks = 10
         labels = sorted(train.Label.unique())
         F = train['F']
-        binwidth = 5
+        binwidth = 2
         bins = np.arange(min(F), max(F) + binwidth, binwidth)
         hist_data = [train.loc[train.Label == x, 'F'] for x in labels]
-
-        y, x, _ = plt.hist(hist_data, label=labels, bins=bins, rwidth=binwidth, color=['r','g'], alpha=0.5)
+        y, x, _ = plt.hist(hist_data[0], label=labels, bins=bins, rwidth=binwidth, color=['r'], alpha=0.25)
+        y, x, _ = plt.hist(hist_data[1], label=labels, bins=bins, rwidth=binwidth, color=['g'], alpha=0.25)
 
         plt.vlines(train['F_0'].to_numpy()[-1], ymin=0, ymax=y.max()+1, linestyles='dashed', label='F_0', colors='k')
         # ax.set_xticks(np.arange(int(x.min())-1, int(x.max())+1, num_ticks), rotation=45)
-        xlim = 150
-        ax.set_xlim([-xlim, xlim])
+        xlim = 200
+        ax.set_xlim([-xlim, 0])
         plt.legend(('non-interaction (-)', ' interaction (+)', 'final F_0'), prop={'size': 10})
         ax.set_ylabel('Training set counts')
         ax.set_xlabel('Free Energy (F)')
