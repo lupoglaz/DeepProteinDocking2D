@@ -76,7 +76,7 @@ class BruteForceInteractionTrainer:
         #### Loss functions
         BCEloss = torch.nn.BCELoss()
         l1_loss = torch.nn.L1Loss()
-        w = 10**-5 * scheduler.get_last_lr()[0]
+        w = 10**-5 #* scheduler.get_last_lr()[0]
         L_reg = w * l1_loss(deltaF, torch.zeros(1).squeeze().cuda())
         loss = BCEloss(pred_interact, gt_interact) + L_reg
 
@@ -325,14 +325,14 @@ if __name__ == '__main__':
     interaction_model = BruteForceInteraction().to(device=0)
     interaction_optimizer = optim.Adam(interaction_model.parameters(), lr=lr_interaction)
 
-    scheduler = optim.lr_scheduler.ExponentialLR(interaction_optimizer, gamma=0.99)
+    scheduler = optim.lr_scheduler.ExponentialLR(interaction_optimizer, gamma=0.95)
 
     docking_model = BruteForceDocking().to(device=0)
     docking_optimizer = optim.Adam(docking_model.parameters(), lr=lr_docking)
 
-    max_size = 400
+    # max_size = 400
     # max_size = 100
-    # max_size = 50
+    max_size = 50
     batch_size = 1
     if batch_size > 1:
         raise NotImplementedError()
@@ -357,9 +357,17 @@ if __name__ == '__main__':
     # experiment = 'F0schedulerg=0p95_scratch_lr-0_and_lr-3_50ex_novalidortest'
     # experiment = 'F0schedulerg=0p25_scratch_lr-0_and_lr-4_50ex_novalidortest'
     # experiment = 'F0schedulerg=0p95_scratch_lr-0_and_lr-4_50ex_novalidortest' ## 100ep 0.70 and 0.80
-    experiment = 'Wregsched_F0schedulerg=0p95_scratch_lr-0_and_lr-4_50ex_novalidortest' ## 200 ep 0.7 > MCC > 0.8
+    # experiment = 'Wregsched_F0schedulerg=0p95_scratch_lr-0_and_lr-4_50ex_novalidortest' ## 200 ep 0.7 > MCC > 0.8
     # experiment = 'Wregsched_F0schedulerg=0p95_scratch_lr-0_and_lr-4_novalidortest_100ex'
-
+    # experiment = 'Wreg-0sched_F0schedg=0p5_scratch_lr-0_and_lr-4_50ex_novalidortest'
+    # experiment = 'Wreg-0sched_F0schedg=0p95_scratch_lr-0_and_lr-3_50ex_novalidortest' ## all values condense to 1 bin
+    # experiment = 'Wreg-0sched_F0schedg=0p95_scratch_lr-0_and_lr-4_50ex_novalidortest_binsmall'
+    # experiment = 'Wreg-0sched_F0schedg=0p5_scratch_lr-0_and_lr-4_50ex_novalidortest_binsmall'
+    # experiment = 'Wreg-1NOsched_F0schedg=0p5_scratch_lr-0_and_lr-4_50ex_novalidortest_binsmall'
+    # experiment = 'Wreg-0WITHsched_F0schedg=0p5_scratch_lr-0_and_lr-4_50ex_novalidortest_binsmall'
+    # experiment = 'Wreg-2WITHsched_F0schedg=0p95_scratch_lr-0_and_lr-4_50ex_novalidortest_binsmall'
+    # experiment = 'Wreg-5WITHsched_F0schedg=0p95_scratch_lr-0_and_lr-4_50ex_novalidortest_binsmall_lse-dim^2'
+    experiment = 'Wreg-5NOsched_F0schedg=0p95_scratch_lr-0_and_lr-4_50ex_novalidortest_binsmall_lse-dim^2'
 
     ##################### Load and freeze/unfreeze params (training, no eval)
     ### path to pretrained docking model
@@ -371,7 +379,7 @@ if __name__ == '__main__':
     # training_case = 'C' # CaseC: train with docking model SE2 CNN frozen and scoring ("a") coeffs unfrozen
     training_case = 'scratch' # Case scratch: train everything from scratch
     experiment = 'FI_case' + training_case + '_' + experiment
-    train_epochs = 100
+    train_epochs = 50
     #####################
     ### Train model from beginning
     # BruteForceInteractionTrainer(docking_model, docking_optimizer, interaction_model, interaction_optimizer, experiment, training_case, path_pretrain
@@ -379,12 +387,12 @@ if __name__ == '__main__':
 
     ### Resume training model at chosen epoch
     # BruteForceInteractionTrainer(docking_model, docking_optimizer, interaction_model, interaction_optimizer, experiment, training_case, path_pretrain
-    #                              ).run_trainer(train_epochs=100, train_stream=train_stream, valid_stream=None, test_stream=None, resume_training=True, resume_epoch=100)
+    #                              ).run_trainer(train_epochs=1, train_stream=train_stream, valid_stream=None, test_stream=None, resume_training=True, resume_epoch=40)
 
     ### Validate model at chosen epoch
     BruteForceInteractionTrainer(docking_model, docking_optimizer, interaction_model, interaction_optimizer, experiment, training_case, path_pretrain
                                  ).run_trainer(train_epochs=1, valid_stream=valid_stream, test_stream=test_stream,
-                                               resume_training=True, resume_epoch=200)
+                                               resume_training=True, resume_epoch=40)
 
     ### Plot free energy distributions with learned F_0 decision threshold
     # FILossPlotter(experiment).plot_deltaF_distribution(plot_epoch=2, show=True)
@@ -395,22 +403,3 @@ if __name__ == '__main__':
     # BruteForceInteractionTrainer().plot_evaluation_set(eval_stream=valid_stream, resume_epoch=resume_epoch) ## also checks APR
     #
     # BruteForceInteractionTrainer().plot_evaluation_set(eval_stream=test_stream, resume_epoch=resume_epoch)
-
-    ##################### Resume training model
-    # BruteForceInteractionTrainer().train(resume_epoch, load_models=True)
-
-
-# BruteForceInteractionTrainer(docking_model, docking_optimizer, interaction_model, interaction_optimizer, experiment, training_case, path_pretrain).run_trainer(train_epochs)
-# trainer = BruteForceInteractionTrainer.__new__(BruteForceInteractionTrainer)
-# trainer = trainer.get_trainer(self.interaction_model, self.interaction_optimizer, self.docking_model, self.docking_optimizer, self.experiment, self.training_case, self.path_pretrain)
-# trainer = self.get_trainer(self.interaction_model, self.interaction_optimizer, self.docking_model, self.docking_optimizer, self.experiment, self.training_case, self.path_pretrain)
-# trainer = BruteForceInteractionTrainer(self.interaction_model, self.interaction_optimizer, self.docking_model, self.docking_optimizer, self.experiment, self.training_case, self.path_pretrain)
-# trainer = BruteForceInteractionTrainer(self.interaction_model, self.interaction_optimizer, self.docking_model, self.docking_optimizer, self.experiment, self.training_case, self.path_pretrain).__new__(BruteForceInteractionTrainer)
-# trainer = self.get_trainer(self.docking_model, self.docking_optimizer, self.interaction_model, self.interaction_optimizer, self.experiment, self.training_case, self.path_pretrain)
-# BruteForceInteractionTrainer(self.interaction_model, self.interaction_optimizer, self.docking_model,
-#                              self.docking_optimizer, self.experiment, self.training_case,
-#                              self.path_pretrain).get_trainer(self.interaction_model, self.interaction_optimizer,
-#                                                              self.docking_model, self.docking_optimizer,
-#                                                              self.experiment, self.training_case,
-#                                                              self.path_pretrain)
-# Accuracy, Precision, Recall, F1score, MCC = APR().calcAPR(datastream, trainer, check_epoch)
