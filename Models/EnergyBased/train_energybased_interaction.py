@@ -129,7 +129,7 @@ class EnergyBasedInteractionTrainer:
                                                            stream_name=stream_name, plotting=self.plotting,
                                                            training=training)
         self.buffer.push(pred_rot, pos_idx)
-        pred_interact, deltaF, F, F_0 = self.interaction_model(FFT_score_stack.unsqueeze(0), plotting=self.plotting, debug=True)
+        pred_interact, deltaF, F, F_0 = self.interaction_model(FFT_score_stack.unsqueeze(0), plotting=self.plotting, debug=False)
 
         ### check parameters and gradients
         ### if weights are frozen or updating
@@ -141,7 +141,7 @@ class EnergyBasedInteractionTrainer:
         #### Loss functions
         BCEloss = torch.nn.BCELoss()
         l1_loss = torch.nn.L1Loss()
-        w = 10**-5
+        w = 10**-1
         L_reg = w * l1_loss(deltaF, torch.zeros(1).squeeze().cuda())
         loss = BCEloss(pred_interact, gt_interact) + L_reg
         print('\n predicted', pred_interact.item(), '; ground truth', gt_interact.item())
@@ -220,12 +220,12 @@ class EnergyBasedInteractionTrainer:
                     fout.write('%f\t%f\t%f\t%d\n' % (train_output[0][2], train_output[0][3], train_output[0][4], train_output[0][5]))
                 pos_idx+=1
 
-            sigma_optimizer.step()
-            scheduler.step()
-            self.sig_alpha = scheduler.get_last_lr()[0]
-            print('sigma alpha', self.sig_alpha)
+            # sigma_optimizer.step()
+            # scheduler.step()
+            # self.sig_alpha = scheduler.get_last_lr()[0]
+            # print('sigma alpha', self.sig_alpha)
 
-            # FILossPlotter(self.experiment).plot_deltaF_distribution(plot_epoch=epoch, show=False)
+            FILossPlotter(self.experiment).plot_deltaF_distribution(plot_epoch=epoch, show=False)
 
             avg_trainloss = np.average(train_loss, axis=0)[0, :]
             print('\nEpoch', epoch, 'Train Loss: Loss, Lreg, deltaF, F_0', avg_trainloss)
@@ -384,8 +384,9 @@ if __name__ == '__main__':
     #########################
     # max_size = 400
     # max_size = 100
-    max_size = 50
-    # max_size = 25
+    # max_size = 50
+    max_size = 25
+    # max_size = 10
     batch_size = 1
     if batch_size > 1:
         raise NotImplementedError()
@@ -402,11 +403,18 @@ if __name__ == '__main__':
     # experiment = 'MCcodereview_sampling'
     # experiment = 'MCcodereview_sampling_lr-0FI_lr-4IP'
     # experiment = 'MCcodereview_sampling_lr-1FI_lr-3IP'
-    experiment = 'MCcodereview_sampling_lr-1FI_lr-3IP_MCeval_FFTstack'
+    # experiment = 'MCcodereview_sampling_lr-1FI_lr-3IP_MCeval_FFTstack_NoLreg' ## Lreg needed
+    # experiment = 'MCcodereview_sampling_lr-1FI_lr-3IP_MCeval_FFTstack_wreg-7'
+    # experiment = 'MCcodereview_sampling_lr-1FI_lr-3IP_MCeval_FFTstack_wreg-6'
+    # experiment = 'MCcodereview_sampling_lr-1FI_lr-3IP_MCeval_FFTstack_wreg-6'
+    # experiment = 'MCcodereview_sampling_lr-1FI_lr-3IP_MCeval_FFTstack_wreg-4'
+    # experiment = 'MCcodereview_sampling_lr-1FI_lr-3IP_FFTstack_wreg-1_BFeval'
+    # experiment = 'MCcodereview_sampling_lr-1FI_lr-3IP_FFTstack_wreg-1_BFeval_nosigsched'
+    experiment = 'MCcodereview_sampling_lr-1FI_lr-3IP_wreg-1_BFeval_nosigsched_FFTstackall'
 
-    lr_interaction = 10 ** -1
+    lr_interaction = 10 ** 0
     lr_docking = 10 ** -3
-    sample_steps = 10
+    sample_steps = 100
     debug = False
     # debug = True
     plotting = False
@@ -421,8 +429,8 @@ if __name__ == '__main__':
     docking_model = EnergyBasedModel(dockingFFT, num_angles=1, sample_steps=sample_steps, FI=True, debug=debug).to(device=0)
     docking_optimizer = optim.Adam(docking_model.parameters(), lr=lr_docking)
 
-    sigma_optimizer = optim.Adam(docking_model.parameters(), lr=2)
-    scheduler = optim.lr_scheduler.ExponentialLR(sigma_optimizer, gamma=0.95)
+    # sigma_optimizer = optim.Adam(docking_model.parameters(), lr=2)
+    # scheduler = optim.lr_scheduler.ExponentialLR(sigma_optimizer, gamma=0.95)
 
     train_epochs = 20
     # continue_epochs = 1

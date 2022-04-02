@@ -86,6 +86,7 @@ class EnergyBasedModel(nn.Module):
         self.IP_EBM = IP_EBM
 
         self.FI = FI
+        self.logdimsq = torch.log(torch.tensor(100 ** 2))
 
     def forward(self, alpha, receptor, ligand, sig_alpha=None, plot_count=1, stream_name='trainset', plotting=False, training=True):
         if sig_alpha:
@@ -145,7 +146,7 @@ class EnergyBasedModel(nn.Module):
                 # self.docker.eval()
                 # lowest_energy, _, dr, FFT_score = self.docker(receptor, ligand, alpha, plot_count,
                 #                                                            stream_name, plotting=plotting)
-                # return lowest_energy, alpha.unsqueeze(0).clone(), dr.unsqueeze(0).clone(), FFT_score
+                # return lowest_energy, alpha.unsqueeze(0).clone(), dr.unsqueeze(0).clone(), FFT_score, FFT_score
                 self.docker.eval()
                 return self.MCsampling(alpha, receptor, ligand, plot_count, stream_name, debug=False)
 
@@ -156,7 +157,7 @@ class EnergyBasedModel(nn.Module):
                                           plot_count=plot_count, stream_name=stream_name,
                                           plotting=False)
         betaE = -self.BETA * FFT_score
-        free_energy = -1 / self.BETA *(torch.logsumexp(-betaE, dim=(0, 1)) - torch.log(torch.tensor(100 ** 2)))
+        free_energy = -1 / self.BETA *(torch.logsumexp(-betaE, dim=(0, 1)) - self.logdimsq)
 
         noise_alpha = torch.zeros_like(alpha)
         prob_list = []
@@ -178,7 +179,7 @@ class EnergyBasedModel(nn.Module):
                                               plot_count=plot_count, stream_name=stream_name,
                                               plotting=plotting)
             betaE_new = -self.BETA * FFT_score_new
-            free_energy_new = -1/self.BETA*(torch.logsumexp(-betaE_new, dim=(0, 1)) - torch.log(torch.tensor(100 ** 2)))
+            free_energy_new = -1/self.BETA*(torch.logsumexp(-betaE_new, dim=(0, 1)) - self.logdimsq)
 
             # print(self.previous)
             # a, b, n = 40, 4, 4  #
