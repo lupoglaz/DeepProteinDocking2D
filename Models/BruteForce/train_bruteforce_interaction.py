@@ -32,7 +32,6 @@ class BruteForceInteractionTrainer:
         self.debug = debug
         self.plotting = plotting
 
-        self.train_epochs = 6
         self.check_epoch = 1
         self.eval_freq = 1
         self.save_freq = 1
@@ -77,9 +76,10 @@ class BruteForceInteractionTrainer:
         #### Loss functions
         BCEloss = torch.nn.BCELoss()
         l1_loss = torch.nn.L1Loss()
-        w = 10**-5
+        w = 10**-5 * scheduler.get_last_lr()[0]
         L_reg = w * l1_loss(deltaF, torch.zeros(1).squeeze().cuda())
         loss = BCEloss(pred_interact, gt_interact) + L_reg
+
         if self.debug:
             print('\n predicted', pred_interact.item(), '; ground truth', gt_interact.item())
 
@@ -100,7 +100,7 @@ class BruteForceInteractionTrainer:
         #     with torch.no_grad():
         #         self.plot_pose(FFT_score, receptor, ligand, gt_rot, gt_txy, plot_count, stream_name)
 
-        return loss.item(), L_reg.item(), deltaF.item(), F, F_0, gt_interact.item()
+        return loss.item(), L_reg.item(), deltaF.item(), F.item(), F_0.item(), gt_interact.item()
 
     @staticmethod
     def classify(pred_interact, gt_interact):
@@ -148,25 +148,31 @@ class BruteForceInteractionTrainer:
                 'optimizer': self.interaction_optimizer.state_dict(),
             }
 
-            train_loss = []
-            for data in tqdm(train_stream):
-                train_output = [self.run_model(data, training=True)]
-                train_loss.append(train_output)
-                with open('Log/losses/log_deltaF_Trainset_epoch' + str(epoch) + self.experiment + '.txt', 'a') as fout:
-                    fout.write('%f\t%f\t%f\t%d\n' % (train_output[0][2], train_output[0][3], train_output[0][4], train_output[0][5]))
+            if train_stream:
+                train_loss = []
+                for data in tqdm(train_stream):
+                    train_output = [self.run_model(data, training=True)]
+                    train_loss.append(train_output)
+                    with open('Log/losses/log_deltaF_Trainset_epoch' + str(epoch) + self.experiment + '.txt', 'a') as fout:
+                        fout.write('%f\t%f\t%f\t%d\n' % (train_output[0][2], train_output[0][3], train_output[0][4], train_output[0][5]))
 
-            FILossPlotter(self.experiment).plot_deltaF_distribution(plot_epoch=epoch, show=False)
+                FILossPlotter(self.experiment).plot_deltaF_distribution(plot_epoch=epoch, show=False)
 
-            avg_trainloss = np.average(train_loss, axis=0)[0, :]
-            print('\nEpoch', epoch, 'Train Loss: Loss, Lreg, deltaF, F_0', avg_trainloss)
-            with open('Log/losses/log_train_' + self.experiment + '.txt', 'a') as fout:
-                fout.write(log_format % (epoch, avg_trainloss[0], avg_trainloss[1], avg_trainloss[2], avg_trainloss[3]))
+                avg_trainloss = np.average(train_loss, axis=0)[0, :]
+                print('\nEpoch', epoch, 'Train Loss: loss, L_reg, deltaF, F, F_0, gt_interact', avg_trainloss)
+                with open('Log/losses/log_train_' + self.experiment + '.txt', 'a') as fout:
+                    fout.write(log_format % (epoch, avg_trainloss[0], avg_trainloss[1], avg_trainloss[2], avg_trainloss[3]))
 
+                scheduler.step()
+                print(scheduler.get_last_lr())
             ### evaluate on training and valid set
             ### training set to False downstream in calcAPR() run_model()
+
             if epoch % self.eval_freq == 0:
-                self.checkAPR(epoch, valid_stream, 'valid set')
-                self.checkAPR(epoch, test_stream, 'test set')
+                if valid_stream:
+                    self.checkAPR(epoch, valid_stream, 'valid set')
+                if test_stream:
+                    self.checkAPR(epoch, test_stream, 'test set')
 
             #### saving model while training
             if epoch % self.save_freq == 0:
@@ -279,7 +285,7 @@ class BruteForceInteractionTrainer:
             self.param_to_freeze = None
             # self.experiment = self.training_case + '_' + self.experiment
 
-    def run_trainer(self, train_epochs, resume_epoch=0, resume_training=False):
+    def run_trainer(self, train_epochs, train_stream=None, valid_stream=None, test_stream=None, resume_epoch=0, resume_training=False):
         self.train_model(train_epochs, train_stream, valid_stream, test_stream,
                                                    resume_training=resume_training, resume_epoch=resume_epoch)
 
@@ -319,12 +325,14 @@ if __name__ == '__main__':
     interaction_model = BruteForceInteraction().to(device=0)
     interaction_optimizer = optim.Adam(interaction_model.parameters(), lr=lr_interaction)
 
+    scheduler = optim.lr_scheduler.ExponentialLR(interaction_optimizer, gamma=0.99)
+
     docking_model = BruteForceDocking().to(device=0)
     docking_optimizer = optim.Adam(docking_model.parameters(), lr=lr_docking)
 
     max_size = 400
+    # max_size = 100
     # max_size = 50
-    # max_size = 25
     batch_size = 1
     if batch_size > 1:
         raise NotImplementedError()
@@ -334,7 +342,24 @@ if __name__ == '__main__':
 
     # experiment = 'RECODE_CHECK_INTERACTION'
     # experiment = 'PLOT_FREE_ENERGY_HISTOGRAMS'
-    experiment = 'FINAL_CHECK_INTERACTION'
+    # experiment = 'FINAL_CHECK_INTERACTION_FULLDATA'
+    # experiment = 'FINAL_CHECK_INTERACTION_FULLDATA_LR-1'
+    # experiment = 'checkhists_lf-0_and_lr-4_50ex_100ep' ## working 50 ep MCCs ~0.7
+    ## attempting to improve brute force FI
+    # experiment = 'baseline_expA_lr-0_and_lr-4_50ex' ## 1 epoch MCCs 0.74 and 0.81, then fluctuates
+    # experiment = 'baseline_expB_lr-0_and_lr-4_50ex' ## 3 epoch MCCs 0.8, then fluctuates
+    # experiment = 'baseline_expC_lr-0_and_lr-4_50ex' ## 1 epoch MCCs 0.74 and 0.78, then fluctuates
+    # experiment = 'baseline_scratch_lr-0_and_lr-4_50ex' ## 3 epoch MCCs ~0.6, then fluctuates
+    # experiment = 'F0schedulerg=0p5_scratch_lr-0_and_lr-4_50ex'
+    # experiment = 'F0schedulerg=0p5_scratch_lr-0_and_lr-4_50ex_novalidortest'
+    # experiment = 'F0schedulerg=0p5_scratch_lr-0_and_lr-4_50ex_novalidortest_noWreg' ## wreg required
+    # experiment = 'F0schedulerg=0p25_scratch_lr-0_and_lr-3_50ex_novalidortest' ## doesn't learn
+    # experiment = 'F0schedulerg=0p95_scratch_lr-0_and_lr-3_50ex_novalidortest'
+    # experiment = 'F0schedulerg=0p25_scratch_lr-0_and_lr-4_50ex_novalidortest'
+    # experiment = 'F0schedulerg=0p95_scratch_lr-0_and_lr-4_50ex_novalidortest' ## 100ep 0.70 and 0.80
+    experiment = 'Wregsched_F0schedulerg=0p95_scratch_lr-0_and_lr-4_50ex_novalidortest' ## 200 ep 0.7 > MCC > 0.8
+    # experiment = 'Wregsched_F0schedulerg=0p95_scratch_lr-0_and_lr-4_novalidortest_100ex'
+
 
     ##################### Load and freeze/unfreeze params (training, no eval)
     ### path to pretrained docking model
@@ -343,21 +368,26 @@ if __name__ == '__main__':
     path_pretrain = 'Log/FINAL_CHECK_DOCKING30.th'
     # training_case = 'A' # CaseA: train with docking model frozen
     # training_case = 'B' # CaseB: train with docking model unfrozen
-    # training_case = 'C' # CaseC: train with docking model SE2 CNN frozen
+    # training_case = 'C' # CaseC: train with docking model SE2 CNN frozen and scoring ("a") coeffs unfrozen
     training_case = 'scratch' # Case scratch: train everything from scratch
     experiment = 'FI_case' + training_case + '_' + experiment
-    train_epochs = 6
+    train_epochs = 100
     #####################
     ### Train model from beginning
     # BruteForceInteractionTrainer(docking_model, docking_optimizer, interaction_model, interaction_optimizer, experiment, training_case, path_pretrain
-    #                              ).run_trainer(train_epochs)
+    #                              ).run_trainer(train_epochs, train_stream=train_stream, valid_stream=None, test_stream=None)
 
     ### Resume training model at chosen epoch
     # BruteForceInteractionTrainer(docking_model, docking_optimizer, interaction_model, interaction_optimizer, experiment, training_case, path_pretrain
-    #                              ).run_trainer(train_epochs, resume_training=True, resume_epoch=3)
-    #
-    ### Plot free energy distributions vs learned F_0 decision threshold
-    FILossPlotter(experiment).plot_deltaF_distribution(plot_epoch=2, show=True)
+    #                              ).run_trainer(train_epochs=100, train_stream=train_stream, valid_stream=None, test_stream=None, resume_training=True, resume_epoch=100)
+
+    ### Validate model at chosen epoch
+    BruteForceInteractionTrainer(docking_model, docking_optimizer, interaction_model, interaction_optimizer, experiment, training_case, path_pretrain
+                                 ).run_trainer(train_epochs=1, valid_stream=valid_stream, test_stream=test_stream,
+                                               resume_training=True, resume_epoch=200)
+
+    ### Plot free energy distributions with learned F_0 decision threshold
+    # FILossPlotter(experiment).plot_deltaF_distribution(plot_epoch=2, show=True)
 
     ### Evaluate model only and plot, at chosen epoch
     # resume_epoch = 5
