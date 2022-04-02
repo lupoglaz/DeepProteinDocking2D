@@ -55,23 +55,21 @@ class FILossPlotter:
 
     def plot_deltaF_distribution(self, plot_epoch=1, show=False):
         plt.close()
-        # Plot RMSD distribution of all samples across epoch
+        # Plot free energy distribution of all samples across epoch
         train = pd.read_csv("Log/losses/log_deltaF_Trainset_epoch" + str(plot_epoch) + self.experiment + ".txt", sep='\t', header=0, names=['deltaF', 'F', 'F_0', 'Label'])
 
         fig, ax = plt.subplots(figsize=(10,10))
         plt.suptitle('deltaF distribution: epoch'+ str(plot_epoch) + ' ' + self.experiment)
-        # print(train)
-        # num_ticks = len(train)// (len(train)/10)
-        # num_ticks = 10
+
         labels = sorted(train.Label.unique())
         F = train['F']
         binwidth = 1
         bins = np.arange(min(F), max(F) + binwidth, binwidth)
         hist_data = [train.loc[train.Label == x, 'F'] for x in labels]
-        y, x, _ = plt.hist(hist_data[0], label=labels, bins=bins, rwidth=binwidth, color=['r'], alpha=0.25)
-        y, x, _ = plt.hist(hist_data[1], label=labels, bins=bins, rwidth=binwidth, color=['g'], alpha=0.25)
+        y1, x1, _ = plt.hist(hist_data[0], label=labels, bins=bins, rwidth=binwidth, color=['r'], alpha=0.25)
+        y2, x2, _ = plt.hist(hist_data[1], label=labels, bins=bins, rwidth=binwidth, color=['g'], alpha=0.25)
 
-        plt.vlines(train['F_0'].to_numpy()[-1], ymin=0, ymax=y.max()+1, linestyles='dashed', label='F_0', colors='k')
+        plt.vlines(train['F_0'].to_numpy()[-1], ymin=0, ymax=max(y1.max(), y2.max())+1, linestyles='dashed', label='F_0', colors='k')
         # ax.set_xticks(np.arange(int(x.min())-1, int(x.max())+1, num_ticks), rotation=45)
         xlim = 100
         ax.set_xlim([-xlim, 0])
@@ -80,9 +78,10 @@ class FILossPlotter:
         ax.set_xlabel('Free Energy (F)')
         ax.grid(visible=True)
 
-        plt.savefig('figs/BF_FI_deltaF_distribution_plots/deltaFplot_epoch'+ str(plot_epoch) + '_' + self.experiment + '.png')
         if show:
             plt.show()
+        plt.savefig('figs/BF_FI_deltaF_distribution_plots/deltaFplot_epoch'+ str(plot_epoch) + '_' + self.experiment + '.png', format='png')
+        plt.close()
 
 if __name__ == "__main__":
     # testcase = 'newdata_bugfix_docking_100epochs_'
