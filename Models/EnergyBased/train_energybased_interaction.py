@@ -73,11 +73,6 @@ class EnergyBasedInteractionTrainer:
     else:
         replicate = 'single_rep'
 
-    # @classmethod
-    # def get_trainer(cls, docking_model, docking_optimizer, interaction_model, interaction_optimizer, experiment, training_case, path_pretrain):
-    #     print("Creating instance")
-    #     return cls(docking_model, docking_optimizer, interaction_model, interaction_optimizer, experiment, training_case, path_pretrain).__new__(BruteForceInteractionTrainer)
-
     def __init__(self, docking_model, docking_optimizer, interaction_model, interaction_optimizer, experiment,
                  debug=False, plotting=False):
         # print("RUNNING INIT")
@@ -131,6 +126,8 @@ class EnergyBasedInteractionTrainer:
         self.buffer.push(pred_rot, pos_idx)
         pred_interact, deltaF, F, F_0 = self.interaction_model(FFT_score_stack.unsqueeze(0), plotting=self.plotting, debug=False)
 
+        # print(F, F_0)
+
         ### check parameters and gradients
         ### if weights are frozen or updating
         if self.debug:
@@ -141,10 +138,10 @@ class EnergyBasedInteractionTrainer:
         #### Loss functions
         BCEloss = torch.nn.BCELoss()
         l1_loss = torch.nn.L1Loss()
-        w = 10**-1
+        w = 10**-5
         L_reg = w * l1_loss(deltaF, torch.zeros(1).squeeze().cuda())
         loss = BCEloss(pred_interact, gt_interact) + L_reg
-        print('\n predicted', pred_interact.item(), '; ground truth', gt_interact.item())
+        # print('\n predicted', pred_interact.item(), '; ground truth', gt_interact.item())
 
         if training:
             self.docking_model.zero_grad()
@@ -163,7 +160,7 @@ class EnergyBasedInteractionTrainer:
         #     with torch.no_grad():
         #         self.plot_pose(FFT_score, receptor, ligand, gt_rot, gt_txy, plot_count, stream_name)
 
-        return loss.item(), L_reg.item(), deltaF.item(), F, F_0, gt_interact.item()
+        return loss.item(), L_reg.item(), deltaF.item(), F.item(), F_0.item(), gt_interact.item()
 
     @staticmethod
     def classify(pred_interact, gt_interact):
@@ -211,32 +208,35 @@ class EnergyBasedInteractionTrainer:
                 'optimizer': self.interaction_optimizer.state_dict(),
             }
 
-            train_loss = []
-            pos_idx = torch.tensor([0])
-            for data in tqdm(train_stream):
-                train_output = [self.run_model(data, pos_idx, training=True)]
-                train_loss.append(train_output)
-                with open('Log/losses/log_deltaF_Trainset_epoch' + str(epoch) + self.experiment + '.txt', 'a') as fout:
-                    fout.write('%f\t%f\t%f\t%d\n' % (train_output[0][2], train_output[0][3], train_output[0][4], train_output[0][5]))
-                pos_idx+=1
+            if train_stream:
+                train_loss = []
+                pos_idx = torch.tensor([0])
+                for data in tqdm(train_stream):
+                    train_output = [self.run_model(data, pos_idx, training=True)]
+                    train_loss.append(train_output)
+                    with open('Log/losses/log_deltaF_Trainset_epoch' + str(epoch) + self.experiment + '.txt', 'a') as fout:
+                        fout.write('%f\t%f\t%f\t%d\n' % (train_output[0][2], train_output[0][3], train_output[0][4], train_output[0][5]))
+                    pos_idx+=1
 
-            # sigma_optimizer.step()
-            # scheduler.step()
-            # self.sig_alpha = scheduler.get_last_lr()[0]
-            # print('sigma alpha', self.sig_alpha)
+                # sigma_optimizer.step()
+                scheduler.step()
+                print(scheduler.get_last_lr()[0])
+                # self.sig_alpha = scheduler.get_last_lr()[0]
+                # print('sigma alpha', self.sig_alpha)
 
-            FILossPlotter(self.experiment).plot_deltaF_distribution(plot_epoch=epoch, show=False)
+                FILossPlotter(self.experiment).plot_deltaF_distribution(plot_epoch=epoch, show=False)
 
-            avg_trainloss = np.average(train_loss, axis=0)[0, :]
-            print('\nEpoch', epoch, 'Train Loss: Loss, Lreg, deltaF, F_0', avg_trainloss)
-            with open('Log/losses/log_train_' + self.experiment + '.txt', 'a') as fout:
-                fout.write(log_format % (epoch, avg_trainloss[0], avg_trainloss[1], avg_trainloss[2], avg_trainloss[3]))
+                avg_trainloss = np.average(train_loss, axis=0)[0, :]
+                print('\nEpoch', epoch, 'Train Loss: Loss, Lreg, deltaF, F_0', avg_trainloss)
+                with open('Log/losses/log_train_' + self.experiment + '.txt', 'a') as fout:
+                    fout.write(log_format % (epoch, avg_trainloss[0], avg_trainloss[1], avg_trainloss[2], avg_trainloss[3]))
 
             ### evaluate on training and valid set
             ### training set to False downstream in calcAPR() run_model()
-            if valid_stream or test_stream:
-                if epoch % self.eval_freq == 0:
+            if epoch % self.eval_freq == 0:
+                if valid_stream:
                     self.checkAPR(epoch, valid_stream, 'valid set')
+                if test_stream:
                     self.checkAPR(epoch, test_stream, 'test set')
 
             #### saving model while training
@@ -354,11 +354,6 @@ class EnergyBasedInteractionTrainer:
         self.train_model(train_epochs, train_stream, valid_stream, test_stream,
                          resume_training=resume_training, resume_epoch=resume_epoch)
 
-    def plot_evaluation_set(self, check_epoch, train_stream=None, valid_stream=None, test_stream=None):
-        eval_epochs = 1
-        self.train_model(eval_epochs, train_stream, valid_stream, test_stream,
-                         resume_training=False, resume_epoch=check_epoch)
-
     # @classmethod
     # def get_trainer(cls):
     #     return super(BruteForceInteractionTrainer, cls).__new__(cls)
@@ -384,8 +379,8 @@ if __name__ == '__main__':
     #########################
     # max_size = 400
     # max_size = 100
-    # max_size = 50
-    max_size = 25
+    max_size = 50
+    # max_size = 25
     # max_size = 10
     batch_size = 1
     if batch_size > 1:
@@ -410,11 +405,17 @@ if __name__ == '__main__':
     # experiment = 'MCcodereview_sampling_lr-1FI_lr-3IP_MCeval_FFTstack_wreg-4'
     # experiment = 'MCcodereview_sampling_lr-1FI_lr-3IP_FFTstack_wreg-1_BFeval'
     # experiment = 'MCcodereview_sampling_lr-1FI_lr-3IP_FFTstack_wreg-1_BFeval_nosigsched'
-    experiment = 'MCcodereview_sampling_lr-1FI_lr-3IP_wreg-1_BFeval_nosigsched_FFTstackall'
+    # experiment = 'MCcodereview_sampling_lr-1FI_lr-3IP_wreg-1_BFeval_nosigsched_FFTstackall'
+    # experiment = 'MCsampling_lr-0FI_lr-4IP_wreg-5_acceptedFFTstack_10samps_50ex_Fschedg=0p95'
+    # experiment = 'MCsampling_lr-0FI_lr-4IP_wreg-5_acceptedFFTstack_10samps_50ex_Fschedg=0p5'
+    # experiment = 'MCsampling_lr-0FI_lr-4IP_wreg-5_acceptedFFTstack_10steps_50ex_Fschedg=0p5'
+    # experiment = 'MCsampling_lr-0FI_lr-4IP_wreg-5_acceptedFFTstack_10steps_50ex_Fschedg=0p5_-logrotxdim^2' ## bf eval MCC ~0.20
+    # experiment = 'MCsampling_lr-0FI_lr-4IP_wreg-5_acceptedFFTstack_50ex_Fschedg=0p5_-logrotxdim^2_100steps'
+    experiment = 'MCsampling_lr-0FI_lr-4IP_wreg-5_acceptedFFTstack_10steps_50ex_Fschedg=0p5_-logrotxdim^2'
 
     lr_interaction = 10 ** 0
-    lr_docking = 10 ** -3
-    sample_steps = 100
+    lr_docking = 10 ** -4
+    sample_steps = 10
     debug = False
     # debug = True
     plotting = False
@@ -425,6 +426,9 @@ if __name__ == '__main__':
     interaction_model = BruteForceInteraction().to(device=0)
     interaction_optimizer = optim.Adam(interaction_model.parameters(), lr=lr_interaction)
 
+    scheduler = optim.lr_scheduler.ExponentialLR(interaction_optimizer, gamma=0.95)
+
+
     dockingFFT = TorchDockingFFT(num_angles=1, angle=None, swap_plot_quadrants=False, debug=debug)
     docking_model = EnergyBasedModel(dockingFFT, num_angles=1, sample_steps=sample_steps, FI=True, debug=debug).to(device=0)
     docking_optimizer = optim.Adam(docking_model.parameters(), lr=lr_docking)
@@ -432,14 +436,20 @@ if __name__ == '__main__':
     # sigma_optimizer = optim.Adam(docking_model.parameters(), lr=2)
     # scheduler = optim.lr_scheduler.ExponentialLR(sigma_optimizer, gamma=0.95)
 
-    train_epochs = 20
+    train_epochs = 30
     # continue_epochs = 1
     ######################
     ### Train model from beginning
-    # EnergyBasedInteractionTrainer(docking_model, docking_optimizer, interaction_model, interaction_optimizer, experiment, debug=debug).run_trainer(train_epochs, train_stream=train_stream)
-    EnergyBasedInteractionTrainer(docking_model, docking_optimizer, interaction_model, interaction_optimizer, experiment, debug=debug
-                                  ).run_trainer(train_epochs, train_stream=train_stream, valid_stream=valid_stream, test_stream=test_stream)
-
-
     # EnergyBasedInteractionTrainer(docking_model, docking_optimizer, interaction_model, interaction_optimizer, experiment, debug=debug
-    #                               ).run_trainer(resume_epoch=train_epochs, resume_training=True, train_epochs=1, train_stream=train_stream, valid_stream=valid_stream, test_stream=None)
+    #                               ).run_trainer(train_epochs, train_stream=train_stream, valid_stream=None, test_stream=None)
+
+    ### resume training model
+    # EnergyBasedInteractionTrainer(docking_model, docking_optimizer, interaction_model, interaction_optimizer, experiment, debug=debug
+    #                              ).run_trainer(resume_training=True, resume_epoch=65, train_epochs=train_epochs, train_stream=train_stream, valid_stream=None, test_stream=None)
+
+
+    ### Evaluate model at chosen epoch
+    eval_model = EnergyBasedModel(dockingFFT, num_angles=360, sample_steps=1, FI=True, debug=debug).to(device=0)
+    # eval_model = EnergyBasedModel(dockingFFT, num_angles=1, sample_steps=10, FI=True, debug=debug).to(device=0)
+    EnergyBasedInteractionTrainer(eval_model, docking_optimizer, interaction_model, interaction_optimizer, experiment, debug=False
+                                  ).run_trainer(resume_training=True, train_epochs=1, train_stream=None, valid_stream=valid_stream, test_stream=test_stream, resume_epoch=74)

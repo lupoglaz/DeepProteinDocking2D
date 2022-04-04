@@ -143,12 +143,12 @@ class EnergyBasedModel(nn.Module):
                 return self.MCsampling(alpha, receptor, ligand, plot_count, stream_name, debug=False)
             else:
                 ### evaluate with brute force
-                # self.docker.eval()
-                # lowest_energy, _, dr, FFT_score = self.docker(receptor, ligand, alpha, plot_count,
-                #                                                            stream_name, plotting=plotting)
-                # return lowest_energy, alpha.unsqueeze(0).clone(), dr.unsqueeze(0).clone(), FFT_score, FFT_score
                 self.docker.eval()
-                return self.MCsampling(alpha, receptor, ligand, plot_count, stream_name, debug=False)
+                lowest_energy, _, dr, FFT_score = self.docker(receptor, ligand, alpha, plot_count,
+                                                                           stream_name, plotting=plotting)
+                return lowest_energy, alpha.unsqueeze(0).clone(), dr.unsqueeze(0).clone(), FFT_score, FFT_score
+                # self.docker.eval()
+                # return self.MCsampling(alpha, receptor, ligand, plot_count, stream_name, debug=False)
 
 
     def MCsampling(self, alpha, receptor, ligand, plot_count, stream_name, debug=False):

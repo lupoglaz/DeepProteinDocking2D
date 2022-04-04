@@ -13,6 +13,13 @@ class BruteForceInteraction(nn.Module):
         E = -FFT_score
         if len(E.shape) > 3:
             E = E.squeeze()
+        if len(E.shape) < 3:
+            E = E.unsqueeze(0)
+        if E.shape[0] > 1:
+            # print(E.shape[0])
+            self.logdimsq = torch.log(E.shape[0]*torch.tensor(100 ** 2))
+        # print(self.logdimsq)
+
         # F = -torch.logsumexp(-E, dim=(0, 1, 2))
         F = -(torch.logsumexp(-E, dim=(0, 1, 2)) - self.logdimsq)
         deltaF = F - self.F_0
