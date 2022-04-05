@@ -260,21 +260,6 @@ class EnergyBasedInteractionTrainer:
             fout.write(log_format % (Accuracy, Precision, Recall, F1score, MCC))
         fout.close()
 
-    # def freeze_weights(self):
-    #     if not self.param_to_freeze:
-    #         print('\nAll docking model params unfrozen\n')
-    #         return
-    #     for name, param in self.docking_model.named_parameters():
-    #         if self.param_to_freeze == 'all':
-    #             print('Freeze ALL Weights', name)
-    #             param.requires_grad = False
-    #         elif self.param_to_freeze in name:
-    #             print('Freeze Weights', name)
-    #             param.requires_grad = False
-    #         else:
-    #             print('Unfreeze docking model weights', name)
-    #             param.requires_grad = True
-
     def resume_training_or_not(self, resume_training, resume_epoch, log_header):
         if resume_training:
             print('Loading docking model at', str(resume_epoch))
@@ -322,33 +307,6 @@ class EnergyBasedInteractionTrainer:
         for n, p in model.named_parameters():
             if p.requires_grad:
                 print('Name', n, '\nParam', p, '\nGradient', p.grad)
-
-    # def set_docking_model_state(self):
-    #     # CaseA: train with docking model frozen
-    #     if self.training_case == 'A':
-    #         print('Training expA')
-    #         self.param_to_freeze = 'all'
-    #         self.docking_model.load_state_dict(torch.load(path_pretrain)['state_dict'])
-    #     # CaseB: train with docking model unfrozen
-    #     if self.training_case == 'B':
-    #         print('Training expB')
-    #         lr_docking = 10 ** -5
-    #         print('Docking learning rate changed to', lr_docking)
-    #         # self.experiment = 'case' + self.training_case + '_lr5change_' + self.experiment
-    #         self.docking_model = BruteForceDocking().to(device=0)
-    #         self.docking_optimizer = optim.Adam(self.docking_model.parameters(), lr=lr_docking)
-    #         self.param_to_freeze = None
-    #         self.docking_model.load_state_dict(torch.load(path_pretrain)['state_dict'])
-    #     # CaseC: train with docking model SE2 CNN frozen
-    #     if self.training_case == 'C':
-    #         print('Training expC')
-    #         self.param_to_freeze = 'netSE2'  # leave "a" scoring coefficients unfrozen
-    #         self.docking_model.load_state_dict(torch.load(path_pretrain)['state_dict'])
-    #     # Case scratch: train everything from scratch
-    #     if self.training_case == 'scratch':
-    #         print('Training from scratch')
-    #         self.param_to_freeze = None
-    #         # self.experiment = self.training_case + '_' + self.experiment
 
     def run_trainer(self, train_epochs, train_stream=None, valid_stream=None, test_stream=None, resume_training=False, resume_epoch=0):
         self.train_model(train_epochs, train_stream, valid_stream, test_stream,
@@ -411,6 +369,8 @@ if __name__ == '__main__':
     # experiment = 'MCsampling_lr-0FI_lr-4IP_wreg-5_acceptedFFTstack_10steps_50ex_Fschedg=0p5'
     # experiment = 'MCsampling_lr-0FI_lr-4IP_wreg-5_acceptedFFTstack_10steps_50ex_Fschedg=0p5_-logrotxdim^2' ## bf eval MCC ~0.20
     # experiment = 'MCsampling_lr-0FI_lr-4IP_wreg-5_acceptedFFTstack_50ex_Fschedg=0p5_-logrotxdim^2_100steps'
+    # experiment = 'MCsampling_lr-0FI_lr-4IP_wreg-5_acceptedFFTstack_10steps_50ex_Fschedg=0p5_-logrotxdim^2'
+    # experiment = 'MCsampling_lr-0FI_lr-4IP_wreg-5_acceptedFFTstack_1steps_50ex_Fschedg=0p5_-logrotxdim^2' ## does not separate distributions
     experiment = 'MCsampling_lr-0FI_lr-4IP_wreg-5_acceptedFFTstack_10steps_50ex_Fschedg=0p5_-logrotxdim^2'
 
     lr_interaction = 10 ** 0
@@ -428,7 +388,6 @@ if __name__ == '__main__':
 
     scheduler = optim.lr_scheduler.ExponentialLR(interaction_optimizer, gamma=0.95)
 
-
     dockingFFT = TorchDockingFFT(num_angles=1, angle=None, swap_plot_quadrants=False, debug=debug)
     docking_model = EnergyBasedModel(dockingFFT, num_angles=1, sample_steps=sample_steps, FI=True, debug=debug).to(device=0)
     docking_optimizer = optim.Adam(docking_model.parameters(), lr=lr_docking)
@@ -436,12 +395,12 @@ if __name__ == '__main__':
     # sigma_optimizer = optim.Adam(docking_model.parameters(), lr=2)
     # scheduler = optim.lr_scheduler.ExponentialLR(sigma_optimizer, gamma=0.95)
 
-    train_epochs = 30
+    train_epochs = 100
     # continue_epochs = 1
     ######################
     ### Train model from beginning
-    # EnergyBasedInteractionTrainer(docking_model, docking_optimizer, interaction_model, interaction_optimizer, experiment, debug=debug
-    #                               ).run_trainer(train_epochs, train_stream=train_stream, valid_stream=None, test_stream=None)
+    EnergyBasedInteractionTrainer(docking_model, docking_optimizer, interaction_model, interaction_optimizer, experiment, debug=debug
+                                  ).run_trainer(train_epochs, train_stream=train_stream, valid_stream=None, test_stream=None)
 
     ### resume training model
     # EnergyBasedInteractionTrainer(docking_model, docking_optimizer, interaction_model, interaction_optimizer, experiment, debug=debug
@@ -449,7 +408,7 @@ if __name__ == '__main__':
 
 
     ### Evaluate model at chosen epoch
-    eval_model = EnergyBasedModel(dockingFFT, num_angles=360, sample_steps=1, FI=True, debug=debug).to(device=0)
+    # eval_model = EnergyBasedModel(dockingFFT, num_angles=360, sample_steps=1, FI=True, debug=debug).to(device=0)
     # eval_model = EnergyBasedModel(dockingFFT, num_angles=1, sample_steps=10, FI=True, debug=debug).to(device=0)
-    EnergyBasedInteractionTrainer(eval_model, docking_optimizer, interaction_model, interaction_optimizer, experiment, debug=False
-                                  ).run_trainer(resume_training=True, train_epochs=1, train_stream=None, valid_stream=valid_stream, test_stream=test_stream, resume_epoch=74)
+    # EnergyBasedInteractionTrainer(eval_model, docking_optimizer, interaction_model, interaction_optimizer, experiment, debug=False
+    #                               ).run_trainer(resume_training=True, train_epochs=1, train_stream=None, valid_stream=valid_stream, test_stream=test_stream, resume_epoch=74)
