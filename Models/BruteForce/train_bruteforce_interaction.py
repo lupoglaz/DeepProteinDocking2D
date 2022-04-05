@@ -367,7 +367,8 @@ if __name__ == '__main__':
     # experiment = 'Wreg-0WITHsched_F0schedg=0p5_scratch_lr-0_and_lr-4_50ex_novalidortest_binsmall'
     # experiment = 'Wreg-2WITHsched_F0schedg=0p95_scratch_lr-0_and_lr-4_50ex_novalidortest_binsmall'
     # experiment = 'Wreg-5WITHsched_F0schedg=0p95_scratch_lr-0_and_lr-4_50ex_novalidortest_binsmall_lse-dim^2'
-    experiment = 'Wreg-5NOsched_F0schedg=0p95_scratch_lr-0_and_lr-4_50ex_novalidortest_binsmall_lse-dim^2'
+    # experiment = 'Wreg-5NOsched_F0schedg=0p95_scratch_lr-0_and_lr-4_50ex_novalidortest_binsmall_lse-dim^2'
+    experiment = 'Wreg-5NOsched_F0schedg=0p95_scratch_lr-0_and_lr-4_50ex_checkdynamicvolLSE'
 
     ##################### Load and freeze/unfreeze params (training, no eval)
     ### path to pretrained docking model
@@ -387,12 +388,12 @@ if __name__ == '__main__':
 
     ### Resume training model at chosen epoch
     # BruteForceInteractionTrainer(docking_model, docking_optimizer, interaction_model, interaction_optimizer, experiment, training_case, path_pretrain
-    #                              ).run_trainer(train_epochs=1, train_stream=train_stream, valid_stream=None, test_stream=None, resume_training=True, resume_epoch=40)
-
+    #                              ).run_trainer(train_epochs=35, train_stream=train_stream, valid_stream=None, test_stream=None, resume_training=True, resume_epoch=65)
+    #
     ### Validate model at chosen epoch
     BruteForceInteractionTrainer(docking_model, docking_optimizer, interaction_model, interaction_optimizer, experiment, training_case, path_pretrain
                                  ).run_trainer(train_epochs=1, valid_stream=valid_stream, test_stream=test_stream,
-                                               resume_training=True, resume_epoch=40)
+                                               resume_training=True, resume_epoch=100)
 
     ### Plot free energy distributions with learned F_0 decision threshold
     # FILossPlotter(experiment).plot_deltaF_distribution(plot_epoch=2, show=True)
