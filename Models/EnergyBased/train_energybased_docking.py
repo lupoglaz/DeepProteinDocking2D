@@ -360,6 +360,9 @@ if __name__ == '__main__':
     experiment = 'BSmodel_lr-2_5ep_refmodel' #
     # RMSD 2.82 both valid/test; MC 100step RMSD valid 6.49; 150 step RMSD 6.20; 200 step RMSD 5.27; 250 step RMSD 3.56
 
+    experiment = 'BSmodel_lr-2_5ep_test' #
+
+
     ### For IP MC eval: sigma alpha 1 RMSD 10, 1.5 RMSD 7.81, 2 RMSD 6.59, 2.5 RMSD 7.44, 1.25, RMSD 6.82, pi/2 RMSD 8.79
     ######################
     lr = 10 ** -2
@@ -373,14 +376,14 @@ if __name__ == '__main__':
 
     train_epochs = 5
     continue_epochs = 1
-    # ######################
+    ######################
     # dockingFFT = TorchDockingFFT(num_angles=1, angle=None, swap_plot_quadrants=False, debug=debug)
-    # model = EnergyBasedModel(dockingFFT, num_angles=1, IP=True, sample_steps=LD_steps, debug=debug).to(device=0)
+    # model = EnergyBasedModel(dockingFFT, num_angles=1, IP=True, sample_steps=sample_steps, debug=debug).to(device=0)
     # optimizer = optim.Adam(model.parameters(), lr=lr)
     # # scheduler = optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.5)
     # ### Train model from beginning
     # EnergyBasedDockingTrainer(dockingFFT, model, optimizer, experiment, debug=debug).run_trainer(train_epochs, train_stream=train_stream)
-
+    #
     # ## Brute force eval and plotting
     # start = 1
     # stop = train_epochs
@@ -395,7 +398,7 @@ if __name__ == '__main__':
     #         resume_training=True, resume_epoch=epoch)
     #
     # ## Plot loss from current experiment
-    # IPLossPlotter(experiment).plot_loss(ylim=10)
+    # # IPLossPlotter(experiment).plot_loss(ylim=10)
     # IPLossPlotter(experiment).plot_rmsd_distribution(plot_epoch=epoch+1, show=show, eval_only=True)
 
     ### Resume training model at chosen epoch
@@ -409,7 +412,7 @@ if __name__ == '__main__':
     #     resume_training=True, resume_epoch=train_epochs)
 
 
-    ########### Metropolis-Hastings eval on ideal learned energy surface
+    # ########### Metropolis-Hastings eval on ideal learned energy surface
     dockingFFT = TorchDockingFFT(num_angles=1, angle=None, swap_plot_quadrants=False, debug=debug)
     model = EnergyBasedModel(dockingFFT, num_angles=1, IP=True, sample_steps=sample_steps, debug=debug).to(device=0)
     optimizer = optim.Adam(model.parameters(), lr=lr)
@@ -419,36 +422,36 @@ if __name__ == '__main__':
         train_epochs=1, train_stream=None, valid_stream=valid_stream, test_stream=None,
         resume_training=True, resume_epoch=train_epochs)
 
-    # IPLossPlotter(experiment).plot_rmsd_distribution(plot_epoch=train_epochs + 1, show=show, eval_only=True)
+    IPLossPlotter(experiment).plot_rmsd_distribution(plot_epoch=train_epochs + 1, show=show, eval_only=True)
 
-    # ## Sampling based eval and plotting
-    # start = train_epochs - 1
-    # stop = train_epochs
-    # plot_BFeval_refplots = True
-    # for epoch in range(start, stop):
-    #     if stop - 1 == epoch:
-    #         plotting = True
-    #         if plot_BFeval_refplots:
-    #             eval_model = EnergyBasedModel(dockingFFT, num_angles=360, sample_steps=LD_steps, IP=True).to(device=0)
-    #             EnergyBasedDockingTrainer(dockingFFT, eval_model, optimizer, experiment, plotting=plotting).run_trainer(
-    #                 train_epochs=1, train_stream=None, valid_stream=valid_stream, test_stream=test_stream,
-    #                 resume_training=True, resume_epoch=epoch)
-    #             # Plot loss from current experiment
-    #             IPLossPlotter(experiment).plot_loss()
-    #             IPLossPlotter(experiment).plot_rmsd_distribution(plot_epoch=epoch + 1, show=show, eval_only=True)
-    #
-    #         # eval_model = EnergyBasedModel(dockingFFT, num_angles=1, sample_steps=LD_steps, IP_MH=True).to(device=0)
-    #         # EnergyBasedDockingTrainer(dockingFFT, eval_model, optimizer, experiment, plotting=plotting).run_trainer(
-    #         #     train_epochs=1, train_stream=None, valid_stream=valid_stream, test_stream=None,
-    #         #     resume_training=True, resume_epoch=epoch)
-    #
-    #         ### EBM eval, not very good RMSD 38.2
-    #         # eval_model = EnergyBasedModel(dockingFFT, num_angles=1, sample_steps=LD_steps, IP_EBM=True).to(device=0)
-    #         # EnergyBasedDockingTrainer(dockingFFT, eval_model, optimizer, experiment, plotting=plotting).run_trainer(
-    #         #     train_epochs=1, train_stream=None, valid_stream=valid_stream, test_stream=None,
-    #         #     resume_training=True, resume_epoch=epoch)
-    #
-    #         # IPLossPlotter(experiment).plot_rmsd_distribution(plot_epoch=epoch + 1, show=show, eval_only=True)
+    ## Sampling based eval and plotting
+    start = train_epochs - 1
+    stop = train_epochs
+    plot_BFeval_refplots = True
+    for epoch in range(start, stop):
+        if stop - 1 == epoch:
+            plotting = True
+            if plot_BFeval_refplots:
+                eval_model = EnergyBasedModel(dockingFFT, num_angles=360, sample_steps=sample_steps, IP=True).to(device=0)
+                EnergyBasedDockingTrainer(dockingFFT, eval_model, optimizer, experiment, plotting=plotting).run_trainer(
+                    train_epochs=1, train_stream=None, valid_stream=valid_stream, test_stream=test_stream,
+                    resume_training=True, resume_epoch=epoch)
+                # Plot loss from current experiment
+                IPLossPlotter(experiment).plot_loss()
+                IPLossPlotter(experiment).plot_rmsd_distribution(plot_epoch=epoch + 1, show=show, eval_only=True)
+
+            # eval_model = EnergyBasedModel(dockingFFT, num_angles=1, sample_steps=LD_steps, IP_MH=True).to(device=0)
+            # EnergyBasedDockingTrainer(dockingFFT, eval_model, optimizer, experiment, plotting=plotting).run_trainer(
+            #     train_epochs=1, train_stream=None, valid_stream=valid_stream, test_stream=None,
+            #     resume_training=True, resume_epoch=epoch)
+
+            ### EBM eval, not very good RMSD 38.2
+            # eval_model = EnergyBasedModel(dockingFFT, num_angles=1, sample_steps=LD_steps, IP_EBM=True).to(device=0)
+            # EnergyBasedDockingTrainer(dockingFFT, eval_model, optimizer, experiment, plotting=plotting).run_trainer(
+            #     train_epochs=1, train_stream=None, valid_stream=valid_stream, test_stream=None,
+            #     resume_training=True, resume_epoch=epoch)
+
+            # IPLossPlotter(experiment).plot_rmsd_distribution(plot_epoch=epoch + 1, show=show, eval_only=True)
     #
     #     # else:
     #     #     # eval_model = EnergyBasedModel(dockingFFT, num_angles=1, sample_steps=LD_steps, IP_MH=True).to(device=0)

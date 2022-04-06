@@ -164,8 +164,8 @@ class EnergyBasedModel(nn.Module):
         acceptance = []
         if self.FI:
             FFT_score_list = []
-            FFT_score_list.append(FFT_score)
-            FFT_score_stack = torch.stack(FFT_score_list)
+            # FFT_score_list.append(FFT_score)
+            # FFT_score_stack = torch.stack(FFT_score_list)
 
         for i in range(self.sample_steps):
             if i == self.sample_steps - 1:
@@ -216,6 +216,8 @@ class EnergyBasedModel(nn.Module):
                     if self.FI:
                         FFT_score_list.append(FFT_score)
                 else:
+                    if self.FI:
+                        FFT_score_list.append(FFT_score)
                     if debug:
                         print('reject')
                     pass
@@ -223,18 +225,19 @@ class EnergyBasedModel(nn.Module):
         if debug:
             print('acceptance rate', acceptance)
             print(sum(acceptance)/self.sample_steps)
-        #     plt.close()
-        #     xrange = np.arange(0, len(prob_list))
-        #     y = prob_list
-        #     # y = sorted(prob_list)[::-1]
-        #     plt.scatter(xrange, y)
-        #     plt.show()
+        # plt.close()
+        # xrange = np.arange(0, len(prob_list))
+        # # y = prob_list
+        # y = sorted(prob_list)[::-1]
+        # plt.scatter(xrange, y)
+        # plt.show()
         if self.FI:
             # print(FFT_score_list)
             FFT_score_stack = torch.stack(FFT_score_list)
             # print(FFT_score.shape)
+        else: FFT_score_stack = FFT_score
 
-        return free_energy, alpha.unsqueeze(0).clone(), dr.clone(), FFT_score, FFT_score_stack.squeeze()
+        return free_energy, alpha.unsqueeze(0).clone(), dr.clone(), FFT_score_stack.squeeze()
 
     def langevin(self, alpha, receptor, ligand, plot_count, stream_name, plotting=False, debug=False):
 

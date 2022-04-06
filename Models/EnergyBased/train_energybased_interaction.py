@@ -120,7 +120,7 @@ class EnergyBasedInteractionTrainer:
         ### run model and loss calculation
         ##### call model
         alpha = self.buffer.get(pos_idx, samples_per_example=1)
-        energy, pred_rot, pred_txy, FFT_score, FFT_score_stack = self.docking_model(alpha, receptor, ligand, sig_alpha=self.sig_alpha, plot_count=pos_idx.item(),
+        energy, pred_rot, pred_txy, FFT_score_stack = self.docking_model(alpha, receptor, ligand, sig_alpha=self.sig_alpha, plot_count=pos_idx.item(),
                                                            stream_name=stream_name, plotting=self.plotting,
                                                            training=training)
         self.buffer.push(pred_rot, pos_idx)
@@ -159,6 +159,12 @@ class EnergyBasedInteractionTrainer:
         #     # if plot_count % self.plot_freq == 0:
         #     with torch.no_grad():
         #         self.plot_pose(FFT_score, receptor, ligand, gt_rot, gt_txy, plot_count, stream_name)
+
+
+        # print(F.item())
+        # print(F_0.item())
+        # F = torch.zeros(1)
+        #TODO: remove F returns
 
         return loss.item(), L_reg.item(), deltaF.item(), F.item(), F_0.item(), gt_interact.item()
 
@@ -344,8 +350,8 @@ if __name__ == '__main__':
     if batch_size > 1:
         raise NotImplementedError()
     train_stream = get_interaction_stream_balanced(trainset + '.pkl', batch_size=batch_size, max_size=max_size)
-    valid_stream = get_interaction_stream(validset + '.pkl', batch_size=1, max_size=max_size)
-    test_stream = get_interaction_stream(testset + '.pkl', batch_size=1, max_size=max_size)
+    valid_stream = get_interaction_stream(validset + '.pkl', batch_size=1)
+    test_stream = get_interaction_stream(testset + '.pkl', batch_size=1)
     ######################
     # experiment = 'EBM_FI_23ex_1LD_10ep'
     # experiment = 'EBM_FI_50ex_1LD_10ep'
@@ -371,7 +377,9 @@ if __name__ == '__main__':
     # experiment = 'MCsampling_lr-0FI_lr-4IP_wreg-5_acceptedFFTstack_50ex_Fschedg=0p5_-logrotxdim^2_100steps'
     # experiment = 'MCsampling_lr-0FI_lr-4IP_wreg-5_acceptedFFTstack_10steps_50ex_Fschedg=0p5_-logrotxdim^2'
     # experiment = 'MCsampling_lr-0FI_lr-4IP_wreg-5_acceptedFFTstack_1steps_50ex_Fschedg=0p5_-logrotxdim^2' ## does not separate distributions
-    experiment = 'MCsampling_lr-0FI_lr-4IP_wreg-5_acceptedFFTstack_10steps_50ex_Fschedg=0p5_-logrotxdim^2'
+    # experiment = 'MCsampling_lr-0FI_lr-4IP_wreg-5_acceptedFFTstack_10steps_50ex_Fschedg=0p5_-logrotxdim^2'
+    # experiment = 'MCsampling_printaccepts_10'
+    experiment = 'MCsampling_checkshapes'
 
     lr_interaction = 10 ** 0
     lr_docking = 10 ** -4
@@ -404,7 +412,7 @@ if __name__ == '__main__':
 
     ### resume training model
     # EnergyBasedInteractionTrainer(docking_model, docking_optimizer, interaction_model, interaction_optimizer, experiment, debug=debug
-    #                              ).run_trainer(resume_training=True, resume_epoch=65, train_epochs=train_epochs, train_stream=train_stream, valid_stream=None, test_stream=None)
+    #                              ).run_trainer(resume_training=True, resume_epoch=100, train_epochs=train_epochs, train_stream=train_stream, valid_stream=None, test_stream=None)
 
 
     ### Evaluate model at chosen epoch
