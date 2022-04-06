@@ -98,7 +98,7 @@ class TorchDockingFFT:
     ## Weights learned from model: RECODE_CHECK_BFDOCKING_30epochs DOES NOT WORK WITH RAW BULK BOUNDARY DATASET FEATS
     # weight_bound = 0.7626, weight_crossterm1, 1.0481, weight_crossterm2 = 0.9259, weight_bulk = 0.9861
 
-    def dock_global(self, receptor, ligand, weight_bound = 3.0, weight_crossterm1 = 0.3, weight_crossterm2 = 0.3, weight_bulk = 30.0):
+    def dock_global(self, receptor, ligand, weight_bound = 3.0, weight_crossterm1 = -0.3, weight_crossterm2 = -0.3, weight_bulk = 30.0):
         initbox_size = receptor.shape[-1]
         # print(receptor.shape)
         pad_size = initbox_size // 2
@@ -167,6 +167,10 @@ class TorchDockingFFT:
         score = weight_bound * trans_bound + weight_crossterm1 * trans_bulk_bound + weight_crossterm2 * trans_bound_bulk - weight_bulk * trans_bulk
 
         # print(score.shape)
+        ## minimizing score tests to check georgy coefficients
+        # score = -score
+        # score = -weight_bound * trans_bound + weight_crossterm1 * trans_bulk_bound + weight_crossterm2 * trans_bound_bulk + weight_bulk * trans_bulk
+        ## all cases regardless of coefficient signs, maximization or minimization; bulk weight needs to be large value like 30.0
 
         if self.swap_plot_quadrants:
             return self.swap_quadrants(score)
@@ -182,12 +186,13 @@ class TorchDockingFFT:
         print('gt indices', gt_rot, gt_txy)
         print('RMSD', rmsd_out.item())
         print()
-
         if self.num_angles == 1:
             plt.imshow(FFT_score.detach().cpu())
+            plt.colorbar()
             plt.show()
         else:
             plt.imshow(FFT_score[pred_rot.long(), :, :].detach().cpu())
+            plt.colorbar()
             plt.show()
 
         pair = plot_assembly(receptor.detach().cpu(), ligand.detach().cpu().numpy(), pred_rot.detach().cpu().numpy(),
@@ -225,6 +230,12 @@ if __name__ == '__main__':
 
     train_stream = get_docking_stream(trainset + '.pkl', batch_size=1)
 
+    swap_quadrants = False
+    if swap_quadrants:
+        FFT = TorchDockingFFT(swap_plot_quadrants=True)
+    else:
+        FFT = TorchDockingFFT(swap_plot_quadrants=False)
+
     for data in tqdm(train_stream):
         receptor, ligand, gt_txy, gt_rot, _ = data
 
@@ -237,13 +248,6 @@ if __name__ == '__main__':
         ligand = ligand.to(device='cuda', dtype=torch.float)
         gt_rot = gt_rot.to(device='cuda', dtype=torch.float)
         gt_txy = gt_txy.to(device='cuda', dtype=torch.float)
-
-        num_angles = 360
-        # num_angles = 1
-        if num_angles == 1:
-            FFT = TorchDockingFFT(swap_plot_quadrants=False, num_angles=1, angle=torch.ones(1)*np.pi)
-        else:
-            FFT = TorchDockingFFT(swap_plot_quadrants=True)
 
         receptor_stack = FFT.make_boundary(receptor)
         ligand_stack = FFT.make_boundary(ligand)
