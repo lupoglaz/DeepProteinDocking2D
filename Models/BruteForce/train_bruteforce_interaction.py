@@ -289,15 +289,6 @@ class BruteForceInteractionTrainer:
         self.train_model(train_epochs, train_stream, valid_stream, test_stream,
                                                    resume_training=resume_training, resume_epoch=resume_epoch)
 
-    def plot_evaluation_set(self, eval_stream=None, resume_epoch=1):
-        self.plotting = True
-        train_epochs = 1
-        self.train_model(train_epochs, train_stream, eval_stream, test_stream,
-                                                   resume_training=True, resume_epoch=resume_epoch)
-
-    # @classmethod
-    # def get_trainer(cls):
-    #     return super(BruteForceInteractionTrainer, cls).__new__(cls)
 
 if __name__ == '__main__':
     #################################################################################
@@ -337,8 +328,8 @@ if __name__ == '__main__':
     if batch_size > 1:
         raise NotImplementedError()
     train_stream = get_interaction_stream_balanced(trainset + '.pkl', batch_size=batch_size, max_size=max_size)
-    valid_stream = get_interaction_stream_balanced(validset + '.pkl', batch_size=1, max_size=max_size)
-    test_stream = get_interaction_stream_balanced(testset + '.pkl', batch_size=1, max_size=max_size)
+    valid_stream = get_interaction_stream_balanced(validset + '.pkl', batch_size=1)
+    test_stream = get_interaction_stream_balanced(testset + '.pkl', batch_size=1)
 
     # experiment = 'RECODE_CHECK_INTERACTION'
     # experiment = 'PLOT_FREE_ENERGY_HISTOGRAMS'
@@ -368,7 +359,8 @@ if __name__ == '__main__':
     # experiment = 'Wreg-2WITHsched_F0schedg=0p95_scratch_lr-0_and_lr-4_50ex_novalidortest_binsmall'
     # experiment = 'Wreg-5WITHsched_F0schedg=0p95_scratch_lr-0_and_lr-4_50ex_novalidortest_binsmall_lse-dim^2'
     # experiment = 'Wreg-5NOsched_F0schedg=0p95_scratch_lr-0_and_lr-4_50ex_novalidortest_binsmall_lse-dim^2'
-    experiment = 'Wreg-5NOsched_F0schedg=0p95_scratch_lr-0_and_lr-4_50ex_checkdynamicvolLSE'
+    # experiment = 'Wreg-5NOsched_F0schedg=0p95_scratch_lr-0_and_lr-4_50ex_checkdynamicvolLSE'
+    experiment = 'BF_FI_checkshapes'
 
     ##################### Load and freeze/unfreeze params (training, no eval)
     ### path to pretrained docking model
@@ -383,24 +375,17 @@ if __name__ == '__main__':
     train_epochs = 50
     #####################
     ### Train model from beginning
-    # BruteForceInteractionTrainer(docking_model, docking_optimizer, interaction_model, interaction_optimizer, experiment, training_case, path_pretrain
-    #                              ).run_trainer(train_epochs, train_stream=train_stream, valid_stream=None, test_stream=None)
+    BruteForceInteractionTrainer(docking_model, docking_optimizer, interaction_model, interaction_optimizer, experiment, training_case, path_pretrain
+                                 ).run_trainer(train_epochs, train_stream=train_stream, valid_stream=None, test_stream=None)
 
     ### Resume training model at chosen epoch
     # BruteForceInteractionTrainer(docking_model, docking_optimizer, interaction_model, interaction_optimizer, experiment, training_case, path_pretrain
     #                              ).run_trainer(train_epochs=35, train_stream=train_stream, valid_stream=None, test_stream=None, resume_training=True, resume_epoch=65)
     #
     ### Validate model at chosen epoch
-    BruteForceInteractionTrainer(docking_model, docking_optimizer, interaction_model, interaction_optimizer, experiment, training_case, path_pretrain
-                                 ).run_trainer(train_epochs=1, valid_stream=valid_stream, test_stream=test_stream,
-                                               resume_training=True, resume_epoch=100)
+    # BruteForceInteractionTrainer(docking_model, docking_optimizer, interaction_model, interaction_optimizer, experiment, training_case, path_pretrain
+    #                              ).run_trainer(train_epochs=1, valid_stream=valid_stream, test_stream=test_stream,
+    #                                            resume_training=True, resume_epoch=100)
 
     ### Plot free energy distributions with learned F_0 decision threshold
     # FILossPlotter(experiment).plot_deltaF_distribution(plot_epoch=2, show=True)
-
-    ### Evaluate model only and plot, at chosen epoch
-    # resume_epoch = 5
-    ### loads relevant pretrained model under resume_training condition
-    # BruteForceInteractionTrainer().plot_evaluation_set(eval_stream=valid_stream, resume_epoch=resume_epoch) ## also checks APR
-    #
-    # BruteForceInteractionTrainer().plot_evaluation_set(eval_stream=test_stream, resume_epoch=resume_epoch)
