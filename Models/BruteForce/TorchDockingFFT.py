@@ -27,38 +27,28 @@ class TorchDockingFFT:
     def encode_transform(self, gt_rot, gt_txy):
         empty_3D = torch.zeros([self.num_angles, self.dim, self.dim], dtype=torch.double).cuda()
         deg_index_rot = (((gt_rot * 180.0/np.pi) + 180.0) % self.num_angles).type(torch.long)
-        centered_txy = gt_txy.type(torch.long)
+        index_txy = gt_txy.type(torch.long)
 
         if self.num_angles == 1:
-            # print(empty_3D.shape)
-            # print(centered_txy.shape)
-            # centered_txy = centered_txy.squeeze()
-            empty_3D[:, centered_txy[0], centered_txy[1]] = 1
+            empty_3D[:, index_txy[0], index_txy[1]] = 1
         else:
-            empty_3D[deg_index_rot, centered_txy[0], centered_txy[1]] = 1
+            empty_3D[deg_index_rot, index_txy[0], index_txy[1]] = 1
         target_flatindex = torch.argmax(empty_3D.flatten()).cuda()
-        # print(gt_rot, gt_txy)
-        # print(deg_index_rot, centered_txy)
-        # print(ConcaveTrainer().extract_transform(empty_3D))
+
         return target_flatindex
 
     def extract_transform(self, pred_score):
         pred_index = torch.argmax(pred_score)
         pred_rot = ((pred_index / self.dim ** 2) * np.pi / 180.0) - np.pi
 
-        # XYind = torch.remainder(pred_index, self.dim ** 2)
-        # XYind = pred_index % self.dim ** 2
-        # XYind = torch.fmod(pred_index, self.dim**2)
         XYind = torch.remainder(pred_index, self.dim ** 2)
         if self.swap_plot_quadrants:
-            # pred_X = XYind // self.dim - self.dim//2
-            # pred_Y = XYind % self.dim - self.dim//2
             pred_X = torch.div(XYind, self.dim, rounding_mode='floor') - self.dim//2
             pred_Y = torch.fmod(XYind, self.dim) - self.dim//2
         else:
-            # pred_X = XYind // self.dim
             pred_X = torch.div(XYind, self.dim, rounding_mode='floor')
             pred_Y = torch.fmod(XYind, self.dim)
+
         # Just to make translation values look nice in terms of + or - signs
         if pred_X > self.dim//2:
             pred_X = pred_X - self.dim
@@ -230,11 +220,8 @@ if __name__ == '__main__':
 
     train_stream = get_docking_stream(trainset + '.pkl', batch_size=1)
 
-    swap_quadrants = False
-    if swap_quadrants:
-        FFT = TorchDockingFFT(swap_plot_quadrants=True)
-    else:
-        FFT = TorchDockingFFT(swap_plot_quadrants=False)
+    swap_quadrants = True
+    FFT = TorchDockingFFT(swap_plot_quadrants=swap_quadrants)
 
     for data in tqdm(train_stream):
         receptor, ligand, gt_txy, gt_rot, _ = data
