@@ -8,8 +8,7 @@ class FILossPlotter:
         self.experiment = experiment
         if not experiment:
             print('no experiment name given')
-            sys.exit()
-
+            self.experiment = "NOTSET"
     def plot_loss(self):
         plt.close()
         #LOSS WITH ROTATION
@@ -53,17 +52,20 @@ class FILossPlotter:
         plt.savefig('figs/BF_IP_loss_plots/Lossplot_'+self.experiment+'.png')
         plt.show()
 
-    def plot_deltaF_distribution(self, plot_epoch=1, show=False):
+    def plot_deltaF_distribution(self, plot_epoch=1, show=False, filename=None, xlim=None, binwidth=1):
         plt.close()
         # Plot free energy distribution of all samples across epoch
-        train = pd.read_csv("Log/losses/log_deltaF_Trainset_epoch" + str(plot_epoch) + self.experiment + ".txt", sep='\t', header=0, names=['deltaF', 'F', 'F_0', 'Label'])
+        if filename:
+            train = pd.read_csv(filename,
+                                sep='\t', header=0, names=['F', 'F_0', 'Label'])
+        else:
+            train = pd.read_csv("Log/losses/log_deltaF_Trainset_epoch" + str(plot_epoch) + self.experiment + ".txt", sep='\t', header=0, names=['F', 'F_0', 'Label'])
 
         fig, ax = plt.subplots(figsize=(10,10))
         plt.suptitle('deltaF distribution: epoch'+ str(plot_epoch) + ' ' + self.experiment)
 
         labels = sorted(train.Label.unique())
         F = train['F']
-        binwidth = 1
         bins = np.arange(min(F), max(F) + binwidth, binwidth)
         hist_data = [train.loc[train.Label == x, 'F'] for x in labels]
         y1, x1, _ = plt.hist(hist_data[0], label=labels, bins=bins, rwidth=binwidth, color=['r'], alpha=0.25)
@@ -71,16 +73,16 @@ class FILossPlotter:
 
         plt.vlines(train['F_0'].to_numpy()[-1], ymin=0, ymax=max(y1.max(), y2.max())+1, linestyles='dashed', label='F_0', colors='k')
         # ax.set_xticks(np.arange(int(x.min())-1, int(x.max())+1, num_ticks), rotation=45)
-        xlim = 100
-        ax.set_xlim([-xlim, 0])
+        if xlim:
+            ax.set_xlim([-xlim, 0])
         plt.legend(('non-interaction (-)', ' interaction (+)', 'final F_0'), prop={'size': 10})
         ax.set_ylabel('Training set counts')
         ax.set_xlabel('Free Energy (F)')
         ax.grid(visible=True)
 
+        plt.savefig('figs/BF_FI_deltaF_distribution_plots/deltaFplot_epoch'+ str(plot_epoch) + '_' + self.experiment + '.png', format='png')
         if show:
             plt.show()
-        plt.savefig('figs/BF_FI_deltaF_distribution_plots/deltaFplot_epoch'+ str(plot_epoch) + '_' + self.experiment + '.png', format='png')
         plt.close()
 
 if __name__ == "__main__":
