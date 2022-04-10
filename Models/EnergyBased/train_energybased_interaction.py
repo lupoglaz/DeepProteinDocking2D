@@ -67,11 +67,6 @@ class SampleBuffer:
 
 
 class EnergyBasedInteractionTrainer:
-    ## run replicates from sbatch script args, if provided
-    if len(sys.argv) > 1:
-        replicate = str(sys.argv[1])
-    else:
-        replicate = 'single_rep'
 
     def __init__(self, docking_model, docking_optimizer, interaction_model, interaction_optimizer, experiment,
                  debug=False, plotting=False):
@@ -138,7 +133,7 @@ class EnergyBasedInteractionTrainer:
         #### Loss functions
         BCEloss = torch.nn.BCELoss()
         l1_loss = torch.nn.L1Loss()
-        w = 10**-5
+        w = 10**-5 * scheduler.get_last_lr()[0]
         L_reg = w * l1_loss(deltaF, torch.zeros(1).squeeze().cuda())
         loss = BCEloss(pred_interact, gt_interact) + L_reg
         # print('\n predicted', pred_interact.item(), '; ground truth', gt_interact.item())
@@ -160,11 +155,6 @@ class EnergyBasedInteractionTrainer:
         #     with torch.no_grad():
         #         self.plot_pose(FFT_score, receptor, ligand, gt_rot, gt_txy, plot_count, stream_name)
 
-
-        # print(F.item())
-        # print(F_0.item())
-        # F = torch.zeros(1)
-        #TODO: remove F returns
 
         return loss.item(), L_reg.item(), deltaF.item(), F.item(), F_0.item(), gt_interact.item()
 
@@ -221,7 +211,7 @@ class EnergyBasedInteractionTrainer:
                     train_output = [self.run_model(data, pos_idx, training=True)]
                     train_loss.append(train_output)
                     with open('Log/losses/log_deltaF_Trainset_epoch' + str(epoch) + self.experiment + '.txt', 'a') as fout:
-                        fout.write('%f\t%f\t%f\t%d\n' % (train_output[0][2], train_output[0][3], train_output[0][4], train_output[0][5]))
+                        fout.write('%f\t%f\t%d\n' % (train_output[0][3], train_output[0][4], train_output[0][5]))
                     pos_idx+=1
 
                 # sigma_optimizer.step()
@@ -230,7 +220,7 @@ class EnergyBasedInteractionTrainer:
                 # self.sig_alpha = scheduler.get_last_lr()[0]
                 # print('sigma alpha', self.sig_alpha)
 
-                FILossPlotter(self.experiment).plot_deltaF_distribution(plot_epoch=epoch, show=False)
+                FILossPlotter(self.experiment).plot_deltaF_distribution(plot_epoch=epoch, show=False, xlim=200)
 
                 avg_trainloss = np.average(train_loss, axis=0)[0, :]
                 print('\nEpoch', epoch, 'Train Loss: Loss, Lreg, deltaF, F_0', avg_trainloss)
@@ -379,7 +369,13 @@ if __name__ == '__main__':
     # experiment = 'MCsampling_lr-0FI_lr-4IP_wreg-5_acceptedFFTstack_1steps_50ex_Fschedg=0p5_-logrotxdim^2' ## does not separate distributions
     # experiment = 'MCsampling_lr-0FI_lr-4IP_wreg-5_acceptedFFTstack_10steps_50ex_Fschedg=0p5_-logrotxdim^2'
     # experiment = 'MCsampling_printaccepts_10'
-    experiment = 'MCsampling_checkshapes'
+    # experiment = 'MCsampling_100steps'
+    # experiment = 'MCsampling_20steps'
+    # experiment = 'MCsampling_1steps'
+    # experiment = 'MCsampling_1steps_wregsched'
+    # experiment = 'MCsampling_1steps_wregsched_g=0.5'
+    # experiment = 'MCsampling_1steps_wregsched_g=0.90'
+    experiment = 'MCsampling_10steps_wregsched_g=0.95'
 
     lr_interaction = 10 ** 0
     lr_docking = 10 ** -4
@@ -412,8 +408,7 @@ if __name__ == '__main__':
 
     ### resume training model
     # EnergyBasedInteractionTrainer(docking_model, docking_optimizer, interaction_model, interaction_optimizer, experiment, debug=debug
-    #                              ).run_trainer(resume_training=True, resume_epoch=100, train_epochs=train_epochs, train_stream=train_stream, valid_stream=None, test_stream=None)
-
+    #                              ).run_trainer(resume_training=True, resume_epoch=30, train_epochs=train_epochs, train_stream=train_stream, valid_stream=None, test_stream=None)
 
     ### Evaluate model at chosen epoch
     # eval_model = EnergyBasedModel(dockingFFT, num_angles=360, sample_steps=1, FI=True, debug=debug).to(device=0)
