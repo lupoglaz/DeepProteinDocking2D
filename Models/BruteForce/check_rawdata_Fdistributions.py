@@ -12,7 +12,7 @@ if __name__ == "__main__":
     max_size = 100
     train_stream = get_interaction_stream_balanced(trainset + '.pkl', batch_size=1, max_size=max_size)
 
-    swap_quadrants = True
+    swap_quadrants = False
     if swap_quadrants:
         FFT = TorchDockingFFT(swap_plot_quadrants=True)
     else:
@@ -41,7 +41,8 @@ if __name__ == "__main__":
         ligand_stack = FFT.make_boundary(ligand)
         FFT_score = FFT.dock_global(receptor_stack, ligand_stack,
                                     # weight_bound=3.0, weight_crossterm1=-0.3, weight_crossterm2=-0.3, weight_bulk=2.8)
-                                    weight_bound = 3.0, weight_crossterm1 = -0.3, weight_crossterm2 = -0.3, weight_bulk = 30)
+                                    # weight_bound = 3.0, weight_crossterm1 = -0.3, weight_crossterm2 = -0.3, weight_bulk = 30)
+                                    weight_bound=2.8, weight_crossterm1=-0.3, weight_crossterm2=-0.3, weight_bulk=3.0)
 
         E = -FFT_score
         F = -(torch.logsumexp(-E, dim=(0, 1, 2)) - volume)
