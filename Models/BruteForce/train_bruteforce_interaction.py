@@ -154,7 +154,7 @@ class BruteForceInteractionTrainer:
                     train_output = [self.run_model(data, training=True)]
                     train_loss.append(train_output)
                     with open('Log/losses/log_deltaF_Trainset_epoch' + str(epoch) + self.experiment + '.txt', 'a') as fout:
-                        fout.write('%f\t%f\t%f\t%d\n' % (train_output[0][2], train_output[0][3], train_output[0][4], train_output[0][5]))
+                        fout.write('%f\t%f\t%d\n' % (train_output[0][3], train_output[0][4], train_output[0][5]))
 
                 FILossPlotter(self.experiment).plot_deltaF_distribution(plot_epoch=epoch, show=False)
 

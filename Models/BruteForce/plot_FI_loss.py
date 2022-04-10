@@ -59,7 +59,7 @@ class FILossPlotter:
             train = pd.read_csv(filename,
                                 sep='\t', header=0, names=['F', 'F_0', 'Label'])
         else:
-            train = pd.read_csv("Log/losses/log_deltaF_Trainset_epoch" + str(plot_epoch) + self.experiment + ".txt", sep='\t', header=0, names=['F', 'F_0', 'Label'])
+            train = pd.read_csv("Log/losses/log_deltaF_Trainset_epoch" + str(plot_epoch) + self.experiment + ".txt", sep='\t', index_col=False, header=0, names=['F', 'F_0', 'Label'])
 
         fig, ax = plt.subplots(figsize=(10,10))
         plt.suptitle('deltaF distribution: epoch'+ str(plot_epoch) + ' ' + self.experiment)
@@ -103,6 +103,7 @@ if __name__ == "__main__":
 
     # testcase = 'FI_caseA_PLOT_FREE_ENERGY_HISTOGRAMS'
     testcase = 'scratch_FI_casescratch_FINAL_CHECK_INTERACTION'
+    # testcase = 'F0schedulerg=0p95_scratch_lr-0_and_lr-4_50ex_novalidortest'
     # FILossPlotter(testcase).plot_loss()
-    FILossPlotter(testcase).plot_deltaF_distribution(plot_epoch=1, show=True)
+    FILossPlotter(testcase).plot_deltaF_distribution(plot_epoch=3, show=True, xlim=100)
     pass
