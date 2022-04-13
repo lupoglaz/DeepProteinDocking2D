@@ -19,12 +19,15 @@ class BruteForceInteraction(nn.Module):
             self.volume = torch.log(E.shape[0]*torch.tensor(100 ** 2))
         # print(self.logdimsq)
 
-        if E.shape[0] == 360:
-            F = -(torch.logsumexp(-E, dim=(0, 1, 2)) - self.volume)
-        else:
-            translationsF = torch.logsumexp(-E, dim=(1, 2))
-            F = -(translationsF - self.volume)
-            F = torch.mean(F, dim=0)
+        # if E.shape[0] == 360:
+        #     F = -(torch.logsumexp(-E, dim=(0, 1, 2)) - self.volume)
+        # else:
+        #     translationsF = torch.logsumexp(-E, dim=(1, 2))
+        #     F = -(translationsF - self.volume)
+        #     F = torch.mean(F, dim=0)
+
+        F = -(torch.logsumexp(-E, dim=(0, 1, 2)) - self.volume)
+
         deltaF = F - self.F_0
         pred_interact = torch.sigmoid(-deltaF)
 

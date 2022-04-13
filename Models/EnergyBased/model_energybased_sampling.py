@@ -146,7 +146,7 @@ class EnergyBasedModel(nn.Module):
                 self.docker.eval()
                 lowest_energy, _, dr, FFT_score = self.docker(receptor, ligand, alpha, plot_count,
                                                                            stream_name, plotting=plotting)
-                return lowest_energy, alpha.unsqueeze(0).clone(), dr.unsqueeze(0).clone(), FFT_score, FFT_score
+                return lowest_energy, alpha.unsqueeze(0).clone(), dr.unsqueeze(0).clone(), FFT_score
                 # self.docker.eval()
                 # return self.MCsampling(alpha, receptor, ligand, plot_count, stream_name, debug=False)
 

@@ -220,7 +220,7 @@ class EnergyBasedInteractionTrainer:
                 # self.sig_alpha = scheduler.get_last_lr()[0]
                 # print('sigma alpha', self.sig_alpha)
 
-                FILossPlotter(self.experiment).plot_deltaF_distribution(plot_epoch=epoch, show=False, xlim=200)
+                FILossPlotter(self.experiment).plot_deltaF_distribution(plot_epoch=epoch, show=False, xlim=100)
 
                 avg_trainloss = np.average(train_loss, axis=0)[0, :]
                 print('\nEpoch', epoch, 'Train Loss: Loss, Lreg, deltaF, F_0', avg_trainloss)
@@ -340,8 +340,8 @@ if __name__ == '__main__':
     if batch_size > 1:
         raise NotImplementedError()
     train_stream = get_interaction_stream_balanced(trainset + '.pkl', batch_size=batch_size, max_size=max_size)
-    valid_stream = get_interaction_stream(validset + '.pkl', batch_size=1)
-    test_stream = get_interaction_stream(testset + '.pkl', batch_size=1)
+    valid_stream = get_interaction_stream(validset + '.pkl', batch_size=1, max_size=max_size)
+    test_stream = get_interaction_stream(testset + '.pkl', batch_size=1, max_size=max_size)
     ######################
     # experiment = 'EBM_FI_23ex_1LD_10ep'
     # experiment = 'EBM_FI_50ex_1LD_10ep'
@@ -375,11 +375,18 @@ if __name__ == '__main__':
     # experiment = 'MCsampling_1steps_wregsched'
     # experiment = 'MCsampling_1steps_wregsched_g=0.5'
     # experiment = 'MCsampling_1steps_wregsched_g=0.90'
-    experiment = 'MCsampling_10steps_wregsched_g=0.95'
+    # experiment = 'MCsampling_10steps_wregsched_g=0.95'
+    # experiment = 'MCsampling_10steps_wregsched_g=0.95_acceptedFFTonly'
+    # experiment = 'MCsampling_10steps_wregsched_g=0.95_acceptedandrejectedFFT'
+    # experiment = 'MCsampling_10steps_wregsched_g=0.95_noRotMean' ### confirmed rotMean sends values to zero
+    # experiment = 'workingMCsampling_1steps_wregsched_g=0.95_100ep' ## 1samplestep still doesn't work
+    # experiment = 'workingMCsampling_20steps_wregsched_g=0.95'
+    # experiment = 'workingMCsampling_30steps_wregsched_g=0.95'
+    experiment = 'workingMCsampling_20steps_wregsched_g=0.95_modelEvalMCloop'
 
     lr_interaction = 10 ** 0
     lr_docking = 10 ** -4
-    sample_steps = 10
+    sample_steps = 20
     debug = False
     # debug = True
     plotting = False
@@ -399,7 +406,7 @@ if __name__ == '__main__':
     # sigma_optimizer = optim.Adam(docking_model.parameters(), lr=2)
     # scheduler = optim.lr_scheduler.ExponentialLR(sigma_optimizer, gamma=0.95)
 
-    train_epochs = 100
+    train_epochs = 30
     # continue_epochs = 1
     ######################
     ### Train model from beginning
@@ -408,10 +415,10 @@ if __name__ == '__main__':
 
     ### resume training model
     # EnergyBasedInteractionTrainer(docking_model, docking_optimizer, interaction_model, interaction_optimizer, experiment, debug=debug
-    #                              ).run_trainer(resume_training=True, resume_epoch=30, train_epochs=train_epochs, train_stream=train_stream, valid_stream=None, test_stream=None)
+    #                              ).run_trainer(resume_training=True, resume_epoch=25, train_epochs=5, train_stream=train_stream, valid_stream=None, test_stream=None)
 
     ### Evaluate model at chosen epoch
     # eval_model = EnergyBasedModel(dockingFFT, num_angles=360, sample_steps=1, FI=True, debug=debug).to(device=0)
-    # eval_model = EnergyBasedModel(dockingFFT, num_angles=1, sample_steps=10, FI=True, debug=debug).to(device=0)
+    # # eval_model = EnergyBasedModel(dockingFFT, num_angles=1, sample_steps=sample_steps, FI=True, debug=debug).to(device=0)
     # EnergyBasedInteractionTrainer(eval_model, docking_optimizer, interaction_model, interaction_optimizer, experiment, debug=False
-    #                               ).run_trainer(resume_training=True, train_epochs=1, train_stream=None, valid_stream=valid_stream, test_stream=test_stream, resume_epoch=74)
+    #                               ).run_trainer(resume_training=True, resume_epoch=19, train_epochs=1, train_stream=None, valid_stream=valid_stream, test_stream=test_stream)
