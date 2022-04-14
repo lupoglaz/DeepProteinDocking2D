@@ -9,9 +9,7 @@ from tqdm import tqdm
 from DeepProteinDocking2D.torchDataset import get_interaction_stream, get_interaction_stream_balanced
 from DeepProteinDocking2D.Models.BruteForce.TorchDockingFFT import TorchDockingFFT
 from DeepProteinDocking2D.Models.BruteForce.train_bruteforce_interaction import BruteForceInteraction
-from DeepProteinDocking2D.Models.BruteForce.utility_functions import plot_assembly
-from DeepProteinDocking2D.Models.BruteForce.validation_metrics import RMSD
-import matplotlib.pyplot as plt
+
 from DeepProteinDocking2D.Models.EnergyBased.model_energybased_sampling import EnergyBasedModel
 from DeepProteinDocking2D.Models.BruteForce.validation_metrics import APR
 from DeepProteinDocking2D.Models.BruteForce.plot_FI_loss import FILossPlotter
@@ -331,9 +329,9 @@ if __name__ == '__main__':
     # CUDA_LAUNCH_BLOCKING = 1
     # torch.autograd.set_detect_anomaly(True)
     #########################
-    # max_size = 400
+    max_size = 400
     # max_size = 100
-    max_size = 50
+    # max_size = 50
     # max_size = 25
     # max_size = 10
     batch_size = 1
@@ -382,11 +380,16 @@ if __name__ == '__main__':
     # experiment = 'workingMCsampling_1steps_wregsched_g=0.95_100ep' ## 1samplestep still doesn't work
     # experiment = 'workingMCsampling_20steps_wregsched_g=0.95'
     # experiment = 'workingMCsampling_30steps_wregsched_g=0.95'
-    experiment = 'workingMCsampling_20steps_wregsched_g=0.95_modelEvalMCloop'
+    # experiment = 'workingMCsampling_10steps_wregsched_g=0.95_modelEvalMCloop'
+    # experiment = 'workingMCsampling_20steps_wregsched_g=0.95_modelEvalMCloop'
+
+    # experiment = 'workingMCsampling_10steps_wregsched_g=0.95_modelEvalMCloop_100ex'
+
+    experiment = 'cluster_workingMCsampling_10steps_wregsched_g=0.95_modelEvalMCloop_400ex_15ep'
 
     lr_interaction = 10 ** 0
     lr_docking = 10 ** -4
-    sample_steps = 20
+    sample_steps = 10
     debug = False
     # debug = True
     plotting = False
@@ -406,12 +409,12 @@ if __name__ == '__main__':
     # sigma_optimizer = optim.Adam(docking_model.parameters(), lr=2)
     # scheduler = optim.lr_scheduler.ExponentialLR(sigma_optimizer, gamma=0.95)
 
-    train_epochs = 30
+    train_epochs = 15
     # continue_epochs = 1
     ######################
     ### Train model from beginning
     EnergyBasedInteractionTrainer(docking_model, docking_optimizer, interaction_model, interaction_optimizer, experiment, debug=debug
-                                  ).run_trainer(train_epochs, train_stream=train_stream, valid_stream=None, test_stream=None)
+                                  ).run_trainer(train_epochs, train_stream=train_stream, valid_stream=valid_stream, test_stream=test_stream)
 
     ### resume training model
     # EnergyBasedInteractionTrainer(docking_model, docking_optimizer, interaction_model, interaction_optimizer, experiment, debug=debug
@@ -421,4 +424,4 @@ if __name__ == '__main__':
     # eval_model = EnergyBasedModel(dockingFFT, num_angles=360, sample_steps=1, FI=True, debug=debug).to(device=0)
     # # eval_model = EnergyBasedModel(dockingFFT, num_angles=1, sample_steps=sample_steps, FI=True, debug=debug).to(device=0)
     # EnergyBasedInteractionTrainer(eval_model, docking_optimizer, interaction_model, interaction_optimizer, experiment, debug=False
-    #                               ).run_trainer(resume_training=True, resume_epoch=19, train_epochs=1, train_stream=None, valid_stream=valid_stream, test_stream=test_stream)
+    #                               ).run_trainer(resume_training=True, resume_epoch=15, train_epochs=1, train_stream=None, valid_stream=valid_stream, test_stream=test_stream)

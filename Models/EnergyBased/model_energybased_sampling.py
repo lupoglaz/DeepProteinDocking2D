@@ -156,6 +156,9 @@ class EnergyBasedModel(nn.Module):
         _, _, dr, FFT_score = self.docker(receptor, ligand, alpha,
                                           plot_count=plot_count, stream_name=stream_name,
                                           plotting=False)
+
+        self.docker.eval()
+
         betaE = -self.BETA * FFT_score
         free_energy = -1 / self.BETA *(torch.logsumexp(-betaE, dim=(0, 1)) - self.logdimsq)
 
@@ -236,6 +239,8 @@ class EnergyBasedModel(nn.Module):
             FFT_score_stack = torch.stack(FFT_score_list)
             # print(FFT_score.shape)
         else: FFT_score_stack = FFT_score
+
+        self.docker.train()
 
         return free_energy, alpha.unsqueeze(0).clone(), dr.clone(), FFT_score_stack.squeeze()
 
