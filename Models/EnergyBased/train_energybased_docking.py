@@ -356,14 +356,21 @@ if __name__ == '__main__':
     # experiment = 'BSmodel_check'
     # experiment = 'BSmodel_MHalgo_eval'
     # experiment = 'BSmodel_MHalgo_freeEeval'
-    experiment = 'BSmodel_lr-2_5ep_refmodel' #
+    # experiment = 'BSmodel_lr-2_5ep_refmodel' #
     # RMSD 2.82 both valid/test; MC 100step RMSD valid 6.49; 150 step RMSD 6.20; 200 step RMSD 5.27; 250 step RMSD 3.56
 
     # experiment = 'BSmodel_lr-2_5ep_test_unsignedScoring' # ## doesn't work...
     # experiment = 'BSmodel_lr-2_5ep_test_signedBULKScoring' #
     # experiment = 'BSmodel_lr-2_5ep_test_unsignedBULKScoring_minimizing' # doesn't work
     # experiment = 'BSmodel_lr-2_5ep_test_signedBULKScoring_minimizing' ## doesn't work
-    experiment = 'BSmodel_lr-2_5ep_check_signedBULKScoring' # confirmed works
+    # experiment = 'BSmodel_lr-2_5ep_check_signedBULKScoring' # confirmed works
+
+
+    # experiment = 'BSmodel_lr-2_5ep_check_noConjFFT' # not working
+    # experiment = 'BSmodel_lr-2_5ep_check_noConjFFT_swapQuadrants' # also not working
+
+    experiment = 'BSmodel_lr-2_5ep_checkDefault' #
+
 
     ### For IP MC eval: sigma alpha 1 RMSD 10, 1.5 RMSD 7.81, 2 RMSD 6.59, 2.5 RMSD 7.44, 1.25, RMSD 6.82, pi/2 RMSD 8.79
     ######################
@@ -384,7 +391,7 @@ if __name__ == '__main__':
     optimizer = optim.Adam(model.parameters(), lr=lr)
     # scheduler = optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.5)
     ### Train model from beginning
-    # EnergyBasedDockingTrainer(dockingFFT, model, optimizer, experiment, debug=debug).run_trainer(train_epochs, train_stream=train_stream)
+    EnergyBasedDockingTrainer(dockingFFT, model, optimizer, experiment, debug=debug).run_trainer(train_epochs, train_stream=train_stream)
 
     ## Brute force eval and plotting
     start = 1
