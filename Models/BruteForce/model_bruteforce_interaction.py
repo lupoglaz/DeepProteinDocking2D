@@ -10,7 +10,7 @@ class BruteForceInteraction(nn.Module):
         self.volume = torch.log(torch.tensor(100 ** 2))
 
     def forward(self, FFT_score, plotting=False, debug=False):
-        ##TODO: pass BETA
+        ##TODO: pass BETA, has to be returned from MC docker
 
         E = -FFT_score.squeeze()
         if len(E.shape) < 3:
