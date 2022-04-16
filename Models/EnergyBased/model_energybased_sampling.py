@@ -150,7 +150,6 @@ class EnergyBasedModel(nn.Module):
                 # self.docker.eval()
                 # return self.MCsampling(alpha, receptor, ligand, plot_count, stream_name, debug=False)
 
-
     def MCsampling(self, alpha, receptor, ligand, plot_count, stream_name, debug=False):
 
         _, _, dr, FFT_score = self.docker(receptor, ligand, alpha,

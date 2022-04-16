@@ -89,7 +89,8 @@ class EnergyBasedInteractionTrainer:
         num_examples = max(len(train_stream), len(valid_stream), len(test_stream))
         self.buffer = SampleBuffer(num_examples=num_examples)
 
-        self.sig_alpha = 2
+        self.sig_alpha = 3
+        self.wReg = 10**-5
 
     def run_model(self, data, pos_idx=torch.tensor([0]), training=True, stream_name='trainset'):
         receptor, ligand, gt_interact = data
@@ -131,8 +132,7 @@ class EnergyBasedInteractionTrainer:
         #### Loss functions
         BCEloss = torch.nn.BCELoss()
         l1_loss = torch.nn.L1Loss()
-        w = 10**-5 * scheduler.get_last_lr()[0]
-        L_reg = w * l1_loss(deltaF, torch.zeros(1).squeeze().cuda())
+        L_reg = self.wReg * l1_loss(deltaF, torch.zeros(1).squeeze().cuda())
         loss = BCEloss(pred_interact, gt_interact) + L_reg
         # print('\n predicted', pred_interact.item(), '; ground truth', gt_interact.item())
 
@@ -215,10 +215,14 @@ class EnergyBasedInteractionTrainer:
                 # sigma_optimizer.step()
                 scheduler.step()
                 print(scheduler.get_last_lr()[0])
+                # self.sig_alpha = self.sig_alpha * scheduler.get_last_lr()[0]
+                # print('sig_alpha', self.sig_alpha)
+                self.wReg = self.wReg * scheduler.get_last_lr()[0]
+                print('wReg', self.wReg)
                 # self.sig_alpha = scheduler.get_last_lr()[0]
                 # print('sigma alpha', self.sig_alpha)
 
-                FILossPlotter(self.experiment).plot_deltaF_distribution(plot_epoch=epoch, show=False, xlim=100)
+                FILossPlotter(self.experiment).plot_deltaF_distribution(plot_epoch=epoch, show=False, xlim=None, binwidth=1)
 
                 avg_trainloss = np.average(train_loss, axis=0)[0, :]
                 print('\nEpoch', epoch, 'Train Loss: Loss, Lreg, deltaF, F_0', avg_trainloss)
@@ -329,9 +333,9 @@ if __name__ == '__main__':
     # CUDA_LAUNCH_BLOCKING = 1
     # torch.autograd.set_detect_anomaly(True)
     #########################
-    max_size = 400
+    # max_size = 400
     # max_size = 100
-    # max_size = 50
+    max_size = 50
     # max_size = 25
     # max_size = 10
     batch_size = 1
@@ -341,31 +345,6 @@ if __name__ == '__main__':
     valid_stream = get_interaction_stream(validset + '.pkl', batch_size=1, max_size=max_size)
     test_stream = get_interaction_stream(testset + '.pkl', batch_size=1, max_size=max_size)
     ######################
-    # experiment = 'EBM_FI_23ex_1LD_10ep'
-    # experiment = 'EBM_FI_50ex_1LD_10ep'
-    # experiment = 'EBM_FI_100ex_1LD_10ep'
-    # experiment = 'EBM_FI_25ex_10LD_6ep'
-    # experiment = 'EBM_FI_25ex_10LD_6ep_stackFFT'
-    # experiment = 'MHsamp_testing_BFeval'
-    # experiment = 'MCcodereview_sampling'
-    # experiment = 'MCcodereview_sampling_lr-0FI_lr-4IP'
-    # experiment = 'MCcodereview_sampling_lr-1FI_lr-3IP'
-    # experiment = 'MCcodereview_sampling_lr-1FI_lr-3IP_MCeval_FFTstack_NoLreg' ## Lreg needed
-    # experiment = 'MCcodereview_sampling_lr-1FI_lr-3IP_MCeval_FFTstack_wreg-7'
-    # experiment = 'MCcodereview_sampling_lr-1FI_lr-3IP_MCeval_FFTstack_wreg-6'
-    # experiment = 'MCcodereview_sampling_lr-1FI_lr-3IP_MCeval_FFTstack_wreg-6'
-    # experiment = 'MCcodereview_sampling_lr-1FI_lr-3IP_MCeval_FFTstack_wreg-4'
-    # experiment = 'MCcodereview_sampling_lr-1FI_lr-3IP_FFTstack_wreg-1_BFeval'
-    # experiment = 'MCcodereview_sampling_lr-1FI_lr-3IP_FFTstack_wreg-1_BFeval_nosigsched'
-    # experiment = 'MCcodereview_sampling_lr-1FI_lr-3IP_wreg-1_BFeval_nosigsched_FFTstackall'
-    # experiment = 'MCsampling_lr-0FI_lr-4IP_wreg-5_acceptedFFTstack_10samps_50ex_Fschedg=0p95'
-    # experiment = 'MCsampling_lr-0FI_lr-4IP_wreg-5_acceptedFFTstack_10samps_50ex_Fschedg=0p5'
-    # experiment = 'MCsampling_lr-0FI_lr-4IP_wreg-5_acceptedFFTstack_10steps_50ex_Fschedg=0p5'
-    # experiment = 'MCsampling_lr-0FI_lr-4IP_wreg-5_acceptedFFTstack_10steps_50ex_Fschedg=0p5_-logrotxdim^2' ## bf eval MCC ~0.20
-    # experiment = 'MCsampling_lr-0FI_lr-4IP_wreg-5_acceptedFFTstack_50ex_Fschedg=0p5_-logrotxdim^2_100steps'
-    # experiment = 'MCsampling_lr-0FI_lr-4IP_wreg-5_acceptedFFTstack_10steps_50ex_Fschedg=0p5_-logrotxdim^2'
-    # experiment = 'MCsampling_lr-0FI_lr-4IP_wreg-5_acceptedFFTstack_1steps_50ex_Fschedg=0p5_-logrotxdim^2' ## does not separate distributions
-    # experiment = 'MCsampling_lr-0FI_lr-4IP_wreg-5_acceptedFFTstack_10steps_50ex_Fschedg=0p5_-logrotxdim^2'
     # experiment = 'MCsampling_printaccepts_10'
     # experiment = 'MCsampling_100steps'
     # experiment = 'MCsampling_20steps'
@@ -382,14 +361,22 @@ if __name__ == '__main__':
     # experiment = 'workingMCsampling_30steps_wregsched_g=0.95'
     # experiment = 'workingMCsampling_10steps_wregsched_g=0.95_modelEvalMCloop'
     # experiment = 'workingMCsampling_20steps_wregsched_g=0.95_modelEvalMCloop'
-
     # experiment = 'workingMCsampling_10steps_wregsched_g=0.95_modelEvalMCloop_100ex'
-
-    experiment = 'cluster_workingMCsampling_10steps_wregsched_g=0.95_modelEvalMCloop_400ex_15ep'
+    # experiment = 'workingMCsampling_20steps_wregsched_g=0.90_modelEvalMCloop_100ex'
+    # experiment = 'workingMCsampling_10steps_wregsched_g=0.90_modelEvalMCloop_100ex'
+    # experiment = 'workingMCsampling_10steps_wregsched_g=0.5_modelEvalMCloop_100ex'
+    # experiment = 'workingMCsampling_1steps_wregsched_g=0.5_modelEvalMCloop_100ex_lr-3' ## lr too large
+    # experiment = 'workingMCsampling_1steps_wregsched_g=0.5_modelEvalMCloop_100ex' ## not enough samples
+    # experiment = 'workingMCsampling_5steps_wregsched_g=0.5_modelEvalMCloop_100ex'
+    # experiment = 'workingMCsampling_5steps_wregsched_g=0.5_modelEvalMCloop_100ex_sigalphasched'
+    # experiment = 'workingMCsampling_5steps_wregsched_g=0.90_modelEvalMCloop_100ex_sigalphasched'
+    # experiment = 'workingMCsampling_5steps_wregsched_g=0.90_modelEvalMCloop_100ex_sigalpha=3sched'
+    # experiment = 'workingMCsampling_5steps_wregsched_g=0.50_modelEvalMCloop_100ex_sigalpha=3'
+    experiment = 'workingMCsampling_100steps_wregsched_g=0.50_modelEvalMCloop_50ex_sigalpha=3' #mislabeled => 50steps
 
     lr_interaction = 10 ** 0
     lr_docking = 10 ** -4
-    sample_steps = 10
+    sample_steps = 50
     debug = False
     # debug = True
     plotting = False
@@ -400,7 +387,7 @@ if __name__ == '__main__':
     interaction_model = BruteForceInteraction().to(device=0)
     interaction_optimizer = optim.Adam(interaction_model.parameters(), lr=lr_interaction)
 
-    scheduler = optim.lr_scheduler.ExponentialLR(interaction_optimizer, gamma=0.95)
+    scheduler = optim.lr_scheduler.ExponentialLR(interaction_optimizer, gamma=0.50)
 
     dockingFFT = TorchDockingFFT(num_angles=1, angle=None, swap_plot_quadrants=False, debug=debug)
     docking_model = EnergyBasedModel(dockingFFT, num_angles=1, sample_steps=sample_steps, FI=True, debug=debug).to(device=0)
@@ -413,15 +400,15 @@ if __name__ == '__main__':
     # continue_epochs = 1
     ######################
     ### Train model from beginning
-    EnergyBasedInteractionTrainer(docking_model, docking_optimizer, interaction_model, interaction_optimizer, experiment, debug=debug
-                                  ).run_trainer(train_epochs, train_stream=train_stream, valid_stream=valid_stream, test_stream=test_stream)
+    # EnergyBasedInteractionTrainer(docking_model, docking_optimizer, interaction_model, interaction_optimizer, experiment, debug=debug
+    #                               ).run_trainer(train_epochs, train_stream=train_stream, valid_stream=None, test_stream=None)
 
     ### resume training model
     # EnergyBasedInteractionTrainer(docking_model, docking_optimizer, interaction_model, interaction_optimizer, experiment, debug=debug
-    #                              ).run_trainer(resume_training=True, resume_epoch=25, train_epochs=5, train_stream=train_stream, valid_stream=None, test_stream=None)
-
+    #                              ).run_trainer(resume_training=True, resume_epoch=21, train_epochs=9, train_stream=train_stream, valid_stream=None, test_stream=None)
+    #
     ### Evaluate model at chosen epoch
-    # eval_model = EnergyBasedModel(dockingFFT, num_angles=360, sample_steps=1, FI=True, debug=debug).to(device=0)
+    eval_model = EnergyBasedModel(dockingFFT, num_angles=360, sample_steps=1, FI=True, debug=debug).to(device=0)
     # # eval_model = EnergyBasedModel(dockingFFT, num_angles=1, sample_steps=sample_steps, FI=True, debug=debug).to(device=0)
-    # EnergyBasedInteractionTrainer(eval_model, docking_optimizer, interaction_model, interaction_optimizer, experiment, debug=False
-    #                               ).run_trainer(resume_training=True, resume_epoch=15, train_epochs=1, train_stream=None, valid_stream=valid_stream, test_stream=test_stream)
+    EnergyBasedInteractionTrainer(eval_model, docking_optimizer, interaction_model, interaction_optimizer, experiment, debug=False
+                                  ).run_trainer(resume_training=True, resume_epoch=30, train_epochs=1, train_stream=None, valid_stream=valid_stream, test_stream=test_stream)

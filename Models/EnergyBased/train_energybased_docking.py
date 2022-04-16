@@ -12,7 +12,7 @@ from DeepProteinDocking2D.Models.BruteForce.train_bruteforce_docking import Brut
 from DeepProteinDocking2D.Models.BruteForce.utility_functions import plot_assembly
 from DeepProteinDocking2D.Models.BruteForce.validation_metrics import RMSD
 import matplotlib.pyplot as plt
-from DeepProteinDocking2D.Models.EnergyBased.plot_IP_loss import IPLossPlotter
+from DeepProteinDocking2D.Models.BruteForce.plot_IP_loss import IPLossPlotter
 from DeepProteinDocking2D.Models.EnergyBased.model_energybased_sampling import EnergyBasedModel
 
 
