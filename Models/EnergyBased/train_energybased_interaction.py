@@ -334,8 +334,8 @@ if __name__ == '__main__':
     # torch.autograd.set_detect_anomaly(True)
     #########################
     # max_size = 400
-    # max_size = 100
-    max_size = 50
+    max_size = 100
+    # max_size = 50
     # max_size = 25
     # max_size = 10
     batch_size = 1
@@ -372,7 +372,9 @@ if __name__ == '__main__':
     # experiment = 'workingMCsampling_5steps_wregsched_g=0.90_modelEvalMCloop_100ex_sigalphasched'
     # experiment = 'workingMCsampling_5steps_wregsched_g=0.90_modelEvalMCloop_100ex_sigalpha=3sched'
     # experiment = 'workingMCsampling_5steps_wregsched_g=0.50_modelEvalMCloop_100ex_sigalpha=3'
-    experiment = 'workingMCsampling_100steps_wregsched_g=0.50_modelEvalMCloop_50ex_sigalpha=3' #mislabeled => 50steps
+    # experiment = 'workingMCsampling_100steps_wregsched_g=0.50_modelEvalMCloop_50ex_sigalpha=3' #mislabeled => 50steps
+    # experiment = 'workingMCsampling_actually100steps_wregsched_g=0.50_modelEvalMCloop_50ex_sigalpha=3'
+    experiment = 'workingMCsampling_50steps_wregsched_g=0.50_modelEvalMCloop_100ex_sigalpha=3' ## 15ep MCC 0.40 valid/test
 
     lr_interaction = 10 ** 0
     lr_docking = 10 ** -4
@@ -404,11 +406,11 @@ if __name__ == '__main__':
     #                               ).run_trainer(train_epochs, train_stream=train_stream, valid_stream=None, test_stream=None)
 
     ### resume training model
-    # EnergyBasedInteractionTrainer(docking_model, docking_optimizer, interaction_model, interaction_optimizer, experiment, debug=debug
-    #                              ).run_trainer(resume_training=True, resume_epoch=21, train_epochs=9, train_stream=train_stream, valid_stream=None, test_stream=None)
+    EnergyBasedInteractionTrainer(docking_model, docking_optimizer, interaction_model, interaction_optimizer, experiment, debug=debug
+                                 ).run_trainer(resume_training=True, resume_epoch=20, train_epochs=5, train_stream=train_stream, valid_stream=None, test_stream=None)
     #
     ### Evaluate model at chosen epoch
-    eval_model = EnergyBasedModel(dockingFFT, num_angles=360, sample_steps=1, FI=True, debug=debug).to(device=0)
+    # eval_model = EnergyBasedModel(dockingFFT, num_angles=360, sample_steps=1, FI=True, debug=debug).to(device=0)
     # # eval_model = EnergyBasedModel(dockingFFT, num_angles=1, sample_steps=sample_steps, FI=True, debug=debug).to(device=0)
-    EnergyBasedInteractionTrainer(eval_model, docking_optimizer, interaction_model, interaction_optimizer, experiment, debug=False
-                                  ).run_trainer(resume_training=True, resume_epoch=30, train_epochs=1, train_stream=None, valid_stream=valid_stream, test_stream=test_stream)
+    # EnergyBasedInteractionTrainer(eval_model, docking_optimizer, interaction_model, interaction_optimizer, experiment, debug=False
+    #                               ).run_trainer(resume_training=True, resume_epoch=15, train_epochs=1, train_stream=None, valid_stream=valid_stream, test_stream=test_stream)
