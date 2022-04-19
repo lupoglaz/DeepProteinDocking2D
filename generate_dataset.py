@@ -3,6 +3,7 @@ from pathlib import Path
 from DatasetGeneration import DockerGPU, ProteinPool, ParamDistribution, InteractionCriteriaG, InteractionCriteriaGandGap
 import random
 import argparse
+import sys
 
 def generate_shapes(params, savefile, num_proteins=500):
 	pool = ProteinPool.generate(num_proteins=num_proteins, params=params)
