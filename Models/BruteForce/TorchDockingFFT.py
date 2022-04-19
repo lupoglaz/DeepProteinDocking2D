@@ -13,7 +13,7 @@ import numpy as np
 
 
 class TorchDockingFFT:
-    def __init__(self, dim=100, num_angles=360, angle=None, swap_plot_quadrants=False, debug=False):
+    def __init__(self, dim=100, num_angles=360, angle=None, swap_plot_quadrants=False, debug=False, normalization=None):
         self.debug = debug
         self.swap_plot_quadrants = swap_plot_quadrants
         self.dim = dim
@@ -23,6 +23,8 @@ class TorchDockingFFT:
             self.angles = angle.squeeze().unsqueeze(0).cuda()
         else:
             self.angles = torch.from_numpy(np.linspace(-np.pi, np.pi, num=self.num_angles)).cuda()
+
+        self.norm = normalization
 
     def encode_transform(self, gt_rot, gt_txy):
         empty_3D = torch.zeros([self.num_angles, self.dim, self.dim], dtype=torch.double).cuda()
@@ -131,27 +133,27 @@ class TorchDockingFFT:
         # print(receptor_bulk.shape)
 
         # Bulk score
-        cplx_rec = torch.fft.rfft2(receptor_bulk, dim=(-2, -1))
-        cplx_lig = torch.fft.rfft2(ligand_bulk, dim=(-2, -1))
-        trans_bulk = torch.fft.irfft2(cplx_rec * torch.conj(cplx_lig), dim=(-2, -1))
+        cplx_rec = torch.fft.rfft2(receptor_bulk, dim=(-2, -1), norm=self.norm)
+        cplx_lig = torch.fft.rfft2(ligand_bulk, dim=(-2, -1), norm=self.norm)
+        trans_bulk = torch.fft.irfft2(cplx_rec * torch.conj(cplx_lig), dim=(-2, -1), norm=self.norm)
         # print(cplx_lig.shape, cplx_rec.shape)
         # print(cconv.shape)
         # print(trans_bulk.shape)
 
         # Boundary score
-        cplx_rec = torch.fft.rfft2(receptor_bound, dim=(-2, -1))
-        cplx_lig = torch.fft.rfft2(ligand_bound, dim=(-2, -1))
-        trans_bound = torch.fft.irfft2(cplx_rec * torch.conj(cplx_lig), dim=(-2, -1))
+        cplx_rec = torch.fft.rfft2(receptor_bound, dim=(-2, -1), norm=self.norm)
+        cplx_lig = torch.fft.rfft2(ligand_bound, dim=(-2, -1), norm=self.norm)
+        trans_bound = torch.fft.irfft2(cplx_rec * torch.conj(cplx_lig), dim=(-2, -1), norm=self.norm)
 
         # Boundary - bulk score
-        cplx_rec = torch.fft.rfft2(receptor_bound, dim=(-2, -1))
-        cplx_lig = torch.fft.rfft2(ligand_bulk, dim=(-2, -1))
-        trans_bulk_bound = torch.fft.irfft2(cplx_rec * torch.conj(cplx_lig), dim=(-2, -1))
+        cplx_rec = torch.fft.rfft2(receptor_bound, dim=(-2, -1), norm=self.norm)
+        cplx_lig = torch.fft.rfft2(ligand_bulk, dim=(-2, -1), norm=self.norm)
+        trans_bulk_bound = torch.fft.irfft2(cplx_rec * torch.conj(cplx_lig), dim=(-2, -1), norm=self.norm)
 
         # Bulk - boundary score
-        cplx_rec = torch.fft.rfft2(receptor_bulk, dim=(-2, -1))
-        cplx_lig = torch.fft.rfft2(ligand_bound, dim=(-2, -1))
-        trans_bound_bulk = torch.fft.irfft2(cplx_rec * torch.conj(cplx_lig), dim=(-2, -1))
+        cplx_rec = torch.fft.rfft2(receptor_bulk, dim=(-2, -1), norm=self.norm)
+        cplx_lig = torch.fft.rfft2(ligand_bound, dim=(-2, -1), norm=self.norm)
+        trans_bound_bulk = torch.fft.irfft2(cplx_rec * torch.conj(cplx_lig), dim=(-2, -1), norm=self.norm)
 
         ## cross-term score maximizing
         score = weight_bound * trans_bound + weight_crossterm1 * trans_bulk_bound + weight_crossterm2 * trans_bound_bulk - weight_bulk * trans_bulk

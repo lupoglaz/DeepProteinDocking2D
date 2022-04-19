@@ -13,10 +13,11 @@ if __name__ == "__main__":
     train_stream = get_interaction_stream_balanced(trainset + '.pkl', batch_size=1, max_size=max_size)
 
     swap_quadrants = False
+    normalization = 'backward'
     if swap_quadrants:
         FFT = TorchDockingFFT(swap_plot_quadrants=True)
     else:
-        FFT = TorchDockingFFT(swap_plot_quadrants=False)
+        FFT = TorchDockingFFT(swap_plot_quadrants=False, normalization=normalization)
 
     FI = BruteForceInteraction()
     volume = torch.log(360 * torch.tensor(100 ** 2))
@@ -50,5 +51,8 @@ if __name__ == "__main__":
         with open(filename, 'a') as fout:
             fout.write('%f\t%f\t%d\n' % (F.item(), F.item(), gt_interact.item()))
 
-    FILossPlotter('ManuscriptWeights').plot_deltaF_distribution(filename=filename, binwidth=100, show=True)
+    # FILossPlotter('ManuscriptWeights').plot_deltaF_distribution(filename=filename, binwidth=100, show=True)
     # FILossPlotter('AdjustedHighBulkWeight=30').plot_deltaF_distribution(filename=filename, binwidth=100, show=True)
+    # FILossPlotter('NORMortho_AdjustedHighBulkWeight=30').plot_deltaF_distribution(filename=filename, binwidth=1, show=True)
+    # FILossPlotter('NORMforward_AdjustedHighBulkWeight=30').plot_deltaF_distribution(filename=filename, binwidth=1, show=True)
+    FILossPlotter('NORMbackward_AdjustedHighBulkWeight=30').plot_deltaF_distribution(filename=filename, binwidth=100, show=True)
