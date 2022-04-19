@@ -50,9 +50,6 @@ if __name__ == '__main__':
     vmin, vmax = 0,1
     gaussian_input1 = gaussian2D(boxsize, mean=mean1, sigma=sigma1, a=amp1)
     gaussian_input2 = gaussian2D(boxsize, mean=mean2, sigma=sigma2, a=amp2)
-    # plt.imshow(gaussian_input1, cmap='gray')
-    # plt.colorbar()
-    # plt.show()
 
     ### Torch v1.10 FFT calls
     ## Normalization
