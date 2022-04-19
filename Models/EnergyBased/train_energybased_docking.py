@@ -369,8 +369,19 @@ if __name__ == '__main__':
     # experiment = 'BSmodel_lr-2_5ep_check_noConjFFT' # not working
     # experiment = 'BSmodel_lr-2_5ep_check_noConjFFT_swapQuadrants' # also not working
 
-    experiment = 'BSmodel_lr-2_5ep_checkDefault' #
+    # experiment = 'BSmodel_lr-2_5ep_checkDefault' #
 
+    # experiment = 'BSmodel_lr-2_5ep_checkNORMortho' #
+    # experiment = 'BSmodel_lr-2_5ep_checkNORMortho_rep1' #
+    # experiment = 'BSmodel_lr-2_5ep_checkNORMortho_rep2' #
+
+    # experiment = 'BSmodel_lr-2_5ep_checkNORMNone' #
+    # experiment = 'BSmodel_lr-2_5ep_checkNORMNone_rep1' #
+    # experiment = 'BSmodel_lr-2_5ep_checkNORMNone_rep2' #
+
+    # experiment = 'BSmodel_lr-2_5ep_checkNORMforward' #
+    # experiment = 'BSmodel_lr-2_5ep_checkNORMforward_rep1' #
+    experiment = 'BSmodel_lr-2_5ep_checkNORMforward_rep2' #
 
     ### For IP MC eval: sigma alpha 1 RMSD 10, 1.5 RMSD 7.81, 2 RMSD 6.59, 2.5 RMSD 7.44, 1.25, RMSD 6.82, pi/2 RMSD 8.79
     ######################
@@ -383,18 +394,19 @@ if __name__ == '__main__':
     show = False
     # show = True
 
+    norm = None
     train_epochs = 5
     continue_epochs = 1
     ######################
-    dockingFFT = TorchDockingFFT(num_angles=1, angle=None, swap_plot_quadrants=False, debug=debug)
+    dockingFFT = TorchDockingFFT(num_angles=1, angle=None, swap_plot_quadrants=False, debug=debug, normalization=norm)
     model = EnergyBasedModel(dockingFFT, num_angles=1, IP=True, sample_steps=sample_steps, debug=debug).to(device=0)
     optimizer = optim.Adam(model.parameters(), lr=lr)
     # scheduler = optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.5)
     ### Train model from beginning
-    EnergyBasedDockingTrainer(dockingFFT, model, optimizer, experiment, debug=debug).run_trainer(train_epochs, train_stream=train_stream)
+    # EnergyBasedDockingTrainer(dockingFFT, model, optimizer, experiment, debug=debug).run_trainer(train_epochs, train_stream=train_stream)
 
     ## Brute force eval and plotting
-    start = 1
+    start = 4
     stop = train_epochs
     eval_angles = 360
     for epoch in range(start, stop):
