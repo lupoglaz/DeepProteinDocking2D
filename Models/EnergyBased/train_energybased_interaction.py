@@ -229,6 +229,14 @@ class EnergyBasedInteractionTrainer:
                 with open('Log/losses/log_train_' + self.experiment + '.txt', 'a') as fout:
                     fout.write(log_format % (epoch, avg_trainloss[0], avg_trainloss[1], avg_trainloss[2], avg_trainloss[3]))
 
+                #### saving model while training
+                if epoch % self.save_freq == 0:
+                    self.save_checkpoint(docking_checkpoint_dict, 'Log/docking_' + self.experiment + str(epoch) + '.th', self.docking_model)
+                    print('saving docking model ' + 'Log/docking_' + self.experiment + str(epoch) + '.th')
+
+                    self.save_checkpoint(interaction_checkpoint_dict, 'Log/' + self.experiment + str(epoch) + '.th', self.interaction_model)
+                    print('saving interaction model ' + 'Log/' + self.experiment + str(epoch) + '.th')
+
             ### evaluate on training and valid set
             ### training set to False downstream in calcAPR() run_model()
             if epoch % self.eval_freq == 0:
@@ -237,13 +245,7 @@ class EnergyBasedInteractionTrainer:
                 if test_stream:
                     self.checkAPR(epoch, test_stream, 'test set')
 
-            #### saving model while training
-            if epoch % self.save_freq == 0:
-                self.save_checkpoint(docking_checkpoint_dict, 'Log/docking_' + self.experiment + str(epoch) + '.th', self.docking_model)
-                print('saving docking model ' + 'Log/docking_' + self.experiment + str(epoch) + '.th')
 
-                self.save_checkpoint(interaction_checkpoint_dict, 'Log/' + self.experiment + str(epoch) + '.th', self.interaction_model)
-                print('saving interaction model ' + 'Log/' + self.experiment + str(epoch) + '.th')
 
     def checkAPR(self, check_epoch, datastream, stream_name=None):
         log_format = '%f\t%f\t%f\t%f\t%f\n'
@@ -406,11 +408,11 @@ if __name__ == '__main__':
     #                               ).run_trainer(train_epochs, train_stream=train_stream, valid_stream=None, test_stream=None)
 
     ### resume training model
-    EnergyBasedInteractionTrainer(docking_model, docking_optimizer, interaction_model, interaction_optimizer, experiment, debug=debug
-                                 ).run_trainer(resume_training=True, resume_epoch=20, train_epochs=5, train_stream=train_stream, valid_stream=None, test_stream=None)
+    # EnergyBasedInteractionTrainer(docking_model, docking_optimizer, interaction_model, interaction_optimizer, experiment, debug=debug
+    #                              ).run_trainer(resume_training=True, resume_epoch=30, train_epochs=5, train_stream=train_stream, valid_stream=None, test_stream=None)
     #
     ### Evaluate model at chosen epoch
-    # eval_model = EnergyBasedModel(dockingFFT, num_angles=360, sample_steps=1, FI=True, debug=debug).to(device=0)
+    eval_model = EnergyBasedModel(dockingFFT, num_angles=360, sample_steps=1, FI=True, debug=debug).to(device=0)
     # # eval_model = EnergyBasedModel(dockingFFT, num_angles=1, sample_steps=sample_steps, FI=True, debug=debug).to(device=0)
-    # EnergyBasedInteractionTrainer(eval_model, docking_optimizer, interaction_model, interaction_optimizer, experiment, debug=False
-    #                               ).run_trainer(resume_training=True, resume_epoch=15, train_epochs=1, train_stream=None, valid_stream=valid_stream, test_stream=test_stream)
+    EnergyBasedInteractionTrainer(eval_model, docking_optimizer, interaction_model, interaction_optimizer, experiment, debug=False
+                                  ).run_trainer(resume_training=True, resume_epoch=29, train_epochs=1, train_stream=None, valid_stream=valid_stream, test_stream=test_stream)
