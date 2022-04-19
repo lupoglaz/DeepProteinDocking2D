@@ -81,8 +81,8 @@ if __name__ == '__main__':
 
     ### Checking with output distribution of ~N(mean1+mean2, sigma1^2 + sigma2^2)
     result_sigma = np.sqrt(sigma1**2+sigma2**2)
-    # result_mean = mean1 + mean2
-    result_mean = mean1 - mean2
+    # result_mean = mean1 + mean2 ## used sum for convolution
+    result_mean = mean1 - mean2 ## use difference for correlation (correlation == -convolution)
 
     gaussian_check = gaussian2D(boxsize, mean=result_mean, sigma=result_sigma, a=ampcheck)
     scaled_gaussiancheck = gaussian_check
