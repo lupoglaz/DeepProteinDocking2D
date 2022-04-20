@@ -212,7 +212,8 @@ class ProteinPool:
 
 	def plot_interactions(self, docker, filename=None, num_plots=10):
 		import matplotlib.font_manager as font_manager
-		font_manager.fontManager.addfont('/home/lupoglaz/.fonts/Helvetica.ttf')
+		# font_manager.fontManager.addfont('/home/lupoglaz/.fonts/Helvetica.ttf')
+		font_manager.fontManager.addfont('Helvetica.ttf')
 		rcParams['font.family'] = 'Helvetica'
 		
 		plt.figure(figsize=(num_plots*2, 5))
@@ -394,6 +395,3 @@ class ProteinPool:
 		
 		plt.tight_layout()
 		plt.savefig(output_name)
-
-
-	

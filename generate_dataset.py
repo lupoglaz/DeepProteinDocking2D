@@ -4,6 +4,7 @@ from DatasetGeneration import DockerGPU, ProteinPool, ParamDistribution, Interac
 import random
 import argparse
 import sys
+from os.path import exists
 
 def generate_shapes(params, savefile, num_proteins=500):
 	pool = ProteinPool.generate(num_proteins=num_proteins, params=params)
@@ -15,7 +16,7 @@ def generate_interactions(docker, savefile):
 	pool.save(savefile)
 
 def extract_docking_dataset(docker, interaction_criteria, savefile, 
-							output_files=['DatasetGeneration/docking_data_train.pkl', 'DatasetGeneration/docking_data_valid.pkl'],
+							output_files=['DatasetGeneration/docking_data_train_torchv1p10.pkl', 'DatasetGeneration/docking_data_valid_torchv1p10.pkl'],
 							max_num_samples = 1100):
 	pool = ProteinPool.load(savefile)
 	dataset_all = pool.extract_docking_dataset(docker, interaction_criteria, max_num_samples=max_num_samples)
@@ -35,7 +36,7 @@ def extract_docking_dataset(docker, interaction_criteria, savefile,
 			pkl.dump(dataset_all, fout)
 
 def extract_interaction_dataset(interaction_criteria, savefile, 
-								output_files=['DatasetGeneration/interaction_data_train.pkl', 'DatasetGeneration/interaction_data_valid.pkl'],
+								output_files=['DatasetGeneration/interaction_data_train_torchv1p10.pkl', 'DatasetGeneration/interaction_data_valid_torchv1p10.pkl'],
 								num_proteins = 100):
 	pool = ProteinPool.load(savefile)
 	if len(output_files) == 2:
@@ -63,26 +64,33 @@ def visualize(docker, savefile):
 def generate_set(	num_proteins, params, interaction_criteria_dock, interaction_criteria_inter,
 					docker, savefile, training_set=True, num_docking_samples=1100, num_inter_proteins=100):
 	#Structures
-	# generate_shapes(params, savefile, num_proteins)
+	if exists(savefile):
+		print(savefile, 'already exists!')
+		print('this protein shape pool will be loaded for dataset generation..')
+	else:
+		print(savefile, 'does not exist')
+		print('generating pool of', str(num_proteins), 'protein shapes...')
+		generate_shapes(params, savefile, num_proteins)
+
 	#Interaction
-	# generate_interactions(docker, savefile)
+	generate_interactions(docker, savefile)
 	if training_set:
 		#Docking dataset
 		extract_docking_dataset(docker, interaction_criteria_dock, savefile,
-								output_files=['DatasetGeneration/docking_data_train.pkl', 'DatasetGeneration/docking_data_valid.pkl'],
+								output_files=['DatasetGeneration/docking_data_train_torchv1p10.pkl', 'DatasetGeneration/docking_data_valid_torchv1p10.pkl'],
 								max_num_samples = num_docking_samples)
 		#Interaction dataset
 		extract_interaction_dataset(interaction_criteria_inter, savefile,
-								output_files=['DatasetGeneration/interaction_data_train.pkl', 'DatasetGeneration/interaction_data_valid.pkl'],
+								output_files=['DatasetGeneration/interaction_data_train_torchv1p10.pkl', 'DatasetGeneration/interaction_data_valid_torchv1p10.pkl'],
 								num_proteins = num_inter_proteins)
 	else:
 		#Docking dataset
 		extract_docking_dataset(docker, interaction_criteria_dock, savefile,
-								output_files=['DatasetGeneration/docking_data_test.pkl'],
+								output_files=['DatasetGeneration/docking_data_test_torchv1p10.pkl'],
 								max_num_samples = num_docking_samples)
 		#Interaction dataset
 		extract_interaction_dataset(interaction_criteria_inter, savefile,
-								output_files=['DatasetGeneration/interaction_data_test.pkl'],
+								output_files=['DatasetGeneration/interaction_data_test_torchv1p10.pkl'],
 								num_proteins = num_inter_proteins)
 
 if __name__ == '__main__':
@@ -95,7 +103,7 @@ if __name__ == '__main__':
 	
 	parser.add_argument('-a00', default=3.0, type=float)
 	parser.add_argument('-a10', default=-0.3, type=float)
-	parser.add_argument('-a11', default=2.5, type=float)
+	parser.add_argument('-a11', default=2.8, type=float)
 	parser.add_argument('-score_cutoff', default=-100, type=float)
 	parser.add_argument('-funnel_gap_cutoff', default=15, type=float)
 	parser.add_argument('-free_energy_cutoff', default=-100, type=float)
@@ -116,7 +124,7 @@ if __name__ == '__main__':
 			num_points = [(20, 1), (30, 2), (50, 4), (80, 8), (100, 6)]
 			)
 		
-		savefile = 'DatasetGeneration/Data/protein_pool_big.pkl'
+		savefile = 'DatasetGeneration/Data/protein_pool_big_torchv1p10.pkl'
 		if args.act() == 'gen':
 			generate_set(500, params, inter_dock, inter_inter, docker, savefile, training_set=True, num_docking_samples=1100, num_inter_proteins=500)
 		elif args.act() == 'vis':
@@ -130,7 +138,7 @@ if __name__ == '__main__':
 			num_points = [(60, 1), (70, 2), (80, 4), (90, 8), (100, 6), (110, 6), (120, 6)]
 			)
 		
-		savefile = 'DatasetGeneration/Data/protein_pool_small.pkl'
+		savefile = 'DatasetGeneration/Data/protein_pool_small_torchv1p10.pkl'
 		if args.act() == 'gen':
 			generate_set(250, params, inter_dock, inter_inter, docker, savefile, training_set=False, num_docking_samples=1100, num_inter_proteins=250)
 		elif args.act() == 'vis':
@@ -144,7 +152,7 @@ if __name__ == '__main__':
 			num_points = [(60, 1), (70, 2), (80, 4), (90, 8), (100, 6), (110, 6), (120, 6)]
 			)
 		
-		savefile = 'DatasetGeneration/Data/protein_pool_debug.pkl'
+		savefile = 'DatasetGeneration/Data/protein_pool_debug_torchv1p10.pkl'
 		if args.act() == 'gen':
 			generate_set(20, params, inter_dock, inter_inter, docker, savefile, training_set=False, num_docking_samples=30, num_inter_proteins=20)
 		elif args.act() == 'vis':
