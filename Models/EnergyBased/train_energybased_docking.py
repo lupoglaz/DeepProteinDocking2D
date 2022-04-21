@@ -325,9 +325,14 @@ class EnergyBasedDockingTrainer:
 
 if __name__ == '__main__':
     #################################################################################
+    # # Datasets
+    # trainset = 'toy_concave_data/docking_data_train'
+    # validset = 'toy_concave_data/docking_data_valid'
+    # ### testing set
+    # testset = 'toy_concave_data/docking_data_test'
     # Datasets
-    trainset = 'toy_concave_data/docking_data_train'
-    validset = 'toy_concave_data/docking_data_valid'
+    trainset = '../../DatasetGeneration/docking_data_train_torchv1p10'
+    validset = '../../DatasetGeneration/docking_data_valid_torchv1p10'
     ### testing set
     testset = 'toy_concave_data/docking_data_test'
     #########################
@@ -381,7 +386,9 @@ if __name__ == '__main__':
 
     # experiment = 'BSmodel_lr-2_5ep_checkNORMforward' #
     # experiment = 'BSmodel_lr-2_5ep_checkNORMforward_rep1' #
-    experiment = 'BSmodel_lr-2_5ep_checkNORMforward_rep2' #
+    # experiment = 'BSmodel_lr-2_5ep_checkNORMforward_rep2' #
+
+    experiment = 'BSmodel_lr-2_5ep_checkNewDockingData' #
 
     ### For IP MC eval: sigma alpha 1 RMSD 10, 1.5 RMSD 7.81, 2 RMSD 6.59, 2.5 RMSD 7.44, 1.25, RMSD 6.82, pi/2 RMSD 8.79
     ######################
@@ -394,7 +401,7 @@ if __name__ == '__main__':
     show = False
     # show = True
 
-    norm = None
+    norm = 'ortho'
     train_epochs = 5
     continue_epochs = 1
     ######################
@@ -403,7 +410,7 @@ if __name__ == '__main__':
     optimizer = optim.Adam(model.parameters(), lr=lr)
     # scheduler = optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.5)
     ### Train model from beginning
-    # EnergyBasedDockingTrainer(dockingFFT, model, optimizer, experiment, debug=debug).run_trainer(train_epochs, train_stream=train_stream)
+    EnergyBasedDockingTrainer(dockingFFT, model, optimizer, experiment, debug=debug).run_trainer(train_epochs, train_stream=train_stream)
 
     ## Brute force eval and plotting
     start = 4

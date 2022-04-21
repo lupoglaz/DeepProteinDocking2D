@@ -8,12 +8,15 @@ from DeepProteinDocking2D.Models.BruteForce.model_bruteforce_interaction import 
 from DeepProteinDocking2D.Models.BruteForce.plot_FI_loss import FILossPlotter
 
 if __name__ == "__main__":
-    trainset = 'toy_concave_data/interaction_data_train'
+    # trainset = 'toy_concave_data/interaction_data_train'
+    # max_size = 100
+    trainset = '../../DatasetGeneration/interaction_data_train_torchv1p10'
     max_size = 100
+
     train_stream = get_interaction_stream_balanced(trainset + '.pkl', batch_size=1, max_size=max_size)
 
     swap_quadrants = False
-    normalization = 'backward'
+    normalization = 'ortho'
     if swap_quadrants:
         FFT = TorchDockingFFT(swap_plot_quadrants=True)
     else:
@@ -55,4 +58,5 @@ if __name__ == "__main__":
     # FILossPlotter('AdjustedHighBulkWeight=30').plot_deltaF_distribution(filename=filename, binwidth=100, show=True)
     # FILossPlotter('NORMortho_AdjustedHighBulkWeight=30').plot_deltaF_distribution(filename=filename, binwidth=1, show=True)
     # FILossPlotter('NORMforward_AdjustedHighBulkWeight=30').plot_deltaF_distribution(filename=filename, binwidth=1, show=True)
-    FILossPlotter('NORMbackward_AdjustedHighBulkWeight=30').plot_deltaF_distribution(filename=filename, binwidth=100, show=True)
+    # FILossPlotter('NORMbackward_AdjustedHighBulkWeight=30').plot_deltaF_distribution(filename=filename, binwidth=100, show=True)
+    FILossPlotter('NORMortho_AdjustedHighBulkWeight=30_newdata').plot_deltaF_distribution(filename=filename, binwidth=1, show=True)
