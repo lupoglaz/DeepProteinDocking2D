@@ -275,7 +275,8 @@ class ProteinPool:
 
 	def plot_sample_funnels(self, docker, filename='funnels.png', range=[(-100, -80), (-70, -40), (-32, -20)], titles=['A','B','C']):
 		import matplotlib.font_manager as font_manager
-		font_manager.fontManager.addfont('/home/lupoglaz/.fonts/Helvetica.ttf')
+		# font_manager.fontManager.addfont('/home/lupoglaz/.fonts/Helvetica.ttf')
+		font_manager.fontManager.addfont('Helvetica.ttf')
 		rcParams['font.family'] = 'Helvetica'
 		font = {'weight': 'normal',
 				'size': 18,
@@ -321,7 +322,8 @@ class ProteinPool:
 	def plot_params(self, output_name='stats.png'):
 		from mpl_toolkits.axes_grid1 import make_axes_locatable
 		import matplotlib.font_manager as font_manager
-		font_manager.fontManager.addfont('/home/lupoglaz/.fonts/Helvetica.ttf')
+		# font_manager.fontManager.addfont('/home/lupoglaz/.fonts/Helvetica.ttf')
+		font_manager.fontManager.addfont('Helvetica.ttf')
 		rcParams['font.family'] = 'Helvetica'
 		alpha_lst = []
 		num_pts_lst = []
@@ -353,7 +355,7 @@ class ProteinPool:
 					if (self.params[k]["alpha"] == alpha) and (self.params[k]["num_points"] == num_points):
 						protein = prot
 						break
-				canvas[i*size:(i+1)*size, j*size:(j+1)*size] = protein
+				canvas[i*size:(i+1)*size, j*size:(j+1)*size] = prot
 				
 		plt.imshow(canvas, origin='lower', interpolation='nearest', resample=False, filternorm=False, cmap=plt.get_cmap('binary'))
 		plt.xticks(ticks=[i*size + size/2 for i in range(M)], labels=['%d'%(num_points) for num_points in num_pts], fontsize=12)

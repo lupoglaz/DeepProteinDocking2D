@@ -7,14 +7,23 @@ from e2cnn import gspaces
 from e2cnn import nn as e2nn
 import math as m
 
+
+# def convolve(volume1, volume2, conj):
+# 	print(volume1.shape)
+# 	print(volume2.shape)
+# 	cplx_rec = torch.fft.rfft2(volume1, dim=(-2, -1), norm='ortho')
+# 	cplx_lig = torch.fft.rfft2(volume2, dim=(-2, -1), norm='ortho')
+#
+# 	return torch.fft.irfft2(cplx_rec * torch.conj(cplx_lig), dim=(-2, -1), norm='ortho')
+
 def convolve(volume1, volume2, conj):
-	cplx_rec = torch.fft.rfft2(volume1, dim=(-2, -1))
-	cplx_lig = torch.fft.rfft2(volume2, dim=(-2, -1))
+	cplx_rec = torch.fft.rfft2(volume1, dim=(-2, -1), norm='ortho')
+	cplx_lig = torch.fft.rfft2(volume2, dim=(-2, -1), norm='ortho')
 
 	if conj:
-		return torch.fft.irfft2(cplx_rec * torch.conj(cplx_lig), dim=(-2, -1))
+		return torch.fft.irfft2(cplx_rec * torch.conj(cplx_lig), dim=(-2, -1), norm='ortho')
 	else:
-		return torch.fft.irfft2(cplx_rec * cplx_lig, dim=(-2, -1))
+		return torch.fft.irfft2(cplx_rec * cplx_lig, dim=(-2, -1), norm='ortho')
 
 
 # def convolve(volume1, volume2, conj):

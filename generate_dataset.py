@@ -56,10 +56,10 @@ def extract_interaction_dataset(interaction_criteria, savefile,
 
 def visualize(docker, savefile):
 	pool = ProteinPool.load(savefile)
-	# pool.plot_interaction_dist(perc=90)
-	pool.plot_interactions(docker, filename='examples.png', num_plots=10)
-	# pool.plot_sample_funnels(docker, filename='funnels.png', range=[(-200, -150), (-200, -100), (-100, -20)])
-	# pool.plot_params()
+	pool.plot_interaction_dist(perc=90)
+	# pool.plot_interactions(docker, filename='examples.png', num_plots=10)
+	pool.plot_sample_funnels(docker, filename='funnels.png', range=[(-200, -150), (-200, -100), (-100, -20)])
+	pool.plot_params()
 
 def generate_set(	num_proteins, params, interaction_criteria_dock, interaction_criteria_inter,
 					docker, savefile, training_set=True, num_docking_samples=1100, num_inter_proteins=100):
@@ -71,15 +71,15 @@ def generate_set(	num_proteins, params, interaction_criteria_dock, interaction_c
 		print(savefile, 'does not exist')
 		print('generating pool of', str(num_proteins), 'protein shapes...')
 		generate_shapes(params, savefile, num_proteins)
+		#Interaction
+		generate_interactions(docker, savefile)
 
-	#Interaction
-	generate_interactions(docker, savefile)
 	if training_set:
 		#Docking dataset
 		extract_docking_dataset(docker, interaction_criteria_dock, savefile,
 								output_files=['DatasetGeneration/docking_data_train_torchv1p10.pkl', 'DatasetGeneration/docking_data_valid_torchv1p10.pkl'],
 								max_num_samples = num_docking_samples)
-		#Interaction dataset
+		# #Interaction dataset
 		extract_interaction_dataset(interaction_criteria_inter, savefile,
 								output_files=['DatasetGeneration/interaction_data_train_torchv1p10.pkl', 'DatasetGeneration/interaction_data_valid_torchv1p10.pkl'],
 								num_proteins = num_inter_proteins)
@@ -100,13 +100,24 @@ if __name__ == '__main__':
 	parser.add_argument('-debug', action='store_const', const=lambda:'debug', dest='cmd')
 	parser.add_argument('-gen', action='store_const', const=lambda:'gen', dest='act')
 	parser.add_argument('-vis', action='store_const', const=lambda:'vis', dest='act')
-	
+
+	# parser.add_argument('-IP', action='store_const', const=lambda:'IP', dest='act')
+	# parser.add_argument('-FI', action='store_const', const=lambda:'FI', dest='act')
+
+
+	# parser.add_argument('-a00', default=3.0, type=float)
+	# parser.add_argument('-a10', default=-0.3, type=float)
+	# parser.add_argument('-a11', default=2.5, type=float)
+	# parser.add_argument('-score_cutoff', default=-100, type=float)
+	# parser.add_argument('-funnel_gap_cutoff', default=15, type=float)
+	# parser.add_argument('-free_energy_cutoff', default=-100, type=float)
+
 	parser.add_argument('-a00', default=3.0, type=float)
 	parser.add_argument('-a10', default=-0.3, type=float)
 	parser.add_argument('-a11', default=2.8, type=float)
-	parser.add_argument('-score_cutoff', default=-100, type=float)
-	parser.add_argument('-funnel_gap_cutoff', default=15, type=float)
-	parser.add_argument('-free_energy_cutoff', default=-100, type=float)
+	parser.add_argument('-score_cutoff', default=-10, type=float)
+	parser.add_argument('-funnel_gap_cutoff', default=1, type=float)
+	parser.add_argument('-free_energy_cutoff', default=-10, type=float)
 
 	args = parser.parse_args()
 	

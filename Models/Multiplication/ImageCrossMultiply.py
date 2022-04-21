@@ -130,8 +130,6 @@ if __name__=='__main__':
 	a = a.unsqueeze(dim=0).unsqueeze(dim=1)
 	b = b.unsqueeze(dim=0).unsqueeze(dim=1)
 
-	# test_optimization(a,b)
-	# test_translation(a,b)
+	test_optimization(a,b)
+	test_translation(a,b)
 	test_mult_order()
-	
-	
