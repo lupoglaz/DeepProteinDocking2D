@@ -6,13 +6,13 @@ sys.path.append('/home/sb1638/') ## path for cluster
 
 import numpy as np
 from tqdm import tqdm
-from DeepProteinDocking2D.torchDataset import get_interaction_stream, get_interaction_stream_balanced
-from DeepProteinDocking2D.Models.BruteForce.TorchDockingFFT import TorchDockingFFT
-from DeepProteinDocking2D.Models.BruteForce.train_bruteforce_interaction import BruteForceInteraction
+from DeepProteinDocking2D.Utility.torchDataLoader import get_interaction_stream, get_interaction_stream_balanced
+from DeepProteinDocking2D.Utility.torchDockingFFT import TorchDockingFFT
+from DeepProteinDocking2D.Models.BruteForce.train_bruteforce_interaction import Interaction
 
 from DeepProteinDocking2D.Models.EnergyBased.model_energybased_sampling import EnergyBasedModel
-from DeepProteinDocking2D.Models.BruteForce.validation_metrics import APR
-from DeepProteinDocking2D.Models.BruteForce.plot_FI_loss import FILossPlotter
+from DeepProteinDocking2D.Utility.validation_metrics import APR
+from DeepProteinDocking2D.Plotting.plot_FI_loss import FILossPlotter
 
 
 class SampleBuffer:
@@ -152,7 +152,6 @@ class EnergyBasedInteractionTrainer:
         #     # if plot_count % self.plot_freq == 0:
         #     with torch.no_grad():
         #         self.plot_pose(FFT_score, receptor, ligand, gt_rot, gt_txy, plot_count, stream_name)
-
 
         return loss.item(), L_reg.item(), deltaF.item(), F.item(), F_0.item(), gt_interact.item()
 
@@ -388,7 +387,7 @@ if __name__ == '__main__':
     show = False
     # show = True
 
-    interaction_model = BruteForceInteraction().to(device=0)
+    interaction_model = Interaction().to(device=0)
     interaction_optimizer = optim.Adam(interaction_model.parameters(), lr=lr_interaction)
 
     scheduler = optim.lr_scheduler.ExponentialLR(interaction_optimizer, gamma=0.50)

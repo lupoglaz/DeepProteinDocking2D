@@ -5,14 +5,15 @@ import sys
 sys.path.append('/home/sb1638/') ## path for cluster
 
 import numpy as np
-from tqdm import tqdm
-from DeepProteinDocking2D.torchDataset import get_docking_stream
-from DeepProteinDocking2D.Models.BruteForce.TorchDockingFFT import TorchDockingFFT
-from DeepProteinDocking2D.Models.BruteForce.model_bruteforce_docking import BruteForceDocking
-from DeepProteinDocking2D.Models.BruteForce.utility_functions import plot_assembly
-from DeepProteinDocking2D.Models.BruteForce.validation_metrics import RMSD
 import matplotlib.pyplot as plt
-from DeepProteinDocking2D.Models.BruteForce.plot_IP_loss import IPLossPlotter
+
+from tqdm import tqdm
+from DeepProteinDocking2D.Utility.torchDataLoader import get_docking_stream
+from DeepProteinDocking2D.Utility.torchDockingFFT import TorchDockingFFT
+from DeepProteinDocking2D.Models.model_docking import Docking
+from DeepProteinDocking2D.Utility.utility_functions import plot_assembly
+from DeepProteinDocking2D.Utility.validation_metrics import RMSD
+from DeepProteinDocking2D.Plotting.plot_IP_loss import IPLossPlotter
 
 
 class BruteForceDockingTrainer:
@@ -21,7 +22,7 @@ class BruteForceDockingTrainer:
         self.plotting = plotting
         self.eval_freq = 1
         self.save_freq = 1
-        self.plot_freq = BruteForceDocking().plot_freq
+        self.plot_freq = Docking().plot_freq
 
         self.dim = TorchDockingFFT().dim
         self.num_angles = TorchDockingFFT().num_angles
@@ -255,10 +256,10 @@ class BruteForceDockingTrainer:
 if __name__ == '__main__':
     #################################################################################
     # Datasets
-    trainset = 'toy_concave_data/docking_data_train'
-    validset = 'toy_concave_data/docking_data_valid'
+    trainset = '../../Datasets/docking_data_train'
+    validset = '../../Datasets/docking_data_valid'
     ### testing set
-    testset = 'toy_concave_data/docking_data_test'
+    testset = '../../Datasets/docking_data_test'
     #########################
     #### initialization torch settings
     random_seed = 42
@@ -271,7 +272,7 @@ if __name__ == '__main__':
     # torch.autograd.set_detect_anomaly(True)
     ######################
     lr = 10 ** -4
-    model = BruteForceDocking().to(device=0)
+    model = Docking().to(device=0)
     optimizer = optim.Adam(model.parameters(), lr=lr)
 
     batch_size = 1
@@ -308,17 +309,17 @@ if __name__ == '__main__':
 
     ######################
     ### Train model from beginning
-    BruteForceDockingTrainer(model, optimizer, experiment).run_trainer(train_epochs, train_stream, valid_stream=None, test_stream=None)
+    BruteForceDockingTrainer(model, optimizer, experiment).run_trainer(train_epochs, train_stream, valid_stream=valid_stream, test_stream=test_stream)
 
     ### Resume training model at chosen epoch
-    BruteForceDockingTrainer(model, optimizer, experiment).run_trainer(
-        train_epochs=1, train_stream=None, valid_stream=valid_stream, test_stream=test_stream,
-        resume_training=True, resume_epoch=train_epochs-1)
+    # BruteForceDockingTrainer(model, optimizer, experiment).run_trainer(
+    #     train_epochs=1, train_stream=None, valid_stream=valid_stream, test_stream=test_stream,
+    #     resume_training=True, resume_epoch=train_epochs-1)
 
     ### Evaluate model on chosen dataset only and plot at chosen epoch and dataset frequency
     # BruteForceDockingTrainer(model, optimizer, experiment, plotting=False).plot_evaluation_set(
     #     check_epoch=30, train_stream=train_stream, valid_stream=valid_stream, test_stream=test_stream)
 
     ## Plot loss from current experiment
-    IPLossPlotter(experiment).plot_loss()
-    IPLossPlotter(experiment).plot_rmsd_distribution(plot_epoch=train_epochs, show=True)
+    # IPLossPlotter(experiment).plot_loss()
+    # IPLossPlotter(experiment).plot_rmsd_distribution(plot_epoch=train_epochs, show=True)

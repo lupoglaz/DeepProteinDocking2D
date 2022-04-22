@@ -8,11 +8,11 @@ sys.path.append('/home/sb1638/')
 
 import numpy as np
 from tqdm import tqdm
-from DeepProteinDocking2D.torchDataset import get_interaction_stream_balanced, get_interaction_stream
-from DeepProteinDocking2D.Models.BruteForce.model_bruteforce_interaction import BruteForceInteraction
-from DeepProteinDocking2D.Models.BruteForce.validation_metrics import APR
-from DeepProteinDocking2D.Models.BruteForce.model_bruteforce_docking import BruteForceDocking
-from DeepProteinDocking2D.Models.BruteForce.plot_FI_loss import FILossPlotter
+from DeepProteinDocking2D.Utility.torchDataLoader import get_interaction_stream_balanced
+from DeepProteinDocking2D.Models.model_interaction import Interaction
+from DeepProteinDocking2D.Utility.validation_metrics import APR
+from DeepProteinDocking2D.Models.model_docking import Docking
+from DeepProteinDocking2D.Plotting.plot_FI_loss import FILossPlotter
 
 class BruteForceInteractionTrainer:
     ## run replicates from sbatch script args, if provided
@@ -270,7 +270,7 @@ class BruteForceInteractionTrainer:
             lr_docking = 10 ** -5
             print('Docking learning rate changed to', lr_docking)
             # self.experiment = 'case' + self.training_case + '_lr5change_' + self.experiment
-            self.docking_model = BruteForceDocking().to(device=0)
+            self.docking_model = Docking().to(device=0)
             self.docking_optimizer = optim.Adam(self.docking_model.parameters(), lr=lr_docking)
             self.param_to_freeze = None
             self.docking_model.load_state_dict(torch.load(path_pretrain)['state_dict'])
@@ -313,12 +313,12 @@ if __name__ == '__main__':
     lr_interaction = 10**0
     lr_docking = 10**-4
 
-    interaction_model = BruteForceInteraction().to(device=0)
+    interaction_model = Interaction().to(device=0)
     interaction_optimizer = optim.Adam(interaction_model.parameters(), lr=lr_interaction)
 
     scheduler = optim.lr_scheduler.ExponentialLR(interaction_optimizer, gamma=0.95)
 
-    docking_model = BruteForceDocking().to(device=0)
+    docking_model = Docking().to(device=0)
     docking_optimizer = optim.Adam(docking_model.parameters(), lr=lr_docking)
 
     # max_size = 400

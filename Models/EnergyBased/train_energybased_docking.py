@@ -5,14 +5,15 @@ import sys
 sys.path.append('/home/sb1638/') ## path for cluster
 
 import numpy as np
-from tqdm import tqdm
-from DeepProteinDocking2D.torchDataset import get_docking_stream
-from DeepProteinDocking2D.Models.BruteForce.TorchDockingFFT import TorchDockingFFT
-from DeepProteinDocking2D.Models.BruteForce.train_bruteforce_docking import BruteForceDockingTrainer, BruteForceDocking
-from DeepProteinDocking2D.Models.BruteForce.utility_functions import plot_assembly
-from DeepProteinDocking2D.Models.BruteForce.validation_metrics import RMSD
 import matplotlib.pyplot as plt
-from DeepProteinDocking2D.Models.BruteForce.plot_IP_loss import IPLossPlotter
+
+from tqdm import tqdm
+from DeepProteinDocking2D.Utility.torchDataLoader import get_docking_stream
+from DeepProteinDocking2D.Utility.torchDockingFFT import TorchDockingFFT
+from DeepProteinDocking2D.Models.BruteForce.train_bruteforce_docking import Docking
+from DeepProteinDocking2D.Utility.utility_functions import plot_assembly
+from DeepProteinDocking2D.Utility.validation_metrics import RMSD
+from DeepProteinDocking2D.Plotting.plot_IP_loss import IPLossPlotter
 from DeepProteinDocking2D.Models.EnergyBased.model_energybased_sampling import EnergyBasedModel
 
 
@@ -67,7 +68,7 @@ class EnergyBasedDockingTrainer:
         self.plotting = plotting
         self.eval_freq = 1
         self.save_freq = 1
-        self.plot_freq = BruteForceDocking().plot_freq
+        self.plot_freq = Docking().plot_freq
 
         # self.dockingFFT = TorchDockingFFT(num_angles=1, angle=None, swap_plot_quadrants=False, debug=debug)
         self.dockingFFT = dockingFFT
@@ -311,7 +312,7 @@ class EnergyBasedDockingTrainer:
             left=False,
             right=False,
             labelleft=False)
-        plt.savefig('figs/rmsd_and_poses/'+stream_name+'_docking_pose_example' + str(plot_count) + '_RMSD' + str(rmsd_out.item())[:4] + '.png')
+        plt.savefig('Figs/Features_and_poses/'+stream_name+'_docking_pose_example' + str(plot_count) + '_RMSD' + str(rmsd_out.item())[:4] + '.png')
         # plt.show()
 
     def run_trainer(self, train_epochs, train_stream=None, valid_stream=None, test_stream=None, resume_training=False, resume_epoch=0):
@@ -326,15 +327,11 @@ class EnergyBasedDockingTrainer:
 if __name__ == '__main__':
     #################################################################################
     # # Datasets
-    # trainset = 'toy_concave_data/docking_data_train'
-    # validset = 'toy_concave_data/docking_data_valid'
-    # ### testing set
-    # testset = 'toy_concave_data/docking_data_test'
-    # Datasets
-    trainset = '../../DatasetGeneration/docking_data_train_torchv1p10'
-    validset = '../../DatasetGeneration/docking_data_valid_torchv1p10'
+    trainset = '../../Datasets/docking_data_train'
+    validset = '../../Datasets/docking_data_valid'
     ### testing set
-    testset = 'toy_concave_data/docking_data_test'
+    testset = '../../Datasets/docking_data_test'
+
     #########################
     #### initialization torch settings
     random_seed = 42
@@ -358,37 +355,8 @@ if __name__ == '__main__':
     test_stream = get_docking_stream(testset + '.pkl', batch_size=1)
 
     ######################
-    # experiment = 'BSmodel_check'
-    # experiment = 'BSmodel_MHalgo_eval'
-    # experiment = 'BSmodel_MHalgo_freeEeval'
-    # experiment = 'BSmodel_lr-2_5ep_refmodel' #
-    # RMSD 2.82 both valid/test; MC 100step RMSD valid 6.49; 150 step RMSD 6.20; 200 step RMSD 5.27; 250 step RMSD 3.56
+    experiment = 'BSmodel_lr-2_5ep_checkRepoRefactor' #
 
-    # experiment = 'BSmodel_lr-2_5ep_test_unsignedScoring' # ## doesn't work...
-    # experiment = 'BSmodel_lr-2_5ep_test_signedBULKScoring' #
-    # experiment = 'BSmodel_lr-2_5ep_test_unsignedBULKScoring_minimizing' # doesn't work
-    # experiment = 'BSmodel_lr-2_5ep_test_signedBULKScoring_minimizing' ## doesn't work
-    # experiment = 'BSmodel_lr-2_5ep_check_signedBULKScoring' # confirmed works
-
-
-    # experiment = 'BSmodel_lr-2_5ep_check_noConjFFT' # not working
-    # experiment = 'BSmodel_lr-2_5ep_check_noConjFFT_swapQuadrants' # also not working
-
-    # experiment = 'BSmodel_lr-2_5ep_checkDefault' #
-
-    # experiment = 'BSmodel_lr-2_5ep_checkNORMortho' #
-    # experiment = 'BSmodel_lr-2_5ep_checkNORMortho_rep1' #
-    # experiment = 'BSmodel_lr-2_5ep_checkNORMortho_rep2' #
-
-    # experiment = 'BSmodel_lr-2_5ep_checkNORMNone' #
-    # experiment = 'BSmodel_lr-2_5ep_checkNORMNone_rep1' #
-    # experiment = 'BSmodel_lr-2_5ep_checkNORMNone_rep2' #
-
-    # experiment = 'BSmodel_lr-2_5ep_checkNORMforward' #
-    # experiment = 'BSmodel_lr-2_5ep_checkNORMforward_rep1' #
-    # experiment = 'BSmodel_lr-2_5ep_checkNORMforward_rep2' #
-
-    experiment = 'BSmodel_lr-2_5ep_checkNewDockingData' #
 
     ### For IP MC eval: sigma alpha 1 RMSD 10, 1.5 RMSD 7.81, 2 RMSD 6.59, 2.5 RMSD 7.44, 1.25, RMSD 6.82, pi/2 RMSD 8.79
     ######################
@@ -413,7 +381,7 @@ if __name__ == '__main__':
     EnergyBasedDockingTrainer(dockingFFT, model, optimizer, experiment, debug=debug).run_trainer(train_epochs, train_stream=train_stream)
 
     ## Brute force eval and plotting
-    start = 4
+    start = 1
     stop = train_epochs
     eval_angles = 360
     for epoch in range(start, stop):
@@ -426,8 +394,8 @@ if __name__ == '__main__':
             resume_training=True, resume_epoch=epoch)
 
     ## Plot loss from current experiment
-    # IPLossPlotter(experiment).plot_loss(ylim=10)
-    IPLossPlotter(experiment).plot_rmsd_distribution(plot_epoch=epoch+1, show=show, eval_only=True)
+    # IPLossPlotter(experiment).plot_loss(ylim=5)
+    # IPLossPlotter(experiment).plot_rmsd_distribution(plot_epoch=epoch+1, show=show, eval_only=True)
 
     ### Resume training model at chosen epoch
     # EnergyBasedDockingTrainer(dockingFFT, model, optimizer, experiment, plotting=True, debug=debug).run_trainer(

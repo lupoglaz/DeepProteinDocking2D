@@ -1,13 +1,13 @@
+import sys
+sys.path.append('/home/sb1638/')
+
 import torch
 from torch import optim
 import torch.nn as nn
 import numpy as np
 from matplotlib import pylab as plt
 
-from DeepProteinDocking2D.Models.BruteForce.model_bruteforce_docking import BruteForceDocking
-
-import sys
-sys.path.append('/home/sb1638/')
+from DeepProteinDocking2D.Models.model_docking import Docking
 
 
 class Docker(nn.Module):
@@ -15,7 +15,7 @@ class Docker(nn.Module):
         super(Docker, self).__init__()
         self.num_angles = num_angles
         self.dim = 100
-        self.dockingConv = BruteForceDocking(dim=self.dim, num_angles=self.num_angles, debug=debug)
+        self.dockingConv = Docking(dim=self.dim, num_angles=self.num_angles, debug=debug)
         self.dockingFFT = dockingFFT
 
     def forward(self, receptor, ligand, rotation, plot_count=1, stream_name='trainset', plotting=False):
@@ -57,10 +57,12 @@ class Docker(nn.Module):
                 mintxy_energies.append(minimumEnergy)
 
         xrange = np.arange(0, 2 * np.pi, 2 * np.pi / self.num_angles)
-        hardmin_minEnergies = stream_name + '_hardmin' + '_example' + str(plot_count)
+        hardmin_minEnergies = stream_name + '_energysurface' + '_example' + str(plot_count)
         plt.plot(xrange, mintxy_energies)
-        plt.title('hardmin')
-        plt.savefig('figs/rmsd_and_poses/' + hardmin_minEnergies + '.png')
+        plt.title('Best Scoring Translation Energy Surface')
+        plt.ylabel('Energy')
+        plt.xlabel('Rotation (rads)')
+        plt.savefig('Figs/EnergySurfaces/' + hardmin_minEnergies + '.png')
 
 
 class EnergyBasedModel(nn.Module):
