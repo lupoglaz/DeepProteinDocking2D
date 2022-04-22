@@ -285,26 +285,6 @@ if __name__ == '__main__':
     ######################
     train_epochs = 30
     # train_epochs = 10
-
-    # experiment = 'FINAL_CHECK_DOCKING'
-    # experiment = 'PARANOIA_CHECK'
-    # experiment = 'RMSD_ADDED_TO_LOSS_30ep'
-    # experiment = 'TROCH_DIV_TRUNC'
-    # experiment = 'TROCH_DIV_NONE'
-    # experiment = 'TROCH_DIV_FLOOR'
-    # experiment = 'TROCH_DIV_FLOOR_INDmodDIM^2'
-    # experiment = 'TROCH_DIV_FMOD_TRUNC'
-    # experiment = 'TROCH_DIV_FMOD_TRUNC_MAXFREQ=5'
-    # experiment = 'TROCH_DIV_FMOD_TRUNC_1s7vfeats'
-    # experiment = 'SMALLDATA_10EXAMPLES'
-    # experiment = 'SMALLDATA_20EXAMPLES'
-    # experiment = 'SMALLDATA_30EXAMPLES'
-    # experiment = 'SMALLDATA_40EXAMPLES'
-    # experiment = 'SMALLDATA_50EXAMPLES'
-    # experiment = 'SMALLDATA_60EXAMPLES'
-    # experiment = 'SMALLDATA_70EXAMPLES'
-    # experiment = 'SMALLDATA_80EXAMPLES' ## best test rmsd 5.3
-    # experiment = 'SMALLDATA_90EXAMPLES'
     experiment = 'SMALLDATA_100EXAMPLES' ## best test rmsd 5.1
 
     ######################
