@@ -317,10 +317,10 @@ class EnergyBasedInteractionTrainer:
 
 if __name__ == '__main__':
     #################################################################################
-    trainset = 'toy_concave_data/interaction_data_train'
-    validset = 'toy_concave_data/interaction_data_valid'
+    trainset = '../../Datasets/interaction_data_train'
+    validset = '../../Datasets/interaction_data_valid'
     # ### testing set
-    testset = 'toy_concave_data/interaction_data_test'
+    testset = '../../Datasets/interaction_data_test'
 
     #########################
     #### initialization torch settings
@@ -346,36 +346,8 @@ if __name__ == '__main__':
     valid_stream = get_interaction_stream(validset + '.pkl', batch_size=1, max_size=max_size)
     test_stream = get_interaction_stream(testset + '.pkl', batch_size=1, max_size=max_size)
     ######################
-    # experiment = 'MCsampling_printaccepts_10'
-    # experiment = 'MCsampling_100steps'
-    # experiment = 'MCsampling_20steps'
-    # experiment = 'MCsampling_1steps'
-    # experiment = 'MCsampling_1steps_wregsched'
-    # experiment = 'MCsampling_1steps_wregsched_g=0.5'
-    # experiment = 'MCsampling_1steps_wregsched_g=0.90'
-    # experiment = 'MCsampling_10steps_wregsched_g=0.95'
-    # experiment = 'MCsampling_10steps_wregsched_g=0.95_acceptedFFTonly'
-    # experiment = 'MCsampling_10steps_wregsched_g=0.95_acceptedandrejectedFFT'
-    # experiment = 'MCsampling_10steps_wregsched_g=0.95_noRotMean' ### confirmed rotMean sends values to zero
-    # experiment = 'workingMCsampling_1steps_wregsched_g=0.95_100ep' ## 1samplestep still doesn't work
-    # experiment = 'workingMCsampling_20steps_wregsched_g=0.95'
-    # experiment = 'workingMCsampling_30steps_wregsched_g=0.95'
-    # experiment = 'workingMCsampling_10steps_wregsched_g=0.95_modelEvalMCloop'
-    # experiment = 'workingMCsampling_20steps_wregsched_g=0.95_modelEvalMCloop'
-    # experiment = 'workingMCsampling_10steps_wregsched_g=0.95_modelEvalMCloop_100ex'
-    # experiment = 'workingMCsampling_20steps_wregsched_g=0.90_modelEvalMCloop_100ex'
-    # experiment = 'workingMCsampling_10steps_wregsched_g=0.90_modelEvalMCloop_100ex'
-    # experiment = 'workingMCsampling_10steps_wregsched_g=0.5_modelEvalMCloop_100ex'
-    # experiment = 'workingMCsampling_1steps_wregsched_g=0.5_modelEvalMCloop_100ex_lr-3' ## lr too large
-    # experiment = 'workingMCsampling_1steps_wregsched_g=0.5_modelEvalMCloop_100ex' ## not enough samples
-    # experiment = 'workingMCsampling_5steps_wregsched_g=0.5_modelEvalMCloop_100ex'
-    # experiment = 'workingMCsampling_5steps_wregsched_g=0.5_modelEvalMCloop_100ex_sigalphasched'
-    # experiment = 'workingMCsampling_5steps_wregsched_g=0.90_modelEvalMCloop_100ex_sigalphasched'
-    # experiment = 'workingMCsampling_5steps_wregsched_g=0.90_modelEvalMCloop_100ex_sigalpha=3sched'
-    # experiment = 'workingMCsampling_5steps_wregsched_g=0.50_modelEvalMCloop_100ex_sigalpha=3'
-    # experiment = 'workingMCsampling_100steps_wregsched_g=0.50_modelEvalMCloop_50ex_sigalpha=3' #mislabeled => 50steps
-    # experiment = 'workingMCsampling_actually100steps_wregsched_g=0.50_modelEvalMCloop_50ex_sigalpha=3'
-    experiment = 'workingMCsampling_50steps_wregsched_g=0.50_modelEvalMCloop_100ex_sigalpha=3' ## 15ep MCC 0.40 valid/test
+    # experiment = 'workingMCsampling_50steps_wregsched_g=0.50_modelEvalMCloop_100ex_sigalpha=3' ## 15ep MCC 0.40 valid/test
+    experiment = 'MC_FI_SMALLDATA_100EXAMPLES_50STEPS' ## 15ep MCC 0.40 valid/test
 
     lr_interaction = 10 ** 0
     lr_docking = 10 ** -4
@@ -403,8 +375,8 @@ if __name__ == '__main__':
     # continue_epochs = 1
     ######################
     ### Train model from beginning
-    # EnergyBasedInteractionTrainer(docking_model, docking_optimizer, interaction_model, interaction_optimizer, experiment, debug=debug
-    #                               ).run_trainer(train_epochs, train_stream=train_stream, valid_stream=None, test_stream=None)
+    EnergyBasedInteractionTrainer(docking_model, docking_optimizer, interaction_model, interaction_optimizer, experiment, debug=debug
+                                  ).run_trainer(train_epochs, train_stream=train_stream, valid_stream=None, test_stream=None)
 
     ### resume training model
     # EnergyBasedInteractionTrainer(docking_model, docking_optimizer, interaction_model, interaction_optimizer, experiment, debug=debug
@@ -414,4 +386,4 @@ if __name__ == '__main__':
     eval_model = EnergyBasedModel(dockingFFT, num_angles=360, sample_steps=1, FI=True, debug=debug).to(device=0)
     # # eval_model = EnergyBasedModel(dockingFFT, num_angles=1, sample_steps=sample_steps, FI=True, debug=debug).to(device=0)
     EnergyBasedInteractionTrainer(eval_model, docking_optimizer, interaction_model, interaction_optimizer, experiment, debug=False
-                                  ).run_trainer(resume_training=True, resume_epoch=29, train_epochs=1, train_stream=None, valid_stream=valid_stream, test_stream=test_stream)
+                                  ).run_trainer(resume_training=True, resume_epoch=train_epochs, train_epochs=1, train_stream=None, valid_stream=valid_stream, test_stream=test_stream)
