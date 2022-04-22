@@ -292,10 +292,10 @@ class BruteForceInteractionTrainer:
 
 if __name__ == '__main__':
     #################################################################################
-    trainset = 'toy_concave_data/interaction_data_train'
-    validset = 'toy_concave_data/interaction_data_valid'
+    trainset = '../../Datasets/interaction_data_train'
+    validset = '../../Datasets/interaction_data_valid'
     # ### testing set
-    testset = 'toy_concave_data/interaction_data_test'
+    testset = '../../Datasets/interaction_data_test'
 
     #########################
     #### initialization torch settings
@@ -331,36 +331,7 @@ if __name__ == '__main__':
     valid_stream = get_interaction_stream_balanced(validset + '.pkl', batch_size=1)
     test_stream = get_interaction_stream_balanced(testset + '.pkl', batch_size=1)
 
-    # experiment = 'RECODE_CHECK_INTERACTION'
-    # experiment = 'PLOT_FREE_ENERGY_HISTOGRAMS'
-    # experiment = 'FINAL_CHECK_INTERACTION_FULLDATA'
-    # experiment = 'FINAL_CHECK_INTERACTION_FULLDATA_LR-1'
-    # experiment = 'checkhists_lf-0_and_lr-4_50ex_100ep' ## working 50 ep MCCs ~0.7
-    ## attempting to improve brute force FI
-    # experiment = 'baseline_expA_lr-0_and_lr-4_50ex' ## 1 epoch MCCs 0.74 and 0.81, then fluctuates
-    # experiment = 'baseline_expB_lr-0_and_lr-4_50ex' ## 3 epoch MCCs 0.8, then fluctuates
-    # experiment = 'baseline_expC_lr-0_and_lr-4_50ex' ## 1 epoch MCCs 0.74 and 0.78, then fluctuates
-    # experiment = 'baseline_scratch_lr-0_and_lr-4_50ex' ## 3 epoch MCCs ~0.6, then fluctuates
-    # experiment = 'F0schedulerg=0p5_scratch_lr-0_and_lr-4_50ex'
-    # experiment = 'F0schedulerg=0p5_scratch_lr-0_and_lr-4_50ex_novalidortest'
-    # experiment = 'F0schedulerg=0p5_scratch_lr-0_and_lr-4_50ex_novalidortest_noWreg' ## wreg required
-    # experiment = 'F0schedulerg=0p25_scratch_lr-0_and_lr-3_50ex_novalidortest' ## doesn't learn
-    # experiment = 'F0schedulerg=0p95_scratch_lr-0_and_lr-3_50ex_novalidortest'
-    # experiment = 'F0schedulerg=0p25_scratch_lr-0_and_lr-4_50ex_novalidortest'
-    # experiment = 'F0schedulerg=0p95_scratch_lr-0_and_lr-4_50ex_novalidortest' ## 100ep 0.70 and 0.80
-    # experiment = 'Wregsched_F0schedulerg=0p95_scratch_lr-0_and_lr-4_50ex_novalidortest' ## 200 ep 0.7 > MCC > 0.8
-    # experiment = 'Wregsched_F0schedulerg=0p95_scratch_lr-0_and_lr-4_novalidortest_100ex'
-    # experiment = 'Wreg-0sched_F0schedg=0p5_scratch_lr-0_and_lr-4_50ex_novalidortest'
-    # experiment = 'Wreg-0sched_F0schedg=0p95_scratch_lr-0_and_lr-3_50ex_novalidortest' ## all values condense to 1 bin
-    # experiment = 'Wreg-0sched_F0schedg=0p95_scratch_lr-0_and_lr-4_50ex_novalidortest_binsmall'
-    # experiment = 'Wreg-0sched_F0schedg=0p5_scratch_lr-0_and_lr-4_50ex_novalidortest_binsmall'
-    # experiment = 'Wreg-1NOsched_F0schedg=0p5_scratch_lr-0_and_lr-4_50ex_novalidortest_binsmall'
-    # experiment = 'Wreg-0WITHsched_F0schedg=0p5_scratch_lr-0_and_lr-4_50ex_novalidortest_binsmall'
-    # experiment = 'Wreg-2WITHsched_F0schedg=0p95_scratch_lr-0_and_lr-4_50ex_novalidortest_binsmall'
-    # experiment = 'Wreg-5WITHsched_F0schedg=0p95_scratch_lr-0_and_lr-4_50ex_novalidortest_binsmall_lse-dim^2'
-    # experiment = 'Wreg-5NOsched_F0schedg=0p95_scratch_lr-0_and_lr-4_50ex_novalidortest_binsmall_lse-dim^2'
-    # experiment = 'Wreg-5NOsched_F0schedg=0p95_scratch_lr-0_and_lr-4_50ex_checkdynamicvolLSE'
-    experiment = 'BF_FI_checkshapes'
+    experiment = 'BF_FI_SMALLDATA_100EXAMPLES'
 
     ##################### Load and freeze/unfreeze params (training, no eval)
     ### path to pretrained docking model
@@ -372,11 +343,11 @@ if __name__ == '__main__':
     # training_case = 'C' # CaseC: train with docking model SE2 CNN frozen and scoring ("a") coeffs unfrozen
     training_case = 'scratch' # Case scratch: train everything from scratch
     experiment = 'FI_case' + training_case + '_' + experiment
-    train_epochs = 50
+    train_epochs = 100
     #####################
     ### Train model from beginning
-    BruteForceInteractionTrainer(docking_model, docking_optimizer, interaction_model, interaction_optimizer, experiment, training_case, path_pretrain
-                                 ).run_trainer(train_epochs, train_stream=train_stream, valid_stream=None, test_stream=None)
+    # BruteForceInteractionTrainer(docking_model, docking_optimizer, interaction_model, interaction_optimizer, experiment, training_case, path_pretrain
+    #                              ).run_trainer(train_epochs, train_stream=train_stream, valid_stream=None, test_stream=None)
 
     ### Resume training model at chosen epoch
     # BruteForceInteractionTrainer(docking_model, docking_optimizer, interaction_model, interaction_optimizer, experiment, training_case, path_pretrain
@@ -384,8 +355,8 @@ if __name__ == '__main__':
     #
     ### Validate model at chosen epoch
     # BruteForceInteractionTrainer(docking_model, docking_optimizer, interaction_model, interaction_optimizer, experiment, training_case, path_pretrain
-    #                              ).run_trainer(train_epochs=1, valid_stream=valid_stream, test_stream=test_stream,
-    #                                            resume_training=True, resume_epoch=100)
+    #                              ).run_trainer(train_epochs=1, train_stream=None, valid_stream=valid_stream, test_stream=test_stream,
+    #                                            resume_training=True, resume_epoch=train_epochs)
 
     ### Plot free energy distributions with learned F_0 decision threshold
-    # FILossPlotter(experiment).plot_deltaF_distribution(plot_epoch=2, show=True)
+    FILossPlotter(experiment).plot_deltaF_distribution(plot_epoch=train_epochs, show=True)
