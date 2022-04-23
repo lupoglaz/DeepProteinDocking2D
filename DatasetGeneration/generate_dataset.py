@@ -4,6 +4,7 @@ import random
 import argparse
 import sys
 import torch
+import matplotlib.pyplot as plt
 from os.path import exists
 from DeepProteinDocking2D.DatasetGeneration.ProteinPool import ProteinPool, ParamDistribution
 from DeepProteinDocking2D.Utility.torchDockingFFT import TorchDockingFFT
@@ -142,6 +143,7 @@ if __name__ == '__main__':
     protein_shapes = data[0]
 
     FFT_score_list = []
+    weight_bound, weight_crossterm1, weight_crossterm2, weight_bulk = 1, 2, 2, -20
     for i in range(2):
         for j in range(2):
             receptor, ligand = protein_shapes[i], protein_shapes[j]
@@ -149,12 +151,13 @@ if __name__ == '__main__':
             ligand = torch.tensor(ligand, dtype=torch.float).cuda()
             receptor_stack = FFT.make_boundary(receptor)
             ligand_stack = FFT.make_boundary(ligand)
-            fft_score = FFT.dock_global(receptor_stack, ligand_stack)
+            fft_score = FFT.dock_global(receptor_stack, ligand_stack, weight_bound, weight_crossterm1, weight_crossterm2, weight_bulk)
             rot, trans = FFT.extract_transform(fft_score)
             best_score = fft_score[rot.long(), trans[0].long(), trans[1].long()]
-            plot_assembly(receptor, ligand, trans, rot)
-
-            FFT_score_list.append([i, j, best_score])
+            pair = plot_assembly(receptor.cpu(), ligand.cpu(), rot.cpu(), trans.cpu())
+            plt.imshow(pair.transpose())
+            plt.show()
+            FFT_score_list.append([i, j, best_score.item()])
 
     print(FFT_score_list)
 

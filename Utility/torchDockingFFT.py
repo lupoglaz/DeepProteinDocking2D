@@ -88,7 +88,7 @@ class TorchDockingFFT:
     ## Weights learned from model: RECODE_CHECK_BFDOCKING_30epochs DOES NOT WORK WITH RAW BULK BOUNDARY DATASET FEATS
     # weight_bound = 0.7626, weight_crossterm1, 1.0481, weight_crossterm2 = 0.9259, weight_bulk = 0.9861
 
-    def dock_global(self, receptor, ligand, weight_bound = 2.8, weight_crossterm1 = 0.3, weight_crossterm2 = 0.3, weight_bulk = 30):
+    def dock_global(self, receptor, ligand, weight_bound = 1, weight_crossterm1 = 2, weight_crossterm2 = 2, weight_bulk = -20):
         initbox_size = receptor.shape[-1]
         # print(receptor.shape)
         pad_size = initbox_size // 2
@@ -154,7 +154,8 @@ class TorchDockingFFT:
         trans_bound_bulk = torch.fft.irfft2(cplx_rec * torch.conj(cplx_lig), dim=(-2, -1), norm=self.norm)
 
         ## cross-term score maximizing
-        score = weight_bound * trans_bound + weight_crossterm1 * trans_bulk_bound + weight_crossterm2 * trans_bound_bulk - weight_bulk * trans_bulk
+        # score = weight_bound * trans_bound + weight_crossterm1 * trans_bulk_bound + weight_crossterm2 * trans_bound_bulk - weight_bulk * trans_bulk
+        score = weight_bound * trans_bound + weight_crossterm1 * trans_bulk_bound + weight_crossterm2 * trans_bound_bulk + weight_bulk * trans_bulk
 
         # print(score.shape)
         ## minimizing score tests to check georgy coefficients
