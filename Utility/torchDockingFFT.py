@@ -213,7 +213,7 @@ class TorchDockingFFT:
 
 if __name__ == '__main__':
 
-    from DeepProteinDocking2D.torchDataset import get_docking_stream
+    from DeepProteinDocking2D.Utility.torchDataLoader import get_docking_stream
     from tqdm import tqdm
 
     trainset = 'toy_concave_data/docking_data_test'

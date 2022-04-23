@@ -118,15 +118,15 @@ def get_interaction_stream_balanced(data_path, batch_size=10, max_size=1000):
 	trainloader = torch.utils.data.DataLoader(dataset, batch_sampler=sampler, num_workers=0, collate_fn=crop_collate, shuffle=False, pin_memory=True)
 	return trainloader
 
-def get_interaction_stream_balanced_singleordering(data_path, sampler=None, printout=False, batch_size=1, max_size=400):
-	dataset = ToyInteractionDataset(path=data_path, max_size=max_size, printout=printout)
-	# print( torch.FloatTensor(dataset.weights))
-	# print(torch.stack((list(dataset.weights))))
-	sampler = ResumableRandomSampler(dataset, replacement=True)
-	loader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, sampler=sampler, collate_fn=crop_collate, shuffle=False, pin_memory=True)
-	torch.save(sampler.get_state(), "saved_samplerstate.pth")
-	sampler.set_state(torch.load("saved_samplerstate.pth"))
-	return loader, sampler
+# def get_interaction_stream_balanced_singleordering(data_path, sampler=None, printout=False, batch_size=1, max_size=400):
+# 	dataset = ToyInteractionDataset(path=data_path, max_size=max_size, printout=printout)
+# 	# print( torch.FloatTensor(dataset.weights))
+# 	# print(torch.stack((list(dataset.weights))))
+# 	sampler = ResumableRandomSampler(dataset, replacement=True)
+# 	loader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, sampler=sampler, collate_fn=crop_collate, shuffle=False, pin_memory=True)
+# 	torch.save(sampler.get_state(), "saved_samplerstate.pth")
+# 	sampler.set_state(torch.load("saved_samplerstate.pth"))
+# 	return loader, sampler
 
 def get_interaction_stream(data_path, batch_size = 10, max_size=1000):
 	dataset = ToyInteractionDataset(path=data_path, max_size=max_size)
