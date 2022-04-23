@@ -148,3 +148,6 @@ class Complex:
 		field[150:200,100:150]  = self.ligand.bulk
 		plt.imshow(field)
 		# plt.show()
+
+# if __name__ == '__main__':
+# 	Complex = Complex(receptor=, ligand=, )

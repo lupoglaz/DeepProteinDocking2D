@@ -51,7 +51,7 @@ class Docking(nn.Module):
         rec_feat = self.netSE2(receptor_geomT).tensor.squeeze()
         lig_feat = self.netSE2(ligand_geomT).tensor.squeeze()
 
-        FFT_score = TorchDockingFFT(dim=self.dim, num_angles=self.num_angles, angle=angle, debug=self.debug).dock_global(
+        fft_score = TorchDockingFFT(dim=self.dim, num_angles=self.num_angles, angle=angle, debug=self.debug).dock_global(
             rec_feat,
             lig_feat,
             weight_bound=self.boundW,
@@ -64,9 +64,9 @@ class Docking(nn.Module):
         if plotting and not training:
             if plot_count % self.plot_freq == 0:
                 with torch.no_grad():
-                    self.plot_features(rec_feat, lig_feat, receptor, ligand, FFT_score, plot_count, stream_name)
+                    self.plot_features(rec_feat, lig_feat, receptor, ligand, fft_score, plot_count, stream_name)
 
-        return FFT_score
+        return fft_score
 
     def plot_features(self, rec_feat, lig_feat, receptor, ligand, FFT_score, plot_count=0, stream_name='trainset'):
         print('\nLearned scoring coefficients')
@@ -120,7 +120,7 @@ class Docking(nn.Module):
             right=False,
             labelleft=False)
         plt.savefig('Figs/Features_and_poses/'+stream_name+'_docking_feats'+'_example' + str(plot_count)+'.png')
-        # '_MinEnergy' + str(torch.argmin(-FFT_score).item())[:4] +
+        # '_MinEnergy' + str(torch.argmin(-fft_score).item())[:4] +
         # plt.show()
 
 if __name__ == '__main__':

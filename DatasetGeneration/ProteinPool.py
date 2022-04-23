@@ -17,11 +17,9 @@ from random import uniform
 
 from .Protein import Protein
 from .Complex import Complex
-from .DockerGPU import DockerGPU
-from .Interaction import Interaction
-from .Interactome import Interactome
 from tqdm import tqdm
 import inspect
+
 
 class ParamDistribution:
 	def __init__(self, **kwargs):
@@ -61,6 +59,7 @@ class InteractionCriteriaGandGap:
 		else:
 			return False
 
+
 class InteractionCriteriaG:
 	def __init__(self, free_energy_cutoff=20):
 		self.free_energy_cutoff = free_energy_cutoff
@@ -71,8 +70,6 @@ class InteractionCriteriaG:
 			return True
 		else:
 			return False
-
-
 
 
 class ProteinPool:

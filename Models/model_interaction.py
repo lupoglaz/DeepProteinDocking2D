@@ -8,10 +8,10 @@ class Interaction(nn.Module):
         self.F_0 = nn.Parameter(torch.zeros(1, requires_grad=True))
         self.volume = torch.log(torch.tensor(100 ** 2))
 
-    def forward(self, FFT_score, plotting=False, debug=False):
+    def forward(self, fft_score, plotting=False, debug=False):
         ##TODO: pass BETA, has to be returned from MC docker
 
-        E = -FFT_score.squeeze()
+        E = -fft_score.squeeze()
         if len(E.shape) < 3:
             E = E.unsqueeze(0)
         if E.shape[0] > 1:

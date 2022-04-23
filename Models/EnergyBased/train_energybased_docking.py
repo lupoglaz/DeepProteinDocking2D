@@ -112,7 +112,7 @@ class EnergyBasedDockingTrainer:
             # print(neg_alpha, pred_rot)
             # pred_txy = gt_txy
 
-        # neg_energy, pred_rot, pred_txy, FFT_score = self.model(gt_rot, receptor, ligand, plot_count=pos_idx.item(), stream_name=stream_name, plotting=self.plotting)
+        # neg_energy, pred_rot, pred_txy, fft_score = self.model(gt_rot, receptor, ligand, plot_count=pos_idx.item(), stream_name=stream_name, plotting=self.plotting)
 
         ### Encode ground truth transformation index into empty energy grid
         with torch.no_grad():
@@ -283,7 +283,7 @@ class EnergyBasedDockingTrainer:
     def plot_pose(self, receptor, ligand, gt_rot, gt_txy, pred_rot, pred_txy, plot_count, stream_name):
         plt.close()
         plt.figure(figsize=(8, 8))
-        # pred_rot, pred_txy = self.dockingFFT.extract_transform(FFT_score)
+        # pred_rot, pred_txy = self.dockingFFT.extract_transform(fft_score)
         print('extracted predicted indices', pred_rot, pred_txy)
         print('gt indices', gt_rot, gt_txy)
         rmsd_out = RMSD(ligand, gt_rot, gt_txy, pred_rot, pred_txy).calc_rmsd()

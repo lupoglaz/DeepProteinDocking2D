@@ -51,18 +51,18 @@ class BruteForceDockingTrainer:
 
         ### run model and loss calculation
         ##### call model
-        FFT_score = self.model(receptor, ligand, training=training, plotting=self.plotting, plot_count=plot_count, stream_name=stream_name)
-        FFT_score = FFT_score.flatten()
+        fft_score = self.model(receptor, ligand, training=training, plotting=self.plotting, plot_count=plot_count, stream_name=stream_name)
+        fft_score = fft_score.flatten()
 
         ### Encode ground truth transformation index into empty energy grid
         with torch.no_grad():
             target_flatindex = TorchDockingFFT().encode_transform(gt_rot, gt_txy)
-            pred_rot, pred_txy = TorchDockingFFT().extract_transform(FFT_score)
+            pred_rot, pred_txy = TorchDockingFFT().extract_transform(fft_score)
             rmsd_out = RMSD(ligand, gt_rot, gt_txy, pred_rot, pred_txy).calc_rmsd()
 
         #### Loss functions
         CE_loss = torch.nn.CrossEntropyLoss()
-        loss = CE_loss(FFT_score.squeeze().unsqueeze(0), target_flatindex.unsqueeze(0)) + rmsd_out
+        loss = CE_loss(fft_score.squeeze().unsqueeze(0), target_flatindex.unsqueeze(0)) + rmsd_out
 
         ### check parameters and gradients
         ### if weights are frozen or updating
@@ -79,7 +79,7 @@ class BruteForceDockingTrainer:
         if self.plotting and not training:
             if plot_count % self.plot_freq == 0:
                 with torch.no_grad():
-                    self.plot_pose(FFT_score, receptor, ligand, gt_rot, gt_txy, plot_count, stream_name)
+                    self.plot_pose(fft_score, receptor, ligand, gt_rot, gt_txy, plot_count, stream_name)
 
         return loss.item(), rmsd_out.item()
 

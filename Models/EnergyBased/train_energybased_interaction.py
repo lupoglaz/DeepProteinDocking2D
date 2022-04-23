@@ -151,7 +151,7 @@ class EnergyBasedInteractionTrainer:
         # if self.plotting and not training:
         #     # if plot_count % self.plot_freq == 0:
         #     with torch.no_grad():
-        #         self.plot_pose(FFT_score, receptor, ligand, gt_rot, gt_txy, plot_count, stream_name)
+        #         self.plot_pose(fft_score, receptor, ligand, gt_rot, gt_txy, plot_count, stream_name)
 
         return loss.item(), L_reg.item(), deltaF.item(), F.item(), F_0.item(), gt_interact.item()
 

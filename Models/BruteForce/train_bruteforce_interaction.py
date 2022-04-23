@@ -64,8 +64,8 @@ class BruteForceInteractionTrainer:
 
         ### run model and loss calculation
         ##### call model(s)
-        FFT_score = self.docking_model(receptor, ligand, plotting=self.plotting)
-        pred_interact, deltaF, F, F_0 = self.interaction_model(FFT_score, plotting=self.plotting)
+        fft_score = self.docking_model(receptor, ligand, plotting=self.plotting)
+        pred_interact, deltaF, F, F_0 = self.interaction_model(fft_score, plotting=self.plotting)
 
         ### check parameters and gradients
         ### if weights are frozen or updating
@@ -98,7 +98,7 @@ class BruteForceInteractionTrainer:
         # if self.plotting and not training:
         #     # if plot_count % self.plot_freq == 0:
         #     with torch.no_grad():
-        #         self.plot_pose(FFT_score, receptor, ligand, gt_rot, gt_txy, plot_count, stream_name)
+        #         self.plot_pose(fft_score, receptor, ligand, gt_rot, gt_txy, plot_count, stream_name)
 
         return loss.item(), L_reg.item(), deltaF.item(), F.item(), F_0.item(), gt_interact.item()
 

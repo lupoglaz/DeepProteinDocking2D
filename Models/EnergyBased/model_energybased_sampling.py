@@ -168,7 +168,7 @@ class EnergyBasedModel(nn.Module):
         acceptance = []
         if self.FI:
             FFT_score_list = []
-            # FFT_score_list.append(FFT_score)
+            # FFT_score_list.append(fft_score)
             # FFT_score_stack = torch.stack(FFT_score_list)
 
         for i in range(self.sample_steps):
@@ -238,7 +238,7 @@ class EnergyBasedModel(nn.Module):
         if self.FI:
             # print(FFT_score_list)
             FFT_score_stack = torch.stack(FFT_score_list)
-            # print(FFT_score.shape)
+            # print(fft_score.shape)
         else: FFT_score_stack = FFT_score
 
         self.docker.train()
@@ -261,7 +261,7 @@ class EnergyBasedModel(nn.Module):
             langevin_opt.zero_grad()
 
             energy, _, dr, FFT_score = self.docker(receptor, ligand, alpha, plot_count, stream_name, plotting=plotting)
-            # energy = -(torch.logsumexp(FFT_score, dim=(0, 1)) - torch.log(torch.tensor(100 ** 2)))
+            # energy = -(torch.logsumexp(fft_score, dim=(0, 1)) - torch.log(torch.tensor(100 ** 2)))
 
             energy.backward()
             langevin_opt.step()

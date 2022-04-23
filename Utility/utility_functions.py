@@ -76,63 +76,59 @@ def translate_gridligand(ligand, tx, ty):
     return ligand
 
 
-def plot_assembly(receptor, ligand, rotation, translation, gt_rot, gt_txy):
+def plot_assembly(receptor, ligand, gt_rot, gt_txy, pred_rot=None, pred_txy=None):
     box_size = receptor.shape[-1]
-
-    gt_rot = (gt_rot * 180.0/np.pi)
-    rotation = (rotation * 180.0/np.pi)
-
-    # print('plotting pred values',rotation, translation)
-    # print('plotting gt values', gt_rot, gt_txy)
-
     receptor_copy = receptor * -100
     ligand_copy = ligand * 200
-    # receptor_copy = receptor * 1
-    # ligand_copy = ligand * 2
+
     padding = box_size//2
     if box_size < 100:
-        receptor_copy = np.pad(receptor_copy, ((padding, padding), (padding, padding)), 'constant',
-                          constant_values=((0, 0), (0, 0)))
-        ligand_copy = np.pad(ligand_copy, ((padding, padding), (padding, padding)), 'constant',
-                        constant_values=((0, 0), (0, 0)))
+        receptor_copy = np.pad(receptor_copy, ((padding, padding), (padding, padding)), 'constant', constant_values=0)
+        ligand_copy = np.pad(ligand_copy, ((padding, padding), (padding, padding)), 'constant', constant_values=0)
 
+    inputshapes = receptor_copy + ligand_copy
+
+    gt_rot = (gt_rot * 180.0/np.pi)
     gt_transformlig = rotate_gridligand(ligand_copy, gt_rot)
     gt_transformlig = translate_gridligand(gt_transformlig, gt_txy[0], gt_txy[1])
     gt_transformlig += receptor_copy
 
-    transformligand = rotate_gridligand(ligand_copy, rotation)
-    transformligand = translate_gridligand(transformligand, translation[0], translation[1])
-    transformligand += receptor_copy
+    if pred_txy is not None and pred_rot is not None:
+        pred_rot = (pred_rot * 180.0 / np.pi)
+        transformligand = rotate_gridligand(ligand_copy, pred_rot)
+        transformligand = translate_gridligand(transformligand, pred_txy[0], pred_txy[1])
+        transformligand += receptor_copy
 
-    inputshapes = receptor_copy + ligand_copy
-    pair = np.vstack((gt_transformlig, inputshapes, transformligand))
+        pair = np.vstack((gt_transformlig, inputshapes, transformligand))
+    else:
+        pair = np.vstack((gt_transformlig, inputshapes))
 
     return pair
 
 
-def plot_dataset(dataset, setname, dim0, dim1):
-    fig, ax = plt.subplots(dim0, dim1, figsize=(15, 10))
-    plt.subplots_adjust(left=0.1, bottom=0.1, right=0.9, top=0.9, wspace=0.8, hspace=0.8)
-    count = 0
-    plt.suptitle("Ground Truth Transform                Input Shapes                  Predicted Pose")
-    for assembly in dataset:
-        j = count % dim0
-        k = count % dim1
-        count += 1
-        receptor, ligand, score, MAE, (rotation, translation), (truerot, truetxy), _ = assembly
-
-        scoring = 'Score =' + str(score)[:5] + ' MAErot=' + str(MAE[0])[:5] + ' MAEtrans=' + str(MAE[1])[:5]
-
-        pair = plot_assembly(receptor, ligand, rotation, translation, truerot, truetxy)
-
-        ax[j,k].imshow(pair.transpose())
-        ax[j,k].grid(None)
-        ax[j,k].axis('Off')
-        ax[j,k].text(5, 5, scoring, bbox={'facecolor': 'white', 'pad': 5}, fontsize=7)
-
-    plt.tight_layout()
-    plt.savefig('figs/'+setname + str(count)+'.png')
-    plt.close()
+# def plot_dataset(dataset, setname, dim0, dim1):
+#     fig, ax = plt.subplots(dim0, dim1, figsize=(15, 10))
+#     plt.subplots_adjust(left=0.1, bottom=0.1, right=0.9, top=0.9, wspace=0.8, hspace=0.8)
+#     count = 0
+#     plt.suptitle("Ground Truth Transform                Input Shapes                  Predicted Pose")
+#     for assembly in dataset:
+#         j = count % dim0
+#         k = count % dim1
+#         count += 1
+#         receptor, ligand, score, MAE, (rotation, translation), (truerot, truetxy), _ = assembly
+#
+#         scoring = 'Score =' + str(score)[:5] + ' MAErot=' + str(MAE[0])[:5] + ' MAEtrans=' + str(MAE[1])[:5]
+#
+#         pair = plot_assembly(receptor, ligand, rotation, translation, truerot, truetxy)
+#
+#         ax[j,k].imshow(pair.transpose())
+#         ax[j,k].grid(None)
+#         ax[j,k].axis('Off')
+#         ax[j,k].text(5, 5, scoring, bbox={'facecolor': 'white', 'pad': 5}, fontsize=7)
+#
+#     plt.tight_layout()
+#     plt.savefig('figs/'+setname + str(count)+'.png')
+#     plt.close()
 
 if __name__ == '__main__':
     print('works')

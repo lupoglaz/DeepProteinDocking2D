@@ -167,26 +167,27 @@ class TorchDockingFFT:
         else:
             return score
 
-    def check_FFT_predictions(self, FFT_score, receptor, ligand, gt_txy, gt_rot):
+    def check_FFT_predictions(self, fft_score, receptor, ligand, gt_txy, gt_rot):
         print('\n'+'*'*50)
 
-        pred_rot, pred_txy = self.extract_transform(FFT_score)
+        pred_rot, pred_txy = self.extract_transform(fft_score)
         rmsd_out = RMSD(ligand, gt_rot, gt_txy, pred_rot, pred_txy).calc_rmsd()
         print('extracted predicted indices', pred_rot, pred_txy)
         print('gt indices', gt_rot, gt_txy)
         print('RMSD', rmsd_out.item())
         print()
         if self.num_angles == 1:
-            plt.imshow(FFT_score.detach().cpu())
+            plt.imshow(fft_score.detach().cpu())
             plt.colorbar()
             plt.show()
         else:
-            plt.imshow(FFT_score[pred_rot.long(), :, :].detach().cpu())
+            plt.imshow(fft_score[pred_rot.long(), :, :].detach().cpu())
             plt.colorbar()
             plt.show()
 
-        pair = plot_assembly(receptor.detach().cpu(), ligand.detach().cpu().numpy(), pred_rot.detach().cpu().numpy(),
-                             pred_txy.detach().cpu().numpy(), gt_rot.detach().cpu().numpy(), gt_txy.detach().cpu().numpy())
+        pair = plot_assembly(receptor.detach().cpu(), ligand.detach().cpu().numpy(),
+                             gt_rot.detach().cpu().numpy(), gt_txy.detach().cpu().numpy(),
+                             pred_rot.detach().cpu().numpy(), pred_txy.detach().cpu().numpy())
         plt.imshow(pair.transpose())
         plt.show()
 
@@ -216,7 +217,7 @@ if __name__ == '__main__':
     from DeepProteinDocking2D.Utility.torchDataLoader import get_docking_stream
     from tqdm import tqdm
 
-    trainset = 'toy_concave_data/docking_data_test'
+    trainset = '../Datasets/docking_data_test'
 
     train_stream = get_docking_stream(trainset + '.pkl', batch_size=1)
 
@@ -238,11 +239,11 @@ if __name__ == '__main__':
 
         receptor_stack = FFT.make_boundary(receptor)
         ligand_stack = FFT.make_boundary(ligand)
-        FFT_score = FFT.dock_global(receptor_stack, ligand_stack)
+        fft_score = FFT.dock_global(receptor_stack, ligand_stack)
 
-        FFT.check_FFT_predictions(FFT_score, receptor, ligand, gt_txy, gt_rot)
+        FFT.check_FFT_predictions(fft_score, receptor, ligand, gt_txy, gt_rot)
 
-        # FFT_score = TorchDockingFFT().dock_global(receptor_stack, ligand_stack, weight_bound=-0.3, weight_crossterm1=0.55, weight_crossterm2=0.55, weight_bulk=3.0, debug=False)
+        # fft_score = TorchDockingFFT().dock_global(receptor_stack, ligand_stack, weight_bound=-0.3, weight_crossterm1=0.55, weight_crossterm2=0.55, weight_bulk=3.0, debug=False)
         #
         #
-        # TorchDockingFFT().check_FFT_predictions(-FFT_score, receptor, ligand, gt_txy, gt_rot)
+        # TorchDockingFFT().check_FFT_predictions(-fft_score, receptor, ligand, gt_txy, gt_rot)
