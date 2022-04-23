@@ -8,7 +8,7 @@ import numpy as np
 from matplotlib import pylab as plt
 
 from DeepProteinDocking2D.Models.model_docking import Docking
-
+from DeepProteinDocking2D.Utility.utility_functions import Utility
 
 class Docker(nn.Module):
     def __init__(self, dockingFFT, num_angles=1, debug=False):
@@ -37,32 +37,13 @@ class Docker(nn.Module):
                 deg_index_rot = (((pred_rot * 180.0 / np.pi) + 180.0) % self.num_angles).type(torch.long)
                 best_score = FFT_score[deg_index_rot, pred_txy[0], pred_txy[1]]
                 if plotting and self.num_angles == 360 and plot_count % 10 == 0:
-                    self.plot_rotE_surface(FFT_score, pred_txy, stream_name, plot_count)
+                    Utility.plot_rotation_energysurface(FFT_score, pred_txy, stream_name, plot_count)
             else:
                 best_score = FFT_score[pred_txy[0], pred_txy[1]]
 
         lowest_energy = -best_score
 
         return lowest_energy, pred_rot, pred_txy, FFT_score
-
-    def plot_rotE_surface(self, FFT_score, pred_txy, stream_name, plot_count):
-        plt.close()
-        mintxy_energies = []
-        if self.num_angles == 1:
-            minimumEnergy = -FFT_score[pred_txy[0], pred_txy[1]].detach().cpu()
-            mintxy_energies.append(minimumEnergy)
-        else:
-            for i in range(self.num_angles):
-                minimumEnergy = -FFT_score[i, pred_txy[0], pred_txy[1]].detach().cpu()
-                mintxy_energies.append(minimumEnergy)
-
-        xrange = np.arange(0, 2 * np.pi, 2 * np.pi / self.num_angles)
-        hardmin_minEnergies = stream_name + '_energysurface' + '_example' + str(plot_count)
-        plt.plot(xrange, mintxy_energies)
-        plt.title('Best Scoring Translation Energy Surface')
-        plt.ylabel('Energy')
-        plt.xlabel('Rotation (rads)')
-        plt.savefig('Figs/EnergySurfaces/' + hardmin_minEnergies + '.png')
 
 
 class EnergyBasedModel(nn.Module):
