@@ -6,12 +6,12 @@ import seaborn as sea
 sea.set_style("whitegrid")
 
 from DeepProteinDocking2D.Utility.validation_metrics import RMSD
-from DeepProteinDocking2D.Utility.utility_functions import plot_assembly
+from DeepProteinDocking2D.Utility.utility_functions import Utility
 import numpy as np
 
 
 class TorchDockingFFT:
-    def __init__(self, dim=100, num_angles=360, angle=None, swap_plot_quadrants=False, debug=False, normalization=None):
+    def __init__(self, dim=100, num_angles=360, angle=None, swap_plot_quadrants=False, debug=False, normalization='ortho'):
         self.debug = debug
         self.swap_plot_quadrants = swap_plot_quadrants
         self.dim = dim
@@ -81,14 +81,7 @@ class TorchDockingFFT:
         curr_grid = F.affine_grid(R, size=repr.size(), align_corners=True).type(torch.float)
         return F.grid_sample(repr, curr_grid, align_corners=True)
 
-    ## Tried some weights suggested by Georgy
-    # weight_bound = 1.0, weight_crossterm1 = 1.0, weight_crossterm2 = 1.0, weight_bulk = 1.0,
-    # weight_bound = 3.0, weight_crossterm1 = -0.3, weight_crossterm2 = -0.3, weight_bulk = 2.8,
-    # weight_bound = 3.0, weight_crossterm1 = -0.3, weight_crossterm2 = -0.3, weight_bulk = 30.0,
-    ## Weights learned from model: RECODE_CHECK_BFDOCKING_30epochs DOES NOT WORK WITH RAW BULK BOUNDARY DATASET FEATS
-    # weight_bound = 0.7626, weight_crossterm1, 1.0481, weight_crossterm2 = 0.9259, weight_bulk = 0.9861
-
-    def dock_global(self, receptor, ligand, weight_bound = 1, weight_crossterm1 = 2, weight_crossterm2 = 2, weight_bulk = -20):
+    def dock_global(self, receptor, ligand, weight_bound=1, weight_crossterm1=2, weight_crossterm2=2, weight_bulk=-20):
         initbox_size = receptor.shape[-1]
         # print(receptor.shape)
         pad_size = initbox_size // 2
@@ -186,19 +179,16 @@ class TorchDockingFFT:
             plt.colorbar()
             plt.show()
 
-        pair = plot_assembly(receptor.detach().cpu(), ligand.detach().cpu().numpy(),
+        pair = Utility().plot_assembly(receptor.detach().cpu(), ligand.detach().cpu().numpy(),
                              gt_rot.detach().cpu().numpy(), gt_txy.detach().cpu().numpy(),
                              pred_rot.detach().cpu().numpy(), pred_txy.detach().cpu().numpy())
         plt.imshow(pair.transpose())
         plt.show()
 
-    def swap_quadrants(ctx, input_volume):
-        # batch_size = input_volume.size(0)
-        # num_features = input_volume.size(1)
+    def swap_quadrants(self, input_volume):
         num_features = input_volume.size(0)
         L = input_volume.size(-1)
         L2 = int(L / 2)
-        # output_volume = torch.zeros(batch_size, num_features, L, L, device=input_volume.device, dtype=input_volume.dtype)
         output_volume = torch.zeros(num_features, L, L, device=input_volume.device, dtype=input_volume.dtype)
 
         output_volume[:, :L2, :L2] = input_volume[:, L2:L, L2:L]
@@ -223,7 +213,7 @@ if __name__ == '__main__':
     train_stream = get_docking_stream(trainset + '.pkl', batch_size=1)
 
     swap_quadrants = True
-    FFT = TorchDockingFFT(swap_plot_quadrants=swap_quadrants)
+    FFT = TorchDockingFFT(swap_plot_quadrants=swap_quadrants, normalization="ortho")
 
     for data in tqdm(train_stream):
         receptor, ligand, gt_txy, gt_rot, _ = data

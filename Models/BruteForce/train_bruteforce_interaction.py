@@ -293,10 +293,15 @@ class BruteForceInteractionTrainer:
 if __name__ == '__main__':
     #################################################################################
     trainset = '../../Datasets/interaction_data_train'
+    # validset = '../../Datasets/interaction_data_valid'
+    # # ### testing set
+    # testset = '../../Datasets/interaction_data_test'
+
+
+    # trainset = '../../DatasetGeneration/docking_set_100examples'
     validset = '../../Datasets/interaction_data_valid'
     # ### testing set
     testset = '../../Datasets/interaction_data_test'
-
     #########################
     #### initialization torch settings
     random_seed = 42
@@ -331,7 +336,8 @@ if __name__ == '__main__':
     valid_stream = get_interaction_stream_balanced(validset + '.pkl', batch_size=1)
     test_stream = get_interaction_stream_balanced(testset + '.pkl', batch_size=1)
 
-    experiment = 'BF_FI_SMALLDATA_100EXAMPLES'
+    # experiment = 'BF_FI_SMALLDATA_100EXAMPLES'
+    experiment = 'BF_FI_NEWDATA_TEST1'
 
     ##################### Load and freeze/unfreeze params (training, no eval)
     ### path to pretrained docking model
@@ -343,11 +349,11 @@ if __name__ == '__main__':
     # training_case = 'C' # CaseC: train with docking model SE2 CNN frozen and scoring ("a") coeffs unfrozen
     training_case = 'scratch' # Case scratch: train everything from scratch
     experiment = 'FI_case' + training_case + '_' + experiment
-    train_epochs = 100
+    train_epochs = 20
     #####################
     ### Train model from beginning
-    # BruteForceInteractionTrainer(docking_model, docking_optimizer, interaction_model, interaction_optimizer, experiment, training_case, path_pretrain
-    #                              ).run_trainer(train_epochs, train_stream=train_stream, valid_stream=None, test_stream=None)
+    BruteForceInteractionTrainer(docking_model, docking_optimizer, interaction_model, interaction_optimizer, experiment, training_case, path_pretrain
+                                 ).run_trainer(train_epochs, train_stream=train_stream, valid_stream=None, test_stream=None)
 
     ### Resume training model at chosen epoch
     # BruteForceInteractionTrainer(docking_model, docking_optimizer, interaction_model, interaction_optimizer, experiment, training_case, path_pretrain

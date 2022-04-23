@@ -11,7 +11,7 @@ from tqdm import tqdm
 from DeepProteinDocking2D.Utility.torchDataLoader import get_docking_stream
 from DeepProteinDocking2D.Utility.torchDockingFFT import TorchDockingFFT
 from DeepProteinDocking2D.Models.model_docking import Docking
-from DeepProteinDocking2D.Utility.utility_functions import plot_assembly
+from DeepProteinDocking2D.Utility.utility_functions import Utility
 from DeepProteinDocking2D.Utility.validation_metrics import RMSD
 from DeepProteinDocking2D.Plotting.plot_IP_loss import IPLossPlotter
 
@@ -195,7 +195,7 @@ class BruteForceDockingTrainer:
         rmsd_out = RMSD(ligand, gt_rot, gt_txy, pred_rot, pred_txy).calc_rmsd()
         print('RMSD', rmsd_out.item())
 
-        pair = plot_assembly(receptor.squeeze().detach().cpu().numpy(), ligand.squeeze().detach().cpu().numpy(),
+        pair = Utility.plot_assembly(receptor.squeeze().detach().cpu().numpy(), ligand.squeeze().detach().cpu().numpy(),
                              pred_rot.detach().cpu().numpy(),
                              (pred_txy[0].detach().cpu().numpy(), pred_txy[1].detach().cpu().numpy()),
                              gt_rot.squeeze().detach().cpu().numpy(), gt_txy.squeeze().detach().cpu().numpy())
@@ -255,8 +255,14 @@ class BruteForceDockingTrainer:
 
 if __name__ == '__main__':
     #################################################################################
+    # # Datasets
+    # trainset = '../../Datasets/docking_data_train'
+    # validset = '../../Datasets/docking_data_valid'
+    # ### testing set
+    # testset = '../../Datasets/docking_data_test'
+
     # Datasets
-    trainset = '../../Datasets/docking_data_train'
+    trainset = '../../DatasetGeneration/docking_set_19examples'
     validset = '../../Datasets/docking_data_valid'
     ### testing set
     testset = '../../Datasets/docking_data_test'
@@ -285,7 +291,8 @@ if __name__ == '__main__':
     ######################
     train_epochs = 30
     # train_epochs = 10
-    experiment = 'SMALLDATA_100EXAMPLES' ## best test rmsd 5.1
+    # experiment = 'SMALLDATA_100EXAMPLES' ## best test rmsd 5.1
+    experiment = 'NEWDATA_TEST'
 
     ######################
     ### Train model from beginning
@@ -301,5 +308,5 @@ if __name__ == '__main__':
     #     check_epoch=30, train_stream=train_stream, valid_stream=valid_stream, test_stream=test_stream)
 
     ## Plot loss from current experiment
-    # IPLossPlotter(experiment).plot_loss()
-    # IPLossPlotter(experiment).plot_rmsd_distribution(plot_epoch=train_epochs, show=True)
+    IPLossPlotter(experiment).plot_loss()
+    IPLossPlotter(experiment).plot_rmsd_distribution(plot_epoch=train_epochs, show=True)

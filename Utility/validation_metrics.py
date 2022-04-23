@@ -1,7 +1,7 @@
 import torch
 import numpy as np
 import random
-from DeepProteinDocking2D.Utility.utility_functions import read_pkl, plot_assembly
+from DeepProteinDocking2D.Utility.utility_functions import Utility
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 
@@ -192,7 +192,7 @@ if __name__ == '__main__':
     # testset = 'toy_concave_data/'+dataset+'_data_'+setid
     # resume_epoch = 5
 
-    data = read_pkl(testset)
+    data = Utility().read_pkl(testset)
     model = Docking().to(device=0)
     ckp_path = 'Log/' + testcase + str(resume_epoch) + '.th'
     model = load_ckp(ckp_path, model)
