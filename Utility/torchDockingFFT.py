@@ -147,8 +147,8 @@ class TorchDockingFFT:
         trans_bound_bulk = torch.fft.irfft2(cplx_rec * torch.conj(cplx_lig), dim=(-2, -1), norm=self.norm)
 
         ## cross-term score maximizing
-        # score = weight_bound * trans_bound + weight_crossterm1 * trans_bulk_bound + weight_crossterm2 * trans_bound_bulk - weight_bulk * trans_bulk
-        score = weight_bound * trans_bound + weight_crossterm1 * trans_bulk_bound + weight_crossterm2 * trans_bound_bulk + weight_bulk * trans_bulk
+        score = weight_bound * trans_bound + weight_crossterm1 * trans_bulk_bound + weight_crossterm2 * trans_bound_bulk - weight_bulk * trans_bulk
+        # score = weight_bound * trans_bound + weight_crossterm1 * trans_bulk_bound + weight_crossterm2 * trans_bound_bulk + weight_bulk * trans_bulk
 
         # print(score.shape)
         ## minimizing score tests to check georgy coefficients
@@ -208,7 +208,8 @@ if __name__ == '__main__':
     from DeepProteinDocking2D.Utility.torchDataLoader import get_docking_stream
     from tqdm import tqdm
 
-    trainset = '../Datasets/docking_data_test'
+    # trainset = '../Datasets/docking_data_test'
+    trainset = '../DatasetGeneration/docking_set_50examples'
 
     train_stream = get_docking_stream(trainset + '.pkl', batch_size=1)
 
@@ -216,12 +217,12 @@ if __name__ == '__main__':
     FFT = TorchDockingFFT(swap_plot_quadrants=swap_quadrants, normalization="ortho")
 
     for data in tqdm(train_stream):
-        receptor, ligand, gt_txy, gt_rot, _ = data
+        receptor, ligand, gt_rot, gt_txy = data
 
         receptor = receptor.squeeze()
         ligand = ligand.squeeze()
-        gt_txy = gt_txy.squeeze()
         gt_rot = gt_rot.squeeze()
+        gt_txy = gt_txy.squeeze()
 
         receptor = receptor.to(device='cuda', dtype=torch.float)
         ligand = ligand.to(device='cuda', dtype=torch.float)
