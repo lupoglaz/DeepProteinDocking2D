@@ -1,19 +1,8 @@
-import os
-import sys
 import numpy as np
-import torch
-import argparse
-import _pickle as pkl
-
 import matplotlib.pylab as plt
 import seaborn as sea
 sea.set_style("whitegrid")
-
 from random import uniform
-from .Protein import Protein
-import shapely.geometry as geom
-
-from tqdm import tqdm
 
 def _pick_translation(receptor, ligand, threshold):
 	rec_center = np.array([receptor.shape[0]/2, receptor.shape[1]/2])

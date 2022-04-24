@@ -1,16 +1,9 @@
-import os
-import sys
 import numpy as np
 import torch
-import argparse
-import _pickle as pkl
-import math
-
 import matplotlib.pylab as plt
 import seaborn as sea
 sea.set_style("whitegrid")
 
-from collections import namedtuple
 from random import uniform
 import scipy
 from scipy.spatial import ConvexHull
@@ -20,9 +13,6 @@ import shapely.geometry as geom
 import shapely.affinity as affine
 
 import torch.nn.functional as F
-
-from tqdm import tqdm
-
 
 def get_random_points(num_points, xspan, yspan):
 	points = [[uniform(*xspan), uniform(*yspan)]  for i in range(num_points)]
