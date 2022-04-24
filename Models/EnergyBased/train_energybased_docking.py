@@ -11,7 +11,7 @@ from tqdm import tqdm
 from DeepProteinDocking2D.Utility.torchDataLoader import get_docking_stream
 from DeepProteinDocking2D.Utility.torchDockingFFT import TorchDockingFFT
 from DeepProteinDocking2D.Models.BruteForce.train_bruteforce_docking import Docking
-from DeepProteinDocking2D.Utility.utility_functions import plot_assembly
+from DeepProteinDocking2D.Utility.utility_functions import Utility
 from DeepProteinDocking2D.Utility.validation_metrics import RMSD
 from DeepProteinDocking2D.Plotting.plot_IP_loss import IPLossPlotter
 from DeepProteinDocking2D.Models.EnergyBased.model_energybased_sampling import EnergyBasedModel
@@ -83,13 +83,19 @@ class EnergyBasedDockingTrainer:
         # self.trainbuffer = SampleBuffer(num_examples=num_examples)
         self.evalbuffer = SampleBuffer(num_examples=num_examples)
 
-    def run_model(self, data, training=True, plot_count=0, stream_name='trainset'):
-        receptor, ligand, gt_txy, gt_rot, pos_idx = data
+    def run_model(self, data, training=True, pos_idx=0, stream_name='trainset'):
+        receptor, ligand, gt_rot, gt_txy = data
         # print(pos_idx)
         receptor = receptor.squeeze()
         ligand = ligand.squeeze()
-        gt_txy = gt_txy.squeeze()
         gt_rot = gt_rot.squeeze()
+        gt_txy = gt_txy.squeeze()
+
+        # plt.imshow(receptor.detach().cpu())
+        # plt.show()
+        # plt.imshow(ligand.detach().cpu())
+        # plt.show()
+        # print(gt_rot, gt_txy)
 
         receptor = receptor.to(device='cuda', dtype=torch.float).unsqueeze(0)
         ligand = ligand.to(device='cuda', dtype=torch.float).unsqueeze(0)
@@ -104,11 +110,11 @@ class EnergyBasedDockingTrainer:
         ### run model and loss calculation
         ##### call model
         if training:
-            neg_energy, pred_rot, pred_txy, FFT_score = self.model(gt_rot, receptor, ligand, plot_count=pos_idx.item(), stream_name=stream_name, plotting=self.plotting)
+            neg_energy, pred_rot, pred_txy, FFT_score = self.model(gt_rot, receptor, ligand, plot_count=pos_idx, stream_name=stream_name, plotting=self.plotting)
         else:
-            alpha = self.evalbuffer.get(pos_idx, samples_per_example=1)
-            energy, pred_rot, pred_txy, FFT_score = self.model(alpha, receptor, ligand, plot_count=pos_idx.item(), stream_name=stream_name, plotting=self.plotting, training=False)
-            self.evalbuffer.push(pred_rot, pos_idx)
+            alpha = self.evalbuffer.get(torch.tensor([pos_idx]), samples_per_example=1)
+            energy, pred_rot, pred_txy, FFT_score = self.model(alpha, receptor, ligand, plot_count=pos_idx, stream_name=stream_name, plotting=self.plotting, training=False)
+            self.evalbuffer.push(pred_rot, torch.tensor([pos_idx]))
             # print(neg_alpha, pred_rot)
             # pred_txy = gt_txy
 
@@ -140,9 +146,9 @@ class EnergyBasedDockingTrainer:
         else:
             loss = torch.zeros(1)
             self.model.eval()
-            if self.plotting and plot_count % self.plot_freq == 0:
+            if self.plotting and pos_idx % self.plot_freq == 0:
                 with torch.no_grad():
-                    self.plot_pose(receptor, ligand, gt_rot, gt_txy, pred_rot.squeeze(), pred_txy.squeeze(), pos_idx.item(), stream_name)
+                    self.plot_pose(receptor, ligand, gt_rot, gt_txy, pred_rot.squeeze(), pred_txy.squeeze(), pos_idx, stream_name)
 
         return loss.item(), rmsd_out.item()
 
@@ -194,11 +200,13 @@ class EnergyBasedDockingTrainer:
             if train_stream:
                 ### Training epoch
                 train_loss = []
+                pos_idx = 0
                 for data in tqdm(train_stream):
-                    train_output = [self.run_model(data, training=True)]
+                    train_output = [self.run_model(data, pos_idx=pos_idx, training=True)]
                     train_loss.append(train_output)
                     with open('Log/losses/log_RMSDsTrainset_epoch' + str(epoch) + self.experiment + '.txt', 'a') as fout:
                         fout.write('%f\n' % (train_output[0][-1]))
+                    pos_idx +=1
 
                 # scheduler.step()
                 # print(scheduler.get_last_lr())
@@ -221,14 +229,14 @@ class EnergyBasedDockingTrainer:
                 if valid_stream:
                     stream_name = 'validset'
                     # for epoch in range(10):
-                    plot_count = 0
+                    pos_idx = 0
                     valid_loss = []
                     for data in tqdm(valid_stream):
-                        valid_output = [self.run_model(data, training=False, plot_count=plot_count, stream_name=stream_name)]
+                        valid_output = [self.run_model(data, training=False, pos_idx=pos_idx, stream_name=stream_name)]
                         valid_loss.append(valid_output)
                         with open('Log/losses/log_RMSDsValidset_epoch' + str(epoch) + self.experiment + '.txt', 'a') as fout:
                             fout.write('%f\n' % (valid_output[0][-1]))
-                        plot_count += 1
+                        pos_idx += 1
 
                     avg_validloss = np.average(valid_loss, axis=0)[0, :]
                     print('\nEpoch', epoch, 'VALID LOSS:', avg_validloss)
@@ -237,14 +245,14 @@ class EnergyBasedDockingTrainer:
 
                 if test_stream:
                     stream_name = 'testset'
-                    plot_count = 0
+                    pos_idx = 0
                     test_loss = []
                     for data in tqdm(test_stream):
-                        test_output = [self.run_model(data, training=False, plot_count=plot_count, stream_name=stream_name)]
+                        test_output = [self.run_model(data, training=False, pos_idx=pos_idx, stream_name=stream_name)]
                         test_loss.append(test_output)
                         with open('Log/losses/log_RMSDsTestset_epoch' + str(epoch) + self.experiment + '.txt', 'a') as fout:
                             fout.write('%f\n' % (test_output[0][-1]))
-                        plot_count += 1
+                        pos_idx += 1
 
                     avg_testloss = np.average(test_loss, axis=0)[0, :]
                     print('\nEpoch', epoch, 'TEST LOSS:', avg_testloss)
@@ -289,7 +297,7 @@ class EnergyBasedDockingTrainer:
         rmsd_out = RMSD(ligand, gt_rot, gt_txy, pred_rot, pred_txy).calc_rmsd()
         print('RMSD', rmsd_out.item())
 
-        pair = plot_assembly(receptor.squeeze().detach().cpu().numpy(), ligand.squeeze().detach().cpu().numpy(),
+        pair = Utility().plot_assembly(receptor.squeeze().detach().cpu().numpy(), ligand.squeeze().detach().cpu().numpy(),
                              pred_rot.detach().cpu().numpy(),
                              (pred_txy[0].detach().cpu().numpy(), pred_txy[1].detach().cpu().numpy()),
                              gt_rot.squeeze().detach().cpu().numpy(), gt_txy.squeeze().detach().cpu().numpy())
@@ -327,10 +335,16 @@ class EnergyBasedDockingTrainer:
 if __name__ == '__main__':
     #################################################################################
     # # Datasets
-    trainset = '../../Datasets/docking_data_train'
-    validset = '../../Datasets/docking_data_valid'
+    # trainset = '../../Datasets/docking_data_train'
+    # validset = '../../Datasets/docking_data_valid'
+    # ### testing set
+    # testset = '../../Datasets/docking_data_test'
+
+    # Datasets
+    trainset = '../../DatasetGeneration/docking_set_190examples'
+    validset = '../../DatasetGeneration/docking_set_50examples'
     ### testing set
-    testset = '../../Datasets/docking_data_test'
+    testset = '../../DatasetGeneration/docking_set_19examples'
 
     #########################
     #### initialization torch settings
@@ -350,13 +364,15 @@ if __name__ == '__main__':
     batch_size = 1
     if batch_size > 1:
         raise NotImplementedError()
-    train_stream = get_docking_stream(trainset + '.pkl', batch_size)
+    train_stream = get_docking_stream(trainset + '.pkl', batch_size, max_size=880)
     valid_stream = get_docking_stream(validset + '.pkl', batch_size=1)
     test_stream = get_docking_stream(testset + '.pkl', batch_size=1)
 
     ######################
-    experiment = 'BSmodel_lr-2_5ep_checkRepoRefactor' #
-
+    # experiment = 'BSmodel_lr-2_5ep_checkRepoRefactor' #
+    # experiment = 'NEWDATA_TEST1000ex'
+    # experiment = 'NEWDATA_TEST880ex'
+    experiment = 'NEWDATA_TEST190ex_lowertriangle_nohomodimers'
 
     ### For IP MC eval: sigma alpha 1 RMSD 10, 1.5 RMSD 7.81, 2 RMSD 6.59, 2.5 RMSD 7.44, 1.25, RMSD 6.82, pi/2 RMSD 8.79
     ######################

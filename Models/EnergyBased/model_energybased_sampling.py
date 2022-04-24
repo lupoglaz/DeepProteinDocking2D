@@ -28,22 +28,22 @@ class Docker(nn.Module):
         else:
             plotting=False
 
-        FFT_score = self.dockingConv.forward(receptor, ligand, angle=rotation, plotting=plotting, training=training, plot_count=plot_count, stream_name=stream_name)
+        fft_score = self.dockingConv.forward(receptor, ligand, angle=rotation, plotting=plotting, training=training, plot_count=plot_count, stream_name=stream_name)
 
         with torch.no_grad():
-            pred_rot, pred_txy = self.dockingFFT.extract_transform(FFT_score)
+            pred_rot, pred_txy = self.dockingFFT.extract_transform(fft_score)
 
-            if len(FFT_score.shape) > 2:
+            if len(fft_score.shape) > 2:
                 deg_index_rot = (((pred_rot * 180.0 / np.pi) + 180.0) % self.num_angles).type(torch.long)
-                best_score = FFT_score[deg_index_rot, pred_txy[0], pred_txy[1]]
+                best_score = fft_score[deg_index_rot, pred_txy[0], pred_txy[1]]
                 if plotting and self.num_angles == 360 and plot_count % 10 == 0:
-                    Utility.plot_rotation_energysurface(FFT_score, pred_txy, stream_name, plot_count)
+                    Utility().plot_rotation_energysurface(fft_score,pred_txy, self.num_angles, stream_name, plot_count)
             else:
-                best_score = FFT_score[pred_txy[0], pred_txy[1]]
+                best_score = fft_score[pred_txy[0], pred_txy[1]]
 
         lowest_energy = -best_score
 
-        return lowest_energy, pred_rot, pred_txy, FFT_score
+        return lowest_energy, pred_rot, pred_txy, fft_score
 
 
 class EnergyBasedModel(nn.Module):
