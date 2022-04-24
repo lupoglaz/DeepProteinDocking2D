@@ -32,12 +32,12 @@ class BruteForceDockingTrainer:
         self.experiment = cur_experiment
 
     def run_model(self, data, training=True, plot_count=0, stream_name='trainset'):
-        receptor, ligand, gt_txy, gt_rot, _ = data
+        receptor, ligand, gt_rot, gt_txy = data
 
         receptor = receptor.squeeze()
         ligand = ligand.squeeze()
-        gt_txy = gt_txy.squeeze()
         gt_rot = gt_rot.squeeze()
+        gt_txy = gt_txy.squeeze()
 
         receptor = receptor.to(device='cuda', dtype=torch.float).unsqueeze(0)
         ligand = ligand.to(device='cuda', dtype=torch.float).unsqueeze(0)
@@ -262,10 +262,10 @@ if __name__ == '__main__':
     # testset = '../../Datasets/docking_data_test'
 
     # Datasets
-    trainset = '../../DatasetGeneration/docking_set_19examples'
-    validset = '../../Datasets/docking_data_valid'
+    trainset = '../../DatasetGeneration/docking_set_50examples'
+    validset = '../../DatasetGeneration/docking_set_19examples'
     ### testing set
-    testset = '../../Datasets/docking_data_test'
+    testset = '../../DatasetGeneration/docking_set_19examples'
     #########################
     #### initialization torch settings
     random_seed = 42
