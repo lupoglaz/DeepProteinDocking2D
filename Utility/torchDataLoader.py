@@ -24,7 +24,7 @@ def crop_collate(batch):
 class ToyDockingDataset(Dataset):
 	r"""
 	"""
-	def __init__(self, path='toy_dataset_1000.pkl', max_size=100):
+	def __init__(self, path, max_size=100):
 		r"""
 		"""
 		self.path = path
@@ -42,6 +42,36 @@ class ToyDockingDataset(Dataset):
 		"""
 		receptor, ligand, translation, rotation = self.data[index]
 		return receptor.unsqueeze(0), ligand.unsqueeze(0), rotation.unsqueeze(0), translation.unsqueeze(0)
+
+
+	def __len__(self):
+		r"""
+		Returns length of the dataset
+		"""
+		return self.dataset_size
+
+
+class ToyInteractionDataset(Dataset):
+	r"""
+	"""
+	def __init__(self, path, max_size=100):
+		r"""
+		"""
+		self.path = path
+		with open(self.path, 'rb') as fin:
+			self.data = pkl.load(fin)
+
+		self.data = self.data[:max_size]
+		self.dataset_size = len(list(self.data))
+
+		print ("Dataset file: ", self.path)
+		print ("Dataset size: ", self.dataset_size)
+
+	def __getitem__(self, index):
+		r"""
+		"""
+		receptor, ligand, interaction = self.data[index]
+		return receptor.unsqueeze(0), ligand.unsqueeze(0), torch.tensor(interaction).unsqueeze(0)
 
 
 	def __len__(self):
@@ -144,6 +174,10 @@ def get_docking_stream(data_path, batch_size = 10, shuffle = False, max_size=100
 	trainloader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, num_workers=0, shuffle=shuffle, collate_fn=crop_collate)
 	return trainloader
 
+def get_interaction_stream(data_path, batch_size = 10, max_size=1000):
+	dataset = ToyInteractionDataset(path=data_path, max_size=max_size)
+	trainloader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, num_workers=0, collate_fn=crop_collate, shuffle=False)
+	return trainloader
 
 
 # def get_interaction_stream_balanced(data_path, batch_size=10, max_size=1000):
@@ -162,10 +196,7 @@ def get_docking_stream(data_path, batch_size = 10, shuffle = False, max_size=100
 # 	sampler.set_state(torch.load("saved_samplerstate.pth"))
 # 	return loader, sampler
 
-def get_interaction_stream(data_path, batch_size = 10, max_size=1000):
-	dataset = ToyInteractionDataset(path=data_path, max_size=max_size)
-	trainloader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, num_workers=0, collate_fn=crop_collate, shuffle=False)
-	return trainloader
+
 
 if __name__=='__main__':
 	pass

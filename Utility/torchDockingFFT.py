@@ -81,7 +81,7 @@ class TorchDockingFFT:
         curr_grid = F.affine_grid(R, size=repr.size(), align_corners=True).type(torch.float)
         return F.grid_sample(repr, curr_grid, align_corners=True)
 
-    def dock_global(self, receptor, ligand, weight_bound=1, weight_crossterm1=2, weight_crossterm2=2, weight_bulk=-20):
+    def dock_global(self, receptor, ligand, weight_bound=10, weight_crossterm1=20, weight_crossterm2=20, weight_bulk=200):
         initbox_size = receptor.shape[-1]
         # print(receptor.shape)
         pad_size = initbox_size // 2
@@ -208,8 +208,7 @@ if __name__ == '__main__':
     from DeepProteinDocking2D.Utility.torchDataLoader import get_docking_stream
     from tqdm import tqdm
 
-    # trainset = '../Datasets/docking_data_test'
-    trainset = '../DatasetGeneration/docking_set_50examples'
+    trainset = '../DatasetGeneration/docking_training_set_45examples'
 
     train_stream = get_docking_stream(trainset + '.pkl', batch_size=1)
 
