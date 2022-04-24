@@ -15,8 +15,8 @@ def crop_collate(batch):
 	if len(batch[0])>3:
 		translations = torch.stack(list(map(lambda x: x[2], batch)), dim=0)
 		rotations = torch.cat(list(map(lambda x: x[3], batch)), dim=0)
-		index = torch.tensor(list(map(lambda x: x[4], batch)), dtype=torch.long)
-		return receptors, ligands, translations, rotations, index
+		# index = torch.tensor(list(map(lambda x: x[4], batch)), dtype=torch.long)
+		return receptors, ligands, rotations, translations
 	else:
 		interactions = torch.cat(list(map(lambda x: x[2], batch)), dim=0)
 		return receptors, ligands, interactions
@@ -41,7 +41,7 @@ class ToyDockingDataset(Dataset):
 		r"""
 		"""
 		receptor, ligand, translation, rotation = self.data[index]
-		return receptor, ligand, torch.tensor([rotation]), torch.tensor(translation)
+		return receptor.unsqueeze(0), ligand.unsqueeze(0), rotation.unsqueeze(0), translation.unsqueeze(0)
 
 
 	def __len__(self):
