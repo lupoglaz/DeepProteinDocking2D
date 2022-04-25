@@ -24,13 +24,18 @@ def crop_collate(batch):
 class ToyDockingDataset(Dataset):
 	r"""
 	"""
-	def __init__(self, path, max_size=100):
+	def __init__(self, path, max_size=None):
 		r"""
 		"""
+		# if not max_size:
+		# 	max_size = len(list(self.data))
+
 		self.path = path
 		with open(self.path, 'rb') as fin:
 			self.data = pkl.load(fin)
 
+		if not max_size:
+			max_size = len(self.data)
 		self.data = self.data[:max_size]
 		self.dataset_size = len(list(self.data))
 
@@ -54,13 +59,15 @@ class ToyDockingDataset(Dataset):
 class ToyInteractionDataset(Dataset):
 	r"""
 	"""
-	def __init__(self, path, max_size=100):
+	def __init__(self, path, max_size=None):
 		r"""
 		"""
 		self.path = path
 		with open(self.path, 'rb') as fin:
 			self.data = pkl.load(fin)
 
+		if not max_size:
+			max_size = len(self.data)
 		self.data = self.data[:max_size]
 		self.dataset_size = len(list(self.data))
 
@@ -72,7 +79,6 @@ class ToyInteractionDataset(Dataset):
 		"""
 		receptor, ligand, interaction = self.data[index]
 		return receptor.unsqueeze(0), ligand.unsqueeze(0), torch.tensor(interaction).unsqueeze(0)
-
 
 	def __len__(self):
 		r"""
