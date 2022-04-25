@@ -9,8 +9,11 @@ from DeepProteinDocking2D.Plotting.plot_FI_loss import FILossPlotter
 if __name__ == "__main__":
     # trainset = 'toy_concave_data/interaction_data_train'
     # max_size = 100
-    trainset = '../DatasetGeneration/interaction_training_set_4545examples'
-    max_size = 1000
+    # trainset = '../DatasetGeneration/interaction_training_set_4545examples'
+    # trainset = '../DatasetGeneration/interaction_training_set_4734examples'
+    trainset = '../DatasetGeneration/interaction_training_set'
+
+    max_size = None
     train_stream = get_interaction_stream(trainset + '.pkl', batch_size=1, max_size=max_size)
 
     swap_quadrants = False
@@ -55,9 +58,4 @@ if __name__ == "__main__":
         with open(filename, 'a') as fout:
             fout.write('%f\t%f\t%d\n' % (F.item(), F.item(), gt_interact.item()))
 
-    # FILossPlotter('ManuscriptWeights').plot_deltaF_distribution(filename=filename, binwidth=100, show=True)
-    # FILossPlotter('AdjustedHighBulkWeight=30').plot_deltaF_distribution(filename=filename, binwidth=100, show=True)
-    # FILossPlotter('NORMortho_AdjustedHighBulkWeight=30').plot_deltaF_distribution(filename=filename, binwidth=1, show=True)
-    # FILossPlotter('NORMforward_AdjustedHighBulkWeight=30').plot_deltaF_distribution(filename=filename, binwidth=1, show=True)
-    # FILossPlotter('NORMbackward_AdjustedHighBulkWeight=30').plot_deltaF_distribution(filename=filename, binwidth=100, show=True)
-    FILossPlotter('NORMortho_AdjustedHighBulkWeight=30_newdata').plot_deltaF_distribution(filename=filename, binwidth=1, show=True)
+    FILossPlotter('checknewdata').plot_deltaF_distribution(filename=filename, binwidth=1, show=True)
