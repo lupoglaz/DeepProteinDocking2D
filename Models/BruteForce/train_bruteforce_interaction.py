@@ -8,7 +8,7 @@ sys.path.append('/home/sb1638/')
 
 import numpy as np
 from tqdm import tqdm
-from DeepProteinDocking2D.Utility.torchDataLoader import get_interaction_stream_balanced
+from DeepProteinDocking2D.Utility.torchDataLoader import get_interaction_stream
 from DeepProteinDocking2D.Models.model_interaction import Interaction
 from DeepProteinDocking2D.Utility.validation_metrics import APR
 from DeepProteinDocking2D.Models.model_docking import Docking
@@ -292,16 +292,10 @@ class BruteForceInteractionTrainer:
 
 if __name__ == '__main__':
     #################################################################################
-    trainset = '../../Datasets/interaction_data_train'
-    # validset = '../../Datasets/interaction_data_valid'
-    # # ### testing set
-    # testset = '../../Datasets/interaction_data_test'
-
-
-    # trainset = '../../DatasetGeneration/docking_set_100examples'
-    validset = '../../Datasets/interaction_data_valid'
+    trainset = '../../Datasets/interaction_train_set100pool'
+    validset = '../../Datasets/interaction_valid_set100pool'
     # ### testing set
-    testset = '../../Datasets/interaction_data_test'
+    testset = '../../Datasets/interaction_test_set100pool'
     #########################
     #### initialization torch settings
     random_seed = 42
@@ -327,17 +321,23 @@ if __name__ == '__main__':
     docking_optimizer = optim.Adam(docking_model.parameters(), lr=lr_docking)
 
     # max_size = 400
-    # max_size = 100
-    max_size = 50
+    # max_size = 1000
+    # max_size = 50
+    # max_size = 4500
+    max_size = None
     batch_size = 1
     if batch_size > 1:
         raise NotImplementedError()
-    train_stream = get_interaction_stream_balanced(trainset + '.pkl', batch_size=batch_size, max_size=max_size)
-    valid_stream = get_interaction_stream_balanced(validset + '.pkl', batch_size=1)
-    test_stream = get_interaction_stream_balanced(testset + '.pkl', batch_size=1)
+    train_stream = get_interaction_stream(trainset + '.pkl', batch_size=batch_size, max_size=max_size)
+    valid_stream = get_interaction_stream(validset + '.pkl', batch_size=1, max_size=max_size)
+    test_stream = get_interaction_stream(testset + '.pkl', batch_size=1, max_size=max_size)
 
     # experiment = 'BF_FI_SMALLDATA_100EXAMPLES'
-    experiment = 'BF_FI_NEWDATA_TEST1'
+    # experiment = 'BF_FI_NEWDATA_TEST1'
+    # experiment = 'BF_FI_NEWDATA_TEST1_1000ex'
+    # experiment = 'BF_FI_NEWDATA_TEST1_4500ex'
+
+    experiment = 'BF_FI_NEWDATA_CHECK_100pool'
 
     ##################### Load and freeze/unfreeze params (training, no eval)
     ### path to pretrained docking model
@@ -360,9 +360,9 @@ if __name__ == '__main__':
     #                              ).run_trainer(train_epochs=35, train_stream=train_stream, valid_stream=None, test_stream=None, resume_training=True, resume_epoch=65)
     #
     ### Validate model at chosen epoch
-    # BruteForceInteractionTrainer(docking_model, docking_optimizer, interaction_model, interaction_optimizer, experiment, training_case, path_pretrain
-    #                              ).run_trainer(train_epochs=1, train_stream=None, valid_stream=valid_stream, test_stream=test_stream,
-    #                                            resume_training=True, resume_epoch=train_epochs)
+    BruteForceInteractionTrainer(docking_model, docking_optimizer, interaction_model, interaction_optimizer, experiment, training_case, path_pretrain
+                                 ).run_trainer(train_epochs=1, train_stream=None, valid_stream=valid_stream, test_stream=test_stream,
+                                               resume_training=True, resume_epoch=train_epochs)
 
     ### Plot free energy distributions with learned F_0 decision threshold
     FILossPlotter(experiment).plot_deltaF_distribution(plot_epoch=train_epochs, show=True)

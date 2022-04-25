@@ -147,10 +147,7 @@ class EnergyBasedModel(nn.Module):
         noise_alpha = torch.zeros_like(alpha)
         prob_list = []
         acceptance = []
-        if self.FI:
-            FFT_score_list = []
-            # FFT_score_list.append(fft_score)
-            # FFT_score_stack = torch.stack(FFT_score_list)
+        fft_score_list = []
 
         for i in range(self.sample_steps):
             if i == self.sample_steps - 1:
@@ -183,7 +180,7 @@ class EnergyBasedModel(nn.Module):
                 dr = dr_new
                 FFT_score = FFT_score_new
                 if self.FI:
-                    FFT_score_list.append(FFT_score)
+                    fft_score_list.append(FFT_score)
             else:
                 prob = min(torch.exp(-self.BETA * (free_energy_new - free_energy)).item(), 1)
                 rand0to1 = torch.rand(1).cuda()
@@ -199,10 +196,10 @@ class EnergyBasedModel(nn.Module):
                     dr = dr_new
                     FFT_score = FFT_score_new
                     if self.FI:
-                        FFT_score_list.append(FFT_score)
+                        fft_score_list.append(FFT_score)
                 else:
                     if self.FI:
-                        FFT_score_list.append(FFT_score)
+                        fft_score_list.append(FFT_score)
                     if debug:
                         print('reject')
                     pass
@@ -217,14 +214,14 @@ class EnergyBasedModel(nn.Module):
         # plt.scatter(xrange, y)
         # plt.show()
         if self.FI:
-            # print(FFT_score_list)
-            FFT_score_stack = torch.stack(FFT_score_list)
+            # print(fft_score_list)
+            fft_score_stack = torch.stack(fft_score_list)
             # print(fft_score.shape)
-        else: FFT_score_stack = FFT_score
+        else: fft_score_stack = FFT_score
 
         self.docker.train()
 
-        return free_energy, alpha.unsqueeze(0).clone(), dr.clone(), FFT_score_stack.squeeze()
+        return free_energy, alpha.unsqueeze(0).clone(), dr.clone(), fft_score_stack.squeeze()
 
     def langevin(self, alpha, receptor, ligand, plot_count, stream_name, plotting=False, debug=False):
 
@@ -241,7 +238,7 @@ class EnergyBasedModel(nn.Module):
 
             langevin_opt.zero_grad()
 
-            energy, _, dr, FFT_score = self.docker(receptor, ligand, alpha, plot_count, stream_name, plotting=plotting)
+            energy, _, dr, fft_score = self.docker(receptor, ligand, alpha, plot_count, stream_name, plotting=plotting)
             # energy = -(torch.logsumexp(fft_score, dim=(0, 1)) - torch.log(torch.tensor(100 ** 2)))
 
             energy.backward()
@@ -252,7 +249,7 @@ class EnergyBasedModel(nn.Module):
             rand_rot = noise_alpha.normal_(0, self.sig_alpha)
             alpha = alpha + rand_rot
 
-        return energy, alpha.clone(), dr.clone(), FFT_score
+        return energy, alpha.clone(), dr.clone(), fft_score
 
     def requires_grad(self, flag=True):
         parameters = self.EBMdocker.parameters()

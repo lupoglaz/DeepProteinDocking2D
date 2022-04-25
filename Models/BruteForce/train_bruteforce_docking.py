@@ -255,17 +255,11 @@ class BruteForceDockingTrainer:
 
 if __name__ == '__main__':
     #################################################################################
-    # # Datasets
-    # trainset = '../../Datasets/docking_data_train'
-    # validset = '../../Datasets/docking_data_valid'
-    # ### testing set
-    # testset = '../../Datasets/docking_data_test'
-
     # Datasets
-    trainset = '../../DatasetGeneration/docking_set_50examples'
-    validset = '../../DatasetGeneration/docking_set_19examples'
+    trainset = '../../Datasets/docking_train_set100pool'
+    validset = '../../Datasets/docking_valid_set100pool'
     ### testing set
-    testset = '../../DatasetGeneration/docking_set_19examples'
+    testset = '../../Datasets/docking_test_set100pool'
     #########################
     #### initialization torch settings
     random_seed = 42

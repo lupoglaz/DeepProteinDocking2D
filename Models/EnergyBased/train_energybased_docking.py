@@ -334,17 +334,11 @@ class EnergyBasedDockingTrainer:
 
 if __name__ == '__main__':
     #################################################################################
-    # # Datasets
-    # trainset = '../../Datasets/docking_data_train'
-    # validset = '../../Datasets/docking_data_valid'
-    # ### testing set
-    # testset = '../../Datasets/docking_data_test'
-
     # Datasets
-    trainset = '../../DatasetGeneration/docking_set_190examples'
-    validset = '../../DatasetGeneration/docking_set_50examples'
+    trainset = '../../Datasets/docking_train_set100pool'
+    validset = '../../Datasets/docking_valid_set100pool'
     ### testing set
-    testset = '../../DatasetGeneration/docking_set_19examples'
+    testset = '../../Datasets/docking_test_set100pool'
 
     #########################
     #### initialization torch settings
@@ -370,9 +364,7 @@ if __name__ == '__main__':
 
     ######################
     # experiment = 'BSmodel_lr-2_5ep_checkRepoRefactor' #
-    # experiment = 'NEWDATA_TEST1000ex'
-    # experiment = 'NEWDATA_TEST880ex'
-    experiment = 'NEWDATA_TEST190ex_lowertriangle_nohomodimers'
+    experiment = 'NEWDATA_CHECK_100pool'
 
     ### For IP MC eval: sigma alpha 1 RMSD 10, 1.5 RMSD 7.81, 2 RMSD 6.59, 2.5 RMSD 7.44, 1.25, RMSD 6.82, pi/2 RMSD 8.79
     ######################
@@ -410,8 +402,8 @@ if __name__ == '__main__':
             resume_training=True, resume_epoch=epoch)
 
     ## Plot loss from current experiment
-    # IPLossPlotter(experiment).plot_loss(ylim=5)
-    # IPLossPlotter(experiment).plot_rmsd_distribution(plot_epoch=epoch+1, show=show, eval_only=True)
+    IPLossPlotter(experiment).plot_loss(ylim=5)
+    IPLossPlotter(experiment).plot_rmsd_distribution(plot_epoch=epoch+1, show=show, eval_only=True)
 
     ### Resume training model at chosen epoch
     # EnergyBasedDockingTrainer(dockingFFT, model, optimizer, experiment, plotting=True, debug=debug).run_trainer(

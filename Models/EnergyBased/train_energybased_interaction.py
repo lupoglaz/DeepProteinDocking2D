@@ -317,10 +317,11 @@ class EnergyBasedInteractionTrainer:
 
 if __name__ == '__main__':
     #################################################################################
-    trainset = '../../Datasets/interaction_data_train'
-    validset = '../../Datasets/interaction_data_valid'
-    # ### testing set
-    testset = '../../Datasets/interaction_data_test'
+    # Datasets
+    trainset = '../../Datasets/interaction_train_set100pool'
+    validset = '../../Datasets/interaction_valid_set100pool'
+    ### testing set
+    testset = '../../Datasets/interaction_test_set100pool'
 
     #########################
     #### initialization torch settings
