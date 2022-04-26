@@ -103,7 +103,7 @@ if __name__ == '__main__':
     swap_quadrants = False
     FFT = TorchDockingFFT(swap_plot_quadrants=swap_quadrants, normalization='ortho')
 
-    trainpool_num_proteins = 200
+    trainpool_num_proteins = 400
     testpool_num_proteins = trainpool_num_proteins // 2
 
     weight_bound, weight_crossterm1, weight_crossterm2, weight_bulk = 10, 20, 20, 200
@@ -178,7 +178,19 @@ if __name__ == '__main__':
     print('Docking set length', len(test_docking_set))
     print('Interaction set length', len(test_interaction_set))
 
-    savepath = 'Datasets/'
+
+    savepath = '../Datasets/'
+    with open(savepath+'datasetstats_'+str(trainpool_num_proteins)+'pool.txt', 'w') as fout:
+        fout.write('Raw Training set:')
+        fout.write('\nDocking set length '+str(len(train_docking_set)))
+        fout.write('\nInteraction set length '+str(len(train_interaction_set)))
+        fout.write('\nRaw Validation set:')
+        fout.write('\nDocking set length '+str(len(valid_docking_set)))
+        fout.write('\nInteraction set length '+str(len(valid_interaction_set)))
+        fout.write('\nRaw Testing set:')
+        fout.write('\nDocking set length '+str(len(test_docking_set)))
+        fout.write('\nInteraction set length '+str(len(test_interaction_set)))
+
     ## Save training sets
     Utility().write_pkl(data=train_docking_set, fileprefix=savepath+'docking_train_set'+str(trainpool_num_proteins)+'pool')
     Utility().write_pkl(data=train_interaction_set, fileprefix=savepath+'interaction_train_set'+str(trainpool_num_proteins)+'pool')

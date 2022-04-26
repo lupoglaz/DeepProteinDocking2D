@@ -292,10 +292,17 @@ class BruteForceInteractionTrainer:
 
 if __name__ == '__main__':
     #################################################################################
+    # ##Datasets
+    # trainset = '../../Datasets/interaction_train_set200pool'
+    # validset = '../../Datasets/interaction_valid_set200pool'
+    # # ### testing set
+    # testset = '../../Datasets/interaction_test_set100pool'
+
+    ##Datasets
     trainset = '../../Datasets/interaction_train_set100pool'
     validset = '../../Datasets/interaction_valid_set100pool'
     # ### testing set
-    testset = '../../Datasets/interaction_test_set100pool'
+    testset = '../../Datasets/interaction_test_set50pool'
     #########################
     #### initialization torch settings
     random_seed = 42
@@ -338,6 +345,7 @@ if __name__ == '__main__':
     # experiment = 'BF_FI_NEWDATA_TEST1_4500ex'
 
     experiment = 'BF_FI_NEWDATA_CHECK_100pool'
+    # experiment = 'BF_FI_NEWDATA_CHECK_200pool_10ep'
 
     ##################### Load and freeze/unfreeze params (training, no eval)
     ### path to pretrained docking model
@@ -352,17 +360,17 @@ if __name__ == '__main__':
     train_epochs = 20
     #####################
     ### Train model from beginning
-    BruteForceInteractionTrainer(docking_model, docking_optimizer, interaction_model, interaction_optimizer, experiment, training_case, path_pretrain
-                                 ).run_trainer(train_epochs, train_stream=train_stream, valid_stream=None, test_stream=None)
+    # BruteForceInteractionTrainer(docking_model, docking_optimizer, interaction_model, interaction_optimizer, experiment, training_case, path_pretrain
+    #                              ).run_trainer(train_epochs, train_stream=train_stream, valid_stream=None, test_stream=None)
 
     ### Resume training model at chosen epoch
     # BruteForceInteractionTrainer(docking_model, docking_optimizer, interaction_model, interaction_optimizer, experiment, training_case, path_pretrain
-    #                              ).run_trainer(train_epochs=35, train_stream=train_stream, valid_stream=None, test_stream=None, resume_training=True, resume_epoch=65)
+    #                              ).run_trainer(resume_training=True, resume_epoch=32, train_epochs=8, train_stream=train_stream, valid_stream=None, test_stream=None)
     #
     ### Validate model at chosen epoch
     BruteForceInteractionTrainer(docking_model, docking_optimizer, interaction_model, interaction_optimizer, experiment, training_case, path_pretrain
                                  ).run_trainer(train_epochs=1, train_stream=None, valid_stream=valid_stream, test_stream=test_stream,
-                                               resume_training=True, resume_epoch=train_epochs)
+                                               resume_training=True, resume_epoch=40)
 
     ### Plot free energy distributions with learned F_0 decision threshold
-    FILossPlotter(experiment).plot_deltaF_distribution(plot_epoch=train_epochs, show=True)
+    FILossPlotter(experiment).plot_deltaF_distribution(plot_epoch=40, show=True)

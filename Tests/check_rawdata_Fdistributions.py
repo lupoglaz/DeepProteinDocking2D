@@ -11,10 +11,11 @@ if __name__ == "__main__":
     # max_size = 100
     # trainset = '../DatasetGeneration/interaction_training_set_4545examples'
     # trainset = '../DatasetGeneration/interaction_training_set_4734examples'
-    trainset = '../DatasetGeneration/interaction_training_set'
+    # trainset = 'interaction_train_set100pool'
+    trainset = 'interaction_train_set200pool'
 
     max_size = None
-    train_stream = get_interaction_stream(trainset + '.pkl', batch_size=1, max_size=max_size)
+    train_stream = get_interaction_stream('../Datasets/'+trainset + '.pkl', batch_size=1, max_size=max_size)
 
     swap_quadrants = False
     normalization = 'ortho'
@@ -26,7 +27,7 @@ if __name__ == "__main__":
     # FI = Interaction()
     volume = torch.log(360 * torch.tensor(100 ** 2))
 
-    filename = 'Log/losses/log_rawdata_FI_Trainset.txt'
+    filename = 'Log/losses/log_rawdata_FI_'+trainset+'.txt'
     with open(filename, 'w') as fout:
         fout.write('F\tF_0\tLabel\n')
 
@@ -58,4 +59,4 @@ if __name__ == "__main__":
         with open(filename, 'a') as fout:
             fout.write('%f\t%f\t%d\n' % (F.item(), F.item(), gt_interact.item()))
 
-    FILossPlotter('checknewdata').plot_deltaF_distribution(filename=filename, binwidth=1, show=True)
+    FILossPlotter(trainset).plot_deltaF_distribution(filename=filename, binwidth=1, show=True)

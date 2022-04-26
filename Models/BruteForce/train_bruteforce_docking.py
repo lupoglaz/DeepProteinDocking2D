@@ -62,7 +62,7 @@ class BruteForceDockingTrainer:
 
         #### Loss functions
         CE_loss = torch.nn.CrossEntropyLoss()
-        loss = CE_loss(fft_score.squeeze().unsqueeze(0), target_flatindex.unsqueeze(0)) + rmsd_out
+        loss = CE_loss(fft_score.squeeze().unsqueeze(0), target_flatindex.unsqueeze(0))
 
         ### check parameters and gradients
         ### if weights are frozen or updating
@@ -256,10 +256,10 @@ class BruteForceDockingTrainer:
 if __name__ == '__main__':
     #################################################################################
     # Datasets
-    trainset = '../../Datasets/docking_train_set100pool'
-    validset = '../../Datasets/docking_valid_set100pool'
+    trainset = '../../Datasets/docking_train_set200pool'
+    validset = '../../Datasets/docking_valid_set200pool'
     ### testing set
-    testset = '../../Datasets/docking_test_set100pool'
+    testset = '../../Datasets/docking_test_set50pool'
     #########################
     #### initialization torch settings
     random_seed = 42
@@ -276,9 +276,10 @@ if __name__ == '__main__':
     optimizer = optim.Adam(model.parameters(), lr=lr)
 
     batch_size = 1
+    max_size = None
     if batch_size > 1:
         raise NotImplementedError()
-    train_stream = get_docking_stream(trainset + '.pkl', batch_size=batch_size, max_size=100)
+    train_stream = get_docking_stream(trainset + '.pkl', batch_size=batch_size, max_size=max_size)
     valid_stream = get_docking_stream(validset + '.pkl', batch_size=1)
     test_stream = get_docking_stream(testset + '.pkl', batch_size=1)
 
@@ -287,6 +288,7 @@ if __name__ == '__main__':
     # train_epochs = 10
     # experiment = 'SMALLDATA_100EXAMPLES' ## best test rmsd 5.1
     experiment = 'NEWDATA_TEST'
+    experiment = 'BF_IP_NEWDATA_CHECK_100pool'
 
     ######################
     ### Train model from beginning
@@ -298,8 +300,8 @@ if __name__ == '__main__':
     #     resume_training=True, resume_epoch=train_epochs-1)
 
     ### Evaluate model on chosen dataset only and plot at chosen epoch and dataset frequency
-    # BruteForceDockingTrainer(model, optimizer, experiment, plotting=False).plot_evaluation_set(
-    #     check_epoch=30, train_stream=train_stream, valid_stream=valid_stream, test_stream=test_stream)
+    BruteForceDockingTrainer(model, optimizer, experiment, plotting=False).plot_evaluation_set(
+        check_epoch=30, train_stream=train_stream, valid_stream=valid_stream, test_stream=test_stream)
 
     ## Plot loss from current experiment
     IPLossPlotter(experiment).plot_loss()
