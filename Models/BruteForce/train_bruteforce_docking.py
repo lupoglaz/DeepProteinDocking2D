@@ -34,8 +34,8 @@ class BruteForceDockingTrainer:
     def run_model(self, data, training=True, plot_count=0, stream_name='trainset'):
         receptor, ligand, gt_rot, gt_txy = data
 
-        receptor = receptor.to(device='cuda', dtype=torch.float)
-        ligand = ligand.to(device='cuda', dtype=torch.float)
+        receptor = receptor.to(device='cuda', dtype=torch.float).squeeze().unsqueeze(0)
+        ligand = ligand.to(device='cuda', dtype=torch.float).squeeze().unsqueeze(0)
         gt_rot = gt_rot.to(device='cuda', dtype=torch.float).squeeze()
         gt_txy = gt_txy.to(device='cuda', dtype=torch.float).squeeze()
 

@@ -95,8 +95,8 @@ class EnergyBasedInteractionTrainer:
     def run_model(self, data, pos_idx=torch.tensor([0]), training=True, stream_name='trainset'):
         receptor, ligand, gt_interact = data
 
-        receptor = receptor.to(device='cuda', dtype=torch.float)
-        ligand = ligand.to(device='cuda', dtype=torch.float)
+        receptor = receptor.to(device='cuda', dtype=torch.float).squeeze().unsqueeze(0)
+        ligand = ligand.to(device='cuda', dtype=torch.float).squeeze().unsqueeze(0)
         gt_interact = gt_interact.to(device='cuda', dtype=torch.float).squeeze()
 
         if training:
@@ -327,10 +327,10 @@ if __name__ == '__main__':
     torch.cuda.manual_seed(random_seed)
     torch.backends.cudnn.deterministic = True
     torch.cuda.set_device(0)
-    # CUDA_LAUNCH_BLOCKING = 1
     # torch.autograd.set_detect_anomaly(True)
+
     #########################
-    max_size = 1000
+    max_size = None
     batch_size = 1
     if batch_size > 1:
         raise NotImplementedError()
@@ -340,11 +340,12 @@ if __name__ == '__main__':
     ######################
     # experiment = 'workingMCsampling_50steps_wregsched_g=0.50_modelEvalMCloop_100ex_sigalpha=3' ## 15ep MCC 0.40 valid/test
     # experiment = 'MC_FI_SMALLDATA_100EXAMPLES_50STEPS' ## 15ep MCC 0.40 valid/test
-    experiment = 'MC_FI_NEWDATA_CHECK_100pool_1000ex50steps'
+    # experiment = 'MC_FI_NEWDATA_CHECK_100pool_1000ex50steps'
+    experiment = 'MC_FI_NEWDATA_CHECK_400pool_10steps'
 
     lr_interaction = 10 ** 0
     lr_docking = 10 ** -4
-    sample_steps = 50
+    sample_steps = 10
     debug = False
     # debug = True
     plotting = False
@@ -377,6 +378,6 @@ if __name__ == '__main__':
     #
     ### Evaluate model at chosen epoch
     eval_model = EnergyBasedModel(dockingFFT, num_angles=360, sample_steps=1, FI=True, debug=debug).to(device=0)
-    # # eval_model = EnergyBasedModel(dockingFFT, num_angles=1, sample_steps=sample_steps, FI=True, debug=debug).to(device=0)
+    # # eval_model = EnergyBasedModel(dockingFFT, num_angles=1, sample_steps=sample_steps, FI=True, debug=debug).to(device=0) ## eval with monte carlo
     EnergyBasedInteractionTrainer(eval_model, docking_optimizer, interaction_model, interaction_optimizer, experiment, debug=False
                                   ).run_trainer(resume_training=True, resume_epoch=train_epochs, train_epochs=1, train_stream=None, valid_stream=valid_stream, test_stream=test_stream)

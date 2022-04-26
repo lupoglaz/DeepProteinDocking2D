@@ -108,7 +108,7 @@ if __name__ == '__main__':
     normalization = 'ortho'
     FFT = TorchDockingFFT(swap_plot_quadrants=swap_quadrants, normalization=normalization)
 
-    trainpool_num_proteins = 200
+    trainpool_num_proteins = 400
     testpool_num_proteins = trainpool_num_proteins // 2
 
     weight_bound, weight_crossterm1, weight_crossterm2, weight_bulk = 10, 20, 20, 200

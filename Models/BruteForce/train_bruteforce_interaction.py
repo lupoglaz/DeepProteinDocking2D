@@ -49,8 +49,8 @@ class BruteForceInteractionTrainer:
     def run_model(self, data, training=True):
         receptor, ligand, gt_interact = data
 
-        receptor = receptor.to(device='cuda', dtype=torch.float)
-        ligand = ligand.to(device='cuda', dtype=torch.float)
+        receptor = receptor.to(device='cuda', dtype=torch.float).squeeze().unsqueeze(0)
+        ligand = ligand.to(device='cuda', dtype=torch.float).squeeze().unsqueeze(0)
         gt_interact = gt_interact.to(device='cuda', dtype=torch.float).squeeze()
 
         if training:
