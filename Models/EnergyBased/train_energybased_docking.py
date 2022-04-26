@@ -335,11 +335,10 @@ class EnergyBasedDockingTrainer:
 if __name__ == '__main__':
     #################################################################################
     # Datasets
-    trainset = '../../Datasets/docking_train_set100pool'
-    validset = '../../Datasets/docking_valid_set100pool'
+    trainset = '../../Datasets/docking_train_set400pool'
+    validset = '../../Datasets/docking_valid_set400pool'
     ### testing set
-    testset = '../../Datasets/docking_test_set100pool'
-
+    testset = '../../Datasets/docking_test_set200pool'
     #########################
     #### initialization torch settings
     random_seed = 42
@@ -356,15 +355,19 @@ if __name__ == '__main__':
     # optimizer = optim.Adam(model.parameters(), lr=lr)
 
     batch_size = 1
+    max_size = None
     if batch_size > 1:
         raise NotImplementedError()
-    train_stream = get_docking_stream(trainset + '.pkl', batch_size, max_size=880)
+    train_stream = get_docking_stream(trainset + '.pkl', batch_size)
     valid_stream = get_docking_stream(validset + '.pkl', batch_size=1)
     test_stream = get_docking_stream(testset + '.pkl', batch_size=1)
 
     ######################
     # experiment = 'BSmodel_lr-2_5ep_checkRepoRefactor' #
-    experiment = 'NEWDATA_CHECK_100pool'
+    # experiment = 'NEWDATA_CHECK_100pool'
+    # experiment = 'NEWDATA_CHECK_200pool'
+    # experiment = 'NEWDATA_CHECK_200pool_10ep'
+    experiment = 'NEWDATA_CHECK_400pool_5ep'
 
     ### For IP MC eval: sigma alpha 1 RMSD 10, 1.5 RMSD 7.81, 2 RMSD 6.59, 2.5 RMSD 7.44, 1.25, RMSD 6.82, pi/2 RMSD 8.79
     ######################
