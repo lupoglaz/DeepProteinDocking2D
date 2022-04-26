@@ -27,9 +27,6 @@ class ToyDockingDataset(Dataset):
 	def __init__(self, path, max_size=None):
 		r"""
 		"""
-		# if not max_size:
-		# 	max_size = len(list(self.data))
-
 		self.path = path
 		with open(self.path, 'rb') as fin:
 			self.data = pkl.load(fin)
@@ -175,12 +172,12 @@ class ToyInteractionDataset(Dataset):
 # 		return self.dataset_size
 
 
-def get_docking_stream(data_path, batch_size = 10, shuffle = False, max_size=1000):
+def get_docking_stream(data_path, batch_size = 10, shuffle = False, max_size=None):
 	dataset = ToyDockingDataset(path=data_path, max_size=max_size)
 	trainloader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, num_workers=0, shuffle=shuffle, collate_fn=crop_collate)
 	return trainloader
 
-def get_interaction_stream(data_path, batch_size = 10, max_size=1000):
+def get_interaction_stream(data_path, batch_size = 10, max_size=None):
 	dataset = ToyInteractionDataset(path=data_path, max_size=max_size)
 	trainloader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, num_workers=0, collate_fn=crop_collate, shuffle=False)
 	return trainloader
