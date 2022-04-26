@@ -9,9 +9,9 @@ from DeepProteinDocking2D.Utility.utility_functions import UtilityFuncs
 
 if __name__ == "__main__":
 
-    testset = '../Datasets/docking_test_set200pool'
+    testset = 'docking_test_set50pool'
     max_size = None
-    data_stream = get_docking_stream(testset + '.pkl', batch_size=1, shuffle=True, max_size=max_size)
+    data_stream = get_docking_stream('../Datasets/'+testset + '.pkl', batch_size=1, shuffle=True, max_size=max_size)
 
     plotting = False
     swap_quadrants = False
@@ -59,11 +59,6 @@ if __name__ == "__main__":
             # plt.imshow(np.hstack((receptor.detach().cpu(), ligand.detach().cpu())))
             # plt.show()
 
-
-    # print(Energy_list)
-    plt.xlabel('Energy')
-    plt.ylabel('Counts')
-    plt.title('homodimer and heterodimer best scoring poses')
     binwidth = 1
     bins = np.arange(min(Energy_list), max(Energy_list) + binwidth, binwidth)
 
@@ -71,7 +66,11 @@ if __name__ == "__main__":
     plt.hist([heterodimer_Elist], label=['heterodimer'], bins=bins, alpha=0.33)
     plt.legend(['homodimers', 'heterodimers'])
 
-    plt.show()
+    title = 'homodimer_vs_heterodimer_'+testset+'_lowest energies'
+    plt.xlabel('Energy')
+    plt.ylabel('Counts')
+    plt.title(title)
+    plt.savefig('Figs/' + title + '.png')
 
     print('number of homodimers', len(homodimer_Elist))
     print('number of heterodimers', len(heterodimer_Elist))
