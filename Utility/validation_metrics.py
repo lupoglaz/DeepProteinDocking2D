@@ -14,7 +14,7 @@ class RMSD:
         self.gt_txy = gt_txy
         self.pr_rot = pred_rot
         self.pr_txy = pred_txy
-        self.epsilon = 1e-3
+        self.epsilon = 1e-5
 
     def get_XC(self):
         """
@@ -70,7 +70,7 @@ class RMSD:
         # print(rmsd)
 
         sqrt_rmsd = torch.sqrt(rmsd)
-        if sqrt_rmsd < 0.05:
+        if sqrt_rmsd < 0.01:
             sqrt_rmsd = torch.zeros(1)
         return sqrt_rmsd
 
@@ -81,7 +81,7 @@ class RMSD:
 
 class APR:
     def __init__(self):
-        pass
+        self.epsilon = 1e-5
 
     def calcAPR(self, stream, run_model, epoch=0):
         print('Calculating Accuracy, Precision, Recall')
@@ -106,7 +106,7 @@ class APR:
             Recall = 0.0
         F1score = TP / (TP + 0.5*(FP + FN)+1E-5)
 
-        MCC = ((TP * TN) - (FP * FN)) / (np.sqrt((TP+FP)*(TP+FN)*(TN+FP)*(TN+FN))+1E-5)
+        MCC = ((TP * TN) - (FP * FN)) / (np.sqrt((TP+FP)*(TP+FN)*(TN+FP)*(TN+FN)) + self.epsilon)
 
         print(f'Epoch {epoch} Acc: {Accuracy} Prec: {Precision} Rec: {Recall} F1: {F1score} MCC: {MCC}')
 

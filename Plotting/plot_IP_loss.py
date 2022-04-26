@@ -6,6 +6,8 @@ import sys
 class IPLossPlotter:
     def __init__(self, experiment=None):
         self.experiment = experiment
+        self.logfile_savepath = 'Log/losses/'
+
         if not experiment:
             print('no experiment name given')
             sys.exit()
@@ -13,9 +15,9 @@ class IPLossPlotter:
     def plot_loss(self, ylim=None):
         plt.close()
         #LOSS WITH ROTATION
-        train = pd.read_csv("Log/losses/log_train_"+ self.experiment +".txt", sep='\t', header=1, names=['Epoch',	'Loss',	'rmsd'])
-        valid = pd.read_csv("Log/losses/log_valid_"+ self.experiment +".txt", sep='\t', header=1, names=['Epoch', 'Loss', 'rmsd'])
-        test = pd.read_csv("Log/losses/log_test_"+ self.experiment +".txt", sep='\t', header=1, names=['Epoch', 'Loss', 'rmsd'])
+        train = pd.read_csv(self.logfile_savepath+'log_loss_TRAINset_'+ self.experiment +'.txt', sep='\t', header=1, names=['Epoch', 'Loss', 'rmsd'])
+        valid = pd.read_csv(self.logfile_savepath+'log_loss_VALIDset_'+ self.experiment +'.txt', sep='\t', header=1, names=['Epoch', 'Loss', 'rmsd'])
+        test = pd.read_csv(self.logfile_savepath+'log_loss_TESTset_'+ self.experiment +'.txt', sep='\t', header=1, names=['Epoch', 'Loss', 'rmsd'])
 
         num_epochs = len(train['Epoch'].to_numpy())
 
@@ -51,7 +53,7 @@ class IPLossPlotter:
             ax[0].set_ylim([0,ylim])
             ax[1].set_ylim([0,ylim])
 
-        plt.savefig('figs/IP_loss_plots/Lossplot_'+self.experiment+'.png')
+        plt.savefig('Figs/IP_loss_plots/Lossplot_'+self.experiment+'.png')
         plt.show()
 
     def plot_rmsd_distribution(self, plot_epoch=1, show=False, eval_only=True):
@@ -61,11 +63,11 @@ class IPLossPlotter:
             fig, ax = plt.subplots(3, figsize=(10, 30))
             plt.suptitle('RMSD distribution: epoch' + str(plot_epoch) + ' ' + self.experiment)
 
-            train = pd.read_csv("Log/losses/log_RMSDsTrainset_epoch" + str(plot_epoch) + self.experiment + ".txt",
+            train = pd.read_csv(self.logfile_savepath+'log_RMSDsTRAINset_epoch' + str(plot_epoch) + self.experiment + ".txt",
                                 sep='\t', header=1, names=['RMSD'])
-            valid = pd.read_csv("Log/losses/log_RMSDsValidset_epoch" + str(plot_epoch) + self.experiment + ".txt",
+            valid = pd.read_csv(self.logfile_savepath+'log_RMSDsVALIDset_epoch' + str(plot_epoch) + self.experiment + ".txt",
                                 sep='\t', header=1, names=['RMSD'])
-            test = pd.read_csv("Log/losses/log_RMSDsTestset_epoch" + str(plot_epoch) + self.experiment + ".txt",
+            test = pd.read_csv(self.logfile_savepath+'log_RMSDsTESTset_epoch' + str(plot_epoch) + self.experiment + ".txt",
                                sep='\t', header=1, names=['RMSD'])
 
             num_valid_examples = len(valid['RMSD'].to_numpy())
@@ -91,9 +93,9 @@ class IPLossPlotter:
         else:
             fig, ax = plt.subplots(2, figsize=(10, 20))
             plt.suptitle('RMSD distribution: epoch' + str(plot_epoch) + ' ' + self.experiment)
-            valid = pd.read_csv("Log/losses/log_RMSDsValidset_epoch" + str(plot_epoch) + self.experiment + ".txt",
+            valid = pd.read_csv(self.logfile_savepath+'log_RMSDsValidset_epoch' + str(plot_epoch) + self.experiment + ".txt",
                                 sep='\t', header=1, names=['RMSD'])
-            test = pd.read_csv("Log/losses/log_RMSDsTestset_epoch" + str(plot_epoch) + self.experiment + ".txt",
+            test = pd.read_csv(self.logfile_savepath+'log_RMSDsTestset_epoch' + str(plot_epoch) + self.experiment + ".txt",
                                sep='\t', header=1, names=['RMSD'])
 
             num_valid_examples = len(valid['RMSD'].to_numpy())

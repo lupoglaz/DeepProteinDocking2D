@@ -68,9 +68,13 @@ class EnergyBasedDockingTrainer:
         self.plotting = plotting
         self.eval_freq = 1
         self.save_freq = 1
+        self.model_savepath = 'Log/saved_models/'
+        self.logfile_savepath = 'Log/losses/'
         self.plot_freq = Docking().plot_freq
 
-        # self.dockingFFT = TorchDockingFFT(num_angles=1, angle=None, swap_plot_quadrants=False, debug=debug)
+        self.log_header = 'Epoch\tLoss\trmsd\n'
+        self.log_format = '%d\t%f\t%f\n'
+
         self.dockingFFT = dockingFFT
         self.dim = TorchDockingFFT().dim
         self.num_angles = TorchDockingFFT().num_angles
@@ -101,13 +105,10 @@ class EnergyBasedDockingTrainer:
         if training:
             neg_energy, pred_rot, pred_txy, FFT_score = self.model(gt_rot, receptor, ligand, plot_count=pos_idx, stream_name=stream_name, plotting=self.plotting)
         else:
+            ## for evaluation, buffer is necessary for Monte Carlo eval
             alpha = self.evalbuffer.get(torch.tensor([pos_idx]), samples_per_example=1)
             energy, pred_rot, pred_txy, FFT_score = self.model(alpha, receptor, ligand, plot_count=pos_idx, stream_name=stream_name, plotting=self.plotting, training=False)
             self.evalbuffer.push(pred_rot, torch.tensor([pos_idx]))
-            # print(neg_alpha, pred_rot)
-            # pred_txy = gt_txy
-
-        # neg_energy, pred_rot, pred_txy, fft_score = self.model(gt_rot, receptor, ligand, plot_count=pos_idx.item(), stream_name=stream_name, plotting=self.plotting)
 
         ### Encode ground truth transformation index into empty energy grid
         with torch.no_grad():
@@ -141,6 +142,61 @@ class EnergyBasedDockingTrainer:
 
         return loss.item(), rmsd_out.item()
 
+    def train_model(self, train_epochs, train_stream=None, valid_stream=None, test_stream=None,
+                    resume_training=False,
+                    resume_epoch=0):
+        if self.plotting:
+            self.eval_freq = 1
+
+        ### Continue training on existing model?
+        start_epoch = self.resume_training_or_not(resume_training, resume_epoch)
+
+        num_epochs = start_epoch + train_epochs
+
+        for epoch in range(start_epoch, num_epochs):
+
+            checkpoint_dict = {
+                'epoch': epoch,
+                'state_dict': self.model.state_dict(),
+                'optimizer': self.optimizer.state_dict(),
+            }
+
+            if train_stream:
+                ### Training epoch
+                stream_name = 'TRAINset'
+                self.run_epoch(train_stream, epoch, training=True, stream_name=stream_name)
+
+                #### saving model while training
+                if epoch % self.save_freq == 0:
+                    model_savefile = self.model_savepath + self.experiment + str(epoch) + '.th'
+                    self.save_checkpoint(checkpoint_dict, model_savefile)
+                    print('saving model ' + model_savefile)
+
+            ### Evaluation epoch
+            if epoch % self.eval_freq == 0 or epoch == 1:
+                if valid_stream:
+                    stream_name = 'VALIDset'
+                    self.run_epoch(valid_stream, epoch, training=False, stream_name=stream_name)
+
+                if test_stream:
+                    stream_name = 'TESTset'
+                    self.run_epoch(test_stream, epoch, training=False, stream_name=stream_name)
+
+    def run_epoch(self, data_stream, epoch, training=False, stream_name='train_stream'):
+        stream_loss = []
+        pos_idx = 0
+        for data in tqdm(data_stream):
+            train_output = [self.run_model(data, pos_idx=pos_idx, training=training, stream_name=stream_name)]
+            stream_loss.append(train_output)
+            with open(self.logfile_savepath + 'log_RMSDs'+stream_name+'_epoch' + str(epoch) + self.experiment + '.txt','a') as fout:
+                fout.write('%f\n' % (train_output[0][-1]))
+            pos_idx += 1
+
+        avg_loss = np.average(stream_loss, axis=0)[0, :]
+        print('\nEpoch', epoch, stream_name,':', avg_loss)
+        with open(self.logfile_savepath + 'log_loss_' + stream_name + '_' + self.experiment + '.txt', 'a') as fout:
+            fout.write(self.log_format % (epoch, avg_loss[0], avg_loss[1]))
+
     def save_checkpoint(self, state, filename):
         self.model.eval()
         torch.save(state, filename)
@@ -164,117 +220,33 @@ class EnergyBasedDockingTrainer:
             torch.nn.init.kaiming_uniform_(self.model.weight)
             # torch.nn.init.kaiming_normal_(model.weight)
 
-    def train_model(self, train_epochs, train_stream=None, valid_stream=None, test_stream=None,
-                    resume_training=False,
-                    resume_epoch=0):
-        if self.plotting:
-            self.eval_freq = 1
-
-        log_header = 'Epoch\tLoss\trmsd\n'
-        log_format = '%d\t%f\t%f\n'
-
-        ### Continue training on existing model?
-        start_epoch = self.resume_training_or_not(resume_training, resume_epoch, log_header)
-
-        num_epochs = start_epoch + train_epochs
-
-        for epoch in range(start_epoch, num_epochs):
-
-            checkpoint_dict = {
-                'epoch': epoch,
-                'state_dict': self.model.state_dict(),
-                'optimizer': self.optimizer.state_dict(),
-            }
-
-            if train_stream:
-                ### Training epoch
-                train_loss = []
-                pos_idx = 0
-                for data in tqdm(train_stream):
-                    train_output = [self.run_model(data, pos_idx=pos_idx, training=True)]
-                    train_loss.append(train_output)
-                    with open('Log/losses/log_RMSDsTrainset_epoch' + str(epoch) + self.experiment + '.txt', 'a') as fout:
-                        fout.write('%f\n' % (train_output[0][-1]))
-                    pos_idx +=1
-
-                # scheduler.step()
-                # print(scheduler.get_last_lr())
-
-                avg_trainloss = np.average(train_loss, axis=0)[0, :]
-                print('\nEpoch', epoch, 'Train Loss:', avg_trainloss)
-                with open('Log/losses/log_train_' + self.experiment + '.txt', 'a') as fout:
-                    fout.write(log_format % (epoch, avg_trainloss[0], avg_trainloss[1]))
-
-                #### saving model while training
-                if epoch % self.save_freq == 0:
-                    self.save_checkpoint(checkpoint_dict, 'Log/' + self.experiment + str(epoch) + '.th')
-                    print('saving model ' + 'Log/' + self.experiment + str(epoch) + '.th')
-                if epoch == num_epochs - 1:
-                    self.save_checkpoint(checkpoint_dict, 'Log/' + self.experiment + 'end.th')
-                    print('saving LAST EPOCH model ' + 'Log/' + self.experiment + str(epoch) + '.th')
-
-            ### Evaluation epoch
-            if epoch % self.eval_freq == 0 or epoch == 1:
-                if valid_stream:
-                    stream_name = 'validset'
-                    # for epoch in range(10):
-                    pos_idx = 0
-                    valid_loss = []
-                    for data in tqdm(valid_stream):
-                        valid_output = [self.run_model(data, training=False, pos_idx=pos_idx, stream_name=stream_name)]
-                        valid_loss.append(valid_output)
-                        with open('Log/losses/log_RMSDsValidset_epoch' + str(epoch) + self.experiment + '.txt', 'a') as fout:
-                            fout.write('%f\n' % (valid_output[0][-1]))
-                        pos_idx += 1
-
-                    avg_validloss = np.average(valid_loss, axis=0)[0, :]
-                    print('\nEpoch', epoch, 'VALID LOSS:', avg_validloss)
-                    with open('Log/losses/log_valid_' + self.experiment + '.txt', 'a') as fout:
-                        fout.write(log_format % (epoch, avg_validloss[0], avg_validloss[1]))
-
-                if test_stream:
-                    stream_name = 'testset'
-                    pos_idx = 0
-                    test_loss = []
-                    for data in tqdm(test_stream):
-                        test_output = [self.run_model(data, training=False, pos_idx=pos_idx, stream_name=stream_name)]
-                        test_loss.append(test_output)
-                        with open('Log/losses/log_RMSDsTestset_epoch' + str(epoch) + self.experiment + '.txt', 'a') as fout:
-                            fout.write('%f\n' % (test_output[0][-1]))
-                        pos_idx += 1
-
-                    avg_testloss = np.average(test_loss, axis=0)[0, :]
-                    print('\nEpoch', epoch, 'TEST LOSS:', avg_testloss)
-                    with open('Log/losses/log_test_' + self.experiment + '.txt', 'a') as fout:
-                        fout.write(log_format % (epoch, avg_testloss[0], avg_testloss[1]))
-
-    def resume_training_or_not(self, resume_training, resume_epoch, log_header, bf_path=None):
+    def resume_training_or_not(self, resume_training, resume_epoch):
         if resume_training:
-            ckp_path = 'Log/' + self.experiment + str(resume_epoch) + '.th'
+            ckp_path = self.model_savepath + self.experiment + str(resume_epoch) + '.th'
             self.model, self.optimizer, start_epoch = self.load_ckp(ckp_path)
             start_epoch += 1
 
             # print(self.model)
             # print(list(self.model.named_parameters()))
             print('\nRESUMING TRAINING AT EPOCH', start_epoch, '\n')
-            with open('Log/losses/log_RMSDsTrainset_epoch' + str(start_epoch) + self.experiment + '.txt', 'w') as fout:
+            with open(self.logfile_savepath+'log_RMSDsTRAINset_epoch' + str(start_epoch) + self.experiment + '.txt', 'w') as fout:
                 fout.write('Training RMSD\n')
-            with open('Log/losses/log_RMSDsValidset_epoch' + str(start_epoch) + self.experiment + '.txt', 'w') as fout:
+            with open(self.logfile_savepath+'log_RMSDsVALIDset_epoch' + str(start_epoch) + self.experiment + '.txt', 'w') as fout:
                 fout.write('Validation RMSD\n')
-            with open('Log/losses/log_RMSDsTestset_epoch' + str(start_epoch) + self.experiment + '.txt', 'w') as fout:
+            with open(self.logfile_savepath+'log_RMSDsTESTset_epoch' + str(start_epoch) + self.experiment + '.txt', 'w') as fout:
                 fout.write('Testing RMSD\n')
         else:
             start_epoch = 1
             ### Loss log files
-            with open('Log/losses/log_train_' + self.experiment + '.txt', 'w') as fout:
+            with open(self.logfile_savepath+'log_loss_TRAINset_' + self.experiment + '.txt', 'w') as fout:
                 fout.write('Docking Training Loss:\n')
-                fout.write(log_header)
-            with open('Log/losses/log_valid_' + self.experiment + '.txt', 'w') as fout:
+                fout.write(self.log_header)
+            with open(self.logfile_savepath+'log_loss_VALIDset_' + self.experiment + '.txt', 'w') as fout:
                 fout.write('Docking Validation Loss:\n')
-                fout.write(log_header)
-            with open('Log/losses/log_test_' + self.experiment + '.txt', 'w') as fout:
+                fout.write(self.log_header)
+            with open(self.logfile_savepath+'log_loss_TESTset_' + self.experiment + '.txt', 'w') as fout:
                 fout.write('Docking Testing Loss:\n')
-                fout.write(log_header)
+                fout.write(self.log_header)
         return start_epoch
 
     def plot_pose(self, receptor, ligand, gt_rot, gt_txy, pred_rot, pred_txy, plot_count, stream_name):
@@ -347,30 +319,28 @@ if __name__ == '__main__':
     max_size = None
     if batch_size > 1:
         raise NotImplementedError()
-    train_stream = get_docking_stream(trainset + '.pkl', batch_size)
-    valid_stream = get_docking_stream(validset + '.pkl', batch_size=1)
-    test_stream = get_docking_stream(testset + '.pkl', batch_size=1)
+    train_stream = get_docking_stream(trainset + '.pkl', batch_size, shuffle=True, max_size=None)
+    valid_stream = get_docking_stream(validset + '.pkl', batch_size=1, max_size=None)
+    test_stream = get_docking_stream(testset + '.pkl', batch_size=1, max_size=None)
 
     ######################
     # experiment = 'BSmodel_lr-2_5ep_checkRepoRefactor' #
     # experiment = 'NEWDATA_CHECK_100pool'
     # experiment = 'NEWDATA_CHECK_200pool'
     # experiment = 'NEWDATA_CHECK_200pool_10ep'
-    experiment = 'NEWDATA_CHECK_400pool_5ep'
+    # experiment = 'NEWDATA_CHECK_400pool_5ep'
+    experiment = 'NEWDATA_CHECK_400pool_30ep'
 
     ### For IP MC eval: sigma alpha 1 RMSD 10, 1.5 RMSD 7.81, 2 RMSD 6.59, 2.5 RMSD 7.44, 1.25, RMSD 6.82, pi/2 RMSD 8.79
     ######################
+    train_epochs = 30
     lr = 10 ** -2
     sample_steps = 100
     debug = False
-    # debug = True
     plotting = False
-    # plotting = True
-    show = False
-    # show = True
+    show = True
 
     norm = 'ortho'
-    train_epochs = 5
     continue_epochs = 1
     ######################
     dockingFFT = TorchDockingFFT(num_angles=1, angle=None, swap_plot_quadrants=False, debug=debug, normalization=norm)
@@ -384,18 +354,18 @@ if __name__ == '__main__':
     start = 1
     stop = train_epochs
     eval_angles = 360
+    eval_model = EnergyBasedModel(dockingFFT, num_angles=eval_angles, IP=True).to(device=0)
     for epoch in range(start, stop):
         ### Evaluate model using all 360 angles (or less).
         if stop-1 == epoch:
             plotting = True
-        eval_model = EnergyBasedModel(dockingFFT, num_angles=eval_angles, IP=True).to(device=0)
         EnergyBasedDockingTrainer(dockingFFT, eval_model, optimizer, experiment, plotting=plotting).run_trainer(
             train_epochs=1, train_stream=None, valid_stream=valid_stream, test_stream=test_stream,
             resume_training=True, resume_epoch=epoch)
 
     ## Plot loss from current experiment
-    IPLossPlotter(experiment).plot_loss(ylim=5)
-    IPLossPlotter(experiment).plot_rmsd_distribution(plot_epoch=epoch+1, show=show, eval_only=True)
+    IPLossPlotter(experiment).plot_loss(ylim=None)
+    IPLossPlotter(experiment).plot_rmsd_distribution(plot_epoch=train_epochs, show=show, eval_only=True)
 
     ### Resume training model at chosen epoch
     # EnergyBasedDockingTrainer(dockingFFT, model, optimizer, experiment, plotting=True, debug=debug).run_trainer(
