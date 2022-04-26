@@ -15,7 +15,7 @@ if __name__ == "__main__":
 
     plotting = False
     swap_quadrants = False
-    FFT = TorchDockingFFT(swap_plot_quadrants=True, normalization='ortho')
+    FFT = TorchDockingFFT(swap_plot_quadrants=swap_quadrants, normalization='ortho')
 
     homodimer_Elist = []
     heterodimer_Elist = []
@@ -26,15 +26,10 @@ if __name__ == "__main__":
     for data in tqdm(data_stream):
         receptor, ligand, gt_rot, gt_txy = data
 
-        receptor = receptor.squeeze()
-        ligand = ligand.squeeze()
-        gt_rot = gt_rot.squeeze()
-        gt_txy = gt_txy.squeeze()
-
-        receptor = receptor.to(device='cuda', dtype=torch.float)
-        ligand = ligand.to(device='cuda', dtype=torch.float)
-        gt_rot = gt_rot.to(device='cuda', dtype=torch.float)
-        gt_txy = gt_txy.to(device='cuda', dtype=torch.float)
+        receptor = receptor.squeeze().to(device='cuda', dtype=torch.float)
+        ligand = ligand.squeeze().to(device='cuda', dtype=torch.float)
+        gt_rot = gt_rot.squeeze().to(device='cuda', dtype=torch.float)
+        gt_txy = gt_txy.squeeze().to(device='cuda', dtype=torch.float)
 
         receptor_stack = FFT.make_boundary(receptor)
         ligand_stack = FFT.make_boundary(ligand)
@@ -65,15 +60,15 @@ if __name__ == "__main__":
             # plt.show()
 
 
-    print(Energy_list)
+    # print(Energy_list)
     plt.xlabel('Energy')
     plt.ylabel('Counts')
     plt.title('homodimer and heterodimer best scoring poses')
     binwidth = 1
     bins = np.arange(min(Energy_list), max(Energy_list) + binwidth, binwidth)
 
-    plt.hist([homodimer_Elist], label=['homodimer'], bins=bins, binwidth=binwidth, alpha=0.33)
-    plt.hist([heterodimer_Elist], label=['heterodimer'], bins=bins, binwidth=binwidth, alpha=0.33)
+    plt.hist([homodimer_Elist], label=['homodimer'], bins=bins, alpha=0.33)
+    plt.hist([heterodimer_Elist], label=['heterodimer'], bins=bins, alpha=0.33)
     plt.legend(['homodimers', 'heterodimers'])
 
     plt.show()
