@@ -8,7 +8,7 @@ import numpy as np
 from matplotlib import pylab as plt
 
 from DeepProteinDocking2D.Models.model_docking import Docking
-from DeepProteinDocking2D.Utility.utility_functions import Utility
+from DeepProteinDocking2D.Utility.utility_functions import UtilityFuncs
 
 class Docker(nn.Module):
     def __init__(self, dockingFFT, num_angles=1, debug=False):
@@ -37,7 +37,7 @@ class Docker(nn.Module):
                 deg_index_rot = (((pred_rot * 180.0 / np.pi) + 180.0) % self.num_angles).type(torch.long)
                 best_score = fft_score[deg_index_rot, pred_txy[0], pred_txy[1]]
                 if plotting and self.num_angles == 360 and plot_count % 10 == 0:
-                    Utility().plot_rotation_energysurface(fft_score,pred_txy, self.num_angles, stream_name, plot_count)
+                    UtilityFuncs().plot_rotation_energysurface(fft_score, pred_txy, self.num_angles, stream_name, plot_count)
             else:
                 best_score = fft_score[pred_txy[0], pred_txy[1]]
 

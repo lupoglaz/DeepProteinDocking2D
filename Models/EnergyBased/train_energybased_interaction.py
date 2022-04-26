@@ -6,7 +6,7 @@ sys.path.append('/home/sb1638/') ## path for cluster
 
 import numpy as np
 from tqdm import tqdm
-from DeepProteinDocking2D.Utility.torchDataLoader import get_interaction_stream, get_interaction_stream_balanced
+from DeepProteinDocking2D.Utility.torchDataLoader import get_interaction_stream
 from DeepProteinDocking2D.Utility.torchDockingFFT import TorchDockingFFT
 from DeepProteinDocking2D.Models.BruteForce.train_bruteforce_interaction import Interaction
 
@@ -318,8 +318,8 @@ class EnergyBasedInteractionTrainer:
 if __name__ == '__main__':
     #################################################################################
     # Datasets
-    trainset = '../../Datasets/interaction_train_set100pool'
-    validset = '../../Datasets/interaction_valid_set100pool'
+    trainset = '../../Datasets/interaction_train_set200pool'
+    validset = '../../Datasets/interaction_valid_set200pool'
     ### testing set
     testset = '../../Datasets/interaction_test_set100pool'
 
@@ -335,20 +335,17 @@ if __name__ == '__main__':
     # CUDA_LAUNCH_BLOCKING = 1
     # torch.autograd.set_detect_anomaly(True)
     #########################
-    # max_size = 400
-    max_size = 100
-    # max_size = 50
-    # max_size = 25
-    # max_size = 10
+    max_size = 1000
     batch_size = 1
     if batch_size > 1:
         raise NotImplementedError()
-    train_stream = get_interaction_stream_balanced(trainset + '.pkl', batch_size=batch_size, max_size=max_size)
+    train_stream = get_interaction_stream(trainset + '.pkl', batch_size=batch_size, max_size=max_size)
     valid_stream = get_interaction_stream(validset + '.pkl', batch_size=1, max_size=max_size)
     test_stream = get_interaction_stream(testset + '.pkl', batch_size=1, max_size=max_size)
     ######################
     # experiment = 'workingMCsampling_50steps_wregsched_g=0.50_modelEvalMCloop_100ex_sigalpha=3' ## 15ep MCC 0.40 valid/test
-    experiment = 'MC_FI_SMALLDATA_100EXAMPLES_50STEPS' ## 15ep MCC 0.40 valid/test
+    # experiment = 'MC_FI_SMALLDATA_100EXAMPLES_50STEPS' ## 15ep MCC 0.40 valid/test
+    experiment = 'MC_FI_NEWDATA_CHECK_100pool_1000ex50steps'
 
     lr_interaction = 10 ** 0
     lr_docking = 10 ** -4
@@ -372,7 +369,7 @@ if __name__ == '__main__':
     # sigma_optimizer = optim.Adam(docking_model.parameters(), lr=2)
     # scheduler = optim.lr_scheduler.ExponentialLR(sigma_optimizer, gamma=0.95)
 
-    train_epochs = 15
+    train_epochs = 20
     # continue_epochs = 1
     ######################
     ### Train model from beginning
