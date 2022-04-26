@@ -31,7 +31,7 @@ if __name__ == "__main__":
     with open(filename, 'w') as fout:
         fout.write('F\tF_0\tLabel\n')
 
-    # F_0 = torch.ones(1)*-90
+    weight_bound, weight_crossterm1, weight_crossterm2, weight_bulk = 10, 20, 20, 200
 
     for data in tqdm(train_stream):
         receptor, ligand, gt_interact = data
@@ -46,11 +46,7 @@ if __name__ == "__main__":
         receptor_stack = FFT.make_boundary(receptor)
         ligand_stack = FFT.make_boundary(ligand)
 
-        weight_bound, weight_crossterm1, weight_crossterm2, weight_bulk = 10, 20, 20, 200
         fft_score = FFT.dock_global(receptor_stack, ligand_stack,
-                                    # weight_bound=3.0, weight_crossterm1=-0.3, weight_crossterm2=-0.3, weight_bulk=2.8)
-                                    # weight_bound = 3.0, weight_crossterm1 = -0.3, weight_crossterm2 = -0.3, weight_bulk = 30)
-                                    # weight_bound=2.8, weight_crossterm1=-0.3, weight_crossterm2=-0.3, weight_bulk=3.0)
                                     weight_bound, weight_crossterm1, weight_crossterm2, weight_bulk)
 
         E = -fft_score
