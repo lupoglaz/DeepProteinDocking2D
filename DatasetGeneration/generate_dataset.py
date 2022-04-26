@@ -1,7 +1,4 @@
-import _pickle as pkl
 import os
-from pathlib import Path
-import argparse
 import sys
 import random
 import torch
@@ -11,7 +8,7 @@ from tqdm import tqdm
 from os.path import exists
 from DeepProteinDocking2D.DatasetGeneration.ProteinPool import ProteinPool, ParamDistribution
 from DeepProteinDocking2D.Utility.torchDockingFFT import TorchDockingFFT
-from DeepProteinDocking2D.Utility.utility_functions import Utility
+from DeepProteinDocking2D.Utility.utility_functions import UtilityFuncs
 from DeepProteinDocking2D.Plotting.plot_FI_loss import FILossPlotter
 
 
@@ -26,15 +23,14 @@ def generate_interactions(receptor, ligand, weight_bound, weight_crossterm1, wei
     receptor_stack = FFT.make_boundary(receptor)
     ligand_stack = FFT.make_boundary(ligand)
     fft_score = FFT.dock_global(receptor_stack, ligand_stack, weight_bound, weight_crossterm1, weight_crossterm2, weight_bulk)
-    rot, trans = FFT.extract_transform(fft_score)
-    best_score = fft_score[rot.long(), trans[0].long(), trans[1].long()]
 
-    return receptor, ligand, fft_score, rot, trans, best_score
+    return receptor, ligand, fft_score
 
 
 def generate_datasets(protein_pool, num_proteins, weight_bound, weight_crossterm1, weight_crossterm2, weight_bulk):
     protein_pool_prefix = protein_pool[:-4]
-    data = Utility().read_pkl(protein_pool_prefix)
+    data = UtilityFuncs().read_pkl(protein_pool_prefix)
+
     protein_shapes = data[0]
     fft_score_list = [[], []]
     docking_set = []
@@ -53,38 +49,46 @@ def generate_datasets(protein_pool, num_proteins, weight_bound, weight_crossterm
             interaction = None
             plot_count += 1
             receptor, ligand = protein_shapes[i], protein_shapes[j]
-            receptor, ligand, fft_score, rot, trans, best_score = generate_interactions(
-                receptor, ligand, weight_bound, weight_crossterm1, weight_crossterm2, weight_bulk)
+            receptor, ligand, fft_score = generate_interactions(receptor, ligand,
+                                                        weight_bound, weight_crossterm1, weight_crossterm2, weight_bulk)
 
-            if best_score > docking_score_threshold:
+            rot, trans = FFT.extract_transform(fft_score)
+            E = -fft_score
+            lowest_energy = E[rot.long(), trans[0], trans[1]]
+
+            if lowest_energy < docking_decision_threshold:
                 if 'test' in protein_pool_prefix:
                     docking_set.append([receptor, ligand, rot, trans])
                 elif i != j:
                     docking_set.append([receptor, ligand, rot, trans])
 
-            E = -fft_score
             F = -(torch.logsumexp(-E, dim=(0, 1, 2)) - volume)
 
-            if F < interaction_score_threshold:
+            if F < interaction_decision_threshold:
                 interaction = 1
-            if F > interaction_score_threshold:
+            if F > interaction_decision_threshold:
                 interaction = 0
-            if abs(F - interaction_score_threshold) < abs(interaction_score_threshold // 2) and np.random.rand() > np.exp(-abs(F.detach().cpu() - interaction_score_threshold)):
+            if abs(F - interaction_decision_threshold) < abs(interaction_decision_threshold // 2) and np.random.rand() > np.exp(-abs(F.detach().cpu() - interaction_decision_threshold)):
                 interaction_set.append([receptor, ligand, interaction])
                 with open(filename, 'a') as fout:
                     fout.write('%f\t%f\t%d\n' % (F.item(), F.item(), interaction))
 
             fft_score_list[0].append([i, j])
-            fft_score_list[1].append(best_score.item())
+            fft_score_list[1].append(lowest_energy.item())
 
             if plotting and plot_count % plot_freq == 0:
                 plt.close()
-                pair = Utility().plot_assembly(receptor.cpu(), ligand.cpu(), rot.cpu(), trans.cpu())
+                pair = UtilityFuncs().plot_assembly(receptor.cpu(), ligand.cpu(), rot.cpu(), trans.cpu())
                 plt.imshow(pair.transpose())
-                title = 'docking_index_i'+str(i)+'_j'+str(j)+'_score'+str(best_score.item())
+                if lowest_energy < docking_decision_threshold:
+                    acc_or_rej = 'ACCEPTED'
+                else:
+                    acc_or_rej = 'REJECTED'
+                title = acc_or_rej+'_docking_energy'+str(lowest_energy.item())
                 plt.title(title)
                 plt.savefig('Figs/'+title+'.png')
-                Utility().plot_rotation_energysurface(fft_score, trans, num_angles=360, stream_name='datasetgeneration', plot_count=plot_count)
+                UtilityFuncs().plot_rotation_energysurface(fft_score, trans,
+                                                           stream_name=acc_or_rej+'_datasetgen_'+protein_pool_prefix, plot_count=plot_count)
 
     return fft_score_list, docking_set, interaction_set
 
@@ -103,12 +107,12 @@ if __name__ == '__main__':
     swap_quadrants = False
     FFT = TorchDockingFFT(swap_plot_quadrants=swap_quadrants, normalization='ortho')
 
-    trainpool_num_proteins = 400
+    trainpool_num_proteins = 100
     testpool_num_proteins = trainpool_num_proteins // 2
 
     weight_bound, weight_crossterm1, weight_crossterm2, weight_bulk = 10, 20, 20, 200
-    docking_score_threshold = 90
-    interaction_score_threshold = -90
+    docking_decision_threshold = -90
+    interaction_decision_threshold = -90
 
     wstring = str(weight_bound)+','+str(weight_crossterm1)+','+str(weight_crossterm2)+','+str(weight_bulk)+'_'
 
@@ -149,26 +153,27 @@ if __name__ == '__main__':
     test_fft_score_list, test_docking_set, test_interaction_set = generate_datasets(testset_protein_pool, testpool_num_proteins,
                                                                                     weight_bound, weight_crossterm1, weight_crossterm2, weight_bulk)
 
+    ## Slice validation set out for training set
+    cutoff = 0.8
+    valid_docking_cutoff_index = int(len(train_docking_set) * cutoff)
+    valid_docking_set = train_docking_set[valid_docking_cutoff_index:]
+    valid_interaction_cutoff_index = int(len(train_interaction_set) * cutoff)
+    valid_interaction_set = train_interaction_set[valid_interaction_cutoff_index:]
+
     if plotting:
         plt.close()
-        plt.title('Docking Scores by index')
-        plt.ylabel('Scores')
-        # plt.scatter(np.arange(0, len(train_fft_score_list[1])), train_fft_score_list[1])
+        plt.title('Docking Energies')
+        plt.ylabel('Counts')
+        plt.xlabel('Energies')
         plt.hist(train_fft_score_list[1])
         plt.hist(test_fft_score_list[1])
         plt.legend(['training set', 'testing set'])
-        # plt.show()
-        plt.savefig('Figs/scoredistribution_' + wstring + str(trainpool_num_proteins)+ 'pool' + '.png')
+        plt.savefig('Figs/energydistribution_' + wstring + str(trainpool_num_proteins)+ 'pool' + '.png')
 
     # print(train_fft_score_list)
     print('Raw Training set:')
     print('Docking set length', len(train_docking_set))
     print('Interaction set length', len(train_interaction_set))
-
-    valid_docking_cutoff_index = int(len(train_docking_set) * 0.8)
-    valid_docking_set = train_docking_set[valid_docking_cutoff_index:]
-    valid_interaction_cutoff_index = int(len(train_interaction_set) * 0.8)
-    valid_interaction_set = train_interaction_set[valid_interaction_cutoff_index:]
 
     print('Raw Validation set:')
     print('Docking set length', len(valid_docking_set))
@@ -178,30 +183,33 @@ if __name__ == '__main__':
     print('Docking set length', len(test_docking_set))
     print('Interaction set length', len(test_interaction_set))
 
-
+    ## Write dataset statistics
     savepath = '../Datasets/'
-    with open(savepath+'datasetstats_'+str(trainpool_num_proteins)+'pool.txt', 'w') as fout:
-        fout.write('Raw Training set:')
+    with open(savepath+'dataset_stats_'+str(trainpool_num_proteins)+'pool.txt', 'w') as fout:
+        fout.write('Protein Pool:')
+        fout.write('\nDocking decision threshold ' + str(docking_decision_threshold))
+        fout.write('\nInteraction decision threshold ' + str(interaction_decision_threshold))
+        fout.write('\n\nRaw Training set:')
         fout.write('\nDocking set length '+str(len(train_docking_set)))
         fout.write('\nInteraction set length '+str(len(train_interaction_set)))
-        fout.write('\nRaw Validation set:')
+        fout.write('\n\nRaw Validation set:')
         fout.write('\nDocking set length '+str(len(valid_docking_set)))
         fout.write('\nInteraction set length '+str(len(valid_interaction_set)))
-        fout.write('\nRaw Testing set:')
+        fout.write('\n\nRaw Testing set:')
         fout.write('\nDocking set length '+str(len(test_docking_set)))
         fout.write('\nInteraction set length '+str(len(test_interaction_set)))
 
     ## Save training sets
-    Utility().write_pkl(data=train_docking_set, fileprefix=savepath+'docking_train_set'+str(trainpool_num_proteins)+'pool')
-    Utility().write_pkl(data=train_interaction_set, fileprefix=savepath+'interaction_train_set'+str(trainpool_num_proteins)+'pool')
+    UtilityFuncs().write_pkl(data=train_docking_set, fileprefix=savepath + 'docking_train_set' + str(trainpool_num_proteins) + 'pool')
+    UtilityFuncs().write_pkl(data=train_interaction_set, fileprefix=savepath + 'interaction_train_set' + str(trainpool_num_proteins) + 'pool')
 
     ## Save validation sets
-    Utility().write_pkl(data=valid_docking_set, fileprefix=savepath+'docking_valid_set'+str(trainpool_num_proteins)+'pool')
-    Utility().write_pkl(data=valid_interaction_set, fileprefix=savepath+'interaction_valid_set'+str(trainpool_num_proteins)+'pool')
+    UtilityFuncs().write_pkl(data=valid_docking_set, fileprefix=savepath + 'docking_valid_set' + str(trainpool_num_proteins) + 'pool')
+    UtilityFuncs().write_pkl(data=valid_interaction_set, fileprefix=savepath + 'interaction_valid_set' + str(trainpool_num_proteins) + 'pool')
 
     ## Save testing sets
-    Utility().write_pkl(data=test_docking_set, fileprefix=savepath+'docking_test_set'+str(testpool_num_proteins)+'pool')
-    Utility().write_pkl(data=test_interaction_set, fileprefix=savepath+'interaction_test_set'+str(testpool_num_proteins)+'pool')
+    UtilityFuncs().write_pkl(data=test_docking_set, fileprefix=savepath + 'docking_test_set' + str(testpool_num_proteins) + 'pool')
+    UtilityFuncs().write_pkl(data=test_interaction_set, fileprefix=savepath + 'interaction_test_set' + str(testpool_num_proteins) + 'pool')
 
     ## Plot interaction training/validation set free energy distributions
     training_filename = 'Log/losses/log_rawdata_FI_'+trainvalidset_protein_pool[:-4]+'.txt'
