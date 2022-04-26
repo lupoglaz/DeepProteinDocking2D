@@ -6,7 +6,7 @@ import torch
 from torch.nn import functional as F
 
 
-class Utility():
+class UtilityFuncs():
     def __init__(self):
         pass
 
@@ -101,7 +101,7 @@ class Utility():
 
         return pair
 
-    def plot_rotation_energysurface(self, fft_score, pred_txy, num_angles, stream_name=None, plot_count=0):
+    def plot_rotation_energysurface(self, fft_score, pred_txy, num_angles=360, stream_name=None, plot_count=0):
         plt.close()
         mintxy_energies = []
         if num_angles == 1:

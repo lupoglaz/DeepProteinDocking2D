@@ -6,7 +6,7 @@ import seaborn as sea
 sea.set_style("whitegrid")
 
 from DeepProteinDocking2D.Utility.validation_metrics import RMSD
-from DeepProteinDocking2D.Utility.utility_functions import Utility
+from DeepProteinDocking2D.Utility.utility_functions import UtilityFuncs
 import numpy as np
 
 
@@ -81,7 +81,7 @@ class TorchDockingFFT:
         curr_grid = F.affine_grid(R, size=repr.size(), align_corners=True).type(torch.float)
         return F.grid_sample(repr, curr_grid, align_corners=True)
 
-    def dock_global(self, receptor, ligand, weight_bound=10, weight_crossterm1=20, weight_crossterm2=20, weight_bulk=200):
+    def dock_global(self, receptor, ligand, weight_bound, weight_crossterm1, weight_crossterm2, weight_bulk):
         initbox_size = receptor.shape[-1]
         # print(receptor.shape)
         pad_size = initbox_size // 2
@@ -109,7 +109,6 @@ class TorchDockingFFT:
                         plt.show()
 
         score = self.CE_dock_translations(f_rec, rot_lig, weight_bound, weight_crossterm1, weight_crossterm2, weight_bulk)
-        # score = SwapQuadrants2DFunction.apply(score)
 
         return score
 
@@ -165,23 +164,24 @@ class TorchDockingFFT:
         print('\n'+'*'*50)
 
         pred_rot, pred_txy = self.extract_transform(fft_score)
+        energies = -fft_score
         rmsd_out = RMSD(ligand, gt_rot, gt_txy, pred_rot, pred_txy).calc_rmsd()
         print('extracted predicted indices', pred_rot, pred_txy)
         print('gt indices', gt_rot, gt_txy)
         print('RMSD', rmsd_out.item())
         print()
         if self.num_angles == 1:
-            plt.imshow(fft_score.detach().cpu())
+            plt.imshow(energies.detach().cpu())
             plt.colorbar()
             plt.show()
         else:
-            plt.imshow(fft_score[pred_rot.long(), :, :].detach().cpu())
+            plt.imshow(energies[pred_rot.long(), :, :].detach().cpu())
             plt.colorbar()
             plt.show()
 
-        pair = Utility().plot_assembly(receptor.detach().cpu(), ligand.detach().cpu().numpy(),
-                             gt_rot.detach().cpu().numpy(), gt_txy.detach().cpu().numpy(),
-                             pred_rot.detach().cpu().numpy(), pred_txy.detach().cpu().numpy())
+        pair = UtilityFuncs().plot_assembly(receptor.detach().cpu(), ligand.detach().cpu().numpy(),
+                                            gt_rot.detach().cpu().numpy(), gt_txy.detach().cpu().numpy(),
+                                            pred_rot.detach().cpu().numpy(), pred_txy.detach().cpu().numpy())
         plt.imshow(pair.transpose())
         plt.show()
 
@@ -208,14 +208,17 @@ if __name__ == '__main__':
     from DeepProteinDocking2D.Utility.torchDataLoader import get_docking_stream
     from tqdm import tqdm
 
-    trainset = '../DatasetGeneration/docking_training_set_45examples'
+    testset = '../Datasets/docking_test_set200pool'
+    max_size = None
+    data_stream = get_docking_stream(testset + '.pkl', batch_size=1, shuffle=True, max_size=max_size)
 
-    train_stream = get_docking_stream(trainset + '.pkl', batch_size=1)
 
     swap_quadrants = True
     FFT = TorchDockingFFT(swap_plot_quadrants=swap_quadrants, normalization="ortho")
 
-    for data in tqdm(train_stream):
+    weight_bound, weight_crossterm1, weight_crossterm2, weight_bulk = 10, 20, 20, 200
+
+    for data in tqdm(data_stream):
         receptor, ligand, gt_rot, gt_txy = data
 
         receptor = receptor.squeeze()
@@ -230,6 +233,9 @@ if __name__ == '__main__':
 
         receptor_stack = FFT.make_boundary(receptor)
         ligand_stack = FFT.make_boundary(ligand)
-        fft_score = FFT.dock_global(receptor_stack, ligand_stack)
-
+        fft_score = FFT.dock_global(receptor_stack, ligand_stack, weight_bound, weight_crossterm1, weight_crossterm2, weight_bulk)
+        rot, trans = FFT.extract_transform(fft_score)
+        print(rot, trans)
+        lowest_energy = -fft_score[rot.long(), trans[0], trans[1]].detach().cpu()
+        print('lowest energy', lowest_energy)
         FFT.check_FFT_predictions(fft_score, receptor, ligand, gt_txy, gt_rot)
