@@ -36,12 +36,9 @@ if __name__ == "__main__":
     for data in tqdm(train_stream):
         receptor, ligand, gt_interact = data
 
-        receptor = receptor.squeeze()
-        ligand = ligand.squeeze()
-
-        receptor = receptor.to(device='cuda', dtype=torch.float)
-        ligand = ligand.to(device='cuda', dtype=torch.float)
-        gt_interact = gt_interact.to(device='cuda', dtype=torch.float)
+        receptor = receptor.to(device='cuda', dtype=torch.float).squeeze()
+        ligand = ligand.to(device='cuda', dtype=torch.float).squeeze()
+        gt_interact = gt_interact.to(device='cuda', dtype=torch.float).squeeze()
 
         receptor_stack = FFT.make_boundary(receptor)
         ligand_stack = FFT.make_boundary(ligand)

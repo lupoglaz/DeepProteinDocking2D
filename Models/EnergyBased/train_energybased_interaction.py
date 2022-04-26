@@ -95,14 +95,9 @@ class EnergyBasedInteractionTrainer:
     def run_model(self, data, pos_idx=torch.tensor([0]), training=True, stream_name='trainset'):
         receptor, ligand, gt_interact = data
 
-        receptor = receptor.squeeze()
-        ligand = ligand.squeeze()
-        gt_interact = gt_interact.squeeze()
-        # print(gt_interact.shape, gt_interact)
-
-        receptor = receptor.to(device='cuda', dtype=torch.float).unsqueeze(0)
-        ligand = ligand.to(device='cuda', dtype=torch.float).unsqueeze(0)
-        gt_interact = gt_interact.to(device='cuda', dtype=torch.float)
+        receptor = receptor.to(device='cuda', dtype=torch.float)
+        ligand = ligand.to(device='cuda', dtype=torch.float)
+        gt_interact = gt_interact.to(device='cuda', dtype=torch.float).squeeze()
 
         if training:
             self.docking_model.train()

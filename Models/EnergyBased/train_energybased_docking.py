@@ -85,22 +85,11 @@ class EnergyBasedDockingTrainer:
 
     def run_model(self, data, training=True, pos_idx=0, stream_name='trainset'):
         receptor, ligand, gt_rot, gt_txy = data
-        # print(pos_idx)
-        receptor = receptor.squeeze()
-        ligand = ligand.squeeze()
-        gt_rot = gt_rot.squeeze()
-        gt_txy = gt_txy.squeeze()
 
-        # plt.imshow(receptor.detach().cpu())
-        # plt.show()
-        # plt.imshow(ligand.detach().cpu())
-        # plt.show()
-        # print(gt_rot, gt_txy)
-
-        receptor = receptor.to(device='cuda', dtype=torch.float).unsqueeze(0)
-        ligand = ligand.to(device='cuda', dtype=torch.float).unsqueeze(0)
-        gt_rot = gt_rot.to(device='cuda', dtype=torch.float)
-        gt_txy = gt_txy.to(device='cuda', dtype=torch.float)
+        receptor = receptor.to(device='cuda', dtype=torch.float)
+        ligand = ligand.to(device='cuda', dtype=torch.float)
+        gt_rot = gt_rot.to(device='cuda', dtype=torch.float).squeeze()
+        gt_txy = gt_txy.to(device='cuda', dtype=torch.float).squeeze()
 
         if training:
             self.model.train()

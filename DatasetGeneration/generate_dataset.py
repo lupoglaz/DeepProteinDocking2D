@@ -105,9 +105,10 @@ if __name__ == '__main__':
 
     plotting = True
     swap_quadrants = False
-    FFT = TorchDockingFFT(swap_plot_quadrants=swap_quadrants, normalization='ortho')
+    normalization = 'ortho'
+    FFT = TorchDockingFFT(swap_plot_quadrants=swap_quadrants, normalization=normalization)
 
-    trainpool_num_proteins = 100
+    trainpool_num_proteins = 200
     testpool_num_proteins = trainpool_num_proteins // 2
 
     weight_bound, weight_crossterm1, weight_crossterm2, weight_bulk = 10, 20, 20, 200
@@ -171,6 +172,10 @@ if __name__ == '__main__':
         plt.savefig('Figs/energydistribution_' + wstring + str(trainpool_num_proteins)+ 'pool' + '.png')
 
     # print(train_fft_score_list)
+    print('Protein Pool:', trainpool_num_proteins)
+    print('Docking decision threshold ', docking_decision_threshold)
+    print('Interaction decision threshold ', interaction_decision_threshold)
+
     print('Raw Training set:')
     print('Docking set length', len(train_docking_set))
     print('Interaction set length', len(train_interaction_set))
@@ -200,21 +205,27 @@ if __name__ == '__main__':
         fout.write('\nInteraction set length '+str(len(test_interaction_set)))
 
     ## Save training sets
-    UtilityFuncs().write_pkl(data=train_docking_set, fileprefix=savepath + 'docking_train_set' + str(trainpool_num_proteins) + 'pool')
-    UtilityFuncs().write_pkl(data=train_interaction_set, fileprefix=savepath + 'interaction_train_set' + str(trainpool_num_proteins) + 'pool')
+    docking_train_file = savepath + 'docking_train_set' + str(trainpool_num_proteins) + 'pool'
+    interaction_train_file = savepath + 'interaction_train_set' + str(trainpool_num_proteins) + 'pool'
+    UtilityFuncs().write_pkl(data=train_docking_set, fileprefix=docking_train_file)
+    UtilityFuncs().write_pkl(data=train_interaction_set, fileprefix=interaction_train_file)
 
     ## Save validation sets
-    UtilityFuncs().write_pkl(data=valid_docking_set, fileprefix=savepath + 'docking_valid_set' + str(trainpool_num_proteins) + 'pool')
-    UtilityFuncs().write_pkl(data=valid_interaction_set, fileprefix=savepath + 'interaction_valid_set' + str(trainpool_num_proteins) + 'pool')
+    docking_valid_file = savepath + 'docking_valid_set' + str(trainpool_num_proteins) + 'pool'
+    interaction_valid_file = savepath + 'interaction_valid_set' + str(trainpool_num_proteins) + 'pool'
+    UtilityFuncs().write_pkl(data=valid_docking_set, fileprefix=docking_valid_file)
+    UtilityFuncs().write_pkl(data=valid_interaction_set, fileprefix=interaction_valid_file)
 
     ## Save testing sets
-    UtilityFuncs().write_pkl(data=test_docking_set, fileprefix=savepath + 'docking_test_set' + str(testpool_num_proteins) + 'pool')
-    UtilityFuncs().write_pkl(data=test_interaction_set, fileprefix=savepath + 'interaction_test_set' + str(testpool_num_proteins) + 'pool')
+    docking_test_file = savepath + 'docking_test_set' + str(testpool_num_proteins) + 'pool'
+    interaction_test_file = savepath + 'interaction_test_set' + str(testpool_num_proteins) + 'pool'
+    UtilityFuncs().write_pkl(data=test_docking_set, fileprefix=docking_test_file)
+    UtilityFuncs().write_pkl(data=test_interaction_set, fileprefix=interaction_valid_file)
 
     ## Plot interaction training/validation set free energy distributions
     training_filename = 'Log/losses/log_rawdata_FI_'+trainvalidset_protein_pool[:-4]+'.txt'
-    FILossPlotter('newdataset_trainingset').plot_deltaF_distribution(filename=training_filename, binwidth=1, show=False)
+    FILossPlotter(trainvalidset_protein_pool[:-4]).plot_deltaF_distribution(filename=training_filename, binwidth=1, show=False)
 
     ## Plot interaction testing set free energy distributions
     testing_filename = 'Log/losses/log_rawdata_FI_'+testset_protein_pool[:-4]+'.txt'
-    FILossPlotter('newdataset_testingset').plot_deltaF_distribution(filename=testing_filename, binwidth=1, show=False)
+    FILossPlotter(testset_protein_pool[:-4]).plot_deltaF_distribution(filename=testing_filename, binwidth=1, show=False)

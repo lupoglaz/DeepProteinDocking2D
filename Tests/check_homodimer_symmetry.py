@@ -26,10 +26,10 @@ if __name__ == "__main__":
     for data in tqdm(data_stream):
         receptor, ligand, gt_rot, gt_txy = data
 
-        receptor = receptor.squeeze().to(device='cuda', dtype=torch.float)
-        ligand = ligand.squeeze().to(device='cuda', dtype=torch.float)
-        gt_rot = gt_rot.squeeze().to(device='cuda', dtype=torch.float)
-        gt_txy = gt_txy.squeeze().to(device='cuda', dtype=torch.float)
+        receptor = receptor.to(device='cuda', dtype=torch.float).squeeze()
+        ligand = ligand.to(device='cuda', dtype=torch.float).squeeze()
+        gt_rot = gt_rot.to(device='cuda', dtype=torch.float).squeeze()
+        gt_txy = gt_txy.to(device='cuda', dtype=torch.float).squeeze()
 
         receptor_stack = FFT.make_boundary(receptor)
         ligand_stack = FFT.make_boundary(ligand)
