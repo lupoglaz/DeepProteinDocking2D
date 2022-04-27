@@ -348,10 +348,10 @@ if __name__ == '__main__':
     optimizer = optim.Adam(model.parameters(), lr=lr)
     # scheduler = optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.5)
     ### Train model from beginning
-    EnergyBasedDockingTrainer(dockingFFT, model, optimizer, experiment, debug=debug).run_trainer(train_epochs, train_stream=train_stream)
+    # EnergyBasedDockingTrainer(dockingFFT, model, optimizer, experiment, debug=debug).run_trainer(train_epochs, train_stream=train_stream)
 
     ## Brute force eval and plotting
-    start = 1
+    start = train_epochs-1
     stop = train_epochs
     eval_angles = 360
     eval_model = EnergyBasedModel(dockingFFT, num_angles=eval_angles, IP=True).to(device=0)
