@@ -77,15 +77,21 @@ class EnergyBasedInteractionTrainer:
         self.eval_freq = 1
         self.save_freq = 1
 
+        self.model_savepath = 'Log/saved_models/'
+        self.logfile_savepath = 'Log/losses/'
+
+        self.loss_log_header = 'Epoch\tLoss\n'
+        self.loss_log_format = '%d\t%f\n'
+
+        self.deltaf_log_header = 'F\tF_0\tLabel\n'
+        self.deltaf_log_format = '%f\t%f\t%d\n'
+
         self.docking_model = docking_model
         self.interaction_model = interaction_model
         self.docking_optimizer = docking_optimizer
         self.interaction_optimizer = interaction_optimizer
         self.experiment = experiment
-        # self.training_case = training_case
-        # self.path_pretrain = path_pretrain
-        # self.set_docking_model_state()
-        # self.freeze_weights()
+
         num_examples = max(len(train_stream), len(valid_stream), len(test_stream))
         self.buffer = SampleBuffer(num_examples=num_examples)
 
@@ -115,21 +121,21 @@ class EnergyBasedInteractionTrainer:
         self.buffer.push(pred_rot, pos_idx)
         pred_interact, deltaF, F, F_0 = self.interaction_model(FFT_score_stack.unsqueeze(0), plotting=self.plotting, debug=False)
 
-        # print(F, F_0)
-
         ### check parameters and gradients
         ### if weights are frozen or updating
         if self.debug:
             self.check_model_gradients(self.docking_model)
             self.check_model_gradients(self.interaction_model)
-            print('\n predicted', pred_interact.item(), '; ground truth', gt_interact.item())
 
         #### Loss functions
         BCEloss = torch.nn.BCELoss()
         l1_loss = torch.nn.L1Loss()
-        L_reg = self.wReg * l1_loss(deltaF, torch.zeros(1).squeeze().cuda())
+        w = 10 ** -5  # * scheduler.get_last_lr()[0]
+        L_reg = w * l1_loss(deltaF, torch.zeros(1).squeeze().cuda())
         loss = BCEloss(pred_interact, gt_interact) + L_reg
-        # print('\n predicted', pred_interact.item(), '; ground truth', gt_interact.item())
+
+        if self.debug:
+            print('\n predicted', pred_interact.item(), '; ground truth', gt_interact.item())
 
         if training:
             self.docking_model.zero_grad()
@@ -148,7 +154,7 @@ class EnergyBasedInteractionTrainer:
         #     with torch.no_grad():
         #         self.plot_pose(fft_score, receptor, ligand, gt_rot, gt_txy, plot_count, stream_name)
 
-        return loss.item(), L_reg.item(), deltaF.item(), F.item(), F_0.item(), gt_interact.item()
+        return loss.item(), F.item(), F_0.item(), gt_interact.item()
 
     @staticmethod
     def classify(pred_interact, gt_interact):
@@ -169,17 +175,11 @@ class EnergyBasedInteractionTrainer:
 
     def train_model(self, train_epochs, train_stream, valid_stream, test_stream, resume_training=False,
                     resume_epoch=0):
-        ## Freeze weights as needed for training model cases
-        # self.freeze_weights()
-
         if self.plotting:
             self.eval_freq = 1
 
-        log_header = 'Epoch\tLoss\tLreg\tdeltaF\tF_0\n'
-        log_format = '%d\t%f\t%f\t%f\t%f\n'
-
         ### Continue training on existing model?
-        start_epoch = self.resume_training_or_not(resume_training, resume_epoch, log_header)
+        start_epoch = self.resume_training_or_not(resume_training, resume_epoch)
 
         num_epochs = start_epoch + train_epochs
 
@@ -197,70 +197,64 @@ class EnergyBasedInteractionTrainer:
             }
 
             if train_stream:
-                train_loss = []
-                pos_idx = torch.tensor([0])
-                for data in tqdm(train_stream):
-                    train_output = [self.run_model(data, pos_idx, training=True)]
-                    train_loss.append(train_output)
-                    with open('Log/losses/log_deltaF_Trainset_epoch' + str(epoch) + self.experiment + '.txt', 'a') as fout:
-                        fout.write('%f\t%f\t%d\n' % (train_output[0][3], train_output[0][4], train_output[0][5]))
-                    pos_idx+=1
-
-                # sigma_optimizer.step()
+                self.run_epoch(train_stream, epoch, training=True)
                 scheduler.step()
-                print(scheduler.get_last_lr()[0])
-                # self.sig_alpha = self.sig_alpha * scheduler.get_last_lr()[0]
-                # print('sig_alpha', self.sig_alpha)
-                self.wReg = self.wReg * scheduler.get_last_lr()[0]
-                print('wReg', self.wReg)
-                # self.sig_alpha = scheduler.get_last_lr()[0]
-                # print('sigma alpha', self.sig_alpha)
+                print('last learning rate', scheduler.get_last_lr())
 
                 FILossPlotter(self.experiment).plot_deltaF_distribution(plot_epoch=epoch, show=False, xlim=None, binwidth=1)
 
-                avg_trainloss = np.average(train_loss, axis=0)[0, :]
-                print('\nEpoch', epoch, 'Train Loss: Loss, Lreg, deltaF, F_0', avg_trainloss)
-                with open('Log/losses/log_train_' + self.experiment + '.txt', 'a') as fout:
-                    fout.write(log_format % (epoch, avg_trainloss[0], avg_trainloss[1], avg_trainloss[2], avg_trainloss[3]))
-
-                #### saving model while training
-                if epoch % self.save_freq == 0:
-                    self.save_checkpoint(docking_checkpoint_dict, 'Log/docking_' + self.experiment + str(epoch) + '.th', self.docking_model)
-                    print('saving docking model ' + 'Log/docking_' + self.experiment + str(epoch) + '.th')
-
-                    self.save_checkpoint(interaction_checkpoint_dict, 'Log/' + self.experiment + str(epoch) + '.th', self.interaction_model)
-                    print('saving interaction model ' + 'Log/' + self.experiment + str(epoch) + '.th')
-
             ### evaluate on training and valid set
             ### training set to False downstream in calcAPR() run_model()
+
             if epoch % self.eval_freq == 0:
                 if valid_stream:
-                    self.checkAPR(epoch, valid_stream, 'valid set')
+                    self.checkAPR(epoch, valid_stream, 'VALIDset')
                 if test_stream:
-                    self.checkAPR(epoch, test_stream, 'test set')
+                    self.checkAPR(epoch, test_stream, 'TESTset')
 
+            #### saving model while training
+            if epoch % self.save_freq == 0:
+                docking_savepath =  self.model_savepath + 'docking_' + self.experiment + str(epoch) + '.th'
+                self.save_checkpoint(docking_checkpoint_dict, docking_savepath, self.docking_model)
+                print('saving docking model ' + docking_savepath)
 
+                interaction_savepath = self.model_savepath + self.experiment + str(epoch) + '.th'
+                self.save_checkpoint(interaction_checkpoint_dict, interaction_savepath, self.interaction_model)
+                print('saving interaction model ' + interaction_savepath)
+
+    def run_epoch(self, data_stream, epoch, training=False):
+        stream_loss = []
+        with open(self.logfile_savepath + 'log_deltaF_TRAINset_epoch' + str(epoch) + self.experiment + '.txt', 'w') as fout:
+            fout.write(self.deltaf_log_header)
+        for data in tqdm(data_stream):
+            train_output = [self.run_model(data, training=training)]
+            stream_loss.append(train_output)
+            with open(self.logfile_savepath + 'log_deltaF_TRAINset_epoch' + str(epoch) + self.experiment + '.txt', 'a') as fout:
+                fout.write(self.deltaf_log_format % (train_output[0][1], train_output[0][2], train_output[0][3]))
+
+        avg_loss = np.average(stream_loss, axis=0)[0, :]
+        print('\nEpoch', epoch, 'Train Loss: epoch, loss', avg_loss)
+        with open(self.logfile_savepath + 'log_loss_TRAINset_' + self.experiment + '.txt', 'a') as fout:
+            fout.write(self.loss_log_format % (epoch, avg_loss[0]))
 
     def checkAPR(self, check_epoch, datastream, stream_name=None):
-        log_format = '%f\t%f\t%f\t%f\t%f\n'
-        log_header = 'Accuracy\tPrecision\tRecall\tF1score\tMCC\n'
+        log_APRheader = 'Accuracy\tPrecision\tRecall\tF1score\tMCC\n'
+        log_APRformat = '%f\t%f\t%f\t%f\t%f\n'
         print('Evaluating ', stream_name)
-        # trainer = BruteForceInteractionTrainer()
         Accuracy, Precision, Recall, F1score, MCC = APR().calcAPR(datastream, self.run_model, check_epoch)
-        # print(Accuracy, Precision, Recall)
-        with open('Log/losses/log_validAPR_' + self.experiment + '.txt', 'a') as fout:
+        with open(self.logfile_savepath + 'log_validAPR_' + self.experiment + '.txt', 'a') as fout:
             fout.write('Epoch '+str(check_epoch)+'\n')
-            fout.write(log_header)
-            fout.write(log_format % (Accuracy, Precision, Recall, F1score, MCC))
+            fout.write(log_APRheader)
+            fout.write(log_APRformat % (Accuracy, Precision, Recall, F1score, MCC))
         fout.close()
 
-    def resume_training_or_not(self, resume_training, resume_epoch, log_header):
+    def resume_training_or_not(self, resume_training, resume_epoch):
         if resume_training:
             print('Loading docking model at', str(resume_epoch))
-            ckp_path = 'Log/docking_' + self.experiment + str(resume_epoch) + '.th'
+            ckp_path = self.model_savepath+'docking_' + self.experiment + str(resume_epoch) + '.th'
             self.docking_model, self.docking_optimizer, _ = self.load_ckp(ckp_path, self.docking_model, self.docking_optimizer)
             print('Loading interaction model at', str(resume_epoch))
-            ckp_path = 'Log/' + self.experiment + str(resume_epoch) + '.th'
+            ckp_path = self.model_savepath + self.experiment + str(resume_epoch) + '.th'
             self.interaction_model, self.interaction_optimizer, start_epoch = self.load_ckp(ckp_path, self.interaction_model, self.interaction_optimizer)
 
             start_epoch += 1
@@ -276,10 +270,10 @@ class EnergyBasedInteractionTrainer:
         else:
             start_epoch = 1
             ### Loss log files
-            with open('Log/losses/log_train_' + self.experiment + '.txt', 'w') as fout:
-                fout.write(log_header)
-            with open('Log/losses/log_deltaF_Trainset_epoch' + str(start_epoch) + self.experiment + '.txt', 'w') as fout:
-                fout.write('deltaF\tF\tF_0\tLabel\n')
+            with open(self.logfile_savepath + 'log_loss_TRAINset_' + self.experiment + '.txt', 'w') as fout:
+                fout.write(self.loss_log_header)
+            with open(self.logfile_savepath + 'log_deltaF_TRAINset_epoch' + str(start_epoch) + self.experiment + '.txt', 'w') as fout:
+                fout.write(self.deltaf_log_header)
 
         return start_epoch
 
@@ -306,10 +300,6 @@ class EnergyBasedInteractionTrainer:
         self.train_model(train_epochs, train_stream, valid_stream, test_stream,
                          resume_training=resume_training, resume_epoch=resume_epoch)
 
-    # @classmethod
-    # def get_trainer(cls):
-    #     return super(BruteForceInteractionTrainer, cls).__new__(cls)
-
 if __name__ == '__main__':
     #################################################################################
     # Datasets
@@ -330,18 +320,19 @@ if __name__ == '__main__':
     # torch.autograd.set_detect_anomaly(True)
 
     #########################
-    max_size = None
+    max_size = 1000
     batch_size = 1
     if batch_size > 1:
         raise NotImplementedError()
-    train_stream = get_interaction_stream(trainset + '.pkl', batch_size=batch_size, max_size=max_size)
+    train_stream = get_interaction_stream(trainset + '.pkl', batch_size=batch_size, shuffle=True, max_size=max_size)
     valid_stream = get_interaction_stream(validset + '.pkl', batch_size=1, max_size=max_size)
     test_stream = get_interaction_stream(testset + '.pkl', batch_size=1, max_size=max_size)
     ######################
     # experiment = 'workingMCsampling_50steps_wregsched_g=0.50_modelEvalMCloop_100ex_sigalpha=3' ## 15ep MCC 0.40 valid/test
     # experiment = 'MC_FI_SMALLDATA_100EXAMPLES_50STEPS' ## 15ep MCC 0.40 valid/test
     # experiment = 'MC_FI_NEWDATA_CHECK_100pool_1000ex50steps'
-    experiment = 'MC_FI_NEWDATA_CHECK_400pool_10steps'
+    # experiment = 'MC_FI_NEWDATA_CHECK_400pool_2000ex10steps'
+    experiment = 'MC_FI_NEWDATA_CHECK_400pool_1000ex10steps'
 
     lr_interaction = 10 ** 0
     lr_docking = 10 ** -4
@@ -365,19 +356,25 @@ if __name__ == '__main__':
     # sigma_optimizer = optim.Adam(docking_model.parameters(), lr=2)
     # scheduler = optim.lr_scheduler.ExponentialLR(sigma_optimizer, gamma=0.95)
 
-    train_epochs = 20
+    train_epochs = 40
     # continue_epochs = 1
     ######################
     ### Train model from beginning
-    EnergyBasedInteractionTrainer(docking_model, docking_optimizer, interaction_model, interaction_optimizer, experiment, debug=debug
-                                  ).run_trainer(train_epochs, train_stream=train_stream, valid_stream=None, test_stream=None)
+    # EnergyBasedInteractionTrainer(docking_model, docking_optimizer, interaction_model, interaction_optimizer, experiment, debug=debug
+    #                               ).run_trainer(train_epochs, train_stream=train_stream, valid_stream=None, test_stream=None)
 
     ### resume training model
-    # EnergyBasedInteractionTrainer(docking_model, docking_optimizer, interaction_model, interaction_optimizer, experiment, debug=debug
-    #                              ).run_trainer(resume_training=True, resume_epoch=30, train_epochs=5, train_stream=train_stream, valid_stream=None, test_stream=None)
+    EnergyBasedInteractionTrainer(docking_model, docking_optimizer, interaction_model, interaction_optimizer, experiment, debug=debug
+                                 ).run_trainer(resume_training=True, resume_epoch=13, train_epochs=27,
+                                               train_stream=train_stream, valid_stream=None, test_stream=None)
     #
     ### Evaluate model at chosen epoch
     eval_model = EnergyBasedModel(dockingFFT, num_angles=360, sample_steps=1, FI=True, debug=debug).to(device=0)
     # # eval_model = EnergyBasedModel(dockingFFT, num_angles=1, sample_steps=sample_steps, FI=True, debug=debug).to(device=0) ## eval with monte carlo
     EnergyBasedInteractionTrainer(eval_model, docking_optimizer, interaction_model, interaction_optimizer, experiment, debug=False
-                                  ).run_trainer(resume_training=True, resume_epoch=train_epochs, train_epochs=1, train_stream=None, valid_stream=valid_stream, test_stream=test_stream)
+                                  ).run_trainer(resume_training=True, resume_epoch=train_epochs, train_epochs=1,
+                                                train_stream=None, valid_stream=valid_stream, test_stream=test_stream)
+
+    ### Plot free energy distributions with learned F_0 decision threshold
+    FILossPlotter(experiment).plot_loss()
+    FILossPlotter(experiment).plot_deltaF_distribution(plot_epoch=train_epochs, show=True)
