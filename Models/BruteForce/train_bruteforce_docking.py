@@ -22,7 +22,12 @@ class BruteForceDockingTrainer:
         self.plotting = plotting
         self.eval_freq = 1
         self.save_freq = 1
+        self.model_savepath = 'Log/saved_models/'
+        self.logfile_savepath = 'Log/losses/'
         self.plot_freq = Docking().plot_freq
+
+        self.log_header = 'Epoch\tLoss\trmsd\n'
+        self.log_format = '%d\t%f\t%f\n'
 
         self.dim = TorchDockingFFT().dim
         self.num_angles = TorchDockingFFT().num_angles
@@ -31,7 +36,7 @@ class BruteForceDockingTrainer:
         self.optimizer = cur_optimizer
         self.experiment = cur_experiment
 
-    def run_model(self, data, training=True, plot_count=0, stream_name='trainset'):
+    def run_model(self, data, training=True, pos_idx=0, stream_name='trainset'):
         receptor, ligand, gt_rot, gt_txy = data
 
         receptor = receptor.to(device='cuda', dtype=torch.float).squeeze().unsqueeze(0)
@@ -46,7 +51,7 @@ class BruteForceDockingTrainer:
 
         ### run model and loss calculation
         ##### call model
-        fft_score = self.model(receptor, ligand, training=training, plotting=self.plotting, plot_count=plot_count, stream_name=stream_name)
+        fft_score = self.model(receptor, ligand, training=training, plotting=self.plotting, plot_count=pos_idx, stream_name=stream_name)
         fft_score = fft_score.flatten()
 
         ### Encode ground truth transformation index into empty energy grid
@@ -72,11 +77,66 @@ class BruteForceDockingTrainer:
             self.model.eval()
 
         if self.plotting and not training:
-            if plot_count % self.plot_freq == 0:
+            if pos_idx % self.plot_freq == 0:
                 with torch.no_grad():
-                    self.plot_pose(fft_score, receptor, ligand, gt_rot, gt_txy, plot_count, stream_name)
+                    self.plot_pose(fft_score, receptor, ligand, gt_rot, gt_txy, pos_idx, stream_name)
 
         return loss.item(), rmsd_out.item()
+
+    def train_model(self, train_epochs, train_stream=None, valid_stream=None, test_stream=None,
+                    resume_training=False,
+                    resume_epoch=0):
+        if self.plotting:
+            self.eval_freq = 1
+
+        ### Continue training on existing model?
+        start_epoch = self.resume_training_or_not(resume_training, resume_epoch)
+
+        num_epochs = start_epoch + train_epochs
+
+        for epoch in range(start_epoch, num_epochs):
+
+            checkpoint_dict = {
+                'epoch': epoch,
+                'state_dict': self.model.state_dict(),
+                'optimizer': self.optimizer.state_dict(),
+            }
+
+            if train_stream:
+                ### Training epoch
+                stream_name = 'TRAINset'
+                self.run_epoch(train_stream, epoch, training=True, stream_name=stream_name)
+
+                #### saving model while training
+                if epoch % self.save_freq == 0:
+                    model_savefile = self.model_savepath + self.experiment + str(epoch) + '.th'
+                    self.save_checkpoint(checkpoint_dict, model_savefile)
+                    print('saving model ' + model_savefile)
+
+            ### Evaluation epoch
+            if epoch % self.eval_freq == 0 or epoch == 1:
+                if valid_stream:
+                    stream_name = 'VALIDset'
+                    self.run_epoch(valid_stream, epoch, training=False, stream_name=stream_name)
+
+                if test_stream:
+                    stream_name = 'TESTset'
+                    self.run_epoch(test_stream, epoch, training=False, stream_name=stream_name)
+
+    def run_epoch(self, data_stream, epoch, training=False, stream_name='train_stream'):
+        stream_loss = []
+        pos_idx = 0
+        for data in tqdm(data_stream):
+            train_output = [self.run_model(data, pos_idx=pos_idx, training=training, stream_name=stream_name)]
+            stream_loss.append(train_output)
+            with open(self.logfile_savepath + 'log_RMSDs'+stream_name+'_epoch' + str(epoch) + self.experiment + '.txt','a') as fout:
+                fout.write('%f\n' % (train_output[0][-1]))
+            pos_idx += 1
+
+        avg_loss = np.average(stream_loss, axis=0)[0, :]
+        print('\nEpoch', epoch, stream_name,':', avg_loss)
+        with open(self.logfile_savepath + 'log_loss_' + stream_name + '_' + self.experiment + '.txt', 'a') as fout:
+            fout.write(self.log_format % (epoch, avg_loss[0], avg_loss[1]))
 
     def save_checkpoint(self, state, filename):
         self.model.eval()
@@ -92,7 +152,7 @@ class BruteForceDockingTrainer:
     def check_model_gradients(self):
         for n, p in self.model.named_parameters():
             if p.requires_grad:
-                print(n, p, p.grad)
+                print('name', n, 'param', p, 'gradient', p.grad)
 
     ## Unused SE2 net has own Kaiming He weight initialization.
     def weights_init(self):
@@ -101,84 +161,37 @@ class BruteForceDockingTrainer:
             torch.nn.init.kaiming_uniform_(self.model.weight)
             # torch.nn.init.kaiming_normal_(model.weight)
 
-    def train_model(self, train_epochs, train_stream=None, valid_stream=None, test_stream=None,
-                    resume_training=False,
-                    resume_epoch=0):
+    def resume_training_or_not(self, resume_training, resume_epoch):
+        if resume_training:
+            ckp_path = self.model_savepath + self.experiment + str(resume_epoch) + '.th'
+            self.model, self.optimizer, start_epoch = self.load_ckp(ckp_path)
+            start_epoch += 1
 
-        if self.plotting:
-            self.eval_freq = 1
-
-        log_header = 'Epoch\tLoss\trmsd\n'
-        log_format = '%d\t%f\t%f\n'
-
-        ### Continue training on existing model?
-        start_epoch = self.resume_training_or_not(resume_training, resume_epoch, log_header)
-
-        num_epochs = start_epoch + train_epochs
-
-        for epoch in range(start_epoch, num_epochs):
-
-            checkpoint_dict = {
-                'epoch': epoch,
-                'state_dict': self.model.state_dict(),
-                'optimizer': self.optimizer.state_dict(),
-            }
-
-            if train_stream:
-                ### Training epoch
-                train_loss = []
-                for data in tqdm(train_stream):
-                    train_output = [self.run_model(data, training=True)]
-                    train_loss.append(train_output)
-                    with open('Log/losses/log_RMSDsTrainset_epoch' + str(epoch) + self.experiment + '.txt', 'a') as fout:
-                        fout.write('%f\n' % (train_output[0][-1]))
-
-                avg_trainloss = np.average(train_loss, axis=0)[0, :]
-                print('\nEpoch', epoch, 'Train Loss: Loss, RMSD', avg_trainloss)
-                with open('Log/losses/log_train_' + self.experiment + '.txt', 'a') as fout:
-                    fout.write(log_format % (epoch, avg_trainloss[0], avg_trainloss[1]))
-
-                #### saving model while training
-                if epoch % self.save_freq == 0:
-                    self.save_checkpoint(checkpoint_dict, 'Log/' + self.experiment + str(epoch) + '.th')
-                    print('saving model ' + 'Log/' + self.experiment + str(epoch) + '.th')
-                if epoch == num_epochs - 1:
-                    self.save_checkpoint(checkpoint_dict, 'Log/' + self.experiment + 'end.th')
-                    print('saving LAST EPOCH model ' + 'Log/' + self.experiment + str(epoch) + '.th')
-
-            ### Evaluation epoch
-            if epoch % self.eval_freq == 0 or epoch == 1:
-                if valid_stream:
-                    stream_name = 'validset'
-                    plot_count = 0
-                    valid_loss = []
-                    for data in tqdm(valid_stream):
-                        valid_output = [self.run_model(data, training=False, plot_count=plot_count, stream_name=stream_name)]
-                        valid_loss.append(valid_output)
-                        with open('Log/losses/log_RMSDsValidset_epoch' + str(epoch) + self.experiment + '.txt', 'a') as fout:
-                            fout.write('%f\n' % (valid_output[0][-1]))
-                        plot_count += 1
-
-                    avg_validloss = np.average(valid_loss, axis=0)[0, :]
-                    print('\nEpoch', epoch, 'VALID LOSS: Loss, RMSD', avg_validloss)
-                    with open('Log/losses/log_valid_' + self.experiment + '.txt', 'a') as fout:
-                        fout.write(log_format % (epoch, avg_validloss[0], avg_validloss[1]))
-
-                if test_stream:
-                    stream_name = 'testset'
-                    plot_count = 0
-                    test_loss = []
-                    for data in tqdm(test_stream):
-                        test_output = [self.run_model(data, training=False, plot_count=plot_count, stream_name=stream_name)]
-                        test_loss.append(test_output)
-                        with open('Log/losses/log_RMSDsTestset_epoch' + str(epoch) + self.experiment + '.txt', 'a') as fout:
-                            fout.write('%f\n' % (test_output[0][-1]))
-                        plot_count += 1
-
-                    avg_testloss = np.average(test_loss, axis=0)[0, :]
-                    print('\nEpoch', epoch, 'TEST LOSS: Loss, RMSD', avg_testloss)
-                    with open('Log/losses/log_test_' + self.experiment + '.txt', 'a') as fout:
-                        fout.write(log_format % (epoch, avg_testloss[0], avg_testloss[1]))
+            # print(self.model)
+            # print(list(self.model.named_parameters()))
+            print('\nRESUMING TRAINING AT EPOCH', start_epoch, '\n')
+            with open(self.logfile_savepath + 'log_RMSDsTRAINset_epoch' + str(start_epoch) + self.experiment + '.txt',
+                      'w') as fout:
+                fout.write('Training RMSD\n')
+            with open(self.logfile_savepath + 'log_RMSDsVALIDset_epoch' + str(start_epoch) + self.experiment + '.txt',
+                      'w') as fout:
+                fout.write('Validation RMSD\n')
+            with open(self.logfile_savepath + 'log_RMSDsTESTset_epoch' + str(start_epoch) + self.experiment + '.txt',
+                      'w') as fout:
+                fout.write('Testing RMSD\n')
+        else:
+            start_epoch = 1
+            ### Loss log files
+            with open(self.logfile_savepath + 'log_loss_TRAINset_' + self.experiment + '.txt', 'w') as fout:
+                fout.write('Docking Training Loss:\n')
+                fout.write(self.log_header)
+            with open(self.logfile_savepath + 'log_loss_VALIDset_' + self.experiment + '.txt', 'w') as fout:
+                fout.write('Docking Validation Loss:\n')
+                fout.write(self.log_header)
+            with open(self.logfile_savepath + 'log_loss_TESTset_' + self.experiment + '.txt', 'w') as fout:
+                fout.write('Docking Testing Loss:\n')
+                fout.write(self.log_header)
+        return start_epoch
 
     @staticmethod
     def plot_pose(FFT_score, receptor, ligand, gt_rot, gt_txy, plot_count, stream_name):
@@ -216,29 +229,6 @@ class BruteForceDockingTrainer:
         plt.savefig('figs/rmsd_and_poses/'+stream_name+'_docking_pose_example' + str(plot_count) + '_RMSD' + str(rmsd_out.item())[:4] + '.png')
         # plt.show()
 
-    def resume_training_or_not(self, resume_training, resume_epoch, log_header):
-        if resume_training:
-            ckp_path = 'Log/' + self.experiment + str(resume_epoch) + '.th'
-            self.model, self.optimizer, start_epoch = self.load_ckp(ckp_path)
-            start_epoch += 1
-
-            print(self.model)
-            print(list(self.model.named_parameters()))
-            print('\nRESUMING TRAINING AT EPOCH', start_epoch, '\n')
-        else:
-            start_epoch = 1
-            ### Loss log files
-            with open('Log/losses/log_train_' + self.experiment + '.txt', 'w') as fout:
-                fout.write('Docking Training Loss:\n')
-                fout.write(log_header)
-            with open('Log/losses/log_valid_' + self.experiment + '.txt', 'w') as fout:
-                fout.write('Docking Validation Loss:\n')
-                fout.write(log_header)
-            with open('Log/losses/log_test_' + self.experiment + '.txt', 'w') as fout:
-                fout.write('Docking Testing Loss:\n')
-                fout.write(log_header)
-        return start_epoch
-
     def run_trainer(self, train_epochs, train_stream=None, valid_stream=None, test_stream=None, resume_training=False, resume_epoch=0):
         self.train_model(train_epochs, train_stream, valid_stream, test_stream,
                          resume_training=resume_training, resume_epoch=resume_epoch)
@@ -251,10 +241,10 @@ class BruteForceDockingTrainer:
 if __name__ == '__main__':
     #################################################################################
     # Datasets
-    trainset = '../../Datasets/docking_train_set200pool'
-    validset = '../../Datasets/docking_valid_set200pool'
+    trainset = '../../Datasets/docking_train_set400pool'
+    validset = '../../Datasets/docking_valid_set400pool'
     ### testing set
-    testset = '../../Datasets/docking_test_set50pool'
+    testset = '../../Datasets/docking_test_set200pool'
     #########################
     #### initialization torch settings
     random_seed = 42
@@ -274,16 +264,15 @@ if __name__ == '__main__':
     max_size = None
     if batch_size > 1:
         raise NotImplementedError()
-    train_stream = get_docking_stream(trainset + '.pkl', batch_size=batch_size, max_size=max_size)
-    valid_stream = get_docking_stream(validset + '.pkl', batch_size=1)
-    test_stream = get_docking_stream(testset + '.pkl', batch_size=1)
+    train_stream = get_docking_stream(trainset + '.pkl', batch_size, shuffle=True, max_size=None)
+    valid_stream = get_docking_stream(validset + '.pkl', batch_size=1, max_size=None)
+    test_stream = get_docking_stream(testset + '.pkl', batch_size=1, max_size=None)
 
     ######################
     train_epochs = 30
-    # train_epochs = 10
     # experiment = 'SMALLDATA_100EXAMPLES' ## best test rmsd 5.1
-    # experiment = 'NEWDATA_TEST'
-    experiment = 'BF_IP_NEWDATA_CHECK_100pool'
+    # experiment = 'BF_IP_NEWDATA_CHECK_100pool'
+    experiment = 'BF_IP_NEWDATA_CHECK_400pool_30ep'
 
     ######################
     ### Train model from beginning
