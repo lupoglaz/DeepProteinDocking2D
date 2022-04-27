@@ -3,9 +3,12 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import sys
 
+
 class FILossPlotter:
     def __init__(self, experiment=None):
         self.experiment = experiment
+        self.logfile_savepath = 'Log/losses/'
+
         if not experiment:
             print('no experiment name given')
             self.experiment = "NOTSET"
@@ -13,42 +16,20 @@ class FILossPlotter:
     def plot_loss(self):
         plt.close()
         #LOSS WITH ROTATION
-        train = pd.read_csv("Log/losses/log_train_"+ self.experiment +".txt", sep='\t', header=1, names=['Epoch',	'Loss',	'Lreg'])
-        valid = pd.read_csv("Log/losses/log_valid_"+ self.experiment +".txt", sep='\t', header=1, names=['Epoch', 'Loss', 'Lreg'])
-        test = pd.read_csv("Log/losses/log_test_"+ self.experiment +".txt", sep='\t', header=1, names=['Epoch', 'Loss', 'Lreg'])
-
+        train = pd.read_csv(self.logfile_savepath+'log_loss_TRAINset_'+ self.experiment +'.txt', sep='\t', header=1, names=['Epoch', 'Loss'])
         num_epochs = len(train['Epoch'].to_numpy())
 
-        fig, ax = plt.subplots(2, figsize=(20,10))
-        train_Lreg = ax[0].plot(train['Epoch'].to_numpy(), train['Lreg'].to_numpy())
-        valid_Lreg = ax[0].plot(valid['Epoch'].to_numpy(), valid['Lreg'].to_numpy())
-        test_Lreg = ax[0].plot(test['Epoch'].to_numpy(), test['Lreg'].to_numpy())
-        ax[0].legend(('train Lreg', 'valid Lreg', 'test Lreg'))
+        fig, ax = plt.subplots(figsize=(20,10))
 
-        ax[0].set_title('Loss: ' + self.experiment)
-        ax[0].set_ylabel('Lreg')
-        ax[0].grid(visible=True)
-        ax[0].set_xticks(np.arange(0, num_epochs+1, num_epochs/10))
-        # ax[0].set_yticks(np.arange(0, max(train['Loss'].to_numpy())+1, 10))
-
-        train_loss = ax[1].plot(train['Epoch'].to_numpy(), train['Loss'].to_numpy())
-        valid_loss = ax[1].plot(valid['Epoch'].to_numpy(), valid['Loss'].to_numpy())
-        test_loss = ax[1].plot(test['Epoch'].to_numpy(), test['Loss'].to_numpy())
-        ax[1].legend(('train loss', 'valid loss', 'test loss'))
-
-        # best_train_rmsd = train['rmsd'].min()
-        # best_valid_rmsd = valid['rmsd'].min()
-        # best_test_rmsd = test['rmsd'].min()
-
-        ax[1].set_xlabel('epochs')
-        ax[1].set_ylabel('loss')
-        ax[1].grid(visible=True)
-        ax[1].set_xticks(np.arange(0, num_epochs+1, num_epochs/10))
-        # ax[0].set_yticks(np.arange(0, max(train['rmsd'].to_numpy())+1, 10))
+        train_loss = plt.plot(train['Epoch'].to_numpy(), train['Loss'].to_numpy())
+        plt.title('log_loss_TRAINset_'+ self.experiment)
+        plt.xlabel('epochs')
+        plt.ylabel('loss')
+        plt.grid(visible=True)
+        plt.xticks(np.arange(0, num_epochs+1, num_epochs+1/10))
 
         plt.xlabel('Epochs')
-        ax[0].set_ylim([0,20])
-        ax[1].set_ylim([0,20])
+        # plt.ylim([0,20])
 
         plt.savefig('Figs/FI_loss_plots/Lossplot_'+self.experiment+'.png')
         plt.show()
@@ -56,11 +37,12 @@ class FILossPlotter:
     def plot_deltaF_distribution(self, plot_epoch=1, show=False, filename=None, xlim=None, binwidth=1):
         plt.close()
         # Plot free energy distribution of all samples across epoch
-        if filename:
-            train = pd.read_csv(filename,
-                                sep='\t', header=0, names=['F', 'F_0', 'Label'])
-        else:
-            train = pd.read_csv("Log/losses/log_deltaF_Trainset_epoch" + str(plot_epoch) + self.experiment + ".txt", sep='\t', index_col=False, header=0, names=['F', 'F_0', 'Label'])
+        # if filename:
+        #     train = pd.read_csv(filename,
+        #                         sep='\t', header=0, names=['F', 'F_0', 'Label'])
+        # else:
+        train = pd.read_csv(self.logfile_savepath+'log_deltaF_TRAINset_epoch' + str(plot_epoch) + self.experiment + '.txt',
+                            sep='\t', index_col=False, header=0, names=['F', 'F_0', 'Label'])
 
         fig, ax = plt.subplots(figsize=(10,10))
         plt.suptitle('deltaF distribution: epoch'+ str(plot_epoch) + ' ' + self.experiment)
@@ -73,7 +55,7 @@ class FILossPlotter:
         y2, x2, _ = plt.hist(hist_data[1], label=labels, bins=bins, rwidth=binwidth, color=['g'], alpha=0.25)
 
         plt.vlines(train['F_0'].to_numpy()[-1], ymin=0, ymax=max(y1.max(), y2.max())+1, linestyles='dashed', label='F_0', colors='k')
-        # ax.set_xticks(np.arange(int(x.min())-1, int(x.max())+1, num_ticks), rotation=45)
+
         if xlim:
             ax.set_xlim([-xlim, 0])
         plt.legend(('non-interaction (-)', ' interaction (+)', 'final F_0'), prop={'size': 10})
