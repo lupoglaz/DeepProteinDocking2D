@@ -290,10 +290,10 @@ class BruteForceInteractionTrainer:
 if __name__ == '__main__':
     #################################################################################
     ##Datasets
-    trainset = '../../Datasets/interaction_train_set100pool'
-    validset = '../../Datasets/interaction_valid_set100pool'
+    trainset = '../../Datasets/interaction_train_set400pool'
+    validset = '../../Datasets/interaction_valid_set400pool'
     # ### testing set
-    testset = '../../Datasets/interaction_test_set50pool'
+    testset = '../../Datasets/interaction_test_set200pool'
     #########################
     #### initialization torch settings
     random_seed = 42
