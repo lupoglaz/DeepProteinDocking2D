@@ -272,8 +272,8 @@ if __name__ == '__main__':
 
     ######################
     ### Train model from beginning
-    BruteForceDockingTrainer(model, optimizer, experiment).run_trainer(
-        train_epochs=train_epochs, train_stream=train_stream, valid_stream=valid_stream, test_stream=test_stream)
+    # BruteForceDockingTrainer(model, optimizer, experiment).run_trainer(
+    #     train_epochs=train_epochs, train_stream=train_stream, valid_stream=valid_stream, test_stream=test_stream)
 
     ### Resume training model at chosen epoch
     # BruteForceDockingTrainer(model, optimizer, experiment).run_trainer(
