@@ -57,10 +57,7 @@ def generate_datasets(protein_pool, num_proteins, weight_bound, weight_crossterm
             lowest_energy = E[rot.long(), trans[0], trans[1]]
 
             if lowest_energy < docking_decision_threshold:
-                if 'test' in protein_pool_prefix:
-                    docking_set.append([receptor, ligand, rot, trans])
-                elif i != j:
-                    docking_set.append([receptor, ligand, rot, trans])
+                docking_set.append([receptor, ligand, rot, trans])
 
             F = -(torch.logsumexp(-E, dim=(0, 1, 2)) - volume)
 
@@ -68,10 +65,9 @@ def generate_datasets(protein_pool, num_proteins, weight_bound, weight_crossterm
                 interaction = 1
             if F > interaction_decision_threshold:
                 interaction = 0
-            if abs(F - interaction_decision_threshold) < abs(interaction_decision_threshold // 2) and np.random.rand() > np.exp(-abs(F.detach().cpu() - interaction_decision_threshold)):
-                interaction_set.append([receptor, ligand, interaction])
-                with open(filename, 'a') as fout:
-                    fout.write('%f\t%f\t%d\n' % (F.item(), F.item(), interaction))
+            interaction_set.append([receptor, ligand, interaction])
+            with open(filename, 'a') as fout:
+                fout.write('%f\t%f\t%d\n' % (F.item(), F.item(), interaction))
 
             fft_score_list[0].append([i, j])
             fft_score_list[1].append(lowest_energy.item())
@@ -119,6 +115,11 @@ if __name__ == '__main__':
 
     trainvalidset_protein_pool = 'trainvalidset_protein_pool' + str(trainpool_num_proteins) + '.pkl'
     testset_protein_pool = 'testset_protein_pool' + str(testpool_num_proteins) + '.pkl'
+
+    ### TODO: generate figure with alpha vs numpoints
+    ### TODO: training set -> center dists with regular tails. testing set -> shifted mean longer tails
+    ### TODO: orthogonalization of features plotting
+    #### TODO: homodimers no detection threshold, if i==j compare energy to i!=j and normalize
 
     ### Generate training/validation set protein pool
     if exists(trainvalidset_protein_pool):
@@ -191,7 +192,7 @@ if __name__ == '__main__':
     ## Write dataset statistics
     savepath = '../Datasets/'
     with open(savepath+'dataset_stats_'+str(trainpool_num_proteins)+'pool.txt', 'w') as fout:
-        fout.write('Protein Pool:')
+        fout.write('Protein Pool'+str(trainpool_num_proteins)+':')
         fout.write('\nDocking decision threshold ' + str(docking_decision_threshold))
         fout.write('\nInteraction decision threshold ' + str(interaction_decision_threshold))
         fout.write('\n\nRaw Training set:')
