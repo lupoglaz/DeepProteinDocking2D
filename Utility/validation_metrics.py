@@ -69,9 +69,9 @@ class RMSD:
         rmsd = rmsd + 2.0 * torch.sum(torch.sum(T.unsqueeze(dim=1) * (R1 - R2), dim=0) * C, dim=0) + self.epsilon
         # print(rmsd)
 
-        sqrt_rmsd = torch.sqrt(rmsd)
-        if sqrt_rmsd < 0.01:
-            sqrt_rmsd = torch.zeros(1)
+        # sqrt_rmsd = torch.sqrt(rmsd)
+        sqrt_rmsd = torch.sqrt(rmsd) - torch.sqrt(torch.tensor(self.epsilon))
+
         return sqrt_rmsd
 
     def calc_rmsd(self):
