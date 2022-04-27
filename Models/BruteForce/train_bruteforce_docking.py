@@ -26,7 +26,7 @@ class BruteForceDockingTrainer:
         self.logfile_savepath = 'Log/losses/'
         self.plot_freq = Docking().plot_freq
 
-        self.log_header = 'Epoch\tLoss\trmsd\n'
+        self.log_header = 'Epoch\tLoss\tRMSD\n'
         self.log_format = '%d\t%f\t%f\n'
 
         self.dim = TorchDockingFFT().dim
@@ -154,7 +154,7 @@ class BruteForceDockingTrainer:
             if p.requires_grad:
                 print('name', n, 'param', p, 'gradient', p.grad)
 
-    ## Unused SE2 net has own Kaiming He weight initialization.
+    ## Unused, SE2 net has own Kaiming He weight initialization.
     def weights_init(self):
         if isinstance(self.model, torch.nn.Conv2d):
             print('updating convnet weights to kaiming uniform initialization')
@@ -233,10 +233,6 @@ class BruteForceDockingTrainer:
         self.train_model(train_epochs, train_stream, valid_stream, test_stream,
                          resume_training=resume_training, resume_epoch=resume_epoch)
 
-    def plot_evaluation_set(self, check_epoch, train_stream=None, valid_stream=None, test_stream=None):
-        eval_epochs = 1
-        self.train_model(eval_epochs, train_stream, valid_stream, test_stream,
-                         resume_training=False, resume_epoch=check_epoch)
 
 if __name__ == '__main__':
     #################################################################################
@@ -276,16 +272,19 @@ if __name__ == '__main__':
 
     ######################
     ### Train model from beginning
-    BruteForceDockingTrainer(model, optimizer, experiment).run_trainer(train_epochs, train_stream, valid_stream=valid_stream, test_stream=test_stream)
+    BruteForceDockingTrainer(model, optimizer, experiment).run_trainer(
+        train_epochs=train_epochs, train_stream=train_stream, valid_stream=valid_stream, test_stream=test_stream)
 
     ### Resume training model at chosen epoch
     # BruteForceDockingTrainer(model, optimizer, experiment).run_trainer(
-    #     train_epochs=1, train_stream=None, valid_stream=valid_stream, test_stream=test_stream,
-    #     resume_training=True, resume_epoch=train_epochs-1)
+    #     train_stream=None, valid_stream=valid_stream, test_stream=test_stream,
+    #     resume_training=True, resume_epoch=13, train_epochs=17)
 
-    ### Evaluate model on chosen dataset only and plot at chosen epoch and dataset frequency
-    BruteForceDockingTrainer(model, optimizer, experiment, plotting=False).plot_evaluation_set(
-        check_epoch=30, train_stream=train_stream, valid_stream=valid_stream, test_stream=test_stream)
+
+    # ### Evaluate model on chosen dataset only and plot at chosen epoch and dataset frequency
+    # BruteForceDockingTrainer(model, optimizer, experiment).run_trainer(
+    #         train_stream=None, valid_stream=valid_stream, test_stream=test_stream,
+    #         resume_training=True, resume_epoch=15, train_epochs=1)
 
     ## Plot loss from current experiment
     IPLossPlotter(experiment).plot_loss()
