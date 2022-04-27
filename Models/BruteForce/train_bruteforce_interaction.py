@@ -145,6 +145,8 @@ class BruteForceInteractionTrainer:
                 scheduler.step()
                 print('last learning rate', scheduler.get_last_lr())
 
+                FILossPlotter(self.experiment).plot_deltaF_distribution(plot_epoch=epoch, show=False, xlim=None, binwidth=1)
+
             ### evaluate on training and valid set
             ### training set to False downstream in calcAPR() run_model()
 
@@ -340,12 +342,12 @@ if __name__ == '__main__':
     train_epochs = 30
     #####################
     ### Train model from beginning
-    BruteForceInteractionTrainer(docking_model, docking_optimizer, interaction_model, interaction_optimizer, experiment, training_case, path_pretrain
-                                 ).run_trainer(train_epochs, train_stream=train_stream, valid_stream=None, test_stream=None)
+    # BruteForceInteractionTrainer(docking_model, docking_optimizer, interaction_model, interaction_optimizer, experiment, training_case, path_pretrain
+    #                              ).run_trainer(train_epochs, train_stream=train_stream, valid_stream=None, test_stream=None)
 
     ### Resume training model at chosen epoch
-    # BruteForceInteractionTrainer(docking_model, docking_optimizer, interaction_model, interaction_optimizer, experiment, training_case, path_pretrain
-    #                              ).run_trainer(resume_training=True, resume_epoch=32, train_epochs=8, train_stream=train_stream, valid_stream=None, test_stream=None)
+    BruteForceInteractionTrainer(docking_model, docking_optimizer, interaction_model, interaction_optimizer, experiment, training_case, path_pretrain
+                                 ).run_trainer(resume_training=True, resume_epoch=9, train_epochs=21, train_stream=train_stream, valid_stream=None, test_stream=None)
     #
 
     ### Validate model at chosen epoch
