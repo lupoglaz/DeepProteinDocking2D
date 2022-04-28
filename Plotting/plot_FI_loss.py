@@ -37,12 +37,8 @@ class FILossPlotter:
     def plot_deltaF_distribution(self, plot_epoch=1, show=False, filename=None, xlim=None, binwidth=1):
         plt.close()
         # Plot free energy distribution of all samples across epoch
-        # if filename:
-        #     train = pd.read_csv(filename,
-        #                         sep='\t', header=0, names=['F', 'F_0', 'Label'])
-        # else:
-        train = pd.read_csv(self.logfile_savepath+'log_deltaF_TRAINset_epoch' + str(plot_epoch) + self.experiment + '.txt',
-                            sep='\t', index_col=False, header=0, names=['F', 'F_0', 'Label'])
+        train = pd.read_csv(filename, sep='\t', header=0, names=['F', 'F_0', 'Label'])
+
 
         fig, ax = plt.subplots(figsize=(10,10))
         plt.suptitle('deltaF distribution: epoch'+ str(plot_epoch) + ' ' + self.experiment)
