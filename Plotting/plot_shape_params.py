@@ -77,6 +77,8 @@ def plot_shape_and_params(protein_pool, datasetname):
     # ax1.sharex(ax0)
     # ax1.sharey(ax2)
     plt.tight_layout()
+    # plt.subplot_tool()
+
     plt.savefig(datasetname+str(len(protein_shapes))+'pool_combined_shapes_params')
     plt.show()
 
@@ -140,7 +142,6 @@ def plot_shape_distributions(protein_shapes, alpha_unique, numpoints_unique, par
         cur_row = np.array(protein_shapes)[cur_indices]
         plot_rows.append(np.hstack(cur_row))
 
-
     shapes_plot = np.vstack(plot_rows[::-1])
 
     plt.imshow(shapes_plot)
@@ -155,12 +156,12 @@ if __name__ == "__main__":
 
     data_path = '../DatasetGeneration/'
 
-    num_proteins = 400
+    num_proteins = 200
     trainvalidset_protein_pool = data_path+'trainvalidset_protein_pool' + str(num_proteins) + '.pkl'
 
     plot_shape_and_params(trainvalidset_protein_pool, 'trainset')
 
-    num_proteins = 200
+    num_proteins = 100
     testset_protein_pool = data_path+'testset_protein_pool' + str(num_proteins) + '.pkl'
 
     plot_shape_and_params(testset_protein_pool, 'testset')
