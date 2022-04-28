@@ -39,7 +39,6 @@ class FILossPlotter:
         # Plot free energy distribution of all samples across epoch
         train = pd.read_csv(filename, sep='\t', header=0, names=['F', 'F_0', 'Label'])
 
-
         fig, ax = plt.subplots(figsize=(10,10))
         plt.suptitle('deltaF distribution: epoch'+ str(plot_epoch) + ' ' + self.experiment)
 
@@ -50,11 +49,14 @@ class FILossPlotter:
         y1, x1, _ = plt.hist(hist_data[0], label=labels, bins=bins, rwidth=binwidth, color=['r'], alpha=0.25)
         y2, x2, _ = plt.hist(hist_data[1], label=labels, bins=bins, rwidth=binwidth, color=['g'], alpha=0.25)
 
-        plt.vlines(train['F_0'].to_numpy()[-1], ymin=0, ymax=max(y1.max(), y2.max())+1, linestyles='dashed', label='F_0', colors='k')
+        if train['F_0'][0] != 'NA':
+            plt.vlines(train['F_0'].to_numpy()[-1], ymin=0, ymax=max(y1.max(), y2.max())+1, linestyles='dashed', label='F_0', colors='k')
+            plt.legend(('non-interaction (-)', ' interaction (+)', 'final F_0'), prop={'size': 10})
+        else:
+            plt.legend(('non-interaction (-)', ' interaction (+)'), prop={'size': 10})
 
         if xlim:
             ax.set_xlim([-xlim, 0])
-        plt.legend(('non-interaction (-)', ' interaction (+)', 'final F_0'), prop={'size': 10})
         ax.set_ylabel('Training set counts')
         ax.set_xlabel('Free Energy (F)')
         ax.grid(visible=True)

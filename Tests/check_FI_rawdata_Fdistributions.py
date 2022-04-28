@@ -3,7 +3,6 @@ from DeepProteinDocking2D.Utility.torchDataLoader import get_interaction_stream
 from tqdm import tqdm
 
 from DeepProteinDocking2D.Utility.torchDockingFFT import TorchDockingFFT
-from DeepProteinDocking2D.Models.model_interaction import Interaction
 from DeepProteinDocking2D.Plotting.plot_FI_loss import FILossPlotter
 
 if __name__ == "__main__":
@@ -11,8 +10,8 @@ if __name__ == "__main__":
     # max_size = 100
     # trainset = '../DatasetGeneration/interaction_training_set_4545examples'
     # trainset = '../DatasetGeneration/interaction_training_set_4734examples'
-    # trainset = 'interaction_train_set100pool'
-    trainset = 'interaction_train_set200pool'
+    trainset = 'interaction_train_set100pool'
+    # trainset = 'interaction_train_set200pool'
 
     max_size = None
     train_stream = get_interaction_stream('../Datasets/'+trainset + '.pkl', batch_size=1, max_size=max_size)
@@ -24,8 +23,7 @@ if __name__ == "__main__":
     else:
         FFT = TorchDockingFFT(swap_plot_quadrants=False, normalization=normalization)
 
-    # FI = Interaction()
-    volume = torch.log(360 * torch.tensor(100 ** 2))
+    volume = torch.log(360 * torch.tensor(50 ** 2))
 
     filename = 'Log/losses/log_rawdata_FI_'+trainset+'.txt'
     with open(filename, 'w') as fout:
@@ -50,6 +48,6 @@ if __name__ == "__main__":
         F = -(torch.logsumexp(-E, dim=(0, 1, 2)) - volume)
 
         with open(filename, 'a') as fout:
-            fout.write('%f\t%f\t%d\n' % (F.item(), F.item(), gt_interact.item()))
+            fout.write('%f\t%s\t%d\n' % (F.item(), 'NA', gt_interact.item()))
 
     FILossPlotter(trainset).plot_deltaF_distribution(filename=filename, binwidth=1, show=True)
