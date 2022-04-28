@@ -43,7 +43,7 @@ def generate_datasets(protein_pool, num_proteins, weight_bound, weight_crossterm
 
     filename = 'Log/losses/log_rawdata_FI_'+protein_pool_prefix+'.txt'
     with open(filename, 'w') as fout:
-        fout.write('free_energy\tF_0\tLabel\n')
+        fout.write('F\tF_0\tLabel\n')
 
     for i in tqdm(range(num_proteins)):
         for j in tqdm(range(i, num_proteins)):
@@ -69,7 +69,7 @@ def generate_datasets(protein_pool, num_proteins, weight_bound, weight_crossterm
                 interaction = 0
             interaction_set.append([receptor, ligand, interaction])
             with open(filename, 'a') as fout:
-                fout.write('%f\t%f\t%d\n' % (free_energy.item(), free_energy.item(), interaction))
+                fout.write('%f\t%s\t%d\n' % (free_energy.item(), 'NA', interaction))
 
             fft_score_list[0].append([i, j])
             fft_score_list[1].append(lowest_energy.item())
@@ -106,7 +106,7 @@ if __name__ == '__main__':
     normalization = 'ortho'
     FFT = TorchDockingFFT(swap_plot_quadrants=swap_quadrants, normalization=normalization)
 
-    trainpool_num_proteins = 200
+    trainpool_num_proteins = 10
     testpool_num_proteins = trainpool_num_proteins // 2
 
     weight_bound, weight_crossterm1, weight_crossterm2, weight_bulk = 10, 20, 20, 200
