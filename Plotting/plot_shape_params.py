@@ -125,19 +125,16 @@ def get_shape_distributions(data, alpha_counts, numpoints_counts, params_list, d
 def plot_shape_and_params(protein_pool, dataset_name):
     data = ProteinPool.load(protein_pool)
 
-    protein_shapes = data.proteins
-    shape_params = data.params
-
-    alpha_counts, numpoints_counts, params_list = get_dict_counts(shape_params)
+    alpha_counts, numpoints_counts, params_list = get_dict_counts(data.params)
 
     shapes_plot, alphas_packed, numpoints_packed = get_shape_distributions(data, alpha_counts, numpoints_counts, params_list)
 
     alphas_unique,  alphas_fracs, alphas_barwidth = alphas_packed
     numpoints_unique, numpoints_fracs, numpoints_barwidth = numpoints_packed
 
-    # num_rows = len(alphas_unique)
-    # num_cols = len(numpoints_unique)
-
+    num_rows = len(alphas_unique)
+    num_cols = len(numpoints_unique)
+    plot_len = len(shapes_plot)
     print('unique values: ', alphas_unique, numpoints_unique)
 
     gs_kw = dict(width_ratios=[1, 1], height_ratios=[1, 2])
@@ -154,16 +151,21 @@ def plot_shape_and_params(protein_pool, dataset_name):
     ax0.bar(numpoints_unique_strs, numpoints_fracs)
     ax0.grid(False)
     plt.setp(ax0, ylabel='fraction')
-    plt.setp(ax0, xlabel='number of points')
+    plt.setp(ax0.get_xticklabels(), visible=False)
 
     ax1.imshow(shapes_plot)
     ax1.grid(False)
-    ax1.set_axis_off()
+    plt.setp(ax1, xlabel='number of points')
+    plt.setp(ax1, ylabel='alphas')
+    ax1.set_xticklabels(numpoints_unique_strs)
+    ax1.set_xticks(np.linspace(plot_len/num_cols//2, plot_len-plot_len/num_cols//2, num_cols))
+    ax1.set_yticklabels(alphas_unique_strs[::-1])
+    ax1.set_yticks(np.linspace(plot_len/num_rows//2, plot_len-(plot_len/num_rows)//2, num_rows))
 
     ax2.barh(alphas_unique_strs, alphas_fracs)
     ax2.grid(False)
     plt.setp(ax2, xlabel='fraction')
-    plt.setp(ax2, ylabel='alphas')
+    plt.setp(ax2.get_yticklabels(), visible=False)
 
     plt.tight_layout()
 
