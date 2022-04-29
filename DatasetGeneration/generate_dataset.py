@@ -13,8 +13,9 @@ from DeepProteinDocking2D.Plotting.plot_FI_loss import FILossPlotter
 
 
 def generate_shapes(params, savefile, num_proteins=500):
-    pool = ProteinPool.generate(num_proteins=num_proteins, params=params)
+    pool, stats = ProteinPool.generate(num_proteins=num_proteins, params=params)
     pool.save(savefile)
+    return stats
 
 
 def generate_interactions(receptor, ligand, weight_bound, weight_crossterm1, weight_crossterm2, weight_bulk):
@@ -28,10 +29,10 @@ def generate_interactions(receptor, ligand, weight_bound, weight_crossterm1, wei
 
 
 def generate_datasets(protein_pool, num_proteins, weight_bound, weight_crossterm1, weight_crossterm2, weight_bulk):
+    data = ProteinPool.load(protein_pool)
     protein_pool_prefix = protein_pool[:-4]
-    data = UtilityFuncs().read_pkl(protein_pool_prefix)
 
-    protein_shapes = data[0]
+    protein_shapes = data.proteins
     fft_score_list = [[], []]
     docking_set = []
     interaction_set = []
@@ -92,7 +93,7 @@ def generate_datasets(protein_pool, num_proteins, weight_bound, weight_crossterm
 
 
 if __name__ == '__main__':
-    ## Initialize random seeds
+    # Initialize random seeds
     # random_seed = 42
     # np.random.seed(random_seed)
     # torch.manual_seed(random_seed)
@@ -106,14 +107,14 @@ if __name__ == '__main__':
     normalization = 'ortho'
     FFT = TorchDockingFFT(swap_plot_quadrants=swap_quadrants, normalization=normalization)
 
-    trainpool_num_proteins = 10
-    testpool_num_proteins = trainpool_num_proteins // 2
+    trainpool_num_proteins = 50
+    testpool_num_proteins = 50
 
     weight_bound, weight_crossterm1, weight_crossterm2, weight_bulk = 10, 20, 20, 200
     docking_decision_threshold = -90
     interaction_decision_threshold = -90
 
-    wstring = str(weight_bound)+','+str(weight_crossterm1)+','+str(weight_crossterm2)+','+str(weight_bulk)+'_'
+    weight_string = str(weight_bound) + ',' + str(weight_crossterm1) + ',' + str(weight_crossterm2) + ',' + str(weight_bulk) + '_'
 
     trainvalidset_protein_pool = 'trainvalidset_protein_pool' + str(trainpool_num_proteins) + '.pkl'
     testset_protein_pool = 'testset_protein_pool' + str(testpool_num_proteins) + '.pkl'
@@ -125,31 +126,32 @@ if __name__ == '__main__':
     ### TODO: check monte carlo acceptance rate
 
     ### Generate training/validation set protein pool
+    ## dataset parameters (parameter, probability)
+    train_alpha = [(0.75, 1), (0.85, 2), (0.95, 1)]
+    train_num_points = [(60, 1), (80, 2), (100, 1)]
+    train_params = ParamDistribution(alpha=train_alpha, num_points=train_num_points)
+
     if exists(trainvalidset_protein_pool):
         print('\n' + trainvalidset_protein_pool, 'already exists!')
         print('This training/validation protein shape pool will be loaded for dataset generation..')
     else:
-        train_params = ParamDistribution(
-            alpha=[(0.85, 2), (0.90, 6), (0.95, 4)],
-            num_points=[(70, 1), (80, 2), (90, 4), (100, 6), (110, 8)]
-        )
         print('\n' + trainvalidset_protein_pool, 'does not exist yet...')
         print('Generating pool of', str(trainpool_num_proteins), 'protein shapes for training/validation set...')
-        generate_shapes(train_params, trainvalidset_protein_pool, trainpool_num_proteins)
+        trainset_pool_stats = generate_shapes(train_params, trainvalidset_protein_pool, trainpool_num_proteins)
 
     ### Generate testing set protein pool
+    ## dataset parameters (parameter, probability)
+    test_alpha = [(0.70, 2), (0.85, 4), (0.90, 3), (0.95, 2), (0.98, 1)]
+    test_num_points = [(50, 2), (60, 4), (80, 3), (100, 2), (110, 1)]
+    test_params = ParamDistribution(alpha=test_alpha, num_points=test_num_points)
+
     if exists(testset_protein_pool):
         print('\n' + testset_protein_pool, 'already exists!')
         print('This testing protein shape pool will be loaded for dataset generation..')
-
     else:
-        test_params = ParamDistribution(
-            alpha=[(0.85, 4), (0.90, 4), (0.95, 4), (0.98, 4)],
-            num_points=[(70, 2), (80, 4), (90, 6), (100, 6), (110, 4), (120, 2)]
-        )
         print('\n' + testset_protein_pool, 'does not exist yet...')
         print('Generating pool of', str(testset_protein_pool), 'protein shapes for testing set...')
-        generate_shapes(test_params, testset_protein_pool, testpool_num_proteins)
+        testset_pool_stats = generate_shapes(test_params, testset_protein_pool, testpool_num_proteins)
 
     ### Generate training/validation set
     train_fft_score_list, train_docking_set, train_interaction_set = generate_datasets(trainvalidset_protein_pool, trainpool_num_proteins,
@@ -166,7 +168,7 @@ if __name__ == '__main__':
         plt.hist(train_fft_score_list[1])
         plt.hist(test_fft_score_list[1])
         plt.legend(['training set', 'testing set'])
-        plt.savefig('Figs/energydistribution_' + wstring + str(trainpool_num_proteins)+ 'pool' + '.png')
+        plt.savefig('Figs/energydistribution_' + weight_string + str(trainpool_num_proteins) + 'pool' + '.png')
 
     ## Slice validation set out for training set
     cutoff = 0.8
@@ -195,8 +197,14 @@ if __name__ == '__main__':
     ## Write dataset statistics
     data_savepath = '../Datasets/'
     with open(data_savepath + 'dataset_stats_' + str(trainpool_num_proteins) + 'pool.txt', 'w') as fout:
-        fout.write('Protein Pool'+str(trainpool_num_proteins)+':')
-        fout.write('\nDocking decision threshold ' + str(docking_decision_threshold))
+        fout.write('Protein Pool size='+str(trainpool_num_proteins)+':')
+        fout.write('\nTRAIN set params (alpha, number of points):\n'+ str(train_alpha) +'\n'+str(train_num_points))
+        fout.write('\nTRAIN set probabilities: '+ '\nalphas:' + str(trainset_pool_stats[0]) +
+                   '\nnumber of points' + str(trainset_pool_stats[1]))
+        fout.write('\n\nTEST set params  (alpha, number of points):\n'+ str(test_alpha) +'\n'+str(test_num_points))
+        fout.write('\nTEST set probabilities: '+ '\nalphas:' + str(testset_pool_stats[0]) +
+                   '\nnumber of points' + str(testset_pool_stats[1]))
+        fout.write('\n\nnDocking decision threshold ' + str(docking_decision_threshold))
         fout.write('\nInteraction decision threshold ' + str(interaction_decision_threshold))
         fout.write('\n\nRaw Training set:')
         fout.write('\nDocking set length '+str(len(train_docking_set)))

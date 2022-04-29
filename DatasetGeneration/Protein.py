@@ -57,7 +57,7 @@ class Protein:
 		self.hull = hull
 	
 	@classmethod
-	def generateConvex(cls, size=50, num_points = 15, occupancy=0.8):
+	def generateConvex(cls, size=50, num_points=15, occupancy=0.8):
 		grid_coordinate_span = (0, size)
 		points_coordinate_span = (0.5*(1.0-occupancy)*size, size - 0.5*(1.0-occupancy)*size)
 		points = get_random_points(num_points, points_coordinate_span, points_coordinate_span)
@@ -66,11 +66,11 @@ class Protein:
 		return cls(bulk)
 
 	@classmethod
-	def generateConcave(cls, size=50, alpha=1.0, num_points = 25, occupancy=0.8):
+	def generateConcave(cls, size=50, alpha=1.0, num_points=25, occupancy=0.8):
 		grid_coordinate_span = (0, size)
 		points_coordinate_span = (0.5*(1.0-occupancy)*size, size - 0.5*(1.0-occupancy)*size)
 		points = get_random_points(num_points, points_coordinate_span, points_coordinate_span)
-		optimal = alpha * alphashape.optimizealpha(points)
+		optimal = alpha * alphashape.optimizealpha(points, silent=False)
 		hull = alphashape.alphashape(points, optimal)
 		bulk = hull2array(hull, np.zeros((size, size)), grid_coordinate_span, grid_coordinate_span)
 		return cls(bulk, hull=hull)
