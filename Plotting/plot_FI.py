@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import sys
 
 
-class FILossPlotter:
+class FIPlotter:
     def __init__(self, experiment=None):
         self.experiment = experiment
         self.logfile_savepath = 'Log/losses/'
@@ -34,7 +34,7 @@ class FILossPlotter:
         plt.savefig('Figs/FI_loss_plots/Lossplot_'+self.experiment+'.png')
         plt.show()
 
-    def plot_deltaF_distribution(self, plot_epoch=1, show=False, filename=None, xlim=None, binwidth=1):
+    def plot_deltaF_distribution(self, plot_epoch=None, show=False, filename=None, xlim=None, binwidth=1):
         plt.close()
         # Plot free energy distribution of all samples across epoch
         train = pd.read_csv(filename, sep='\t', header=0, names=['F', 'F_0', 'Label'])
@@ -85,6 +85,6 @@ if __name__ == "__main__":
     # testcase = 'FI_caseA_PLOT_FREE_ENERGY_HISTOGRAMS'
     testcase = 'scratch_FI_casescratch_FINAL_CHECK_INTERACTION'
     # testcase = 'F0schedulerg=0p95_scratch_lr-0_and_lr-4_50ex_novalidortest'
-    # FILossPlotter(testcase).plot_loss()
-    FILossPlotter(testcase).plot_deltaF_distribution(plot_epoch=3, show=True, xlim=100)
+    # FIPlotter(testcase).plot_loss()
+    FIPlotter(testcase).plot_deltaF_distribution(plot_epoch=3, show=True, xlim=100)
     pass

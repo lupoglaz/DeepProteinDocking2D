@@ -12,7 +12,7 @@ from DeepProteinDocking2D.Utility.torchDataLoader import get_interaction_stream
 from DeepProteinDocking2D.Models.model_interaction import Interaction
 from DeepProteinDocking2D.Utility.validation_metrics import APR
 from DeepProteinDocking2D.Models.model_docking import Docking
-from DeepProteinDocking2D.Plotting.plot_FI_loss import FILossPlotter
+from DeepProteinDocking2D.Plotting.plot_FI import FIPlotter
 
 class BruteForceInteractionTrainer:
     ## run replicates from sbatch script args, if provided
@@ -145,7 +145,7 @@ class BruteForceInteractionTrainer:
                 scheduler.step()
                 print('last learning rate', scheduler.get_last_lr())
 
-                FILossPlotter(self.experiment).plot_deltaF_distribution(plot_epoch=epoch, show=False, xlim=None, binwidth=1)
+                FIPlotter(self.experiment).plot_deltaF_distribution(plot_epoch=epoch, show=False, xlim=None, binwidth=1)
 
             ### evaluate on training and valid set
             ### training set to False downstream in calcAPR() run_model()
@@ -356,5 +356,5 @@ if __name__ == '__main__':
                                                resume_training=True, resume_epoch=train_epochs)
 
     ### Plot free energy distributions with learned F_0 decision threshold
-    FILossPlotter(experiment).plot_loss()
-    FILossPlotter(experiment).plot_deltaF_distribution(plot_epoch=train_epochs, show=True)
+    FIPlotter(experiment).plot_loss()
+    FIPlotter(experiment).plot_deltaF_distribution(plot_epoch=train_epochs, show=True)

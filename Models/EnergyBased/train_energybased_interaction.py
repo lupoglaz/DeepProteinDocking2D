@@ -12,7 +12,7 @@ from DeepProteinDocking2D.Models.BruteForce.train_bruteforce_interaction import 
 
 from DeepProteinDocking2D.Models.EnergyBased.model_energybased_sampling import EnergyBasedModel
 from DeepProteinDocking2D.Utility.validation_metrics import APR
-from DeepProteinDocking2D.Plotting.plot_FI_loss import FILossPlotter
+from DeepProteinDocking2D.Plotting.plot_FI import FIPlotter
 
 
 class SampleBuffer:
@@ -201,7 +201,7 @@ class EnergyBasedInteractionTrainer:
                 scheduler.step()
                 print('last learning rate', scheduler.get_last_lr())
 
-                FILossPlotter(self.experiment).plot_deltaF_distribution(plot_epoch=epoch, show=False, xlim=None, binwidth=1)
+                FIPlotter(self.experiment).plot_deltaF_distribution(plot_epoch=epoch, show=False, xlim=None, binwidth=1)
 
             ### evaluate on training and valid set
             ### training set to False downstream in calcAPR() run_model()
@@ -376,5 +376,5 @@ if __name__ == '__main__':
                                                 train_stream=None, valid_stream=valid_stream, test_stream=test_stream)
 
     ### Plot free energy distributions with learned F_0 decision threshold
-    FILossPlotter(experiment).plot_loss()
-    FILossPlotter(experiment).plot_deltaF_distribution(plot_epoch=train_epochs, show=True)
+    FIPlotter(experiment).plot_loss()
+    FIPlotter(experiment).plot_deltaF_distribution(plot_epoch=train_epochs, show=True)

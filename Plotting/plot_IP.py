@@ -3,7 +3,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import sys
 
-class IPLossPlotter:
+class IPPlotter:
     def __init__(self, experiment=None):
         self.experiment = experiment
         self.logfile_savepath = 'Log/losses/'
@@ -139,6 +139,6 @@ if __name__ == "__main__":
     # testcase = 'RECODE_CHECK_BFDOCKING'
 
     testcase = 'FINAL_CHECK_DOCKING'
-    # IPLossPlotter(testcase).plot_loss()
+    # IPPlotter(testcase).plot_loss()
     for epoch in range(1, 30):
-        IPLossPlotter(testcase).plot_rmsd_distribution(plot_epoch=epoch, show=False)
+        IPPlotter(testcase).plot_rmsd_distribution(plot_epoch=epoch, show=False)

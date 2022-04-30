@@ -3,7 +3,7 @@ from DeepProteinDocking2D.Utility.torchDataLoader import get_interaction_stream
 from tqdm import tqdm
 
 from DeepProteinDocking2D.Utility.torchDockingFFT import TorchDockingFFT
-from DeepProteinDocking2D.Plotting.plot_FI_loss import FILossPlotter
+from DeepProteinDocking2D.Plotting.plot_FI import FIPlotter
 
 if __name__ == "__main__":
     # trainset = 'toy_concave_data/interaction_data_train'
@@ -50,4 +50,4 @@ if __name__ == "__main__":
         with open(filename, 'a') as fout:
             fout.write('%f\t%s\t%d\n' % (F.item(), 'NA', gt_interact.item()))
 
-    FILossPlotter(trainset).plot_deltaF_distribution(filename=filename, binwidth=1, show=True)
+    FIPlotter(trainset).plot_deltaF_distribution(filename=filename, binwidth=1, show=True)

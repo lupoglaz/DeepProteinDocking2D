@@ -13,7 +13,7 @@ from DeepProteinDocking2D.Utility.torchDockingFFT import TorchDockingFFT
 from DeepProteinDocking2D.Models.BruteForce.train_bruteforce_docking import Docking
 from DeepProteinDocking2D.Utility.utility_functions import UtilityFuncs
 from DeepProteinDocking2D.Utility.validation_metrics import RMSD
-from DeepProteinDocking2D.Plotting.plot_IP_loss import IPLossPlotter
+from DeepProteinDocking2D.Plotting.plot_IP import IPPlotter
 from DeepProteinDocking2D.Models.EnergyBased.model_energybased_sampling import EnergyBasedModel
 
 
@@ -364,8 +364,8 @@ if __name__ == '__main__':
             resume_training=True, resume_epoch=epoch)
 
     ## Plot loss from current experiment
-    IPLossPlotter(experiment).plot_loss(ylim=None)
-    IPLossPlotter(experiment).plot_rmsd_distribution(plot_epoch=train_epochs, show=show, eval_only=True)
+    IPPlotter(experiment).plot_loss(ylim=None)
+    IPPlotter(experiment).plot_rmsd_distribution(plot_epoch=train_epochs, show=show, eval_only=True)
 
     ### Resume training model at chosen epoch
     # EnergyBasedDockingTrainer(dockingFFT, model, optimizer, experiment, plotting=True, debug=debug).run_trainer(
@@ -388,7 +388,7 @@ if __name__ == '__main__':
     #     train_epochs=1, train_stream=None, valid_stream=valid_stream, test_stream=None,
     #     resume_training=True, resume_epoch=train_epochs)
     #
-    # IPLossPlotter(experiment).plot_rmsd_distribution(plot_epoch=train_epochs + 1, show=show, eval_only=True)
+    # IPPlotter(experiment).plot_rmsd_distribution(plot_epoch=train_epochs + 1, show=show, eval_only=True)
     #
     # ## Sampling based eval and plotting
     # start = train_epochs - 1
@@ -403,5 +403,5 @@ if __name__ == '__main__':
     #                 train_epochs=1, train_stream=None, valid_stream=valid_stream, test_stream=test_stream,
     #                 resume_training=True, resume_epoch=epoch)
     #             # Plot loss from current experiment
-    #             IPLossPlotter(experiment).plot_loss()
-    #             IPLossPlotter(experiment).plot_rmsd_distribution(plot_epoch=epoch + 1, show=show, eval_only=True)
+    #             IPPlotter(experiment).plot_loss()
+    #             IPPlotter(experiment).plot_rmsd_distribution(plot_epoch=epoch + 1, show=show, eval_only=True)
