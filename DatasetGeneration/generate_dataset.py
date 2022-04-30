@@ -9,7 +9,7 @@ from os.path import exists
 from DeepProteinDocking2D.DatasetGeneration.ProteinPool import ProteinPool, ParamDistribution
 from DeepProteinDocking2D.Utility.torchDockingFFT import TorchDockingFFT
 from DeepProteinDocking2D.Utility.utility_functions import UtilityFuncs
-from DeepProteinDocking2D.Plotting.plot_FI_loss import FILossPlotter
+from DeepProteinDocking2D.Plotting.plot_FI import FIPlotter
 from DeepProteinDocking2D.Plotting.plot_shape_distributions import ShapeDistributions
 
 
@@ -252,23 +252,6 @@ if __name__ == '__main__':
         fout.write('\nDocking set length '+str(len(test_docking_set)))
         fout.write('\nInteraction set length '+str(len(test_interaction_set)))
 
-    if plotting:
-        ## Dataset shape pair docking energies distributions
-        plot_energy_dists(weight_string, train_fft_score_list, test_fft_score_list)
-
-        ## Dataset free energy distributions
-        ## Plot interaction training/validation set
-        training_filename = log_savepath+'log_rawdata_FI_'+trainvalidset_protein_pool[:-4]+'.txt'
-        FILossPlotter(trainvalidset_protein_pool[:-4]).plot_deltaF_distribution(filename=training_filename, binwidth=1, show=True)
-
-        ## Plot interaction testing set
-        testing_filename = log_savepath+'log_rawdata_FI_'+testset_protein_pool[:-4]+'.txt'
-        FILossPlotter(testset_protein_pool[:-4]).plot_deltaF_distribution(filename=testing_filename, binwidth=1, show=True)
-
-        ## Plot protein pool distribution summary
-        ShapeDistributions(trainvalidset_protein_pool, 'trainset', show=True).plot_shapes_and_params()
-        ShapeDistributions(testset_protein_pool, 'testset', show=True).plot_shapes_and_params()
-
     ## Save training sets
     docking_train_file = data_savepath + 'docking_train_set' + str(trainpool_num_proteins) + 'pool'
     interaction_train_file = data_savepath + 'interaction_train_set' + str(trainpool_num_proteins) + 'pool'
@@ -286,3 +269,20 @@ if __name__ == '__main__':
     interaction_test_file = data_savepath + 'interaction_test_set' + str(testpool_num_proteins) + 'pool'
     UtilityFuncs().write_pkl(data=test_docking_set, fileprefix=docking_test_file)
     UtilityFuncs().write_pkl(data=test_interaction_set, fileprefix=interaction_valid_file)
+
+    if plotting:
+        ## Dataset shape pair docking energies distributions
+        plot_energy_dists(weight_string, train_fft_score_list, test_fft_score_list)
+
+        ## Dataset free energy distributions
+        ## Plot interaction training/validation set
+        training_filename = log_savepath+'log_rawdata_FI_'+trainvalidset_protein_pool[:-4]+'.txt'
+        FIPlotter(trainvalidset_protein_pool[:-4]).plot_deltaF_distribution(filename=training_filename, binwidth=1, show=True)
+
+        ## Plot interaction testing set
+        testing_filename = log_savepath+'log_rawdata_FI_'+testset_protein_pool[:-4]+'.txt'
+        FIPlotter(testset_protein_pool[:-4]).plot_deltaF_distribution(filename=testing_filename, binwidth=1, show=True)
+
+        ## Plot protein pool distribution summary
+        ShapeDistributions(trainvalidset_protein_pool, 'trainset', show=True).plot_shapes_and_params()
+        ShapeDistributions(testset_protein_pool, 'testset', show=True).plot_shapes_and_params()
