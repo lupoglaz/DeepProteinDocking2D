@@ -65,9 +65,9 @@ def check_missing_examples(combination_list, found_list, protein_shapes, params_
                 found_list.append(i)
                 indices.append(j)
 
-    print('missing indices', missing_indices)
-    print('missing_list', missing_list)
-    print('foundlist', found_list)
+    # print('missing indices', missing_indices)
+    # print('missing_list', missing_list)
+    # print('foundlist', found_list)
 
     return indices
 
@@ -135,7 +135,6 @@ def plot_shape_and_params(protein_pool, dataset_name):
     num_rows = len(alphas_unique)
     num_cols = len(numpoints_unique)
     plot_len = len(shapes_plot)
-    print('unique values: ', alphas_unique, numpoints_unique)
 
     gs_kw = dict(width_ratios=[1, 1], height_ratios=[1, 2])
     fig, ax = plt.subplots(2, 2, gridspec_kw=gs_kw)
