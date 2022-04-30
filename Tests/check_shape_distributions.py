@@ -186,22 +186,22 @@ if __name__ == "__main__":
 
     data_path = '../DatasetGeneration/'
 
-    # num_proteins = 200
-    # trainvalidset_protein_pool = data_path+'trainvalidset_protein_pool' + str(num_proteins) + '.pkl'
-    #
-    # ShapeDistributions(trainvalidset_protein_pool, 'trainset', show=True).plot_shapes_and_params()
+    num_proteins = 200
+    trainvalidset_protein_pool = data_path+'trainvalidset_protein_pool' + str(num_proteins) + '.pkl'
+
+    ShapeDistributions(trainvalidset_protein_pool, 'trainset', show=True).plot_shapes_and_params()
 
     num_proteins = 200
     testset_protein_pool = data_path+'testset_protein_pool' + str(num_proteins) + '.pkl'
 
     ShapeDistributions(testset_protein_pool, 'testset', show=True).plot_shapes_and_params()
-
-    num_proteins = 100
-    testset_protein_pool = data_path+'testset_protein_pool' + str(num_proteins) + '.pkl'
-
-    ShapeDistributions(testset_protein_pool, 'testset', show=True).plot_shapes_and_params()
-
-    num_proteins = 50
-    testset_protein_pool = data_path+'testset_protein_pool' + str(num_proteins) + '.pkl'
-
-    ShapeDistributions(testset_protein_pool, 'testset', show=True).plot_shapes_and_params()
+    #
+    # num_proteins = 100
+    # testset_protein_pool = data_path+'testset_protein_pool' + str(num_proteins) + '.pkl'
+    #
+    # ShapeDistributions(testset_protein_pool, 'testset', show=True).plot_shapes_and_params()
+    #
+    # num_proteins = 50
+    # testset_protein_pool = data_path+'testset_protein_pool' + str(num_proteins) + '.pkl'
+    #
+    # ShapeDistributions(testset_protein_pool, 'testset', show=True).plot_shapes_and_params()
