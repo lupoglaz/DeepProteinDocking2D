@@ -1,16 +1,12 @@
-import os
-import sys
-import random
 import torch
 import matplotlib.pyplot as plt
-import numpy as np
 from tqdm import tqdm
 from os.path import exists
 from DeepProteinDocking2D.DatasetGeneration.ProteinPool import ProteinPool, ParamDistribution
 from DeepProteinDocking2D.Utility.torchDockingFFT import TorchDockingFFT
 from DeepProteinDocking2D.Utility.utility_functions import UtilityFuncs
 from DeepProteinDocking2D.Plotting.plot_FI import FIPlotter
-from DeepProteinDocking2D.Plotting.plot_shape_distributions import ShapeDistributions
+from DeepProteinDocking2D.Tests.check_shape_distributions import ShapeDistributions
 
 
 def generate_shapes(params, savefile, num_proteins=500):
@@ -140,8 +136,8 @@ if __name__ == '__main__':
     normalization = 'ortho'
     FFT = TorchDockingFFT(swap_plot_quadrants=swap_quadrants, normalization=normalization)
 
-    trainpool_num_proteins = 100
-    testpool_num_proteins = 100
+    trainpool_num_proteins = 400
+    testpool_num_proteins = 400
 
     validation_set_cutoff = 0.8 ## proportion of training set to keep
 
@@ -164,7 +160,7 @@ if __name__ == '__main__':
 
     ### Generate training/validation set protein pool
     ## dataset parameters (parameter, probability)
-    train_alpha = [(0.75, 1), (0.85, 2), (0.95, 1)]
+    train_alpha = [(0.80, 1), (0.85, 2), (0.90, 1)]
     train_num_points = [(60, 1), (80, 2), (100, 1)]
     train_params = ParamDistribution(alpha=train_alpha, num_points=train_num_points)
 
@@ -179,8 +175,8 @@ if __name__ == '__main__':
 
     ### Generate testing set protein pool
     ## dataset parameters (parameter, probability)
-    test_alpha = [(0.70, 1), (0.90, 1), (0.95, 1), (0.98, 1)]
-    test_num_points = [(50, 1), (75, 1), (100, 1), (110, 1)]
+    test_alpha = [(0.70, 1), (0.80, 4), (0.90, 6), (0.95, 4), (0.98, 1)]
+    test_num_points = [(40, 1), (60, 3), (80, 3), (100, 1)]
     test_params = ParamDistribution(alpha=test_alpha, num_points=test_num_points)
 
     if exists(testset_protein_pool):
