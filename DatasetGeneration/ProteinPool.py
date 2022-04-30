@@ -30,14 +30,10 @@ class ParamDistribution:
 			new_param.append((val, prob/Z))
 		setattr(self, param_name, new_param)
 
-	def sample(self, param_name, return_stats=False):
+	def sample(self, param_name):
 		param = getattr(self, param_name)
 		vals, prob = zip(*param)
-		if return_stats:
-			return vals, prob
-		else:
-			return np.random.choice(vals, p=prob)
-
+		return vals, prob
 
 class ProteinPool:
 	def __init__(self, proteins):
@@ -48,11 +44,14 @@ class ProteinPool:
 	@classmethod
 	def generate(cls, num_proteins, params, size=50):
 		pool = cls([])
-		stats_alpha = params.sample('alpha', return_stats=True)
-		stats_num_points = params.sample('num_points', return_stats=True)
+		stats_alpha = params.sample('alpha')
+		stats_num_points = params.sample('num_points')
+		vals_alpha, prob_alpha = stats_alpha
+		vals_num_points, prob_num_points = stats_num_points
 		for i in tqdm(range(num_proteins)):
-			alpha = params.sample('alpha')
-			num_points = params.sample('num_points')
+			alpha = np.random.choice(vals_alpha, p=prob_alpha)
+			num_points = np.random.choice(vals_num_points, p=prob_num_points)
+			print(alpha, num_points)
 			prot = Protein.generateConcave(size=size, alpha=alpha, num_points=num_points)
 			pool.proteins.append(prot.bulk)
 			pool.params.append({'alpha': alpha, 'num_points': num_points})
