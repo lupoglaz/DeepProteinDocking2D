@@ -51,7 +51,6 @@ class ProteinPool:
 		for i in tqdm(range(num_proteins)):
 			alpha = np.random.choice(vals_alpha, p=prob_alpha)
 			num_points = np.random.choice(vals_num_points, p=prob_num_points)
-			print(alpha, num_points)
 			prot = Protein.generateConcave(size=size, alpha=alpha, num_points=num_points)
 			pool.proteins.append(prot.bulk)
 			pool.params.append({'alpha': alpha, 'num_points': num_points})
