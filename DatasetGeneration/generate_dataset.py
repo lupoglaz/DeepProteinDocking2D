@@ -29,33 +29,37 @@ def generate_interactions(receptor, ligand, weight_bound, weight_crossterm1, wei
     return receptor, ligand, fft_score
 
 
-def plot_energy_dists(weight_string, train_fft_score_list, test_fft_score_list):
+def plot_energy_dists(weight_string, train_fft_score_list, test_fft_score_list, trainpool_num_proteins, testpool_num_proteins, show=False):
     plt.close()
     plt.title('Docking energies of all pairs')
     plt.ylabel('Counts')
     plt.xlabel('Energies')
-    plt.hist(train_fft_score_list[1])
-    plt.hist(test_fft_score_list[1])
-    plt.legend(['training set', 'testing set'])
-    savefile = 'Figs/energydistribution_' + weight_string +\
-               '_train'+str(len(train_fft_score_list[1])) + '_test'+str(len(test_fft_score_list[1])) + 'pool' + '.png'
+    y1, x1, _ = plt.hist(train_fft_score_list[1], alpha=0.33)
+    y2, x2, _ = plt.hist(test_fft_score_list[1], alpha=0.33)
+    plt.vlines(docking_decision_threshold, ymin=0, ymax=max(y1.max(), y2.max())+1, linestyles='dashed', label='docking decision threshold', colors='k')
+    plt.legend(['docking decision threshold', 'training set', 'testing set'])
+    savefile = 'Figs/PairEnergyDistributions/energydistribution_' + weight_string +\
+               '_trainpool'+str(trainpool_num_proteins) + 'testpool'+str(testpool_num_proteins) + '.png'
     plt.savefig(savefile)
+    if show:
+        plt.show()
 
 
-def plot_accepted_rejected_shapes(receptor, ligand, rot, trans, lowest_energy, fft_score, protein_pool_prefix, plot_count):
-    plt.close()
-    pair = UtilityFuncs().plot_assembly(receptor.cpu(), ligand.cpu(), rot.cpu(), trans.cpu())
-    plt.imshow(pair.transpose())
-    if lowest_energy < docking_decision_threshold:
-        acc_or_rej = 'ACCEPTED'
-    else:
-        acc_or_rej = 'REJECTED'
-    title = acc_or_rej + '_docking_energy' + str(lowest_energy.item())
-    plt.title(title)
-    plt.savefig('Figs/' + title + '.png')
-    UtilityFuncs().plot_rotation_energysurface(fft_score, trans,
-                                               stream_name=acc_or_rej + '_datasetgen_' + protein_pool_prefix,
-                                               plot_count=plot_count)
+def plot_accepted_rejected_shapes(receptor, ligand, rot, trans, lowest_energy, fft_score, protein_pool_prefix, plot_count, plot_freq):
+    if plot_count % plot_freq == 0:
+        plt.close()
+        pair = UtilityFuncs().plot_assembly(receptor.cpu(), ligand.cpu(), rot.cpu(), trans.cpu())
+        plt.imshow(pair.transpose())
+        if lowest_energy < docking_decision_threshold:
+            acc_or_rej = 'ACCEPTED'
+        else:
+            acc_or_rej = 'REJECTED'
+        title = acc_or_rej + '_docking_energy' + str(lowest_energy.item())
+        plt.title(title)
+        plt.savefig('Figs/AcceptRejectExamples/' + title + '.png')
+        UtilityFuncs().plot_rotation_energysurface(fft_score, trans,
+                                                   stream_name=acc_or_rej + '_datasetgen_' + protein_pool_prefix,
+                                                   plot_count=plot_count)
 
 
 def generate_datasets(protein_pool, num_proteins, weight_bound, weight_crossterm1, weight_crossterm2, weight_bulk):
@@ -72,7 +76,7 @@ def generate_datasets(protein_pool, num_proteins, weight_bound, weight_crossterm
     translation_space = protein_shapes[0].shape[-1]
     volume = torch.log(360 * torch.tensor(translation_space ** 2))
 
-    filename = 'Log/losses/log_rawdata_FI_'+protein_pool_prefix+'.txt'
+    filename = log_savepath+'log_rawdata_FI_'+protein_pool_prefix+'.txt'
     with open(filename, 'w') as fout:
         fout.write('F\tF_0\tLabel\n')
 
@@ -105,9 +109,9 @@ def generate_datasets(protein_pool, num_proteins, weight_bound, weight_crossterm
             fft_score_list[0].append([i, j])
             fft_score_list[1].append(lowest_energy.item())
 
-            if plotting and plot_count % plot_freq == 0:
+            if plotting:
                 plot_accepted_rejected_shapes(receptor, ligand, rot, trans, lowest_energy, fft_score,
-                                              protein_pool_prefix, plot_count)
+                                              protein_pool_prefix, plot_count, plot_freq)
 
     return fft_score_list, docking_set, interaction_set
 
@@ -122,6 +126,7 @@ if __name__ == '__main__':
     # torch.backends.cudnn.deterministic = True
     # torch.cuda.set_device(0)
 
+    ### Initializations START
     plotting = True
     swap_quadrants = False
     trainset_exists = False
@@ -135,8 +140,8 @@ if __name__ == '__main__':
     normalization = 'ortho'
     FFT = TorchDockingFFT(swap_plot_quadrants=swap_quadrants, normalization=normalization)
 
-    trainpool_num_proteins = 50
-    testpool_num_proteins = 50
+    trainpool_num_proteins = 100
+    testpool_num_proteins = 100
 
     validation_set_cutoff = 0.8 ## proportion of training set to keep
 
@@ -148,6 +153,7 @@ if __name__ == '__main__':
 
     trainvalidset_protein_pool = 'trainvalidset_protein_pool' + str(trainpool_num_proteins) + '.pkl'
     testset_protein_pool = 'testset_protein_pool' + str(testpool_num_proteins) + '.pkl'
+    ### Initializations END
 
     ### TODO: generate figure with alpha vs numpoints
     ### TODO: training set -> center dists with regular tails. testing set -> shifted mean longer tails (grab binomial counts)
@@ -219,7 +225,7 @@ if __name__ == '__main__':
     print('Docking set length', len(test_docking_set))
     print('Interaction set length', len(test_interaction_set))
 
-    ## Write dataset statistics
+    ## Write protein pool summary statistics to file
     if not trainset_exists:
         with open(data_savepath + 'protein_trainpool_stats_' + str(trainpool_num_proteins) + 'pool.txt', 'w') as fout:
             fout.write('TRAIN/VALIDATION SET PROTEIN POOL STATS')
@@ -236,8 +242,9 @@ if __name__ == '__main__':
             fout.write('\nTEST set probabilities: '+ '\nalphas:' + str(testset_pool_stats[0]) +
                        '\nnumber of points' + str(testset_pool_stats[1]))
 
-    with open(data_savepath + 'dataset_stats_' + str(trainpool_num_proteins) + 'pool.txt', 'w') as fout:
-        fout.write('DATASET STATS')
+    ## Write dataset summary statistics to file
+    with open(data_savepath + 'trainvalid_dataset_stats_' + str(trainpool_num_proteins) + 'pool.txt', 'w') as fout:
+        fout.write('TRAIN DATASET STATS')
         fout.write('\nProtein Pool size='+str(trainpool_num_proteins)+':')
         fout.write('\nScoring Weights: '+weight_string)
         fout.write('\nDocking decision threshold ' + str(docking_decision_threshold))
@@ -248,6 +255,13 @@ if __name__ == '__main__':
         fout.write('\n\nRaw Validation set:')
         fout.write('\nDocking set length '+str(len(valid_docking_set)))
         fout.write('\nInteraction set length '+str(len(valid_interaction_set)))
+
+    with open(data_savepath + 'testset_dataset_stats_' + str(testpool_num_proteins) + 'pool.txt', 'w') as fout:
+        fout.write('TEST DATASET STATS')
+        fout.write('\nProtein Pool size=' + str(testpool_num_proteins) + ':')
+        fout.write('\nScoring Weights: ' + weight_string)
+        fout.write('\nDocking decision threshold ' + str(docking_decision_threshold))
+        fout.write('\nInteraction decision threshold ' + str(interaction_decision_threshold))
         fout.write('\n\nRaw Testing set:')
         fout.write('\nDocking set length '+str(len(test_docking_set)))
         fout.write('\nInteraction set length '+str(len(test_interaction_set)))
@@ -272,7 +286,7 @@ if __name__ == '__main__':
 
     if plotting:
         ## Dataset shape pair docking energies distributions
-        plot_energy_dists(weight_string, train_fft_score_list, test_fft_score_list)
+        plot_energy_dists(weight_string, train_fft_score_list, test_fft_score_list, trainpool_num_proteins, testpool_num_proteins, show=True)
 
         ## Dataset free energy distributions
         ## Plot interaction training/validation set

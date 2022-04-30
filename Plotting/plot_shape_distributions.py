@@ -19,7 +19,7 @@ class ShapeDistributions:
         counts = list(sorted(counter.values()))
         return unique, counts
 
-    def get_dict_counts(self,shape_params):
+    def get_dict_counts(self, shape_params):
         alpha_counts = []
         numpoints_counts = []
         params_list = []
@@ -33,9 +33,10 @@ class ShapeDistributions:
 
         return alpha_counts, numpoints_counts, params_list
 
-    def get_unique_fracs(self, counts):
+    def get_unique_fracs(self, counts, dataname):
         unique, counts = self.get_counts(counts)
         fracs = [i/sum(counts) for i in counts]
+        print('\n'+dataname+':\n')
         print('unique values',unique)
         print('counts', counts)
         print('fractions', fracs)
@@ -78,8 +79,8 @@ class ShapeDistributions:
         protein_shapes = data.proteins
         shape_params = data.params
 
-        alphas_unique, alphas_fracs, alphas_barwidth = self.get_unique_fracs(alpha_counts)
-        numpoints_unique, numpoints_fracs, numpoints_barwidth = self.get_unique_fracs(numpoints_counts)
+        alphas_unique, alphas_fracs, alphas_barwidth = self.get_unique_fracs(alpha_counts, 'alpha values')
+        numpoints_unique, numpoints_fracs, numpoints_barwidth = self.get_unique_fracs(numpoints_counts, 'number of points')
 
         combination_list = [[i,j] for i in alphas_unique for j in numpoints_unique]
 
@@ -169,7 +170,7 @@ class ShapeDistributions:
 
         plt.tight_layout()
 
-        plt.savefig('Figs/'+self.dataset_name + str(len(data.proteins)) + 'pool_combined_shapes_params')
+        plt.savefig('Figs/ShapeDistributions/'+self.dataset_name + str(len(data.proteins)) + 'pool_combined_shapes_params')
 
         if self.show:
             plt.show()
