@@ -1,9 +1,4 @@
-# no Data/
-Data/
-toy_concave_data/
-Log/
-
-
+# No tensorboard events
 *events.out.tfevents*
 
 #Pytorch
