@@ -5,7 +5,10 @@ import seaborn as sea
 sea.set_style("whitegrid")
 from collections import Counter
 from tqdm import tqdm
-
+from matplotlib import gridspec
+from matplotlib.ticker import FormatStrFormatter
+from matplotlib import rcParams
+rcParams.update({'figure.autolayout': True})
 
 class ShapeDistributions:
     def __init__(self, protein_pool, dataset_name, show=False):
@@ -93,7 +96,7 @@ class ShapeDistributions:
                     indices.append(j)
 
         if len(found_list) < len(combination_list):
-            print('ERROR: Missing combination of alpha and number of points in original dataset loaded')
+            print('ERROR: Missing combination of alpha and number of points in protein pool loaded')
             print('\tIncrease probabilities to increase parameter combination encounter frequencies')
             indices = self.check_missing_examples(combination_list, found_list, protein_shapes, params_list)
 
@@ -136,40 +139,43 @@ class ShapeDistributions:
 
         num_rows = len(alphas_unique)
         num_cols = len(numpoints_unique)
-        plot_len = len(shapes_plot)
+        plot_lenx = shapes_plot.shape[1]
+        plot_leny = shapes_plot.shape[0]
 
-        gs_kw = dict(width_ratios=[1, 1], height_ratios=[1, 2])
-        fig, ax = plt.subplots(2, 2, gridspec_kw=gs_kw)
-        ax0 = ax[0,0]
-        axoff = ax[0,1]
-        axoff.set_axis_off()
-        ax1 = ax[1,0]
-        ax2 = ax[1,1]
+        gs = gridspec.GridSpec(4, 4)
+        gs.update(wspace=0, hspace=0)
+        ax0 = plt.subplot(gs[0, 0:-1])
+        ax1 = plt.subplot(gs[1:, 0:-1])
+        ax2 = plt.subplot(gs[1:, -1])
+        ax3 = plt.subplot(gs[0, -1])
+        ax3.set_axis_off()
 
         numpoints_unique_strs = [str(i) for i in numpoints_unique]
-        alphas_unique_strs = [str(i) for i in alphas_unique]
+        alphas_unique_strs = [str(i)+'0' if len(str(i)) < 4 else str(i) for i in alphas_unique]
 
         ax0.bar(numpoints_unique_strs, numpoints_fracs)
         ax0.grid(False)
-        plt.setp(ax0, ylabel='fraction')
+        ax0.set_ylabel('fraction')
         plt.setp(ax0.get_xticklabels(), visible=False)
+        ax0.yaxis.set_major_formatter(FormatStrFormatter('%.2f'))
 
-        ax1.imshow(shapes_plot)
+        ax1.imshow(shapes_plot, cmap=plt.get_cmap('binary'))
         ax1.grid(False)
-        plt.setp(ax1, xlabel='number of points')
-        plt.setp(ax1, ylabel='alphas')
-        ax1.set_xticks(np.linspace(plot_len/num_cols//2, plot_len-plot_len/num_cols//2, num_cols))
+        ax1.set_xlabel('number of points')
+        ax1.set_ylabel('alphas')
+        ax1.xaxis.set_major_formatter(FormatStrFormatter('%.2g'))
+        ax1.yaxis.set_major_formatter(FormatStrFormatter('%.2g'))
+        ax1.set_xticks(np.linspace((plot_lenx/num_cols)/2, plot_lenx-(plot_lenx/num_cols)/2, num_cols))
         ax1.set_xticklabels(numpoints_unique_strs)
-        ax1.set_yticks(np.linspace(plot_len/num_rows//2, plot_len-(plot_len/num_rows)//2, num_rows))
+        ax1.set_yticks(np.linspace((plot_leny/num_rows)/2, plot_leny-(plot_leny/num_rows)/2, num_rows))
         ax1.set_yticklabels(alphas_unique_strs[::-1])
+        ax1.autoscale(False)
 
         ax2.barh(alphas_unique_strs, alphas_fracs)
         ax2.grid(False)
-        plt.setp(ax2, xlabel='fraction')
+        ax2.set_xlabel('fraction')
+        ax2.xaxis.set_major_formatter(FormatStrFormatter('%.2f'))
         plt.setp(ax2.get_yticklabels(), visible=False)
-
-        plt.tight_layout()
-
         plt.savefig('Figs/ShapeDistributions/'+self.dataset_name + str(len(data.proteins)) + 'pool_combined_shapes_params')
 
         if self.show:
@@ -180,10 +186,20 @@ if __name__ == "__main__":
 
     data_path = '../DatasetGeneration/'
 
-    num_proteins = 50
-    trainvalidset_protein_pool = data_path+'trainvalidset_protein_pool' + str(num_proteins) + '.pkl'
+    # num_proteins = 200
+    # trainvalidset_protein_pool = data_path+'trainvalidset_protein_pool' + str(num_proteins) + '.pkl'
+    #
+    # ShapeDistributions(trainvalidset_protein_pool, 'trainset', show=True).plot_shapes_and_params()
 
-    ShapeDistributions(trainvalidset_protein_pool, 'trainset', show=True).plot_shapes_and_params()
+    num_proteins = 200
+    testset_protein_pool = data_path+'testset_protein_pool' + str(num_proteins) + '.pkl'
+
+    ShapeDistributions(testset_protein_pool, 'testset', show=True).plot_shapes_and_params()
+
+    num_proteins = 100
+    testset_protein_pool = data_path+'testset_protein_pool' + str(num_proteins) + '.pkl'
+
+    ShapeDistributions(testset_protein_pool, 'testset', show=True).plot_shapes_and_params()
 
     num_proteins = 50
     testset_protein_pool = data_path+'testset_protein_pool' + str(num_proteins) + '.pkl'
