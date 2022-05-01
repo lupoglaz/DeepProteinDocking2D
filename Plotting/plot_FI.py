@@ -8,7 +8,8 @@ class FIPlotter:
     def __init__(self, experiment=None):
         self.experiment = experiment
         self.logfile_savepath = 'Log/losses/'
-
+        self.logtraindF_prefix = 'log_deltaF_TRAINset_epoch'
+        self.logloss_prefix = 'log_loss_TRAINset_'
         if not experiment:
             print('no experiment name given')
             self.experiment = "NOTSET"
@@ -16,7 +17,7 @@ class FIPlotter:
     def plot_loss(self):
         plt.close()
         #LOSS WITH ROTATION
-        train = pd.read_csv(self.logfile_savepath+'log_loss_TRAINset_'+ self.experiment +'.txt', sep='\t', header=1, names=['Epoch', 'Loss'])
+        train = pd.read_csv(self.logfile_savepath+self.logloss_prefix+ self.experiment +'.txt', sep='\t', header=1, names=['Epoch', 'Loss'])
         num_epochs = len(train['Epoch'].to_numpy())
 
         fig, ax = plt.subplots(figsize=(20,10))
@@ -27,16 +28,16 @@ class FIPlotter:
         plt.ylabel('loss')
         plt.grid(visible=True)
         plt.xticks(np.arange(0, num_epochs+1, num_epochs+1/10))
-
         plt.xlabel('Epochs')
-        # plt.ylim([0,20])
 
         plt.savefig('Figs/FI_loss_plots/Lossplot_'+self.experiment+'.png')
         plt.show()
 
-    def plot_deltaF_distribution(self, plot_epoch=None, show=False, filename=None, xlim=None, binwidth=1):
+    def plot_deltaF_distribution(self, filename=None, plot_epoch=None, show=False, xlim=None, binwidth=1):
         plt.close()
         # Plot free energy distribution of all samples across epoch
+        if not filename:
+            filename = self.logfile_savepath+self.logtraindF_prefix+str(plot_epoch)+ self.experiment +'.txt'
         train = pd.read_csv(filename, sep='\t', header=0, names=['F', 'F_0', 'Label'])
 
         fig, ax = plt.subplots(figsize=(10,10))
