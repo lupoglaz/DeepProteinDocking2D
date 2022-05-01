@@ -7,8 +7,9 @@ from collections import Counter
 from tqdm import tqdm
 from matplotlib import gridspec
 from matplotlib.ticker import FormatStrFormatter
-from matplotlib import rcParams
-rcParams.update({'figure.autolayout': True})
+# from matplotlib import rcParams
+# rcParams.update({'figure.autolayout': True})
+
 
 class ShapeDistributions:
     def __init__(self, protein_pool, dataset_name, show=False):
@@ -143,7 +144,7 @@ class ShapeDistributions:
         plot_leny = shapes_plot.shape[0]
 
         gs = gridspec.GridSpec(4, 4)
-        gs.update(wspace=0, hspace=0)
+        gs.update(wspace=0.05, hspace=0.05)
         ax0 = plt.subplot(gs[0, 0:-1])
         ax1 = plt.subplot(gs[1:, 0:-1])
         ax2 = plt.subplot(gs[1:, -1])
@@ -186,12 +187,12 @@ if __name__ == "__main__":
 
     data_path = '../DatasetGeneration/'
 
-    num_proteins = 200
+    num_proteins = 400
     trainvalidset_protein_pool = data_path+'trainvalidset_protein_pool' + str(num_proteins) + '.pkl'
 
     ShapeDistributions(trainvalidset_protein_pool, 'trainset', show=True).plot_shapes_and_params()
 
-    num_proteins = 200
+    num_proteins = 400
     testset_protein_pool = data_path+'testset_protein_pool' + str(num_proteins) + '.pkl'
 
     ShapeDistributions(testset_protein_pool, 'testset', show=True).plot_shapes_and_params()
