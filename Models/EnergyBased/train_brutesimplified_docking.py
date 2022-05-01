@@ -61,7 +61,7 @@ class SampleBuffer:
         return alphas
 
 
-class EnergyBasedDockingTrainer:
+class BruteSimplifiedDockingTrainer:
     def __init__(self, dockingFFT, cur_model, cur_optimizer, cur_experiment, debug=False, plotting=False):
 
         self.debug = debug
@@ -337,7 +337,7 @@ if __name__ == '__main__':
     optimizer = optim.Adam(model.parameters(), lr=lr)
     # scheduler = optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.5)
     ### Train model from beginning
-    # EnergyBasedDockingTrainer(dockingFFT, model, optimizer, experiment, debug=debug).run_trainer(train_epochs, train_stream=train_stream)
+    # BruteSimplifiedDockingTrainer(dockingFFT, model, optimizer, experiment, debug=debug).run_trainer(train_epochs, train_stream=train_stream)
 
     ## Brute force eval and plotting
     # start = 1
@@ -348,7 +348,7 @@ if __name__ == '__main__':
     #     ### Evaluate model using all 360 angles (or less).
     #     if stop-1 == epoch:
     #         plotting = True
-    #     EnergyBasedDockingTrainer(dockingFFT, eval_model, optimizer, experiment, plotting=plotting).run_trainer(
+    #     BruteSimplifiedDockingTrainer(dockingFFT, eval_model, optimizer, experiment, plotting=plotting).run_trainer(
     #         train_epochs=1, train_stream=None, valid_stream=valid_stream, test_stream=test_stream,
     #         resume_training=True, resume_epoch=epoch)
 
@@ -357,11 +357,11 @@ if __name__ == '__main__':
     IPPlotter(experiment).plot_rmsd_distribution(plot_epoch=27, show=show, eval_only=True)
 
     ### Resume training model at chosen epoch
-    # EnergyBasedDockingTrainer(dockingFFT, model, optimizer, experiment, plotting=True, debug=debug).run_trainer(
+    # BruteSimplifiedDockingTrainer(dockingFFT, model, optimizer, experiment, plotting=True, debug=debug).run_trainer(
     #     train_epochs=1, train_stream=train_stream, valid_stream=None, test_stream=None,
     #     resume_training=True, resume_epoch=train_epochs)
 
     ### Resume training for validation sets
-    # EnergyBasedDockingTrainer(dockingFFT, model, optimizer, experiment, plotting=plotting, debug=debug).run_trainer(
+    # BruteSimplifiedDockingTrainer(dockingFFT, model, optimizer, experiment, plotting=plotting, debug=debug).run_trainer(
     #     train_epochs=1, train_stream=None, valid_stream=valid_stream, #test_stream=valid_stream,
     #     resume_training=True, resume_epoch=train_epochs)
