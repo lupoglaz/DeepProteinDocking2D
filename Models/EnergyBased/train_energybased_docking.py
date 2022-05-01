@@ -299,7 +299,7 @@ if __name__ == '__main__':
     trainset = '../../Datasets/docking_train_set400pool'
     validset = '../../Datasets/docking_valid_set400pool'
     ### testing set
-    testset = '../../Datasets/docking_test_set200pool'
+    testset = '../../Datasets/docking_test_set400pool'
     #########################
     #### initialization torch settings
     random_seed = 42
@@ -310,28 +310,18 @@ if __name__ == '__main__':
     torch.backends.cudnn.deterministic = True
     torch.cuda.set_device(0)
     # torch.autograd.set_detect_anomaly(True)
-    # ######################
-    # lr = 10 ** -4
-    # model = EnergyBasedModel(sample_steps=10).to(device=0)
-    # optimizer = optim.Adam(model.parameters(), lr=lr)
-
+    ######################
     batch_size = 1
-    max_size = None
+    max_size = 1000
     if batch_size > 1:
         raise NotImplementedError()
-    train_stream = get_docking_stream(trainset + '.pkl', batch_size, shuffle=True, max_size=None)
-    valid_stream = get_docking_stream(validset + '.pkl', batch_size=1, max_size=None)
-    test_stream = get_docking_stream(testset + '.pkl', batch_size=1, max_size=None)
+    train_stream = get_docking_stream(trainset + '.pkl', batch_size, shuffle=True, max_size=max_size)
+    valid_stream = get_docking_stream(validset + '.pkl', batch_size=1, max_size=max_size)
+    test_stream = get_docking_stream(testset + '.pkl', batch_size=1, max_size=max_size)
 
     ######################
-    # experiment = 'BSmodel_lr-2_5ep_checkRepoRefactor' #
-    # experiment = 'NEWDATA_CHECK_100pool'
-    # experiment = 'NEWDATA_CHECK_200pool'
-    # experiment = 'NEWDATA_CHECK_200pool_10ep'
-    # experiment = 'NEWDATA_CHECK_400pool_5ep'
-    experiment = 'NEWDATA_CHECK_400pool_30ep'
+    experiment = 'BS_IP_FINAL_DATASET_400pool_1000ex_30ep'
 
-    ### For IP MC eval: sigma alpha 1 RMSD 10, 1.5 RMSD 7.81, 2 RMSD 6.59, 2.5 RMSD 7.44, 1.25, RMSD 6.82, pi/2 RMSD 8.79
     ######################
     train_epochs = 30
     lr = 10 ** -2
@@ -339,7 +329,6 @@ if __name__ == '__main__':
     debug = False
     plotting = False
     show = True
-
     norm = 'ortho'
     continue_epochs = 1
     ######################
@@ -351,21 +340,21 @@ if __name__ == '__main__':
     # EnergyBasedDockingTrainer(dockingFFT, model, optimizer, experiment, debug=debug).run_trainer(train_epochs, train_stream=train_stream)
 
     ## Brute force eval and plotting
-    start = train_epochs-1
-    stop = train_epochs
-    eval_angles = 360
-    eval_model = EnergyBasedModel(dockingFFT, num_angles=eval_angles, IP=True).to(device=0)
-    for epoch in range(start, stop):
-        ### Evaluate model using all 360 angles (or less).
-        if stop-1 == epoch:
-            plotting = True
-        EnergyBasedDockingTrainer(dockingFFT, eval_model, optimizer, experiment, plotting=plotting).run_trainer(
-            train_epochs=1, train_stream=None, valid_stream=valid_stream, test_stream=test_stream,
-            resume_training=True, resume_epoch=epoch)
+    # start = 1
+    # stop = train_epochs
+    # eval_angles = 360
+    # eval_model = EnergyBasedModel(dockingFFT, num_angles=eval_angles, IP=True).to(device=0)
+    # for epoch in range(start, stop):
+    #     ### Evaluate model using all 360 angles (or less).
+    #     if stop-1 == epoch:
+    #         plotting = True
+    #     EnergyBasedDockingTrainer(dockingFFT, eval_model, optimizer, experiment, plotting=plotting).run_trainer(
+    #         train_epochs=1, train_stream=None, valid_stream=valid_stream, test_stream=test_stream,
+    #         resume_training=True, resume_epoch=epoch)
 
     ## Plot loss from current experiment
-    IPPlotter(experiment).plot_loss(ylim=None)
-    IPPlotter(experiment).plot_rmsd_distribution(plot_epoch=train_epochs, show=show, eval_only=True)
+    # IPPlotter(experiment).plot_loss(ylim=None)
+    IPPlotter(experiment).plot_rmsd_distribution(plot_epoch=27, show=show, eval_only=True)
 
     ### Resume training model at chosen epoch
     # EnergyBasedDockingTrainer(dockingFFT, model, optimizer, experiment, plotting=True, debug=debug).run_trainer(
@@ -376,32 +365,3 @@ if __name__ == '__main__':
     # EnergyBasedDockingTrainer(dockingFFT, model, optimizer, experiment, plotting=plotting, debug=debug).run_trainer(
     #     train_epochs=1, train_stream=None, valid_stream=valid_stream, #test_stream=valid_stream,
     #     resume_training=True, resume_epoch=train_epochs)
-
-
-    # # ########### Metropolis-Hastings eval on ideal learned energy surface
-    # dockingFFT = TorchDockingFFT(num_angles=1, angle=None, swap_plot_quadrants=False, debug=debug)
-    # model = EnergyBasedModel(dockingFFT, num_angles=1, IP=True, sample_steps=sample_steps, debug=debug).to(device=0)
-    # optimizer = optim.Adam(model.parameters(), lr=lr)
-    #
-    # monte_carlo_eval = EnergyBasedModel(dockingFFT, num_angles=1, sample_steps=sample_steps, IP_MC=True).to(device=0)
-    # EnergyBasedDockingTrainer(dockingFFT, monte_carlo_eval, optimizer, experiment, plotting=plotting).run_trainer(
-    #     train_epochs=1, train_stream=None, valid_stream=valid_stream, test_stream=None,
-    #     resume_training=True, resume_epoch=train_epochs)
-    #
-    # IPPlotter(experiment).plot_rmsd_distribution(plot_epoch=train_epochs + 1, show=show, eval_only=True)
-    #
-    # ## Sampling based eval and plotting
-    # start = train_epochs - 1
-    # stop = train_epochs
-    # plot_BFeval_refplots = True
-    # for epoch in range(start, stop):
-    #     if stop - 1 == epoch:
-    #         plotting = True
-    #         if plot_BFeval_refplots:
-    #             eval_model = EnergyBasedModel(dockingFFT, num_angles=360, sample_steps=sample_steps, IP=True).to(device=0)
-    #             EnergyBasedDockingTrainer(dockingFFT, eval_model, optimizer, experiment, plotting=plotting).run_trainer(
-    #                 train_epochs=1, train_stream=None, valid_stream=valid_stream, test_stream=test_stream,
-    #                 resume_training=True, resume_epoch=epoch)
-    #             # Plot loss from current experiment
-    #             IPPlotter(experiment).plot_loss()
-    #             IPPlotter(experiment).plot_rmsd_distribution(plot_epoch=epoch + 1, show=show, eval_only=True)
