@@ -278,7 +278,7 @@ if __name__ == '__main__':
     docking_test_file = data_savepath + 'docking_test_set' + str(testpool_num_proteins) + 'pool'
     interaction_test_file = data_savepath + 'interaction_test_set' + str(testpool_num_proteins) + 'pool'
     UtilityFuncs().write_pkl(data=test_docking_set, fileprefix=docking_test_file)
-    UtilityFuncs().write_pkl(data=test_interaction_set, fileprefix=interaction_valid_file)
+    UtilityFuncs().write_pkl(data=test_interaction_set, fileprefix=interaction_test_file)
 
     if plotting:
         ## Dataset shape pair docking energies distributions
