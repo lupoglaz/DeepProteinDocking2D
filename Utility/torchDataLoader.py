@@ -2,24 +2,11 @@ import os
 import sys
 import _pickle as pkl
 import torch
-from torch.utils.data import Dataset, BatchSampler, WeightedRandomSampler, SequentialSampler
+from torch.utils.data import Dataset, RandomSampler
 import numpy as np
 # import random
 # random.seed(42)
 
-def crop_collate(batch):
-	r"""
-	"""
-	receptors = torch.stack(list(map(lambda x: x[0], batch)), dim=0)
-	ligands = torch.stack(list(map(lambda x: x[1], batch)), dim=0)
-	if len(batch[0])>3:
-		translations = torch.stack(list(map(lambda x: x[2], batch)), dim=0)
-		rotations = torch.cat(list(map(lambda x: x[3], batch)), dim=0)
-		# index = torch.tensor(list(map(lambda x: x[4], batch)), dtype=torch.long)
-		return receptors, ligands, rotations, translations
-	else:
-		interactions = torch.cat(list(map(lambda x: x[2], batch)), dim=0)
-		return receptors, ligands, interactions
 
 class ToyDockingDataset(Dataset):
 	r"""
@@ -143,14 +130,17 @@ class ToyInteractionDataset(Dataset):
 # 		return self.dataset_size
 
 
-def get_docking_stream(data_path, batch_size = 10, shuffle = False, max_size=None):
+def get_docking_stream(data_path, batch_size=1, shuffle=False, max_size=None, num_workers=0):
 	dataset = ToyDockingDataset(path=data_path, max_size=max_size)
-	trainloader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, num_workers=0, shuffle=shuffle, collate_fn=crop_collate)
+	sampler = RandomSampler(dataset)
+	trainloader = torch.utils.data.DataLoader(dataset, sampler=sampler, batch_size=batch_size, num_workers=num_workers, shuffle=shuffle)
 	return trainloader
 
-def get_interaction_stream(data_path, batch_size = 10, shuffle = False, max_size=None):
+
+def get_interaction_stream(data_path, batch_size=1, shuffle=False, max_size=None, num_workers=0):
 	dataset = ToyInteractionDataset(path=data_path, max_size=max_size)
-	trainloader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, num_workers=0, collate_fn=crop_collate, shuffle=shuffle)
+	sampler = RandomSampler(dataset)
+	trainloader = torch.utils.data.DataLoader(dataset, sampler=sampler, batch_size=batch_size, num_workers=num_workers, shuffle=shuffle)
 	return trainloader
 
 

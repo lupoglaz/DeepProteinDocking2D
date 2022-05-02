@@ -79,6 +79,9 @@ class EnergyBasedInteractionTrainer:
 
         self.model_savepath = 'Log/saved_models/'
         self.logfile_savepath = 'Log/losses/'
+        self.logtraindF_prefix = 'log_deltaF_TRAINset_epoch'
+        self.logloss_prefix = 'log_loss_TRAINset_'
+        self.logAPR_prefix = 'log_validAPR_'
 
         self.loss_log_header = 'Epoch\tLoss\n'
         self.loss_log_format = '%d\t%f\n'
@@ -224,17 +227,17 @@ class EnergyBasedInteractionTrainer:
 
     def run_epoch(self, data_stream, epoch, training=False):
         stream_loss = []
-        with open(self.logfile_savepath + 'log_deltaF_TRAINset_epoch' + str(epoch) + self.experiment + '.txt', 'w') as fout:
+        with open(self.logfile_savepath + self.logtraindF_prefix + str(epoch) + self.experiment + '.txt', 'w') as fout:
             fout.write(self.deltaf_log_header)
         for data in tqdm(data_stream):
             train_output = [self.run_model(data, training=training)]
             stream_loss.append(train_output)
-            with open(self.logfile_savepath + 'log_deltaF_TRAINset_epoch' + str(epoch) + self.experiment + '.txt', 'a') as fout:
+            with open(self.logfile_savepath + self.logtraindF_prefix + str(epoch) + self.experiment + '.txt', 'a') as fout:
                 fout.write(self.deltaf_log_format % (train_output[0][1], train_output[0][2], train_output[0][3]))
 
         avg_loss = np.average(stream_loss, axis=0)[0, :]
         print('\nEpoch', epoch, 'Train Loss: epoch, loss', avg_loss)
-        with open(self.logfile_savepath + 'log_loss_TRAINset_' + self.experiment + '.txt', 'a') as fout:
+        with open(self.logfile_savepath + self.logloss_prefix + self.experiment + '.txt', 'a') as fout:
             fout.write(self.loss_log_format % (epoch, avg_loss[0]))
 
     def checkAPR(self, check_epoch, datastream, stream_name=None):
@@ -242,7 +245,7 @@ class EnergyBasedInteractionTrainer:
         log_APRformat = '%f\t%f\t%f\t%f\t%f\n'
         print('Evaluating ', stream_name)
         Accuracy, Precision, Recall, F1score, MCC = APR().calcAPR(datastream, self.run_model, check_epoch)
-        with open(self.logfile_savepath + 'log_validAPR_' + self.experiment + '.txt', 'a') as fout:
+        with open(self.logfile_savepath + self.logAPR_prefix + self.experiment + '.txt', 'a') as fout:
             fout.write('Epoch '+str(check_epoch)+'\n')
             fout.write(log_APRheader)
             fout.write(log_APRformat % (Accuracy, Precision, Recall, F1score, MCC))
@@ -270,9 +273,9 @@ class EnergyBasedInteractionTrainer:
         else:
             start_epoch = 1
             ### Loss log files
-            with open(self.logfile_savepath + 'log_loss_TRAINset_' + self.experiment + '.txt', 'w') as fout:
+            with open(self.logfile_savepath + self.logloss_prefix + self.experiment + '.txt', 'w') as fout:
                 fout.write(self.loss_log_header)
-            with open(self.logfile_savepath + 'log_deltaF_TRAINset_epoch' + str(start_epoch) + self.experiment + '.txt', 'w') as fout:
+            with open(self.logfile_savepath + self.logtraindF_prefix + str(start_epoch) + self.experiment + '.txt', 'w') as fout:
                 fout.write(self.deltaf_log_header)
 
         return start_epoch
@@ -303,11 +306,10 @@ class EnergyBasedInteractionTrainer:
 if __name__ == '__main__':
     #################################################################################
     # Datasets
-    trainset = '../../Datasets/interaction_train_set200pool'
-    validset = '../../Datasets/interaction_valid_set200pool'
+    trainset = '../../Datasets/interaction_train_set400pool'
+    validset = '../../Datasets/interaction_valid_set400pool'
     ### testing set
-    testset = '../../Datasets/interaction_test_set100pool'
-
+    testset = '../../Datasets/interaction_test_set400pool'
     #########################
     #### initialization torch settings
     random_seed = 42
@@ -318,9 +320,8 @@ if __name__ == '__main__':
     torch.backends.cudnn.deterministic = True
     torch.cuda.set_device(0)
     # torch.autograd.set_detect_anomaly(True)
-
     #########################
-    max_size = 1000
+    max_size = 5000
     batch_size = 1
     if batch_size > 1:
         raise NotImplementedError()
@@ -328,21 +329,15 @@ if __name__ == '__main__':
     valid_stream = get_interaction_stream(validset + '.pkl', batch_size=1, max_size=max_size)
     test_stream = get_interaction_stream(testset + '.pkl', batch_size=1, max_size=max_size)
     ######################
-    # experiment = 'workingMCsampling_50steps_wregsched_g=0.50_modelEvalMCloop_100ex_sigalpha=3' ## 15ep MCC 0.40 valid/test
-    # experiment = 'MC_FI_SMALLDATA_100EXAMPLES_50STEPS' ## 15ep MCC 0.40 valid/test
-    # experiment = 'MC_FI_NEWDATA_CHECK_100pool_1000ex50steps'
-    # experiment = 'MC_FI_NEWDATA_CHECK_400pool_2000ex10steps'
-    experiment = 'MC_FI_NEWDATA_CHECK_400pool_1000ex10steps'
-
+    experiment = 'MC_FI_NEWDATA_CHECK_400pool_5000ex30ep'
+    ######################
+    train_epochs = 30
     lr_interaction = 10 ** 0
     lr_docking = 10 ** -4
     sample_steps = 10
     debug = False
-    # debug = True
     plotting = False
-    # plotting = True
     show = False
-    # show = True
 
     interaction_model = Interaction().to(device=0)
     interaction_optimizer = optim.Adam(interaction_model.parameters(), lr=lr_interaction)
@@ -356,17 +351,16 @@ if __name__ == '__main__':
     # sigma_optimizer = optim.Adam(docking_model.parameters(), lr=2)
     # scheduler = optim.lr_scheduler.ExponentialLR(sigma_optimizer, gamma=0.95)
 
-    train_epochs = 40
     # continue_epochs = 1
     ######################
     ### Train model from beginning
-    # EnergyBasedInteractionTrainer(docking_model, docking_optimizer, interaction_model, interaction_optimizer, experiment, debug=debug
-    #                               ).run_trainer(train_epochs, train_stream=train_stream, valid_stream=None, test_stream=None)
+    EnergyBasedInteractionTrainer(docking_model, docking_optimizer, interaction_model, interaction_optimizer, experiment, debug=debug
+                                  ).run_trainer(train_epochs, train_stream=train_stream, valid_stream=None, test_stream=None)
 
     ### resume training model
-    EnergyBasedInteractionTrainer(docking_model, docking_optimizer, interaction_model, interaction_optimizer, experiment, debug=debug
-                                 ).run_trainer(resume_training=True, resume_epoch=13, train_epochs=27,
-                                               train_stream=train_stream, valid_stream=None, test_stream=None)
+    # EnergyBasedInteractionTrainer(docking_model, docking_optimizer, interaction_model, interaction_optimizer, experiment, debug=debug
+    #                              ).run_trainer(resume_training=True, resume_epoch=13, train_epochs=27,
+    #                                            train_stream=train_stream, valid_stream=None, test_stream=None)
     #
     ### Evaluate model at chosen epoch
     eval_model = EnergyBasedModel(dockingFFT, num_angles=360, sample_steps=1, FI=True, debug=debug).to(device=0)
