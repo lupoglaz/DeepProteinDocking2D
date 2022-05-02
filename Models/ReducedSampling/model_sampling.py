@@ -1,4 +1,5 @@
 import sys
+
 sys.path.append('/home/sb1638/')
 
 import torch
@@ -9,6 +10,7 @@ from matplotlib import pylab as plt
 
 from DeepProteinDocking2D.Models.model_docking import Docking
 from DeepProteinDocking2D.Utility.utility_functions import UtilityFuncs
+
 
 class Docker(nn.Module):
     def __init__(self, dockingFFT, num_angles=1, debug=False):
@@ -21,14 +23,16 @@ class Docker(nn.Module):
     def forward(self, receptor, ligand, rotation, plot_count=1, stream_name='trainset', plotting=False):
         if 'trainset' not in stream_name:
             training = False
-        else: training = True
+        else:
+            training = True
 
         if self.num_angles == 360:
-            stream_name = 'BFeval_'+stream_name
+            stream_name = 'BFeval_' + stream_name
         else:
-            plotting=False
+            plotting = False
 
-        fft_score = self.dockingConv.forward(receptor, ligand, angle=rotation, plotting=plotting, training=training, plot_count=plot_count, stream_name=stream_name)
+        fft_score = self.dockingConv.forward(receptor, ligand, angle=rotation, plotting=plotting, training=training,
+                                             plot_count=plot_count, stream_name=stream_name)
 
         with torch.no_grad():
             pred_rot, pred_txy = self.dockingFFT.extract_transform(fft_score)
@@ -37,7 +41,8 @@ class Docker(nn.Module):
                 deg_index_rot = (((pred_rot * 180.0 / np.pi) + 180.0) % self.num_angles).type(torch.long)
                 best_score = fft_score[deg_index_rot, pred_txy[0], pred_txy[1]]
                 if plotting and self.num_angles == 360 and plot_count % 10 == 0:
-                    UtilityFuncs().plot_rotation_energysurface(fft_score, pred_txy, self.num_angles, stream_name, plot_count)
+                    UtilityFuncs().plot_rotation_energysurface(fft_score, pred_txy, self.num_angles, stream_name,
+                                                               plot_count)
             else:
                 best_score = fft_score[pred_txy[0], pred_txy[1]]
 
@@ -46,9 +51,10 @@ class Docker(nn.Module):
         return lowest_energy, pred_rot, pred_txy, fft_score
 
 
-class EnergyBasedModel(nn.Module):
-    def __init__(self, dockingFFT, num_angles=1, step_size=10, sample_steps=10, IP=False, IP_MC=False, IP_EBM=False, FI=False, experiment=None, debug=False):
-        super(EnergyBasedModel, self).__init__()
+class SamplingModel(nn.Module):
+    def __init__(self, dockingFFT, num_angles=1, step_size=10, sample_steps=10, IP=False, IP_MC=False, IP_LD=False,
+                 FI=False, experiment=None, debug=False):
+        super(SamplingModel, self).__init__()
         self.debug = debug
         self.num_angles = num_angles
 
@@ -63,15 +69,15 @@ class EnergyBasedModel(nn.Module):
         self.step_size = self.sig_alpha
         self.BETA = 1
 
-
         self.IP = IP
         self.IP_MC = IP_MC
-        self.IP_EBM = IP_EBM
+        self.IP_LD = IP_LD
 
         self.FI = FI
         self.logdimsq = torch.log(torch.tensor(100 ** 2))
 
-    def forward(self, alpha, receptor, ligand, sig_alpha=None, plot_count=1, stream_name='trainset', plotting=False, training=True):
+    def forward(self, alpha, receptor, ligand, sig_alpha=None, plot_count=1, stream_name='trainset', plotting=False,
+                training=True):
         if sig_alpha:
             self.sig_alpha = sig_alpha
             self.step_size = sig_alpha
@@ -89,16 +95,16 @@ class EnergyBasedModel(nn.Module):
                 alpha = 0
                 self.docker.eval()
                 lowest_energy, alpha, dr, FFT_score = self.docker(receptor, ligand, alpha, plot_count,
-                                                                          stream_name, plotting=plotting)
+                                                                  stream_name, plotting=plotting)
 
                 return lowest_energy, alpha.unsqueeze(0).clone(), dr.unsqueeze(0).clone(), FFT_score
 
         if self.IP_MC:
             if training:
-                ## train giving the ground truth rotation
+                ## MC sampling training
                 lowest_energy, _, dr, FFT_score = self.docker(receptor, ligand, alpha,
-                                                                          plot_count=plot_count, stream_name=stream_name,
-                                                                          plotting=plotting)
+                                                              plot_count=plot_count, stream_name=stream_name,
+                                                              plotting=plotting)
 
                 return lowest_energy, alpha.unsqueeze(0).clone(), dr.clone(), FFT_score
             else:
@@ -106,30 +112,30 @@ class EnergyBasedModel(nn.Module):
                 self.docker.eval()
                 return self.MCsampling(alpha, receptor, ligand, plot_count, stream_name)
 
-        if self.IP_EBM:
+        if self.IP_LD:
             if training:
-                ## train giving the ground truth rotation
+                ## train using Langevin dynamics
                 lowest_energy, _, dr, FFT_score = self.docker(receptor, ligand, alpha,
-                                                                          plot_count=plot_count, stream_name=stream_name,
-                                                                          plotting=plotting)
+                                                              plot_count=plot_count, stream_name=stream_name,
+                                                              plotting=plotting)
 
                 return lowest_energy, alpha.unsqueeze(0).clone(), dr.clone(), FFT_score
             else:
-                ## EBM sampling eval
+                ## Langegvin sampling eval
                 self.docker.eval()
-                return self.langevin(alpha, receptor, ligand, plot_count, stream_name)
+                return self.langevin_dynamics(alpha, receptor, ligand, plot_count, stream_name)
 
         if self.FI:
             if training:
-                # print('training')
-                ## MC sampling for Fact of interaction training
+                ## MC sampling for Fact of Interaction training
                 return self.MCsampling(alpha, receptor, ligand, plot_count, stream_name, debug=False)
             else:
                 ### evaluate with brute force
                 self.docker.eval()
                 lowest_energy, _, dr, FFT_score = self.docker(receptor, ligand, alpha, plot_count,
-                                                                           stream_name, plotting=plotting)
+                                                              stream_name, plotting=plotting)
                 return lowest_energy, alpha.unsqueeze(0).clone(), dr.unsqueeze(0).clone(), FFT_score
+                ### evaluate with Monte Carlo?
                 # self.docker.eval()
                 # return self.MCsampling(alpha, receptor, ligand, plot_count, stream_name, debug=False)
 
@@ -142,7 +148,7 @@ class EnergyBasedModel(nn.Module):
         self.docker.eval()
 
         betaE = -self.BETA * FFT_score
-        free_energy = -1 / self.BETA *(torch.logsumexp(-betaE, dim=(0, 1)) - self.logdimsq)
+        free_energy = -1 / self.BETA * (torch.logsumexp(-betaE, dim=(0, 1)) - self.logdimsq)
 
         noise_alpha = torch.zeros_like(alpha)
         prob_list = []
@@ -158,15 +164,10 @@ class EnergyBasedModel(nn.Module):
             alpha_new = alpha + rand_rot
 
             _, _, dr_new, FFT_score_new = self.docker(receptor, ligand, alpha_new,
-                                              plot_count=plot_count, stream_name=stream_name,
-                                              plotting=plotting)
+                                                      plot_count=plot_count, stream_name=stream_name,
+                                                      plotting=plotting)
             betaE_new = -self.BETA * FFT_score_new
-            free_energy_new = -1/self.BETA*(torch.logsumexp(-betaE_new, dim=(0, 1)) - self.logdimsq)
-
-            # print(self.previous)
-            # a, b, n = 40, 4, 4  #
-            # self.sig_alpha = float(b * torch.exp(-self.BETA*((free_energy_new - free_energy) / a) ** n))
-            # self.step_size = self.sig_alpha
+            free_energy_new = -1 / self.BETA * (torch.logsumexp(-betaE_new, dim=(0, 1)) - self.logdimsq)
 
             if free_energy_new <= free_energy:
                 acceptance.append(1)
@@ -206,30 +207,26 @@ class EnergyBasedModel(nn.Module):
 
         if debug:
             print('acceptance rate', acceptance)
-            print(sum(acceptance)/self.sample_steps)
-        # plt.close()
-        # xrange = np.arange(0, len(prob_list))
-        # # y = prob_list
-        # y = sorted(prob_list)[::-1]
-        # plt.scatter(xrange, y)
-        # plt.show()
+            print(sum(acceptance) / self.sample_steps)
+
         if self.FI:
-            # print(fft_score_list)
             fft_score_stack = torch.stack(fft_score_list)
-            # print(fft_score.shape)
-        else: fft_score_stack = FFT_score
+        else:
+            fft_score_stack = FFT_score
 
         self.docker.train()
 
         return free_energy, alpha.unsqueeze(0).clone(), dr.clone(), fft_score_stack.squeeze()
 
-    def langevin(self, alpha, receptor, ligand, plot_count, stream_name, plotting=False, debug=False):
+    def langevin_dynamics(self, alpha, receptor, ligand, plot_count, stream_name):
 
         noise_alpha = torch.zeros_like(alpha)
 
-        alpha.requires_grad_()
         langevin_opt = optim.SGD([alpha], lr=self.step_size, momentum=0.0)
 
+        energy = None
+        dr = None
+        fft_score = None
         for i in range(self.sample_steps):
             if i == self.sample_steps - 1:
                 plotting = True
@@ -251,11 +248,6 @@ class EnergyBasedModel(nn.Module):
 
         return energy, alpha.clone(), dr.clone(), fft_score
 
-    def requires_grad(self, flag=True):
-        parameters = self.EBMdocker.parameters()
-        for p in parameters:
-            p.requires_grad = flag
-
     @staticmethod
     def check_gradients(model, param=None):
         for n, p in model.named_parameters():
@@ -264,6 +256,7 @@ class EnergyBasedModel(nn.Module):
                 return
             if not param:
                 print('Name', n, '\nParam', p, '\nGradient', p.grad)
+
 
 if __name__ == "__main__":
     pass
