@@ -14,7 +14,7 @@ from DeepProteinDocking2D.Models.BruteForce.train_bruteforce_docking import Dock
 from DeepProteinDocking2D.Utility.utility_functions import UtilityFuncs
 from DeepProteinDocking2D.Utility.validation_metrics import RMSD
 from DeepProteinDocking2D.Plotting.plot_IP import IPPlotter
-from DeepProteinDocking2D.Models.EnergyBased.model_energybased_sampling import EnergyBasedModel
+from DeepProteinDocking2D.Models.ReducedSampling.model_sampling import SamplingModel
 
 
 class SampleBuffer:
@@ -138,7 +138,7 @@ class BruteSimplifiedDockingTrainer:
             self.model.eval()
             if self.plotting and pos_idx % self.plot_freq == 0:
                 with torch.no_grad():
-                    self.plot_pose(receptor, ligand, gt_rot, gt_txy, pred_rot.squeeze(), pred_txy.squeeze(), pos_idx, stream_name)
+                    UtilityFuncs().plot_predicted_pose(receptor, ligand, gt_rot, gt_txy, pred_rot.squeeze(), pred_txy.squeeze(), pos_idx, stream_name)
 
         return loss.item(), rmsd_out.item()
 
@@ -249,41 +249,6 @@ class BruteSimplifiedDockingTrainer:
                 fout.write(self.log_header)
         return start_epoch
 
-    def plot_pose(self, receptor, ligand, gt_rot, gt_txy, pred_rot, pred_txy, plot_count, stream_name):
-        plt.close()
-        plt.figure(figsize=(8, 8))
-        # pred_rot, pred_txy = self.dockingFFT.extract_transform(fft_score)
-        print('extracted predicted indices', pred_rot, pred_txy)
-        print('gt indices', gt_rot, gt_txy)
-        rmsd_out = RMSD(ligand, gt_rot, gt_txy, pred_rot, pred_txy).calc_rmsd()
-        print('RMSD', rmsd_out.item())
-
-        pair = UtilityFuncs().plot_assembly(receptor.squeeze().detach().cpu().numpy(), ligand.squeeze().detach().cpu().numpy(),
-                                            pred_rot.detach().cpu().numpy(),
-                                            (pred_txy[0].detach().cpu().numpy(), pred_txy[1].detach().cpu().numpy()),
-                                            gt_rot.squeeze().detach().cpu().numpy(), gt_txy.squeeze().detach().cpu().numpy())
-
-        plt.imshow(pair.transpose())
-        plt.title('Ground truth', loc='left')
-        plt.title('Input')
-        plt.title('Predicted pose', loc='right')
-        plt.text(225, 110, "RMSD = " + str(rmsd_out.item())[:5], backgroundcolor='w')
-        plt.grid(False)
-        plt.tick_params(
-            axis='x',  # changes apply to the x-axis
-            which='both',  # both major and minor ticks are affected
-            bottom=False,  # ticks along the bottom edge are off
-            top=False,  # ticks along the top edge are off
-            labelbottom=False)  # labels along the bottom
-        plt.tick_params(
-            axis='y',
-            which='both',
-            left=False,
-            right=False,
-            labelleft=False)
-        plt.savefig('Figs/Features_and_poses/'+stream_name+'_docking_pose_example' + str(plot_count) + '_RMSD' + str(rmsd_out.item())[:4] + '.png')
-        # plt.show()
-
     def run_trainer(self, train_epochs, train_stream=None, valid_stream=None, test_stream=None, resume_training=False, resume_epoch=0):
         self.train_model(train_epochs, train_stream, valid_stream, test_stream,
                          resume_training=resume_training, resume_epoch=resume_epoch)
@@ -333,28 +298,28 @@ if __name__ == '__main__':
     continue_epochs = 1
     ######################
     dockingFFT = TorchDockingFFT(num_angles=1, angle=None, swap_plot_quadrants=False, debug=debug, normalization=norm)
-    model = EnergyBasedModel(dockingFFT, num_angles=1, IP=True, sample_steps=sample_steps, debug=debug).to(device=0)
+    model = SamplingModel(dockingFFT, num_angles=1, IP=True, sample_steps=sample_steps, debug=debug).to(device=0)
     optimizer = optim.Adam(model.parameters(), lr=lr)
-    # scheduler = optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.5)
+
     ### Train model from beginning
-    # BruteSimplifiedDockingTrainer(dockingFFT, model, optimizer, experiment, debug=debug).run_trainer(train_epochs, train_stream=train_stream)
+    BruteSimplifiedDockingTrainer(dockingFFT, model, optimizer, experiment, debug=debug).run_trainer(train_epochs, train_stream=train_stream)
 
     ## Brute force eval and plotting
-    # start = 1
-    # stop = train_epochs
-    # eval_angles = 360
-    # eval_model = EnergyBasedModel(dockingFFT, num_angles=eval_angles, IP=True).to(device=0)
-    # for epoch in range(start, stop):
-    #     ### Evaluate model using all 360 angles (or less).
-    #     if stop-1 == epoch:
-    #         plotting = True
-    #     BruteSimplifiedDockingTrainer(dockingFFT, eval_model, optimizer, experiment, plotting=plotting).run_trainer(
-    #         train_epochs=1, train_stream=None, valid_stream=valid_stream, test_stream=test_stream,
-    #         resume_training=True, resume_epoch=epoch)
+    start = 1
+    stop = train_epochs
+    eval_angles = 360
+    eval_model = SamplingModel(dockingFFT, num_angles=eval_angles, IP=True).to(device=0)
+    for epoch in range(start, stop):
+        ### Evaluate model using all 360 angles (or less).
+        if stop-1 == epoch:
+            plotting = True
+        BruteSimplifiedDockingTrainer(dockingFFT, eval_model, optimizer, experiment, plotting=plotting).run_trainer(
+            train_epochs=1, train_stream=None, valid_stream=valid_stream, test_stream=test_stream,
+            resume_training=True, resume_epoch=epoch)
 
     ## Plot loss from current experiment
-    # IPPlotter(experiment).plot_loss(ylim=None)
-    IPPlotter(experiment).plot_rmsd_distribution(plot_epoch=27, show=show, eval_only=True)
+    IPPlotter(experiment).plot_loss(ylim=None)
+    IPPlotter(experiment).plot_rmsd_distribution(plot_epoch=train_epochs, show=show, eval_only=True)
 
     ### Resume training model at chosen epoch
     # BruteSimplifiedDockingTrainer(dockingFFT, model, optimizer, experiment, plotting=True, debug=debug).run_trainer(

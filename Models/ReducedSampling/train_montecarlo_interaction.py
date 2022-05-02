@@ -321,7 +321,7 @@ if __name__ == '__main__':
     torch.cuda.set_device(0)
     # torch.autograd.set_detect_anomaly(True)
     #########################
-    max_size = 5000
+    max_size = 10000
     batch_size = 1
     if batch_size > 1:
         raise NotImplementedError()
@@ -329,7 +329,8 @@ if __name__ == '__main__':
     valid_stream = get_interaction_stream(validset + '.pkl', batch_size=1, max_size=max_size)
     test_stream = get_interaction_stream(testset + '.pkl', batch_size=1, max_size=max_size)
     ######################
-    experiment = 'MC_FI_NEWDATA_CHECK_400pool_5000ex30ep'
+    # experiment = 'MC_FI_NEWDATA_CHECK_400pool_5000ex30ep'
+    experiment = 'MC_FI_NEWDATA_CHECK_400pool_10000ex30ep'
     ######################
     train_epochs = 30
     lr_interaction = 10 ** 0
@@ -364,7 +365,7 @@ if __name__ == '__main__':
     #
     ### Evaluate model at chosen epoch
     eval_model = EnergyBasedModel(dockingFFT, num_angles=360, sample_steps=1, FI=True, debug=debug).to(device=0)
-    # # eval_model = EnergyBasedModel(dockingFFT, num_angles=1, sample_steps=sample_steps, FI=True, debug=debug).to(device=0) ## eval with monte carlo
+    # # eval_model = SamplingModel(dockingFFT, num_angles=1, sample_steps=sample_steps, FI=True, debug=debug).to(device=0) ## eval with monte carlo
     EnergyBasedInteractionTrainer(eval_model, docking_optimizer, interaction_model, interaction_optimizer, experiment, debug=False
                                   ).run_trainer(resume_training=True, resume_epoch=train_epochs, train_epochs=1,
                                                 train_stream=None, valid_stream=valid_stream, test_stream=test_stream)
