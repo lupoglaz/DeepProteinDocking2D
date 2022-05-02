@@ -14,6 +14,7 @@ from DeepProteinDocking2D.Utility.validation_metrics import APR
 from DeepProteinDocking2D.Models.model_docking import Docking
 from DeepProteinDocking2D.Plotting.plot_FI import FIPlotter
 
+
 class BruteForceInteractionTrainer:
     ## run replicates from sbatch script args, if provided
     if len(sys.argv) > 1:
@@ -23,15 +24,18 @@ class BruteForceInteractionTrainer:
 
     def __init__(self, docking_model, docking_optimizer, interaction_model, interaction_optimizer, experiment, training_case, path_pretrain,
                  debug=False, plotting=False):
-        # print("RUNNING INIT")
         self.debug = debug
         self.plotting = plotting
 
         self.check_epoch = 1
         self.eval_freq = 1
         self.save_freq = 1
+        ## set paths
         self.model_savepath = 'Log/saved_models/'
         self.logfile_savepath = 'Log/losses/'
+        self.logtraindF_prefix = 'log_deltaF_TRAINset_epoch'
+        self.logloss_prefix = 'log_loss_TRAINset_'
+        self.logAPR_prefix = 'log_validAPR_'
 
         self.loss_log_header = 'Epoch\tLoss\n'
         self.loss_log_format = '%d\t%f\n'
@@ -144,8 +148,17 @@ class BruteForceInteractionTrainer:
                 self.run_epoch(train_stream, epoch, training=True)
                 scheduler.step()
                 print('last learning rate', scheduler.get_last_lr())
-
                 FIPlotter(self.experiment).plot_deltaF_distribution(plot_epoch=epoch, show=False, xlim=None, binwidth=1)
+
+                #### saving model while training
+                if epoch % self.save_freq == 0:
+                    docking_savepath = self.model_savepath + 'docking_' + self.experiment + str(epoch) + '.th'
+                    self.save_checkpoint(docking_checkpoint_dict, docking_savepath, self.docking_model)
+                    print('saving docking model ' + docking_savepath)
+
+                    interaction_savepath = self.model_savepath + self.experiment + str(epoch) + '.th'
+                    self.save_checkpoint(interaction_checkpoint_dict, interaction_savepath, self.interaction_model)
+                    print('saving interaction model ' + interaction_savepath)
 
             ### evaluate on training and valid set
             ### training set to False downstream in calcAPR() run_model()
@@ -156,29 +169,19 @@ class BruteForceInteractionTrainer:
                 if test_stream:
                     self.checkAPR(epoch, test_stream, 'TESTset')
 
-            #### saving model while training
-            if epoch % self.save_freq == 0:
-                docking_savepath =  self.model_savepath + 'docking_' + self.experiment + str(epoch) + '.th'
-                self.save_checkpoint(docking_checkpoint_dict, docking_savepath, self.docking_model)
-                print('saving docking model ' + docking_savepath)
-
-                interaction_savepath = self.model_savepath + self.experiment + str(epoch) + '.th'
-                self.save_checkpoint(interaction_checkpoint_dict, interaction_savepath, self.interaction_model)
-                print('saving interaction model ' + interaction_savepath)
-
     def run_epoch(self, data_stream, epoch, training=False):
         stream_loss = []
-        with open(self.logfile_savepath + 'log_deltaF_TRAINset_epoch' + str(epoch) + self.experiment + '.txt', 'w') as fout:
+        with open(self.logfile_savepath + self.logtraindF_prefix + str(epoch) + self.experiment + '.txt', 'w') as fout:
             fout.write(self.deltaf_log_header)
         for data in tqdm(data_stream):
             train_output = [self.run_model(data, training=training)]
             stream_loss.append(train_output)
-            with open(self.logfile_savepath + 'log_deltaF_TRAINset_epoch' + str(epoch) + self.experiment + '.txt', 'a') as fout:
+            with open(self.logfile_savepath + self.logtraindF_prefix + str(epoch) + self.experiment + '.txt', 'a') as fout:
                 fout.write(self.deltaf_log_format % (train_output[0][1], train_output[0][2], train_output[0][3]))
 
         avg_loss = np.average(stream_loss, axis=0)[0, :]
         print('\nEpoch', epoch, 'Train Loss: epoch, loss', avg_loss)
-        with open(self.logfile_savepath + 'log_loss_TRAINset_' + self.experiment + '.txt', 'a') as fout:
+        with open(self.logfile_savepath + self.logloss_prefix + self.experiment + '.txt', 'a') as fout:
             fout.write(self.loss_log_format % (epoch, avg_loss[0]))
 
     def checkAPR(self, check_epoch, datastream, stream_name=None):
@@ -186,7 +189,7 @@ class BruteForceInteractionTrainer:
         log_APRformat = '%f\t%f\t%f\t%f\t%f\n'
         print('Evaluating ', stream_name)
         Accuracy, Precision, Recall, F1score, MCC = APR().calcAPR(datastream, self.run_model, check_epoch)
-        with open(self.logfile_savepath + 'log_validAPR_' + self.experiment + '.txt', 'a') as fout:
+        with open(self.logfile_savepath + self.logAPR_prefix + self.experiment + '.txt', 'a') as fout:
             fout.write('Epoch '+str(check_epoch)+'\n')
             fout.write(log_APRheader)
             fout.write(log_APRformat % (Accuracy, Precision, Recall, F1score, MCC))
@@ -229,9 +232,9 @@ class BruteForceInteractionTrainer:
         else:
             start_epoch = 1
             ### Loss log files
-            with open(self.logfile_savepath + 'log_loss_TRAINset_' + self.experiment + '.txt', 'w') as fout:
+            with open(self.logfile_savepath + self.logloss_prefix + self.experiment + '.txt', 'w') as fout:
                 fout.write(self.loss_log_header)
-            with open(self.logfile_savepath + 'log_deltaF_TRAINset_epoch' + str(start_epoch) + self.experiment + '.txt', 'w') as fout:
+            with open(self.logfile_savepath + self.logtraindF_prefix + str(start_epoch) + self.experiment + '.txt', 'w') as fout:
                 fout.write(self.deltaf_log_header)
 
         return start_epoch
@@ -293,7 +296,7 @@ if __name__ == '__main__':
     trainset = '../../Datasets/interaction_train_set400pool'
     validset = '../../Datasets/interaction_valid_set400pool'
     # ### testing set
-    testset = '../../Datasets/interaction_test_set200pool'
+    testset = '../../Datasets/interaction_test_set400pool'
     #########################
     #### initialization torch settings
     random_seed = 42
@@ -306,7 +309,6 @@ if __name__ == '__main__':
     # CUDA_LAUNCH_BLOCKING = 1
     # torch.autograd.set_detect_anomaly(True)
     #########################
-
     lr_interaction = 10**0
     lr_docking = 10**-4
 
@@ -318,17 +320,18 @@ if __name__ == '__main__':
     docking_model = Docking().to(device=0)
     docking_optimizer = optim.Adam(docking_model.parameters(), lr=lr_docking)
 
-    max_size = 1000
+    max_size = 20000
     batch_size = 1
     if batch_size > 1:
         raise NotImplementedError()
-    train_stream = get_interaction_stream(trainset + '.pkl', batch_size=batch_size, shuffle=True, max_size=max_size)
+    train_stream = get_interaction_stream(trainset + '.pkl', batch_size=batch_size, max_size=max_size)
     valid_stream = get_interaction_stream(validset + '.pkl', batch_size=1, max_size=max_size)
     test_stream = get_interaction_stream(testset + '.pkl', batch_size=1, max_size=max_size)
 
-    # experiment = 'BF_FI_NEWDATA_CHECK_100pool'
-    # experiment = 'BF_FI_NEWDATA_CHECK_200pool_10ep'
-    experiment = 'BF_FI_NEWDATA_CHECK_400pool_1000ex30ep'
+    ######################
+    # experiment = 'BF_FI_NEWDATA_CHECK_400pool_5000ex30ep'
+    # experiment = 'BF_FI_NEWDATA_CHECK_400pool_10000ex30ep'
+    experiment = 'BF_FI_NEWDATA_CHECK_400pool_20000ex30ep'
 
     ##################### Load and freeze/unfreeze params (training, no eval)
     ### path to pretrained docking model
@@ -338,23 +341,23 @@ if __name__ == '__main__':
     # training_case = 'B' # CaseB: train with docking model unfrozen
     # training_case = 'C' # CaseC: train with docking model SE2 CNN frozen and scoring ("a") coeffs unfrozen
     training_case = 'scratch' # Case scratch: train everything from scratch
-    experiment = 'FI_case_' + training_case + '_' + experiment
+    experiment = training_case + '_' + experiment
     train_epochs = 30
     #####################
     ### Train model from beginning
     # BruteForceInteractionTrainer(docking_model, docking_optimizer, interaction_model, interaction_optimizer, experiment, training_case, path_pretrain
     #                              ).run_trainer(train_epochs, train_stream=train_stream, valid_stream=None, test_stream=None)
 
-    ### Resume training model at chosen epoch
+    ## Resume training model at chosen epoch
     BruteForceInteractionTrainer(docking_model, docking_optimizer, interaction_model, interaction_optimizer, experiment, training_case, path_pretrain
-                                 ).run_trainer(resume_training=True, resume_epoch=9, train_epochs=21, train_stream=train_stream, valid_stream=None, test_stream=None)
+                                 ).run_trainer(resume_training=True, resume_epoch=20, train_epochs=10, train_stream=train_stream, valid_stream=None, test_stream=None)
     #
 
     ### Validate model at chosen epoch
     BruteForceInteractionTrainer(docking_model, docking_optimizer, interaction_model, interaction_optimizer, experiment, training_case, path_pretrain
                                  ).run_trainer(train_epochs=1, train_stream=None, valid_stream=valid_stream, test_stream=test_stream,
-                                               resume_training=True, resume_epoch=train_epochs)
+                                               resume_training=True, resume_epoch=30)
 
     ### Plot free energy distributions with learned F_0 decision threshold
     FIPlotter(experiment).plot_loss()
-    FIPlotter(experiment).plot_deltaF_distribution(plot_epoch=train_epochs, show=True)
+    FIPlotter(experiment).plot_deltaF_distribution(plot_epoch=30, show=True)

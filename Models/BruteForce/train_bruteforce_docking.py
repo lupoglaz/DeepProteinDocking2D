@@ -79,7 +79,7 @@ class BruteForceDockingTrainer:
         if self.plotting and not training:
             if pos_idx % self.plot_freq == 0:
                 with torch.no_grad():
-                    self.plot_pose(fft_score, receptor, ligand, gt_rot, gt_txy, pos_idx, stream_name)
+                    UtilityFuncs().plot_predicted_pose(receptor, ligand, gt_rot, gt_txy, pred_rot, pred_txy, pos_idx,stream_name)
 
         return loss.item(), rmsd_out.item()
 
@@ -193,42 +193,6 @@ class BruteForceDockingTrainer:
                 fout.write(self.log_header)
         return start_epoch
 
-    @staticmethod
-    def plot_pose(FFT_score, receptor, ligand, gt_rot, gt_txy, plot_count, stream_name):
-        plt.close()
-        plt.figure(figsize=(8, 8))
-        pred_rot, pred_txy = TorchDockingFFT().extract_transform(FFT_score)
-        print('extracted predicted indices', pred_rot, pred_txy)
-        print('gt indices', gt_rot, gt_txy)
-        rmsd_out = RMSD(ligand, gt_rot, gt_txy, pred_rot, pred_txy).calc_rmsd()
-        print('RMSD', rmsd_out.item())
-
-        pair = UtilityFuncs.plot_assembly(receptor.squeeze().detach().cpu().numpy(), ligand.squeeze().detach().cpu().numpy(),
-                                          pred_rot.detach().cpu().numpy(),
-                                          (pred_txy[0].detach().cpu().numpy(), pred_txy[1].detach().cpu().numpy()),
-                                          gt_rot.squeeze().detach().cpu().numpy(), gt_txy.squeeze().detach().cpu().numpy())
-
-        plt.imshow(pair.transpose())
-        plt.title('Ground truth', loc='left')
-        plt.title('Input')
-        plt.title('Predicted pose', loc='right')
-        plt.text(225, 110, "RMSD = " + str(rmsd_out.item())[:5], backgroundcolor='w')
-        plt.grid(False)
-        plt.tick_params(
-            axis='x',  # changes apply to the x-axis
-            which='both',  # both major and minor ticks are affected
-            bottom=False,  # ticks along the bottom edge are off
-            top=False,  # ticks along the top edge are off
-            labelbottom=False)  # labels along the bottom
-        plt.tick_params(
-            axis='y',
-            which='both',
-            left=False,
-            right=False,
-            labelleft=False)
-        plt.savefig('figs/rmsd_and_poses/'+stream_name+'_docking_pose_example' + str(plot_count) + '_RMSD' + str(rmsd_out.item())[:4] + '.png')
-        # plt.show()
-
     def run_trainer(self, train_epochs, train_stream=None, valid_stream=None, test_stream=None, resume_training=False, resume_epoch=0):
         self.train_model(train_epochs, train_stream, valid_stream, test_stream,
                          resume_training=resume_training, resume_epoch=resume_epoch)
@@ -252,28 +216,27 @@ if __name__ == '__main__':
     torch.cuda.set_device(0)
     # torch.autograd.set_detect_anomaly(True)
     ######################
-    lr = 10 ** -4
-    model = Docking().to(device=0)
-    optimizer = optim.Adam(model.parameters(), lr=lr)
-
     batch_size = 1
     max_size = None
     if batch_size > 1:
         raise NotImplementedError()
-    train_stream = get_docking_stream(trainset + '.pkl', batch_size, shuffle=True, max_size=None)
+    train_stream = get_docking_stream(trainset + '.pkl', batch_size, max_size=None)
     valid_stream = get_docking_stream(validset + '.pkl', batch_size=1, max_size=None)
     test_stream = get_docking_stream(testset + '.pkl', batch_size=1, max_size=None)
 
     ######################
-    train_epochs = 30
-    # experiment = 'SMALLDATA_100EXAMPLES' ## best test rmsd 5.1
-    # experiment = 'BF_IP_NEWDATA_CHECK_100pool'
-    experiment = 'BF_IP_NEWDATA_CHECK_400pool_30ep'
+    experiment = 'BF_IP_FINAL_DATASET_400pool_1000ex_30ep'
 
     ######################
-    ### Train model from beginning
-    # BruteForceDockingTrainer(model, optimizer, experiment).run_trainer(
-    #     train_epochs=train_epochs, train_stream=train_stream, valid_stream=valid_stream, test_stream=test_stream)
+    train_epochs = 30
+    lr = 10 ** -4
+    model = Docking().to(device=0)
+    optimizer = optim.Adam(model.parameters(), lr=lr)
+
+    ######################
+    ### Train model from beginning, evaluate if valid_stream and/or test_stream passed in
+    BruteForceDockingTrainer(model, optimizer, experiment).run_trainer(
+        train_epochs=train_epochs, train_stream=train_stream, valid_stream=valid_stream, test_stream=test_stream)
 
     ### Resume training model at chosen epoch
     # BruteForceDockingTrainer(model, optimizer, experiment).run_trainer(
