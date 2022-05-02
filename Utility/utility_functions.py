@@ -4,7 +4,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import torch
 from torch.nn import functional as F
-from validation_metrics import RMSD
+from DeepProteinDocking2D.Utility.validation_metrics import RMSD
+
 
 class UtilityFuncs():
     def __init__(self):

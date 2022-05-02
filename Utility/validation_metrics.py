@@ -1,8 +1,5 @@
 import torch
 import numpy as np
-import random
-from DeepProteinDocking2D.Utility.utility_functions import UtilityFuncs
-import matplotlib.pyplot as plt
 from tqdm import tqdm
 
 

@@ -180,7 +180,7 @@ class BruteForceInteractionTrainer:
                 fout.write(self.deltaf_log_format % (train_output[0][1], train_output[0][2], train_output[0][3]))
 
         avg_loss = np.average(stream_loss, axis=0)[0, :]
-        print('\nEpoch', epoch, 'Train Loss: epoch, loss', avg_loss)
+        print('\nEpoch', epoch, 'Train Loss: loss', avg_loss[0])
         with open(self.logfile_savepath + self.logloss_prefix + self.experiment + '.txt', 'a') as fout:
             fout.write(self.loss_log_format % (epoch, avg_loss[0]))
 
@@ -349,15 +349,15 @@ if __name__ == '__main__':
     #                              ).run_trainer(train_epochs, train_stream=train_stream, valid_stream=None, test_stream=None)
 
     ## Resume training model at chosen epoch
-    BruteForceInteractionTrainer(docking_model, docking_optimizer, interaction_model, interaction_optimizer, experiment, training_case, path_pretrain
-                                 ).run_trainer(resume_training=True, resume_epoch=20, train_epochs=10, train_stream=train_stream, valid_stream=None, test_stream=None)
+    # BruteForceInteractionTrainer(docking_model, docking_optimizer, interaction_model, interaction_optimizer, experiment, training_case, path_pretrain
+    #                              ).run_trainer(resume_training=True, resume_epoch=28, train_epochs=2, train_stream=train_stream, valid_stream=None, test_stream=None)
     #
 
     ### Validate model at chosen epoch
     BruteForceInteractionTrainer(docking_model, docking_optimizer, interaction_model, interaction_optimizer, experiment, training_case, path_pretrain
                                  ).run_trainer(train_epochs=1, train_stream=None, valid_stream=valid_stream, test_stream=test_stream,
-                                               resume_training=True, resume_epoch=30)
+                                               resume_training=True, resume_epoch=28)
 
     ### Plot free energy distributions with learned F_0 decision threshold
-    FIPlotter(experiment).plot_loss()
-    FIPlotter(experiment).plot_deltaF_distribution(plot_epoch=30, show=True)
+    # FIPlotter(experiment).plot_loss()
+    # FIPlotter(experiment).plot_deltaF_distribution(plot_epoch=30, show=True)
