@@ -136,8 +136,8 @@ if __name__ == '__main__':
     normalization = 'ortho'
     FFT = TorchDockingFFT(swap_plot_quadrants=swap_quadrants, normalization=normalization)
 
-    trainpool_num_proteins = 400
-    testpool_num_proteins = 400
+    trainpool_num_proteins = 5
+    testpool_num_proteins = 5
 
     validation_set_cutoff = 0.8 ## proportion of training set to keep
 
@@ -151,10 +151,11 @@ if __name__ == '__main__':
     testset_protein_pool = 'testset_protein_pool' + str(testpool_num_proteins) + '.pkl'
     ### Initializations END
 
-    ### TODO: generate figure with alpha vs numpoints
-    ### TODO: training set -> center dists with regular tails. testing set -> shifted mean longer tails (grab binomial counts)
+    # DONE
+    ###  generate figure with alpha vs numpoints
+    ### training set -> center dists with regular tails. testing set -> shifted mean longer tails (grab binomial counts)
+    ###  orthogonalization of features plotting
 
-    ### TODO: orthogonalization of features plotting
     #### TODO: homodimers no detection threshold, if i==j compare energy to i!=j and normalize
     ### TODO: check monte carlo acceptance rate
 
