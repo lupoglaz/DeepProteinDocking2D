@@ -156,7 +156,20 @@ class UtilityFuncs():
         plt.savefig('Figs/Features_and_poses/'+stream_name+'_docking_pose_example' + str(plot_count) + '_RMSD' + str(rmsd_out.item())[:4] + '.png')
         # plt.show()
 
+    def orthogonalize_feats(self, scoring_weights, feat_stack):
+        boundW, crosstermW1, crosstermW2, bulkW = scoring_weights
+        A = torch.tensor([[boundW, crosstermW1],[crosstermW2,bulkW]])
+        eigvals, V = torch.linalg.eig(A)
+        V = V.real
+        rv11 = V[0, 0] * feat_stack[0, :, :] + V[1, 0] * feat_stack[1, :, :]
+        rv12 = V[0, 1] * feat_stack[0, :, :] + V[1, 1] * feat_stack[1, :, :]
+        orth_feats = torch.stack([rv11, rv12], dim=0).unsqueeze(dim=0).detach()
+        return orth_feats
+
     def plot_features(self, rec_feat, lig_feat, receptor, ligand, scoring_weights, plot_count=0, stream_name='trainset'):
+        rec_feat = self.orthogonalize_feats(scoring_weights, rec_feat).squeeze()
+        lig_feat = self.orthogonalize_feats(scoring_weights, lig_feat).squeeze()
+
         boundW, crosstermW1, crosstermW2, bulkW = scoring_weights
         if plot_count == 0:
             print('\nLearned scoring coefficients')
@@ -189,7 +202,8 @@ class UtilityFuncs():
                               lig_feat[0].squeeze().t().detach().cpu(),
                               lig_feat[1].squeeze().t().detach().cpu()))
 
-        plt.imshow(np.vstack((rec_plot, lig_plot)), vmin=0, vmax=1)  # plot scale limits
+        plt.imshow(np.vstack((rec_plot, lig_plot)))  # plot scale limits
+        plt.colorbar()
         plt.title('Input', loc='left')
         plt.title('F1_bulk')
         plt.title('F2_bound', loc='right')
