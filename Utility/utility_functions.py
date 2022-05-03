@@ -156,29 +156,58 @@ class UtilityFuncs():
         plt.savefig('Figs/Features_and_poses/'+stream_name+'_docking_pose_example' + str(plot_count) + '_RMSD' + str(rmsd_out.item())[:4] + '.png')
         # plt.show()
 
-    # def plot_dataset(dataset, setname, dim0, dim1):
-    #     fig, ax = plt.subplots(dim0, dim1, figsize=(15, 10))
-    #     plt.subplots_adjust(left=0.1, bottom=0.1, right=0.9, top=0.9, wspace=0.8, hspace=0.8)
-    #     count = 0
-    #     plt.suptitle("Ground Truth Transform                Input Shapes                  Predicted Pose")
-    #     for assembly in dataset:
-    #         j = count % dim0
-    #         k = count % dim1
-    #         count += 1
-    #         receptor, ligand, score, MAE, (rotation, translation), (truerot, truetxy), _ = assembly
-    #
-    #         scoring = 'Score =' + str(score)[:5] + ' MAErot=' + str(MAE[0])[:5] + ' MAEtrans=' + str(MAE[1])[:5]
-    #
-    #         pair = plot_assembly(receptor, ligand, rotation, translation, truerot, truetxy)
-    #
-    #         ax[j,k].imshow(pair.transpose())
-    #         ax[j,k].grid(None)
-    #         ax[j,k].axis('Off')
-    #         ax[j,k].text(5, 5, scoring, bbox={'facecolor': 'white', 'pad': 5}, fontsize=7)
-    #
-    #     plt.tight_layout()
-    #     plt.savefig('figs/'+setname + str(count)+'.png')
-    #     plt.close()
+    def plot_features(self, rec_feat, lig_feat, receptor, ligand, scoring_weights, plot_count=0, stream_name='trainset'):
+        boundW, crosstermW1, crosstermW2, bulkW = scoring_weights
+        if plot_count == 0:
+            print('\nLearned scoring coefficients')
+            print('bound', str(boundW.item())[:6])
+            print('crossterm1', str(crosstermW1.item())[:6])
+            print('crossterm2', str(crosstermW2.item())[:6])
+            print('bulk', str(bulkW.item())[:6])
+        plt.close()
+        plt.figure(figsize=(8, 8))
+        if rec_feat.shape[-1] < receptor.shape[-1]:
+            pad_size = (receptor.shape[-1] - rec_feat.shape[-1]) // 2
+            if rec_feat.shape[-1] % 2 == 0:
+                rec_feat = F.pad(rec_feat, pad=([pad_size, pad_size, pad_size, pad_size]), mode='constant', value=0)
+                lig_feat = F.pad(lig_feat, pad=([pad_size, pad_size, pad_size, pad_size]), mode='constant', value=0)
+            else:
+                rec_feat = F.pad(rec_feat, pad=([pad_size, pad_size + 1, pad_size, pad_size + 1]), mode='constant',
+                                 value=0)
+                lig_feat = F.pad(lig_feat, pad=([pad_size, pad_size + 1, pad_size, pad_size + 1]), mode='constant',
+                                 value=0)
+
+        pad_size = (receptor.shape[-1]) // 2
+        receptor = F.pad(receptor, pad=([pad_size, pad_size, pad_size, pad_size]), mode='constant', value=0)
+        ligand = F.pad(ligand, pad=([pad_size, pad_size, pad_size, pad_size]), mode='constant', value=0)
+        rec_feat = F.pad(rec_feat, pad=([pad_size, pad_size, pad_size, pad_size]), mode='constant', value=0)
+        lig_feat = F.pad(lig_feat, pad=([pad_size, pad_size, pad_size, pad_size]), mode='constant', value=0)
+        rec_plot = np.hstack((receptor.squeeze().t().detach().cpu(),
+                              rec_feat[0].squeeze().t().detach().cpu(),
+                              rec_feat[1].squeeze().t().detach().cpu()))
+        lig_plot = np.hstack((ligand.squeeze().t().detach().cpu(),
+                              lig_feat[0].squeeze().t().detach().cpu(),
+                              lig_feat[1].squeeze().t().detach().cpu()))
+
+        plt.imshow(np.vstack((rec_plot, lig_plot)), vmin=0, vmax=1)  # plot scale limits
+        plt.title('Input', loc='left')
+        plt.title('F1_bulk')
+        plt.title('F2_bound', loc='right')
+        plt.grid(False)
+        plt.tick_params(
+            axis='x',  # changes apply to the x-axis
+            which='both',  # both major and minor ticks are affected
+            bottom=False,  # ticks along the bottom edge are off
+            top=False,  # ticks along the top edge are off
+            labelbottom=False)  # labels along the bottom
+        plt.tick_params(
+            axis='y',
+            which='both',
+            left=False,
+            right=False,
+            labelleft=False)
+        plt.savefig('Figs/Features_and_poses/'+stream_name+'_docking_feats'+'_example' + str(plot_count)+'.png')
+        # plt.show()
 
 if __name__ == '__main__':
     print('works')

@@ -5,6 +5,7 @@ import numpy as np
 
 import matplotlib.pyplot as plt
 from DeepProteinDocking2D.Utility.torchDockingFFT import TorchDockingFFT
+from DeepProteinDocking2D.Utility.utility_functions import UtilityFuncs
 from e2cnn import nn as enn
 from e2cnn import gspaces
 
@@ -64,64 +65,10 @@ class Docking(nn.Module):
         if plotting and not training:
             if plot_count % self.plot_freq == 0:
                 with torch.no_grad():
-                    self.plot_features(rec_feat, lig_feat, receptor, ligand, fft_score, plot_count, stream_name)
+                    scoring_weights = (self.boundW, self.crosstermW1, self.crosstermW2, self.bulkW)
+                    UtilityFuncs().plot_features(rec_feat, lig_feat, receptor, ligand, scoring_weights, plot_count, stream_name)
 
         return fft_score
-
-    def plot_features(self, rec_feat, lig_feat, receptor, ligand, FFT_score, plot_count=0, stream_name='trainset'):
-        print('\nLearned scoring coefficients')
-        print('bound', str(self.boundW.item())[:6])
-        print('crossterm1', str(self.crosstermW1.item())[:6])
-        print('crossterm2', str(self.crosstermW2.item())[:6])
-        print('bulk', str(self.bulkW.item())[:6])
-        plt.close()
-        plt.figure(figsize=(8, 8))
-        if rec_feat.shape[-1] < receptor.shape[-1]:
-            pad_size = (receptor.shape[-1] - rec_feat.shape[-1]) // 2
-            if rec_feat.shape[-1] % 2 == 0:
-                rec_feat = F.pad(rec_feat, pad=([pad_size, pad_size, pad_size, pad_size]), mode='constant', value=0)
-                lig_feat = F.pad(lig_feat, pad=([pad_size, pad_size, pad_size, pad_size]), mode='constant', value=0)
-            else:
-                rec_feat = F.pad(rec_feat, pad=([pad_size, pad_size + 1, pad_size, pad_size + 1]), mode='constant',
-                                 value=0)
-                lig_feat = F.pad(lig_feat, pad=([pad_size, pad_size + 1, pad_size, pad_size + 1]), mode='constant',
-                                 value=0)
-
-        pad_size = (receptor.shape[-1]) // 2
-        receptor = F.pad(receptor, pad=([pad_size, pad_size, pad_size, pad_size]), mode='constant', value=0)
-        ligand = F.pad(ligand, pad=([pad_size, pad_size, pad_size, pad_size]), mode='constant', value=0)
-        rec_feat = F.pad(rec_feat, pad=([pad_size, pad_size, pad_size, pad_size]), mode='constant', value=0)
-        lig_feat = F.pad(lig_feat, pad=([pad_size, pad_size, pad_size, pad_size]), mode='constant', value=0)
-        rec_plot = np.hstack((receptor.squeeze().t().detach().cpu(),
-                              rec_feat[0].squeeze().t().detach().cpu(),
-                              rec_feat[1].squeeze().t().detach().cpu()))
-        lig_plot = np.hstack((ligand.squeeze().t().detach().cpu(),
-                              lig_feat[0].squeeze().t().detach().cpu(),
-                              lig_feat[1].squeeze().t().detach().cpu()))
-
-        plt.imshow(np.vstack((rec_plot, lig_plot)), vmin=0, vmax=1)  # plot scale limits
-        # plt.imshow(np.vstack((rec_plot, lig_plot)))
-        # plt.title('Input'+' '*33+'F1_bulk'+' '*33+'F2_bound')
-        plt.title('Input', loc='left')
-        plt.title('F1_bulk')
-        plt.title('F2_bound', loc='right')
-        # plt.colorbar()
-        plt.grid(False)
-        plt.tick_params(
-            axis='x',  # changes apply to the x-axis
-            which='both',  # both major and minor ticks are affected
-            bottom=False,  # ticks along the bottom edge are off
-            top=False,  # ticks along the top edge are off
-            labelbottom=False)  # labels along the bottom
-        plt.tick_params(
-            axis='y',
-            which='both',
-            left=False,
-            right=False,
-            labelleft=False)
-        plt.savefig('Figs/Features_and_poses/'+stream_name+'_docking_feats'+'_example' + str(plot_count)+'.png')
-        # '_MinEnergy' + str(torch.argmin(-fft_score).item())[:4] +
-        # plt.show()
 
 if __name__ == '__main__':
     print('works')
