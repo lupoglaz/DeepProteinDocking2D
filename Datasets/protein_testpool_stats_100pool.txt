@@ -1,0 +1,9 @@
+TEST SET PROTEIN POOL STATS
+Protein Pool size=100:
+
+TEST set params  (alpha, number of points):
+[(0.7, 1), (0.9, 1), (0.95, 1), (0.98, 1)]
+[(50, 1), (75, 1), (100, 1), (110, 1)]
+TEST set probabilities: 
+alphas:((0.7, 0.9, 0.95, 0.98), (0.25, 0.25, 0.25, 0.25))
+number of points((50, 75, 100, 110), (0.25, 0.25, 0.25, 0.25))

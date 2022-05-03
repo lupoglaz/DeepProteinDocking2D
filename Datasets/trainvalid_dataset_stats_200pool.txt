@@ -1,0 +1,13 @@
+TRAIN DATASET STATS
+Protein Pool size=200:
+Scoring Weights: 10,20,20,200
+Docking decision threshold -90
+Interaction decision threshold -90
+
+Raw Training set:
+Docking set length 567
+Interaction set length 20100
+
+Raw Validation set:
+Docking set length 114
+Interaction set length 4020
