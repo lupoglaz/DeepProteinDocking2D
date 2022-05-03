@@ -309,6 +309,7 @@ if __name__ == '__main__':
     # CUDA_LAUNCH_BLOCKING = 1
     # torch.autograd.set_detect_anomaly(True)
     #########################
+    train_epochs = 50
     lr_interaction = 10**0
     lr_docking = 10**-4
 
@@ -320,7 +321,7 @@ if __name__ == '__main__':
     docking_model = Docking().to(device=0)
     docking_optimizer = optim.Adam(docking_model.parameters(), lr=lr_docking)
 
-    max_size = 20000
+    max_size = 2000
     batch_size = 1
     if batch_size > 1:
         raise NotImplementedError()
@@ -329,9 +330,12 @@ if __name__ == '__main__':
     test_stream = get_interaction_stream(testset + '.pkl', batch_size=1, max_size=max_size)
 
     ######################
+    # experiment = 'BF_FI_NEWDATA_CHECK_400pool_1000ex50ep'
+    experiment = 'BF_FI_NEWDATA_CHECK_400pool_2000ex50ep'
     # experiment = 'BF_FI_NEWDATA_CHECK_400pool_5000ex30ep'
     # experiment = 'BF_FI_NEWDATA_CHECK_400pool_10000ex30ep'
-    experiment = 'BF_FI_NEWDATA_CHECK_400pool_20000ex30ep'
+    # experiment = 'BF_FI_NEWDATA_CHECK_400pool_20000ex30ep'
+    # experiment = 'BF_FI_NEWDATA_CHECK_400pool_20000ex30ep'
 
     ##################### Load and freeze/unfreeze params (training, no eval)
     ### path to pretrained docking model
@@ -342,22 +346,21 @@ if __name__ == '__main__':
     # training_case = 'C' # CaseC: train with docking model SE2 CNN frozen and scoring ("a") coeffs unfrozen
     training_case = 'scratch' # Case scratch: train everything from scratch
     experiment = training_case + '_' + experiment
-    train_epochs = 30
     #####################
     ### Train model from beginning
-    # BruteForceInteractionTrainer(docking_model, docking_optimizer, interaction_model, interaction_optimizer, experiment, training_case, path_pretrain
-    #                              ).run_trainer(train_epochs, train_stream=train_stream, valid_stream=None, test_stream=None)
+    BruteForceInteractionTrainer(docking_model, docking_optimizer, interaction_model, interaction_optimizer, experiment, training_case, path_pretrain
+                                 ).run_trainer(train_epochs, train_stream=train_stream, valid_stream=None, test_stream=None)
 
     ## Resume training model at chosen epoch
     # BruteForceInteractionTrainer(docking_model, docking_optimizer, interaction_model, interaction_optimizer, experiment, training_case, path_pretrain
-    #                              ).run_trainer(resume_training=True, resume_epoch=28, train_epochs=2, train_stream=train_stream, valid_stream=None, test_stream=None)
+    #                              ).run_trainer(resume_training=True, resume_epoch=50, train_epochs=50, train_stream=train_stream, valid_stream=None, test_stream=None)
     #
 
     ### Validate model at chosen epoch
     BruteForceInteractionTrainer(docking_model, docking_optimizer, interaction_model, interaction_optimizer, experiment, training_case, path_pretrain
                                  ).run_trainer(train_epochs=1, train_stream=None, valid_stream=valid_stream, test_stream=test_stream,
-                                               resume_training=True, resume_epoch=28)
+                                               resume_training=True, resume_epoch=train_epochs)
 
     ### Plot free energy distributions with learned F_0 decision threshold
-    # FIPlotter(experiment).plot_loss()
-    # FIPlotter(experiment).plot_deltaF_distribution(plot_epoch=30, show=True)
+    FIPlotter(experiment).plot_loss()
+    FIPlotter(experiment).plot_deltaF_distribution(plot_epoch=train_epochs, show=True)

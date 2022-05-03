@@ -10,7 +10,7 @@ from DeepProteinDocking2D.Utility.torchDataLoader import get_interaction_stream
 from DeepProteinDocking2D.Utility.torchDockingFFT import TorchDockingFFT
 from DeepProteinDocking2D.Models.BruteForce.train_bruteforce_interaction import Interaction
 
-from DeepProteinDocking2D.Models.EnergyBased.model_energybased_sampling import EnergyBasedModel
+from DeepProteinDocking2D.Models.ReducedSampling.model_sampling import SamplingModel
 from DeepProteinDocking2D.Utility.validation_metrics import APR
 from DeepProteinDocking2D.Plotting.plot_FI import FIPlotter
 
@@ -325,14 +325,14 @@ if __name__ == '__main__':
     batch_size = 1
     if batch_size > 1:
         raise NotImplementedError()
-    train_stream = get_interaction_stream(trainset + '.pkl', batch_size=batch_size, shuffle=True, max_size=max_size)
+    train_stream = get_interaction_stream(trainset + '.pkl', batch_size=batch_size, max_size=max_size)
     valid_stream = get_interaction_stream(validset + '.pkl', batch_size=1, max_size=max_size)
     test_stream = get_interaction_stream(testset + '.pkl', batch_size=1, max_size=max_size)
     ######################
     # experiment = 'MC_FI_NEWDATA_CHECK_400pool_5000ex30ep'
-    experiment = 'MC_FI_NEWDATA_CHECK_400pool_10000ex30ep'
+    experiment = 'MC_FI_NEWDATA_CHECK_400pool_10000ex50ep'
     ######################
-    train_epochs = 30
+    train_epochs = 50
     lr_interaction = 10 ** 0
     lr_docking = 10 ** -4
     sample_steps = 10
@@ -346,7 +346,7 @@ if __name__ == '__main__':
     scheduler = optim.lr_scheduler.ExponentialLR(interaction_optimizer, gamma=0.50)
 
     dockingFFT = TorchDockingFFT(num_angles=1, angle=None, swap_plot_quadrants=False, debug=debug)
-    docking_model = EnergyBasedModel(dockingFFT, num_angles=1, sample_steps=sample_steps, FI=True, debug=debug).to(device=0)
+    docking_model = SamplingModel(dockingFFT, num_angles=1, sample_steps=sample_steps, FI=True, debug=debug).to(device=0)
     docking_optimizer = optim.Adam(docking_model.parameters(), lr=lr_docking)
 
     # sigma_optimizer = optim.Adam(docking_model.parameters(), lr=2)
@@ -364,7 +364,7 @@ if __name__ == '__main__':
     #                                            train_stream=train_stream, valid_stream=None, test_stream=None)
     #
     ### Evaluate model at chosen epoch
-    eval_model = EnergyBasedModel(dockingFFT, num_angles=360, sample_steps=1, FI=True, debug=debug).to(device=0)
+    eval_model = SamplingModel(dockingFFT, num_angles=360, sample_steps=1, FI=True, debug=debug).to(device=0)
     # # eval_model = SamplingModel(dockingFFT, num_angles=1, sample_steps=sample_steps, FI=True, debug=debug).to(device=0) ## eval with monte carlo
     EnergyBasedInteractionTrainer(eval_model, docking_optimizer, interaction_model, interaction_optimizer, experiment, debug=False
                                   ).run_trainer(resume_training=True, resume_epoch=train_epochs, train_epochs=1,
