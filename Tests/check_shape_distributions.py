@@ -7,8 +7,8 @@ from collections import Counter
 from tqdm import tqdm
 from matplotlib import gridspec
 from matplotlib.ticker import FormatStrFormatter
-# from matplotlib import rcParams
-# rcParams.update({'figure.autolayout': True})
+from matplotlib import rcParams
+rcParams.update({'figure.autolayout': True})
 
 
 class ShapeDistributions:
@@ -19,8 +19,10 @@ class ShapeDistributions:
 
     def get_counts(self, counts):
         counter = Counter(counts)
-        unique = list(sorted(counter.keys()))
-        counts = list(sorted(counter.values()))
+        print('counter', counter)
+        unique = np.array(list(counter.keys()))
+        inds = unique.argsort()
+        counts = np.array(list(counter.values()))[inds]
         return unique, counts
 
     def get_dict_counts(self, shape_params):
@@ -39,7 +41,7 @@ class ShapeDistributions:
 
     def get_unique_fracs(self, counts, dataname):
         unique, counts = self.get_counts(counts)
-        fracs = [i/sum(counts) for i in counts]
+        fracs = np.array(counts)/sum(counts)
         print('\n'+dataname+':\n')
         print('unique values',unique)
         print('counts', counts)
@@ -143,16 +145,17 @@ class ShapeDistributions:
         plot_lenx = shapes_plot.shape[1]
         plot_leny = shapes_plot.shape[0]
 
+        plt.figure(figsize=(num_rows*2,num_cols*2))
         gs = gridspec.GridSpec(4, 4)
-        gs.update(wspace=0.05, hspace=0.05)
+        # gs.update(wspace=0.05, hspace=0.05)
         ax0 = plt.subplot(gs[0, 0:-1])
         ax1 = plt.subplot(gs[1:, 0:-1])
         ax2 = plt.subplot(gs[1:, -1])
         ax3 = plt.subplot(gs[0, -1])
         ax3.set_axis_off()
 
-        numpoints_unique_strs = [str(i) for i in numpoints_unique]
-        alphas_unique_strs = [str(i)+'0' if len(str(i)) < 4 else str(i) for i in alphas_unique]
+        numpoints_unique_strs = [str(i) for i in sorted(numpoints_unique)]
+        alphas_unique_strs = [str(i)+'0' if len(str(i)) < 4 else str(i) for i in sorted(alphas_unique)]
 
         ax0.bar(numpoints_unique_strs, numpoints_fracs)
         ax0.grid(False)
@@ -196,13 +199,3 @@ if __name__ == "__main__":
     testset_protein_pool = data_path+'testset_protein_pool' + str(num_proteins) + '.pkl'
 
     ShapeDistributions(testset_protein_pool, 'testset', show=True).plot_shapes_and_params()
-    #
-    # num_proteins = 100
-    # testset_protein_pool = data_path+'testset_protein_pool' + str(num_proteins) + '.pkl'
-    #
-    # ShapeDistributions(testset_protein_pool, 'testset', show=True).plot_shapes_and_params()
-    #
-    # num_proteins = 50
-    # testset_protein_pool = data_path+'testset_protein_pool' + str(num_proteins) + '.pkl'
-    #
-    # ShapeDistributions(testset_protein_pool, 'testset', show=True).plot_shapes_and_params()
