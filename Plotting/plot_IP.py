@@ -2,11 +2,12 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import sys
+from os.path import exists
 
 class IPPlotter:
-    def __init__(self, experiment=None):
+    def __init__(self, experiment=None, logfile_savepath='Log/losses/'):
         self.experiment = experiment
-        self.logfile_savepath = 'Log/losses/'
+        self.logfile_savepath = logfile_savepath
 
         if not experiment:
             print('no experiment name given')
@@ -51,94 +52,58 @@ class IPPlotter:
             ax[0].set_ylim([0,ylim])
             ax[1].set_ylim([0,ylim])
 
-        plt.savefig('Figs/IP_loss_plots/Lossplot_'+self.experiment+'.png')
+        plt.savefig('Figs/IP_loss_plots/lossplot_'+self.experiment+'.png')
         plt.show()
 
     def plot_rmsd_distribution(self, plot_epoch=1, show=False, eval_only=True):
         plt.close()
         # Plot RMSD distribution of all samples across epoch
-        if not eval_only:
-            fig, ax = plt.subplots(3, figsize=(10, 30))
-            plt.suptitle('RMSD distribution: epoch' + str(plot_epoch) + ' ' + self.experiment)
+        train_log = self.logfile_savepath+'log_RMSDsTRAINset_epoch' + str(plot_epoch) + self.experiment + ".txt"
+        valid_log = self.logfile_savepath+'log_RMSDsVALIDset_epoch' + str(plot_epoch) + self.experiment + ".txt"
+        test_log = self.logfile_savepath+'log_RMSDsTESTset_epoch' + str(plot_epoch) + self.experiment + ".txt"
+        train, valid, test, avg_validRMSD, avg_testRMSD = None, None, None, None, None
+        if exists(train_log):
+            train = pd.read_csv(train_log, sep='\t', header=0, names=['RMSD'])
+        if exists(valid_log):
+            valid = pd.read_csv(valid_log, sep='\t', header=0, names=['RMSD'])
+            avg_validRMSD = str(valid['RMSD'].mean())[:4]
+        if exists(test_log):
+            test = pd.read_csv(test_log, sep='\t', header=0, names=['RMSD'])
+            avg_testRMSD = str(test['RMSD'].mean())[:4]
 
-            train = pd.read_csv(self.logfile_savepath+'log_RMSDsTRAINset_epoch' + str(plot_epoch) + self.experiment + ".txt",
-                                sep='\t', header=1, names=['RMSD'])
-            valid = pd.read_csv(self.logfile_savepath+'log_RMSDsVALIDset_epoch' + str(plot_epoch) + self.experiment + ".txt",
-                                sep='\t', header=1, names=['RMSD'])
-            test = pd.read_csv(self.logfile_savepath+'log_RMSDsTESTset_epoch' + str(plot_epoch) + self.experiment + ".txt",
-                               sep='\t', header=1, names=['RMSD'])
+        fig, ax = plt.subplots(3, figsize=(10, 30))
+        plt.suptitle('RMSD distribution: epoch' + str(plot_epoch) + ' ' + self.experiment)
+        plt.legend(('train rmsd', 'valid rmsd', 'test rmsd'))
+        plt.xlabel('RMSD')
+        binwidth=1
+        bins = np.arange(0, 100 + binwidth, binwidth)
 
-            num_valid_examples = len(valid['RMSD'].to_numpy())
-            num_test_examples = len(test['RMSD'].to_numpy())
-            bins = int(min([num_valid_examples, num_test_examples]) / 2)
-
-            train_rmsd = ax[0].hist(train['RMSD'].to_numpy(), bins=bins, color='b')
-            valid_rmsd = ax[1].hist(valid['RMSD'].to_numpy(), bins=bins, color='r')
-            test_rmsd = ax[2].hist(test['RMSD'].to_numpy(), bins=bins, color='g')
-            plt.legend(('train rmsd', 'valid rmsd', 'test rmsd'))
-
+        if train is not None:
+            ax[0].hist(train['RMSD'].to_numpy(), bins=bins, color='b')
             ax[0].set_ylabel('Training set counts')
             ax[0].grid(visible=True)
-            ax[0].set_xticks(np.arange(0, max(train['RMSD'].to_numpy()) + 1, 10))
-
+            ax[0].set_xticks(np.arange(0, 100, 10))
+        if valid is not None:
+            ax[1].hist(valid['RMSD'].to_numpy(), bins=bins, color='r')
             ax[1].set_ylabel('Valid set counts')
             ax[1].grid(visible=True)
-            ax[1].set_xticks(np.arange(0, max(valid['RMSD'].to_numpy()) + 1, 10))
-
+            ax[1].set_xticks(np.arange(0, 100, 10))
+        if test is not None:
+            ax[2].hist(test['RMSD'].to_numpy(), bins=bins, color='g')
             ax[2].set_ylabel('Test set counts')
             ax[2].grid(visible=True)
-            ax[2].set_xticks(np.arange(0, max(test['RMSD'].to_numpy()) + 1, 10))
+            ax[2].set_xticks(np.arange(0, 100, 10))
+
+        if not show:
+            plt.savefig('Figs/IP_RMSD_distribution_plots/RMSDplot_epoch' + str(
+                plot_epoch) + '_vRMSD' + avg_validRMSD + '_tRMSD' + avg_testRMSD + self.experiment + '.png')
         else:
-            fig, ax = plt.subplots(2, figsize=(10, 20))
-            plt.suptitle('RMSD distribution: epoch' + str(plot_epoch) + ' ' + self.experiment)
-            valid = pd.read_csv(self.logfile_savepath+'log_RMSDsValidset_epoch' + str(plot_epoch) + self.experiment + ".txt",
-                                sep='\t', header=1, names=['RMSD'])
-            test = pd.read_csv(self.logfile_savepath+'log_RMSDsTestset_epoch' + str(plot_epoch) + self.experiment + ".txt",
-                               sep='\t', header=1, names=['RMSD'])
-
-            num_valid_examples = len(valid['RMSD'].to_numpy())
-            num_test_examples = len(test['RMSD'].to_numpy())
-            bins = int(min([num_valid_examples, num_test_examples]) / 2)
-
-            valid_rmsd = ax[0].hist(valid['RMSD'].to_numpy(), bins=bins, color='r')
-            test_rmsd = ax[1].hist(test['RMSD'].to_numpy(), bins=bins, color='g')
-            ax[0].legend(('valid rmsd'))
-            ax[1].legend(('test rmsd'))
-
-            ax[0].set_ylabel('Valid set counts')
-            ax[0].grid(visible=True)
-            ax[0].set_xticks(np.arange(0, max(valid['RMSD'].to_numpy()) + 1, 10))
-
-            ax[1].set_ylabel('Test set counts')
-            ax[1].grid(visible=True)
-            ax[1].set_xticks(np.arange(0, max(test['RMSD'].to_numpy()) + 1, 10))
-
-        plt.xlabel('RMSD')
-        # ax[0].set_ylim([0, 20])
-        avg_validRMSD = str(valid['RMSD'].mean())[:4]
-        avg_testRMSD = str(test['RMSD'].mean())[:4]
-        plt.savefig('Figs/IP_RMSD_distribution_plots/RMSDplot_epoch' + str(
-            plot_epoch) + '_vRMSD' + avg_validRMSD + '_tRMSD' + avg_testRMSD + self.experiment + '.png')
-        if show:
             plt.show()
 
+
 if __name__ == "__main__":
-    # testcase = 'newdata_bugfix_docking_100epochs_'
-    # testcase = 'test_datastream'
-    # testcase = 'best_docking_model_epoch'
-    # testcase = 'randinit_best_docking_model_epoch'
-    # testcase = 'onesinit_lr4_best_docking_model_epoch'
-    # testcase = '16scalar32vector_docking_epoch'
-    # testcase = '1s4v_docking_epoch'
-
-    # testcase = 'makefigs_IP_1s4v_docking_200epochs'
-    # testcase = 'Checkgitmerge_IP_1s4v_docking_10epochs'
-    # testcase = 'noRandseed_Checkgitmerge_IP_1s4v_docking_10epochs'
-    # testcase = 'rep1_noRandseed_Checkgitmerge_IP_1s4v_docking_10epochs'
-    # testcase = 'rep2_noRandseed_Checkgitmerge_IP_1s4v_docking_10epochs'
-    # testcase = 'RECODE_CHECK_BFDOCKING'
-
-    testcase = 'FINAL_CHECK_DOCKING'
-    # IPPlotter(testcase).plot_loss()
-    for epoch in range(1, 30):
-        IPPlotter(testcase).plot_rmsd_distribution(plot_epoch=epoch, show=False)
+    loadpath = '../Models/ReducedSampling/Log/losses/'
+    experiment = 'BS_IP_FINAL_DATASET_400pool_1000ex_5ep'
+    Plotter = IPPlotter(experiment, logfile_savepath=loadpath)
+    Plotter.plot_loss()
+    Plotter.plot_rmsd_distribution(plot_epoch=4, show=True)

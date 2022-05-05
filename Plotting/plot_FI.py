@@ -5,9 +5,9 @@ import sys
 
 
 class FIPlotter:
-    def __init__(self, experiment=None):
+    def __init__(self, experiment=None, logfile_savepath='Log/losses/'):
         self.experiment = experiment
-        self.logfile_savepath = 'Log/losses/'
+        self.logfile_savepath = logfile_savepath
         self.logtraindF_prefix = 'log_deltaF_TRAINset_epoch'
         self.logloss_prefix = 'log_loss_TRAINset_'
         if not experiment:
@@ -27,10 +27,10 @@ class FIPlotter:
         plt.xlabel('epochs')
         plt.ylabel('loss')
         plt.grid(visible=True)
-        plt.xticks(np.arange(0, num_epochs+1, num_epochs+1/10))
+        plt.xticks(np.arange(0, num_epochs+1, num_epochs//10))
         plt.xlabel('Epochs')
 
-        plt.savefig('Figs/FI_loss_plots/Lossplot_'+self.experiment+'.png')
+        plt.savefig('Figs/FI_loss_plots/lossplot_'+self.experiment+'.png')
         plt.show()
 
     def plot_deltaF_distribution(self, filename=None, plot_epoch=None, show=False, xlim=None, binwidth=1):
@@ -67,25 +67,11 @@ class FIPlotter:
             plt.show()
         plt.close()
 
+
 if __name__ == "__main__":
-    # testcase = 'newdata_bugfix_docking_100epochs_'
-    # testcase = 'test_datastream'
-    # testcase = 'best_docking_model_epoch'
-    # testcase = 'randinit_best_docking_model_epoch'
-    # testcase = 'onesinit_lr4_best_docking_model_epoch'
-    # testcase = '16scalar32vector_docking_epoch'
-    # testcase = '1s4v_docking_epoch'
-
-    # testcase = 'makefigs_IP_1s4v_docking_200epochs'
-    # testcase = 'Checkgitmerge_IP_1s4v_docking_10epochs'
-    # testcase = 'noRandseed_Checkgitmerge_IP_1s4v_docking_10epochs'
-    # testcase = 'rep1_noRandseed_Checkgitmerge_IP_1s4v_docking_10epochs'
-    # testcase = 'rep2_noRandseed_Checkgitmerge_IP_1s4v_docking_10epochs'
-    # testcase = 'RECODE_CHECK_BFDOCKING'
-
-    # testcase = 'FI_caseA_PLOT_FREE_ENERGY_HISTOGRAMS'
-    testcase = 'scratch_FI_casescratch_FINAL_CHECK_INTERACTION'
-    # testcase = 'F0schedulerg=0p95_scratch_lr-0_and_lr-4_50ex_novalidortest'
-    # FIPlotter(testcase).plot_loss()
-    FIPlotter(testcase).plot_deltaF_distribution(plot_epoch=3, show=True, xlim=100)
-    pass
+    loadpath = '../Models/BruteForce/Log/losses/'
+    testcase = 'scratch_'
+    experiment = testcase+'BF_FI_NEWDATA_CHECK_400pool_5000ex30ep'
+    Plotter = FIPlotter(experiment, logfile_savepath=loadpath)
+    Plotter.plot_loss()
+    Plotter.plot_deltaF_distribution(plot_epoch=3, show=True)
