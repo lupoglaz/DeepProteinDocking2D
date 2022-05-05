@@ -44,11 +44,11 @@ class SampleBuffer:
             buffer_idx_len = len(self.buffer[i])
             if buffer_idx_len < samples_per_example:
                 # print('epoch 0 init')
-                alpha = torch.zeros(samples_per_example, 1)
+                # alpha = torch.zeros(samples_per_example, 1)
+                alpha = torch.rand(samples_per_example, 1) * 2 * np.pi - np.pi
                 alphas.append(alpha)
             else:
                 # print('continuous LD picking previous rotation')
-                # alpha = torch.rand(samples_per_example, 1) * 2 * np.pi - np.pi
                 alpha = self.buffer[i][-1]
                 alphas.append(alpha)
             # print('buffer get\n', self.buffer[i])
@@ -62,7 +62,7 @@ class SampleBuffer:
 
 
 class BruteSimplifiedDockingTrainer:
-    def __init__(self, dockingFFT, cur_model, cur_optimizer, cur_experiment, debug=False, plotting=False):
+    def __init__(self, dockingFFT, cur_model, cur_optimizer, cur_experiment, MC_eval=False, MC_eval_num_epochs=10, debug=False, plotting=False):
 
         self.debug = debug
         self.plotting = plotting
@@ -84,7 +84,17 @@ class BruteSimplifiedDockingTrainer:
         self.experiment = cur_experiment
 
         num_examples = max(len(train_stream), len(valid_stream), len(test_stream))
-        # self.trainbuffer = SampleBuffer(num_examples=num_examples)
+
+        ## sample buffer for MC eval on ideal learned energy surface
+        self.MC_eval = MC_eval
+        self.MC_eval_num_epochs = MC_eval_num_epochs
+        if self.MC_eval:
+            self.eval_epochs = self.MC_eval_num_epochs
+            self.sig_alpha = sigma_scheduler.get_last_lr()[0]
+            print('sigma alpha', self.sig_alpha)
+        else:
+            self.eval_epochs = 1
+            self.sig_alpha = 1
         self.evalbuffer = SampleBuffer(num_examples=num_examples)
 
     def run_model(self, data, training=True, pos_idx=0, stream_name='trainset'):
@@ -103,11 +113,11 @@ class BruteSimplifiedDockingTrainer:
         ### run model and loss calculation
         ##### call model
         if training:
-            neg_energy, pred_rot, pred_txy, FFT_score = self.model(gt_rot, receptor, ligand, plot_count=pos_idx, stream_name=stream_name, plotting=self.plotting)
+            neg_energy, pred_rot, pred_txy, fft_score = self.model(gt_rot, receptor, ligand, plot_count=pos_idx, stream_name=stream_name, plotting=self.plotting)
         else:
             ## for evaluation, buffer is necessary for Monte Carlo eval
             alpha = self.evalbuffer.get(torch.tensor([pos_idx]), samples_per_example=1)
-            energy, pred_rot, pred_txy, FFT_score = self.model(alpha, receptor, ligand, plot_count=pos_idx, stream_name=stream_name, plotting=self.plotting, training=False)
+            energy, pred_rot, pred_txy, fft_score = self.model(alpha, receptor, ligand, sig_alpha=self.sig_alpha, plot_count=pos_idx, stream_name=stream_name, plotting=self.plotting, training=False)
             self.evalbuffer.push(pred_rot, torch.tensor([pos_idx]))
 
         ### Encode ground truth transformation index into empty energy grid
@@ -129,7 +139,7 @@ class BruteSimplifiedDockingTrainer:
         if training:
             #### Loss functions
             CE_loss = torch.nn.CrossEntropyLoss()
-            loss = CE_loss(FFT_score.flatten().unsqueeze(0), target_flatindex.unsqueeze(0))
+            loss = CE_loss(fft_score.flatten().unsqueeze(0), target_flatindex.unsqueeze(0))
             self.model.zero_grad()
             loss.backward()
             self.optimizer.step()
@@ -145,6 +155,7 @@ class BruteSimplifiedDockingTrainer:
     def train_model(self, train_epochs, train_stream=None, valid_stream=None, test_stream=None,
                     resume_training=False,
                     resume_epoch=0):
+
         if self.plotting:
             self.eval_freq = 1
 
@@ -172,29 +183,39 @@ class BruteSimplifiedDockingTrainer:
                     self.save_checkpoint(checkpoint_dict, model_savefile)
                     print('saving model ' + model_savefile)
 
-            ### Evaluation epoch
+            ### Evaluation epoch(s)
             if epoch % self.eval_freq == 0 or epoch == 1:
-                if valid_stream:
-                    stream_name = 'VALIDset'
-                    self.run_epoch(valid_stream, epoch, training=False, stream_name=stream_name)
+                for i in range(self.eval_epochs):
+                    self.resume_training_or_not(resume_training, resume_epoch)
+                    if valid_stream:
+                        stream_name = 'VALIDset'
+                        self.run_epoch(valid_stream, epoch, training=False, stream_name=stream_name)
+                    if test_stream:
+                        stream_name = 'TESTset'
+                        self.run_epoch(test_stream, epoch, training=False, stream_name=stream_name)
 
-                if test_stream:
-                    stream_name = 'TESTset'
-                    self.run_epoch(test_stream, epoch, training=False, stream_name=stream_name)
+                    if self.MC_eval:
+                        sigma_optimizer.step()
+                        sigma_scheduler.step()
+                        self.sig_alpha = sigma_scheduler.get_last_lr()[0]
+                        print('eval epoch', i)
+                        print('sig_alpha stepped', self.sig_alpha)
 
     def run_epoch(self, data_stream, epoch, training=False, stream_name='train_stream'):
         stream_loss = []
         pos_idx = 0
+        rmsd_logfile = self.logfile_savepath + 'log_RMSDs'+stream_name+'_epoch' + str(epoch) + self.experiment + '.txt'
         for data in tqdm(data_stream):
             train_output = [self.run_model(data, pos_idx=pos_idx, training=training, stream_name=stream_name)]
             stream_loss.append(train_output)
-            with open(self.logfile_savepath + 'log_RMSDs'+stream_name+'_epoch' + str(epoch) + self.experiment + '.txt','a') as fout:
+            with open(rmsd_logfile, 'a') as fout:
                 fout.write('%f\n' % (train_output[0][-1]))
             pos_idx += 1
 
+        loss_logfile = self.logfile_savepath + 'log_loss_' + stream_name + '_' + self.experiment + '.txt'
         avg_loss = np.average(stream_loss, axis=0)[0, :]
-        print('\nEpoch', epoch, stream_name,':', avg_loss)
-        with open(self.logfile_savepath + 'log_loss_' + stream_name + '_' + self.experiment + '.txt', 'a') as fout:
+        print('\nEpoch', epoch, stream_name, ':', avg_loss)
+        with open(loss_logfile, 'a') as fout:
             fout.write(self.log_format % (epoch, avg_loss[0], avg_loss[1]))
 
     def save_checkpoint(self, state, filename):
@@ -229,22 +250,29 @@ class BruteSimplifiedDockingTrainer:
             # print(self.model)
             # print(list(self.model.named_parameters()))
             print('\nRESUMING TRAINING AT EPOCH', start_epoch, '\n')
-            with open(self.logfile_savepath+'log_RMSDsTRAINset_epoch' + str(start_epoch) + self.experiment + '.txt', 'w') as fout:
+            ### RMSD log files
+            rmsd_trainlog = self.logfile_savepath+'log_RMSDsTRAINset_epoch' + str(start_epoch) + self.experiment + '.txt'
+            rmsd_validlog = self.logfile_savepath + 'log_RMSDsVALIDset_epoch' + str(start_epoch) + self.experiment + '.txt'
+            rmsd_testlog = self.logfile_savepath+'log_RMSDsTESTset_epoch' + str(start_epoch) + self.experiment + '.txt'
+            with open(rmsd_trainlog, 'w') as fout:
                 fout.write('Training RMSD\n')
-            with open(self.logfile_savepath+'log_RMSDsVALIDset_epoch' + str(start_epoch) + self.experiment + '.txt', 'w') as fout:
+            with open(rmsd_validlog, 'w') as fout:
                 fout.write('Validation RMSD\n')
-            with open(self.logfile_savepath+'log_RMSDsTESTset_epoch' + str(start_epoch) + self.experiment + '.txt', 'w') as fout:
+            with open(rmsd_testlog, 'w') as fout:
                 fout.write('Testing RMSD\n')
         else:
             start_epoch = 1
             ### Loss log files
-            with open(self.logfile_savepath+'log_loss_TRAINset_' + self.experiment + '.txt', 'w') as fout:
+            loss_trainlog = self.logfile_savepath+'log_loss_TRAINset_' + self.experiment + '.txt'
+            loss_validlog = self.logfile_savepath+'log_loss_VALIDset_' + self.experiment + '.txt'
+            loss_testlog = self.logfile_savepath+'log_loss_TESTset_' + self.experiment + '.txt'
+            with open(loss_trainlog, 'w') as fout:
                 fout.write('Docking Training Loss:\n')
                 fout.write(self.log_header)
-            with open(self.logfile_savepath+'log_loss_VALIDset_' + self.experiment + '.txt', 'w') as fout:
+            with open(loss_validlog, 'w') as fout:
                 fout.write('Docking Validation Loss:\n')
                 fout.write(self.log_header)
-            with open(self.logfile_savepath+'log_loss_TESTset_' + self.experiment + '.txt', 'w') as fout:
+            with open(loss_testlog, 'w') as fout:
                 fout.write('Docking Testing Loss:\n')
                 fout.write(self.log_header)
         return start_epoch
@@ -257,6 +285,7 @@ class BruteSimplifiedDockingTrainer:
         eval_epochs = 1
         self.train_model(eval_epochs, train_stream, valid_stream, test_stream,
                          resume_training=False, resume_epoch=check_epoch)
+
 
 if __name__ == '__main__':
     #################################################################################
@@ -280,53 +309,82 @@ if __name__ == '__main__':
     max_size = 1000
     if batch_size > 1:
         raise NotImplementedError()
-    train_stream = get_docking_stream(trainset + '.pkl', batch_size, shuffle=True, max_size=max_size)
+    train_stream = get_docking_stream(trainset + '.pkl', batch_size, max_size=max_size)
     valid_stream = get_docking_stream(validset + '.pkl', batch_size=1, max_size=max_size)
     test_stream = get_docking_stream(testset + '.pkl', batch_size=1, max_size=max_size)
 
     ######################
     experiment = 'BS_IP_FINAL_DATASET_400pool_1000ex_30ep'
+    # experiment = 'BS_IP_FINAL_DATASET_400pool_1000ex_5ep'
 
     ######################
     train_epochs = 30
     lr = 10 ** -2
-    sample_steps = 100
     debug = False
     plotting = False
     show = True
     norm = 'ortho'
-    continue_epochs = 1
     ######################
+    # dockingFFT = TorchDockingFFT(num_angles=1, angle=None, swap_plot_quadrants=False, debug=debug, normalization=norm)
+    # model = SamplingModel(dockingFFT, num_angles=1, IP=True, debug=debug).to(device=0)
+    # optimizer = optim.Adam(model.parameters(), lr=lr)
+    # ######################
+    # ### Train model from beginning
+    # # BruteSimplifiedDockingTrainer(dockingFFT, model, optimizer, experiment, debug=debug).run_trainer(train_epochs, train_stream=train_stream)
+    #
+    # ## Brute force eval and plotting
+    # start = train_epochs-1
+    # stop = train_epochs
+    # eval_angles = 360
+    # eval_model = SamplingModel(dockingFFT, num_angles=eval_angles, IP=True).to(device=0)
+    # for epoch in range(start, stop):
+    #     ### Evaluate model using all 360 angles (or less).
+    #     if stop-1 == epoch:
+    #         plotting = True
+    #         BruteSimplifiedDockingTrainer(dockingFFT, eval_model, optimizer, experiment, plotting=plotting).run_trainer(
+    #         train_epochs=1, train_stream=None, valid_stream=valid_stream, test_stream=test_stream,
+    #         resume_training=True, resume_epoch=epoch)
+    #
+    # ## Plot loss from current experiment
+    # IPPlotter(experiment).plot_loss(ylim=None)
+    # IPPlotter(experiment).plot_rmsd_distribution(plot_epoch=train_epochs, show=show, eval_only=True)
+    #
+    # ### Resume training model at chosen epoch
+    # # BruteSimplifiedDockingTrainer(dockingFFT, model, optimizer, experiment, plotting=True, debug=debug).run_trainer(
+    # #     train_epochs=1, train_stream=train_stream, valid_stream=None, test_stream=None,
+    # #     resume_training=True, resume_epoch=train_epochs)
+    #
+    # ### Resume training for validation sets
+    # # BruteSimplifiedDockingTrainer(dockingFFT, model, optimizer, experiment, plotting=plotting, debug=debug).run_trainer(
+    # #     train_epochs=1, train_stream=None, valid_stream=valid_stream, #test_stream=valid_stream,
+    # #     resume_training=True, resume_epoch=train_epochs)
+
+
+    ######### Metropolis-Hastings eval on ideal learned energy surface
+    train_epochs = 30
+    sample_steps = 100
+    MC_eval_num_epochs = 10
+    sigma_alpha = 3.0
+    gamma = 0.5
+    experiment = 'BS_pretrain_MC_eval'
     dockingFFT = TorchDockingFFT(num_angles=1, angle=None, swap_plot_quadrants=False, debug=debug, normalization=norm)
-    model = SamplingModel(dockingFFT, num_angles=1, IP=True, sample_steps=sample_steps, debug=debug).to(device=0)
+    model = SamplingModel(dockingFFT, num_angles=1, IP_MC=True, debug=debug).to(device=0)
     optimizer = optim.Adam(model.parameters(), lr=lr)
+    ### dummy optimizer to schedule sigma of alpha
+    sigma_optimizer = optim.Adam(model.parameters(), lr=sigma_alpha)
+    sigma_scheduler = optim.lr_scheduler.ExponentialLR(sigma_optimizer, gamma=gamma)
 
-    ### Train model from beginning
-    BruteSimplifiedDockingTrainer(dockingFFT, model, optimizer, experiment, debug=debug).run_trainer(train_epochs, train_stream=train_stream)
 
-    ## Brute force eval and plotting
-    start = 1
-    stop = train_epochs
-    eval_angles = 360
-    eval_model = SamplingModel(dockingFFT, num_angles=eval_angles, IP=True).to(device=0)
-    for epoch in range(start, stop):
-        ### Evaluate model using all 360 angles (or less).
-        if stop-1 == epoch:
-            plotting = True
-        BruteSimplifiedDockingTrainer(dockingFFT, eval_model, optimizer, experiment, plotting=plotting).run_trainer(
-            train_epochs=1, train_stream=None, valid_stream=valid_stream, test_stream=test_stream,
-            resume_training=True, resume_epoch=epoch)
+    # BruteSimplifiedDockingTrainer(dockingFFT, model, optimizer, experiment, debug=debug).run_trainer(train_epochs, train_stream=train_stream)
 
-    ## Plot loss from current experiment
-    IPPlotter(experiment).plot_loss(ylim=None)
+    eval_model = SamplingModel(dockingFFT, num_angles=1, sample_steps=sample_steps, IP_MC=True).to(device=0)
+    MCevalDockingTrainer = BruteSimplifiedDockingTrainer(dockingFFT, eval_model, optimizer, experiment,
+                                                         MC_eval=True, MC_eval_num_epochs=MC_eval_num_epochs,
+                                                         plotting=False)
+
+    ## Sampling based eval and plotting
+    MCevalDockingTrainer.run_trainer(
+        train_epochs=1, train_stream=None, valid_stream=valid_stream, test_stream=None,
+        resume_training=True, resume_epoch=train_epochs)
+    # Plot loss from current experiment
     IPPlotter(experiment).plot_rmsd_distribution(plot_epoch=train_epochs, show=show, eval_only=True)
-
-    ### Resume training model at chosen epoch
-    # BruteSimplifiedDockingTrainer(dockingFFT, model, optimizer, experiment, plotting=True, debug=debug).run_trainer(
-    #     train_epochs=1, train_stream=train_stream, valid_stream=None, test_stream=None,
-    #     resume_training=True, resume_epoch=train_epochs)
-
-    ### Resume training for validation sets
-    # BruteSimplifiedDockingTrainer(dockingFFT, model, optimizer, experiment, plotting=plotting, debug=debug).run_trainer(
-    #     train_epochs=1, train_stream=None, valid_stream=valid_stream, #test_stream=valid_stream,
-    #     resume_training=True, resume_epoch=train_epochs)
