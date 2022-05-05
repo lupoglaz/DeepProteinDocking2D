@@ -1,6 +1,7 @@
 import scipy.ndimage as ndimage
 import _pickle as pkl
 import matplotlib.pyplot as plt
+from matplotlib import colors
 import numpy as np
 import torch
 from torch.nn import functional as F
@@ -73,6 +74,25 @@ class UtilityFuncs():
         ligand = ndimage.shift(ligand, [tx, ty], mode='wrap', order=3, cval=0.0)
         return ligand
 
+    def plot_rotation_energysurface(self, fft_score, pred_txy, num_angles=360, stream_name=None, plot_count=0):
+        plt.close()
+        mintxy_energies = []
+        if num_angles == 1:
+            minimumEnergy = -fft_score[pred_txy[0], pred_txy[1]].detach().cpu()
+            mintxy_energies.append(minimumEnergy)
+        else:
+            for i in range(num_angles):
+                minimumEnergy = -fft_score[i, pred_txy[0], pred_txy[1]].detach().cpu()
+                mintxy_energies.append(minimumEnergy)
+
+        xrange = np.arange(0, 2 * np.pi, 2 * np.pi / num_angles)
+        hardmin_minEnergies = stream_name + '_energysurface' + '_example' + str(plot_count)
+        plt.plot(xrange, mintxy_energies)
+        plt.title('Best Scoring Translation Energy Surface')
+        plt.ylabel('Energy')
+        plt.xlabel('Rotation (rads)')
+        plt.savefig('Figs/EnergySurfaces/' + hardmin_minEnergies + '.png')
+
     def plot_assembly(self, receptor, ligand, gt_rot, gt_txy, pred_rot=None, pred_txy=None):
         box_size = receptor.shape[-1]
         receptor_copy = receptor * -100
@@ -101,25 +121,6 @@ class UtilityFuncs():
             pair = np.vstack((gt_transformlig, inputshapes))
 
         return pair
-
-    def plot_rotation_energysurface(self, fft_score, pred_txy, num_angles=360, stream_name=None, plot_count=0):
-        plt.close()
-        mintxy_energies = []
-        if num_angles == 1:
-            minimumEnergy = -fft_score[pred_txy[0], pred_txy[1]].detach().cpu()
-            mintxy_energies.append(minimumEnergy)
-        else:
-            for i in range(num_angles):
-                minimumEnergy = -fft_score[i, pred_txy[0], pred_txy[1]].detach().cpu()
-                mintxy_energies.append(minimumEnergy)
-
-        xrange = np.arange(0, 2 * np.pi, 2 * np.pi / num_angles)
-        hardmin_minEnergies = stream_name + '_energysurface' + '_example' + str(plot_count)
-        plt.plot(xrange, mintxy_energies)
-        plt.title('Best Scoring Translation Energy Surface')
-        plt.ylabel('Energy')
-        plt.xlabel('Rotation (rads)')
-        plt.savefig('Figs/EnergySurfaces/' + hardmin_minEnergies + '.png')
 
     def plot_predicted_pose(self, receptor, ligand, gt_rot, gt_txy, pred_rot, pred_txy, plot_count, stream_name):
         plt.close()
@@ -158,7 +159,7 @@ class UtilityFuncs():
 
     def orthogonalize_feats(self, scoring_weights, feat_stack):
         boundW, crosstermW1, crosstermW2, bulkW = scoring_weights
-        A = torch.tensor([[boundW, crosstermW1],[crosstermW2,bulkW]])
+        A = torch.tensor([[bulkW, crosstermW1],[crosstermW2,boundW]])
         eigvals, V = torch.linalg.eig(A)
         V = V.real
         rv11 = V[0, 0] * feat_stack[0, :, :] + V[1, 0] * feat_stack[1, :, :]
@@ -202,8 +203,11 @@ class UtilityFuncs():
                               lig_feat[0].squeeze().t().detach().cpu(),
                               lig_feat[1].squeeze().t().detach().cpu()))
 
-        plt.imshow(np.vstack((rec_plot, lig_plot)))  # plot scale limits
-        plt.colorbar()
+        norm = colors.CenteredNorm(vcenter=0.0)
+        stacked_image = np.vstack((rec_plot, lig_plot))
+        plt.imshow(stacked_image, cmap='coolwarm', norm=norm)  # plot scale limits
+        # plt.colorbar()
+        plt.colorbar(shrink=0.5, location='left')
         plt.title('Input', loc='left')
         plt.title('F1_bulk')
         plt.title('F2_bound', loc='right')
