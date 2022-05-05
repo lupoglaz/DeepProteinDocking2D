@@ -179,13 +179,13 @@ if __name__ == '__main__':
     #
     # plotting = False
     #
-    # testcase = 'docking_pretrain_bruteforce_allLearnedWs_10epochs_'
+    # experiment = 'docking_pretrain_bruteforce_allLearnedWs_10epochs_'
     # dataset = 'docking'
     # setid = 'test'
     # testset = 'toy_concave_data/' + dataset + '_data_' + setid
     # resume_epoch = 10
     #
-    # # testcase = 'TEST_interactionL2loss_B*smax(B)relu()_BruteForce_training_'
+    # # experiment = 'TEST_interactionL2loss_B*smax(B)relu()_BruteForce_training_'
     # # dataset = 'interaction'
     # # setid = 'valid'
     # # testset = 'toy_concave_data/'+dataset+'_data_'+setid
@@ -193,11 +193,11 @@ if __name__ == '__main__':
     #
     # data = UtilityFuncs().read_pkl(testset)
     # model = Docking().to(device=0)
-    # ckp_path = 'Log/' + testcase + str(resume_epoch) + '.th'
+    # ckp_path = 'Log/' + experiment + str(resume_epoch) + '.th'
     # model = load_ckp(ckp_path, model)
     #
     # log_header = 'Example\tRMSD\n'
-    # with open('Log/log_RMSD_'+dataset+'_'+setid+'_' + testcase + '.txt', 'w') as fout:
+    # with open('Log/log_RMSD_'+dataset+'_'+setid+'_' + experiment + '.txt', 'w') as fout:
     #     fout.write(log_header)
     #
     #     rmsd_list = []
