@@ -98,7 +98,7 @@ class EnergyBasedInteractionTrainer:
         num_examples = max(len(train_stream), len(valid_stream), len(test_stream))
         self.buffer = SampleBuffer(num_examples=num_examples)
 
-        self.sig_alpha = 3
+        self.sig_alpha = 3.0
         self.wReg = 10**-5
 
     def run_model(self, data, pos_idx=torch.tensor([0]), training=True, stream_name='trainset'):
@@ -201,10 +201,12 @@ class EnergyBasedInteractionTrainer:
 
             if train_stream:
                 self.run_epoch(train_stream, epoch, training=True)
-                scheduler.step()
-                print('last learning rate', scheduler.get_last_lr())
-
                 FIPlotter(self.experiment).plot_deltaF_distribution(plot_epoch=epoch, show=False, xlim=None, binwidth=1)
+
+                F_0_scheduler.step()
+                print('last learning rate', F_0_scheduler.get_last_lr())
+                self.sig_alpha = self.sig_alpha * F_0_scheduler.get_last_lr()[0]
+                print('sigma alpha stepped', self.sig_alpha)
 
             ### evaluate on training and valid set
             ### training set to False downstream in calcAPR() run_model()
@@ -227,17 +229,19 @@ class EnergyBasedInteractionTrainer:
 
     def run_epoch(self, data_stream, epoch, training=False):
         stream_loss = []
-        with open(self.logfile_savepath + self.logtraindF_prefix + str(epoch) + self.experiment + '.txt', 'w') as fout:
+        deltaF_logfile = self.logfile_savepath + self.logtraindF_prefix + str(epoch) + self.experiment + '.txt'
+        with open(deltaF_logfile, 'w') as fout:
             fout.write(self.deltaf_log_header)
         for data in tqdm(data_stream):
             train_output = [self.run_model(data, training=training)]
             stream_loss.append(train_output)
-            with open(self.logfile_savepath + self.logtraindF_prefix + str(epoch) + self.experiment + '.txt', 'a') as fout:
+            with open(deltaF_logfile, 'a') as fout:
                 fout.write(self.deltaf_log_format % (train_output[0][1], train_output[0][2], train_output[0][3]))
 
+        loss_logfile = self.logfile_savepath + self.logloss_prefix + self.experiment + '.txt'
         avg_loss = np.average(stream_loss, axis=0)[0, :]
         print('\nEpoch', epoch, 'Train Loss: epoch, loss', avg_loss)
-        with open(self.logfile_savepath + self.logloss_prefix + self.experiment + '.txt', 'a') as fout:
+        with open(loss_logfile, 'a') as fout:
             fout.write(self.loss_log_format % (epoch, avg_loss[0]))
 
     def checkAPR(self, check_epoch, datastream, stream_name=None):
@@ -321,7 +325,7 @@ if __name__ == '__main__':
     torch.cuda.set_device(0)
     # torch.autograd.set_detect_anomaly(True)
     #########################
-    max_size = 10000
+    max_size = 1000
     batch_size = 1
     if batch_size > 1:
         raise NotImplementedError()
@@ -330,12 +334,16 @@ if __name__ == '__main__':
     test_stream = get_interaction_stream(testset + '.pkl', batch_size=1, max_size=max_size)
     ######################
     # experiment = 'MC_FI_NEWDATA_CHECK_400pool_5000ex30ep'
-    experiment = 'MC_FI_NEWDATA_CHECK_400pool_10000ex50ep'
+    # experiment = 'MC_FI_NEWDATA_CHECK_400pool_10000ex50ep'
+    # experiment = 'MC_FI_NEWDATA_CHECK_400pool_1000ex50ep'
+    # experiment = 'MC_FI_NEWDATA_CHECK_400pool_1000ex50ep10step'
+    experiment = 'MC_FI_NEWDATA_CHECK_400pool_1000ex50ep100step'
+
     ######################
     train_epochs = 50
     lr_interaction = 10 ** 0
     lr_docking = 10 ** -4
-    sample_steps = 10
+    sample_steps = 100
     debug = False
     plotting = False
     show = False
@@ -343,14 +351,11 @@ if __name__ == '__main__':
     interaction_model = Interaction().to(device=0)
     interaction_optimizer = optim.Adam(interaction_model.parameters(), lr=lr_interaction)
 
-    scheduler = optim.lr_scheduler.ExponentialLR(interaction_optimizer, gamma=0.50)
+    F_0_scheduler = optim.lr_scheduler.ExponentialLR(interaction_optimizer, gamma=0.95)
 
     dockingFFT = TorchDockingFFT(num_angles=1, angle=None, swap_plot_quadrants=False, debug=debug)
     docking_model = SamplingModel(dockingFFT, num_angles=1, sample_steps=sample_steps, FI=True, debug=debug).to(device=0)
     docking_optimizer = optim.Adam(docking_model.parameters(), lr=lr_docking)
-
-    # sigma_optimizer = optim.Adam(docking_model.parameters(), lr=2)
-    # scheduler = optim.lr_scheduler.ExponentialLR(sigma_optimizer, gamma=0.95)
 
     # continue_epochs = 1
     ######################

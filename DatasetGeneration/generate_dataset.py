@@ -95,12 +95,12 @@ def generate_datasets(protein_pool, num_proteins, weight_bound, weight_crossterm
             free_energy = -(torch.logsumexp(-energies, dim=(0, 1, 2)) - volume)
 
             if free_energy < interaction_decision_threshold:
-                interaction = 1
+                interaction = torch.tensor(1)
             if free_energy > interaction_decision_threshold:
-                interaction = 0
+                interaction = torch.tensor(0)
             interaction_set.append([receptor, ligand, interaction])
             with open(filename, 'a') as fout:
-                fout.write('%f\t%s\t%d\n' % (free_energy.item(), 'NA', interaction))
+                fout.write('%f\t%s\t%d\n' % (free_energy.item(), 'NA', interaction.item()))
 
             fft_score_list[0].append([i, j])
             fft_score_list[1].append(lowest_energy.item())
@@ -264,20 +264,20 @@ if __name__ == '__main__':
         fout.write('\nInteraction set length '+str(len(test_interaction_set)))
 
     ## Save training sets
-    docking_train_file = data_savepath + 'docking_train_set' + str(trainpool_num_proteins) + 'pool'
-    interaction_train_file = data_savepath + 'interaction_train_set' + str(trainpool_num_proteins) + 'pool'
+    docking_train_file = data_savepath + 'docking_train_' + str(trainpool_num_proteins) + 'pool'
+    interaction_train_file = data_savepath + 'interaction_train_' + str(trainpool_num_proteins) + 'pool'
     UtilityFuncs().write_pkl(data=train_docking_set, fileprefix=docking_train_file)
     UtilityFuncs().write_pkl(data=train_interaction_set, fileprefix=interaction_train_file)
 
     ## Save validation sets
-    docking_valid_file = data_savepath + 'docking_valid_set' + str(trainpool_num_proteins) + 'pool'
-    interaction_valid_file = data_savepath + 'interaction_valid_set' + str(trainpool_num_proteins) + 'pool'
+    docking_valid_file = data_savepath + 'docking_valid_' + str(trainpool_num_proteins) + 'pool'
+    interaction_valid_file = data_savepath + 'interaction_valid_' + str(trainpool_num_proteins) + 'pool'
     UtilityFuncs().write_pkl(data=valid_docking_set, fileprefix=docking_valid_file)
     UtilityFuncs().write_pkl(data=valid_interaction_set, fileprefix=interaction_valid_file)
 
     ## Save testing sets
-    docking_test_file = data_savepath + 'docking_test_set' + str(testpool_num_proteins) + 'pool'
-    interaction_test_file = data_savepath + 'interaction_test_set' + str(testpool_num_proteins) + 'pool'
+    docking_test_file = data_savepath + 'docking_test_' + str(testpool_num_proteins) + 'pool'
+    interaction_test_file = data_savepath + 'interaction_test_' + str(testpool_num_proteins) + 'pool'
     UtilityFuncs().write_pkl(data=test_docking_set, fileprefix=docking_test_file)
     UtilityFuncs().write_pkl(data=test_interaction_set, fileprefix=interaction_test_file)
 

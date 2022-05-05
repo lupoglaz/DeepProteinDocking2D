@@ -78,7 +78,7 @@ class BruteForceInteractionTrainer:
         #### Loss functions
         BCEloss = torch.nn.BCELoss()
         l1_loss = torch.nn.L1Loss()
-        w = 10**-5 #* scheduler.get_last_lr()[0]
+        w = 10**-5 #* F_0_scheduler.get_last_lr()[0]
         L_reg = w * l1_loss(deltaF, torch.zeros(1).squeeze().cuda())
         loss = BCEloss(pred_interact, gt_interact) + L_reg
 
@@ -146,10 +146,10 @@ class BruteForceInteractionTrainer:
 
             if train_stream:
                 self.run_epoch(train_stream, epoch, training=True)
-                scheduler.step()
-                print('last learning rate', scheduler.get_last_lr())
                 FIPlotter(self.experiment).plot_deltaF_distribution(plot_epoch=epoch, show=False, xlim=None, binwidth=1)
 
+                F_0_scheduler.step()
+                print('last F_0 learning rate', F_0_scheduler.get_last_lr())
                 #### saving model while training
                 if epoch % self.save_freq == 0:
                     docking_savepath = self.model_savepath + 'docking_' + self.experiment + str(epoch) + '.th'
@@ -319,8 +319,7 @@ if __name__ == '__main__':
 
     interaction_model = Interaction().to(device=0)
     interaction_optimizer = optim.Adam(interaction_model.parameters(), lr=lr_interaction)
-
-    scheduler = optim.lr_scheduler.ExponentialLR(interaction_optimizer, gamma=0.95)
+    F_0_scheduler = optim.lr_scheduler.ExponentialLR(interaction_optimizer, gamma=0.95)
 
     docking_model = Docking().to(device=0)
     docking_optimizer = optim.Adam(docking_model.parameters(), lr=lr_docking)
