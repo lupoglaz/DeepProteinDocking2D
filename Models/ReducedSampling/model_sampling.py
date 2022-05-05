@@ -52,7 +52,7 @@ class Docker(nn.Module):
 
 
 class SamplingModel(nn.Module):
-    def __init__(self, dockingFFT, num_angles=1, step_size=10, sample_steps=10, IP=False, IP_MC=False, IP_LD=False,
+    def __init__(self, dockingFFT, num_angles=1, step_size=10, sample_steps=10, sig_alpha=2, IP=False, IP_MC=False, IP_LD=False,
                  FI=False, experiment=None, debug=False):
         super(SamplingModel, self).__init__()
         self.debug = debug
@@ -65,7 +65,7 @@ class SamplingModel(nn.Module):
         self.plot_idx = 0
 
         self.experiment = experiment
-        self.sig_alpha = 2
+        self.sig_alpha = sig_alpha
         self.step_size = self.sig_alpha
         self.BETA = 1
 
@@ -78,13 +78,13 @@ class SamplingModel(nn.Module):
 
     def forward(self, alpha, receptor, ligand, sig_alpha=None, plot_count=1, stream_name='trainset', plotting=False,
                 training=True):
-        if sig_alpha:
+        if sig_alpha: ## for Langevin Dynamics
             self.sig_alpha = sig_alpha
             self.step_size = sig_alpha
 
         if self.IP:
             if training:
-                ## train giving the ground truth rotation
+                ## BS model train giving the ground truth rotation
                 lowest_energy, _, dr, FFT_score = self.docker(receptor, ligand, alpha,
                                                               plot_count=plot_count, stream_name=stream_name,
                                                               plotting=plotting)
@@ -101,7 +101,7 @@ class SamplingModel(nn.Module):
 
         if self.IP_MC:
             if training:
-                ## MC sampling training
+                ## BS model train giving the ground truth rotation
                 lowest_energy, _, dr, FFT_score = self.docker(receptor, ligand, alpha,
                                                               plot_count=plot_count, stream_name=stream_name,
                                                               plotting=plotting)
@@ -110,7 +110,7 @@ class SamplingModel(nn.Module):
             else:
                 ## MC sampling eval
                 self.docker.eval()
-                return self.MCsampling(alpha, receptor, ligand, plot_count, stream_name)
+                return self.MCsampling(alpha, receptor, ligand, plot_count, stream_name, debug=False)
 
         if self.IP_LD:
             if training:
@@ -140,7 +140,8 @@ class SamplingModel(nn.Module):
                 # return self.MCsampling(alpha, receptor, ligand, plot_count, stream_name, debug=False)
 
     def MCsampling(self, alpha, receptor, ligand, plot_count, stream_name, debug=False):
-
+        if debug:
+            print('scheduled alpha in MC forward', self.sig_alpha)
         _, _, dr, FFT_score = self.docker(receptor, ligand, alpha,
                                           plot_count=plot_count, stream_name=stream_name,
                                           plotting=False)
@@ -201,8 +202,8 @@ class SamplingModel(nn.Module):
                 else:
                     if self.FI:
                         fft_score_list.append(FFT_score)
-                    if debug:
-                        print('reject')
+                    # if debug:
+                    #     print('reject')
                     pass
 
         if debug:
@@ -216,7 +217,7 @@ class SamplingModel(nn.Module):
 
         self.docker.train()
 
-        return free_energy, alpha.unsqueeze(0).clone(), dr.clone(), fft_score_stack.squeeze()
+        return free_energy, alpha.clone(), dr.clone(), fft_score_stack.squeeze()
 
     def langevin_dynamics(self, alpha, receptor, ligand, plot_count, stream_name):
 
