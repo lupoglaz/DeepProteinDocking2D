@@ -171,17 +171,19 @@ class BruteForceInteractionTrainer:
 
     def run_epoch(self, data_stream, epoch, training=False):
         stream_loss = []
-        with open(self.logfile_savepath + self.logtraindF_prefix + str(epoch) + self.experiment + '.txt', 'w') as fout:
+        deltaF_logfile = self.logfile_savepath + self.logtraindF_prefix + str(epoch) + self.experiment + '.txt'
+        with open(deltaF_logfile, 'w') as fout:
             fout.write(self.deltaf_log_header)
         for data in tqdm(data_stream):
             train_output = [self.run_model(data, training=training)]
             stream_loss.append(train_output)
-            with open(self.logfile_savepath + self.logtraindF_prefix + str(epoch) + self.experiment + '.txt', 'a') as fout:
+            with open(deltaF_logfile, 'a') as fout:
                 fout.write(self.deltaf_log_format % (train_output[0][1], train_output[0][2], train_output[0][3]))
 
+        loss_logfile = self.logfile_savepath + self.logloss_prefix + self.experiment + '.txt'
         avg_loss = np.average(stream_loss, axis=0)[0, :]
         print('\nEpoch', epoch, 'Train Loss: loss', avg_loss[0])
-        with open(self.logfile_savepath + self.logloss_prefix + self.experiment + '.txt', 'a') as fout:
+        with open(loss_logfile, 'a') as fout:
             fout.write(self.loss_log_format % (epoch, avg_loss[0]))
 
     def checkAPR(self, check_epoch, datastream, stream_name=None):
@@ -213,11 +215,13 @@ class BruteForceInteractionTrainer:
     def resume_training_or_not(self, resume_training, resume_epoch):
         if resume_training:
             print('Loading docking model at', str(resume_epoch))
-            ckp_path = self.model_savepath+'docking_' + self.experiment + str(resume_epoch) + '.th'
-            self.docking_model, self.docking_optimizer, _ = self.load_ckp(ckp_path, self.docking_model, self.docking_optimizer)
+            docking_ckp_path = self.model_savepath+'docking_' + self.experiment + str(resume_epoch) + '.th'
+            self.docking_model, self.docking_optimizer, _ = self.load_ckp(
+                docking_ckp_path, self.docking_model, self.docking_optimizer)
             print('Loading interaction model at', str(resume_epoch))
-            ckp_path = self.model_savepath + self.experiment + str(resume_epoch) + '.th'
-            self.interaction_model, self.interaction_optimizer, start_epoch = self.load_ckp(ckp_path, self.interaction_model, self.interaction_optimizer)
+            interaction_ckp_path = self.model_savepath + self.experiment + str(resume_epoch) + '.th'
+            self.interaction_model, self.interaction_optimizer, start_epoch = self.load_ckp(
+                interaction_ckp_path, self.interaction_model, self.interaction_optimizer)
 
             start_epoch += 1
 

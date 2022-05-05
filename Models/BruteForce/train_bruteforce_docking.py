@@ -126,16 +126,18 @@ class BruteForceDockingTrainer:
     def run_epoch(self, data_stream, epoch, training=False, stream_name='train_stream'):
         stream_loss = []
         pos_idx = 0
+        rmsd_logfile = self.logfile_savepath + 'log_RMSDs'+stream_name+'_epoch' + str(epoch) + self.experiment + '.txt'
         for data in tqdm(data_stream):
             train_output = [self.run_model(data, pos_idx=pos_idx, training=training, stream_name=stream_name)]
             stream_loss.append(train_output)
-            with open(self.logfile_savepath + 'log_RMSDs'+stream_name+'_epoch' + str(epoch) + self.experiment + '.txt','a') as fout:
+            with open(rmsd_logfile,'a') as fout:
                 fout.write('%f\n' % (train_output[0][-1]))
             pos_idx += 1
 
+        loss_logfile = self.logfile_savepath + 'log_loss_' + stream_name + '_' + self.experiment + '.txt'
         avg_loss = np.average(stream_loss, axis=0)[0, :]
         print('\nEpoch', epoch, stream_name,':', avg_loss)
-        with open(self.logfile_savepath + 'log_loss_' + stream_name + '_' + self.experiment + '.txt', 'a') as fout:
+        with open(loss_logfile, 'a') as fout:
             fout.write(self.log_format % (epoch, avg_loss[0], avg_loss[1]))
 
     def save_checkpoint(self, state, filename):
