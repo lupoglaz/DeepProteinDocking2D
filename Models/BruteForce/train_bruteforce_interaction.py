@@ -53,11 +53,14 @@ class BruteForceInteractionTrainer:
         self.set_docking_model_state()
         self.freeze_weights()
 
+        self.wReg = 1e-5
+        self.zero_value = torch.zeros(1).squeeze().cuda()
+
     def run_model(self, data, training=True):
         receptor, ligand, gt_interact = data
 
-        receptor = receptor.to(device='cuda', dtype=torch.float).squeeze().unsqueeze(0)
-        ligand = ligand.to(device='cuda', dtype=torch.float).squeeze().unsqueeze(0)
+        receptor = receptor.to(device='cuda', dtype=torch.float)
+        ligand = ligand.to(device='cuda', dtype=torch.float)
         gt_interact = gt_interact.to(device='cuda', dtype=torch.float).squeeze()
 
         if training:
@@ -78,8 +81,7 @@ class BruteForceInteractionTrainer:
         #### Loss functions
         BCEloss = torch.nn.BCELoss()
         l1_loss = torch.nn.L1Loss()
-        w = 10**-5 #* F_0_scheduler.get_last_lr()[0]
-        L_reg = w * l1_loss(deltaF, torch.zeros(1).squeeze().cuda())
+        L_reg = self.wReg * l1_loss(deltaF, self.zero_value)
         loss = BCEloss(pred_interact, gt_interact) + L_reg
 
         if self.debug:

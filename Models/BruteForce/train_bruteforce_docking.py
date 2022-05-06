@@ -28,8 +28,9 @@ class BruteForceDockingTrainer:
         self.log_header = 'Epoch\tLoss\tRMSD\n'
         self.log_format = '%d\t%f\t%f\n'
 
-        self.dim = TorchDockingFFT().dim
-        self.num_angles = TorchDockingFFT().num_angles
+        self.torchDocker = TorchDockingFFT()
+        self.dim = self.torchDocker.dim
+        self.num_angles = self.torchDocker.num_angles
 
         self.model = cur_model
         self.optimizer = cur_optimizer
@@ -38,10 +39,10 @@ class BruteForceDockingTrainer:
     def run_model(self, data, training=True, pos_idx=0, stream_name='trainset'):
         receptor, ligand, gt_rot, gt_txy = data
 
-        receptor = receptor.to(device='cuda', dtype=torch.float).squeeze().unsqueeze(0)
-        ligand = ligand.to(device='cuda', dtype=torch.float).squeeze().unsqueeze(0)
-        gt_rot = gt_rot.to(device='cuda', dtype=torch.float).squeeze()
-        gt_txy = gt_txy.to(device='cuda', dtype=torch.float).squeeze()
+        receptor = receptor.cuda()
+        ligand = ligand.cuda()
+        gt_rot = gt_rot.cuda().squeeze()
+        gt_txy = gt_txy.cuda().squeeze()
 
         if training:
             self.model.train()
@@ -55,8 +56,8 @@ class BruteForceDockingTrainer:
 
         ### Encode ground truth transformation index into empty energy grid
         with torch.no_grad():
-            target_flatindex = TorchDockingFFT().encode_transform(gt_rot, gt_txy)
-            pred_rot, pred_txy = TorchDockingFFT().extract_transform(fft_score)
+            target_flatindex = self.torchDocker.encode_transform(gt_rot, gt_txy)
+            pred_rot, pred_txy = self.torchDocker.extract_transform(fft_score)
             rmsd_out = RMSD(ligand, gt_rot, gt_txy, pred_rot, pred_txy).calc_rmsd()
 
         #### Loss functions
@@ -200,12 +201,13 @@ class BruteForceDockingTrainer:
 
 
 if __name__ == '__main__':
+
     #################################################################################
     # Datasets
-    trainset = '../../Datasets/docking_train_100pool'
-    validset = '../../Datasets/docking_valid_100pool'
+    trainset = '../../Datasets/docking_train_400pool'
+    validset = '../../Datasets/docking_valid_400pool'
     ### testing set
-    testset = '../../Datasets/docking_test_100pool'
+    testset = '../../Datasets/docking_test_400pool'
     #########################
     #### initialization torch settings
     random_seed = 42
@@ -218,16 +220,16 @@ if __name__ == '__main__':
     # torch.autograd.set_detect_anomaly(True)
     ######################
     batch_size = 1
-    max_size = None
+    max_size = 1000
     if batch_size > 1:
         raise NotImplementedError()
-    train_stream = get_docking_stream(trainset + '.pkl', batch_size, max_size=None)
-    valid_stream = get_docking_stream(validset + '.pkl', batch_size=1, max_size=None)
-    test_stream = get_docking_stream(testset + '.pkl', batch_size=1, max_size=None)
+    train_stream = get_docking_stream(trainset + '.pkl', batch_size, max_size=max_size)
+    valid_stream = get_docking_stream(validset + '.pkl', batch_size=1, max_size=max_size)
+    test_stream = get_docking_stream(testset + '.pkl', batch_size=1, max_size=max_size)
 
     ######################
-    # experiment = 'BF_IP_FINAL_DATASET_400pool_1000ex_30ep'
-    experiment = 'BF_IP_FINAL_DATASET_100pool_1000ex_30ep'
+    # experiment = 'BF_IP_FINAL_DATASET_100pool_1000ex_30ep'
+    experiment = 'BF_IP_FINAL_DATASET_400pool_1000ex_30ep'
 
     ######################
     train_epochs = 30
@@ -239,6 +241,17 @@ if __name__ == '__main__':
     ### Train model from beginning, evaluate if valid_stream and/or test_stream passed in
     BruteForceDockingTrainer(model, optimizer, experiment).run_trainer(
         train_epochs=train_epochs, train_stream=train_stream, valid_stream=valid_stream, test_stream=test_stream)
+
+    # #### RUN PROFILER
+    # # warm-up ^^^
+    # import torch.autograd.profiler as profiler
+    #
+    # with profiler.profile(with_stack=True, profile_memory=True) as prof:
+    #     BruteForceDockingTrainer(model, optimizer, experiment).run_trainer(
+    #         train_epochs=train_epochs, train_stream=train_stream, valid_stream=valid_stream, test_stream=test_stream)
+    #
+    # # print(prof.key_averages(group_by_stack_n=5).table(sort_by='self_cpu_time_total', row_limit=5))
+    # print(prof.key_averages().table())
 
     ### Resume training model at chosen epoch
     # BruteForceDockingTrainer(model, optimizer, experiment).run_trainer(

@@ -99,13 +99,14 @@ class EnergyBasedInteractionTrainer:
         self.buffer = SampleBuffer(num_examples=num_examples)
 
         self.sig_alpha = 3.0
-        self.wReg = 10**-5
+        self.wReg = 1e-5
+        self.zero_value = torch.zeros(1).squeeze().cuda()
 
     def run_model(self, data, pos_idx=torch.tensor([0]), training=True, stream_name='trainset'):
         receptor, ligand, gt_interact = data
 
-        receptor = receptor.to(device='cuda', dtype=torch.float).squeeze().unsqueeze(0)
-        ligand = ligand.to(device='cuda', dtype=torch.float).squeeze().unsqueeze(0)
+        receptor = receptor.to(device='cuda', dtype=torch.float)
+        ligand = ligand.to(device='cuda', dtype=torch.float)
         gt_interact = gt_interact.to(device='cuda', dtype=torch.float).squeeze()
 
         if training:
@@ -134,7 +135,7 @@ class EnergyBasedInteractionTrainer:
         BCEloss = torch.nn.BCELoss()
         l1_loss = torch.nn.L1Loss()
         w = 10 ** -5  # * scheduler.get_last_lr()[0]
-        L_reg = w * l1_loss(deltaF, torch.zeros(1).squeeze().cuda())
+        L_reg = w * l1_loss(deltaF, self.zero_value)
         loss = BCEloss(pred_interact, gt_interact) + L_reg
 
         if self.debug:

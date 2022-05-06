@@ -91,8 +91,8 @@ class BruteSimplifiedDockingTrainer:
     def run_model(self, data, training=True, pos_idx=0, stream_name='trainset'):
         receptor, ligand, gt_rot, gt_txy = data
 
-        receptor = receptor.to(device='cuda', dtype=torch.float).squeeze().unsqueeze(0)
-        ligand = ligand.to(device='cuda', dtype=torch.float).squeeze().unsqueeze(0)
+        receptor = receptor.to(device='cuda', dtype=torch.float)
+        ligand = ligand.to(device='cuda', dtype=torch.float)
         gt_rot = gt_rot.to(device='cuda', dtype=torch.float).squeeze()
         gt_txy = gt_txy.to(device='cuda', dtype=torch.float).squeeze()
 

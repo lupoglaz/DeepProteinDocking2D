@@ -23,17 +23,17 @@ class TorchDockingFFT:
             self.angles = torch.from_numpy(np.linspace(-np.pi, np.pi, num=self.num_angles)).cuda()
 
         self.norm = normalization
+        self.onehot_3Dgrid = torch.zeros([self.num_angles, self.dim, self.dim], dtype=torch.double).cuda()
 
     def encode_transform(self, gt_rot, gt_txy):
-        empty_3D = torch.zeros([self.num_angles, self.dim, self.dim], dtype=torch.double).cuda()
         deg_index_rot = (((gt_rot * 180.0/np.pi) + 180.0) % self.num_angles).type(torch.long)
         index_txy = gt_txy.type(torch.long)
 
         if self.num_angles == 1:
-            empty_3D[:, index_txy[0], index_txy[1]] = 1
+            self.onehot_3Dgrid[:, index_txy[0], index_txy[1]] = 1
         else:
-            empty_3D[deg_index_rot, index_txy[0], index_txy[1]] = 1
-        target_flatindex = torch.argmax(empty_3D.flatten()).cuda()
+            self.onehot_3Dgrid[deg_index_rot, index_txy[0], index_txy[1]] = 1
+        target_flatindex = torch.argmax(self.onehot_3Dgrid.flatten()).cuda()
 
         return target_flatindex
 
@@ -58,19 +58,20 @@ class TorchDockingFFT:
 
     @staticmethod
     def make_boundary(grid_shape):
+        grid_shape = grid_shape.unsqueeze(0).unsqueeze(0)
         epsilon = 1e-5
-        sobel_top = torch.tensor([[1, 2, 1], [0, 0, 0], [-1, -2, -1]], dtype=torch.float, requires_grad=True).cuda()
-        sobel_left = sobel_top.t()
+        sobel_top = torch.tensor([[[[1, 2, 1], [0, 0, 0], [-1, -2, -1]]]], dtype=torch.float).cuda()
+        sobel_left = sobel_top[0,0,:,:].t().view(1,1,3,3)
 
-        feat_top = F.conv2d(grid_shape.unsqueeze(0).unsqueeze(0), weight=sobel_top.unsqueeze(0).unsqueeze(0), padding=1)
-        feat_left = F.conv2d(grid_shape.unsqueeze(0).unsqueeze(0), weight=sobel_left.unsqueeze(0).unsqueeze(0), padding=1)
+        feat_top = F.conv2d(grid_shape, weight=sobel_top, padding=1)
+        feat_left = F.conv2d(grid_shape, weight=sobel_left, padding=1)
 
-        top = feat_top.squeeze() + epsilon
-        right = feat_left.squeeze() + epsilon
+        top = feat_top + epsilon
+        right = feat_left + epsilon
         boundary = torch.sqrt(top ** 2 + right ** 2)
-        feat_stack = torch.stack([grid_shape, boundary], dim=0)
+        feat_stack = torch.cat([grid_shape, boundary], dim=1)
 
-        return feat_stack
+        return feat_stack.squeeze()
 
     @staticmethod
     def rotate(repr, angle):
@@ -208,9 +209,9 @@ if __name__ == '__main__':
     from DeepProteinDocking2D.Utility.torchDataLoader import get_docking_stream
     from tqdm import tqdm
 
-    testset = '../Datasets/docking_test_set200pool'
+    testset = '../Datasets/docking_test_100pool'
     max_size = None
-    data_stream = get_docking_stream(testset + '.pkl', batch_size=1, shuffle=True, max_size=max_size)
+    data_stream = get_docking_stream(testset + '.pkl', batch_size=1, max_size=max_size)
 
 
     swap_quadrants = True
@@ -226,10 +227,10 @@ if __name__ == '__main__':
         gt_rot = gt_rot.squeeze()
         gt_txy = gt_txy.squeeze()
 
-        receptor = receptor.to(device='cuda', dtype=torch.float)
-        ligand = ligand.to(device='cuda', dtype=torch.float)
-        gt_rot = gt_rot.to(device='cuda', dtype=torch.float)
-        gt_txy = gt_txy.to(device='cuda', dtype=torch.float)
+        receptor = receptor.cuda()
+        ligand = ligand.cuda()
+        gt_rot = gt_rot.cuda()
+        gt_txy = gt_txy.cuda()
 
         receptor_stack = FFT.make_boundary(receptor)
         ligand_stack = FFT.make_boundary(ligand)
