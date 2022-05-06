@@ -1,8 +1,0 @@
-TRAIN/VALIDATION SET PROTEIN POOL STATS
-Protein Pool size=50:
-TRAIN set params (alpha, number of points):
-[(0.75, 1), (0.85, 2), (0.95, 1)]
-[(60, 1), (80, 2), (100, 1)]
-TRAIN set probabilities: 
-alphas:((0.75, 0.85, 0.95), (0.25, 0.5, 0.25))
-number of points((60, 80, 100), (0.25, 0.5, 0.25))

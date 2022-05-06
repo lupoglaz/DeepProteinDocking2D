@@ -1,9 +1,0 @@
-TEST DATASET STATS
-Protein Pool size=400:
-Scoring Weights: 10,20,20,200
-Docking decision threshold -90
-Interaction decision threshold -90
-
-Raw Testing set:
-Docking set length 2964
-Interaction set length 80200

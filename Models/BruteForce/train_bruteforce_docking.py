@@ -203,10 +203,10 @@ class BruteForceDockingTrainer:
 if __name__ == '__main__':
     #################################################################################
     # Datasets
-    trainset = '../../Datasets/docking_train_set400pool'
-    validset = '../../Datasets/docking_valid_set400pool'
+    trainset = '../../Datasets/docking_train_100pool'
+    validset = '../../Datasets/docking_valid_100pool'
     ### testing set
-    testset = '../../Datasets/docking_test_set200pool'
+    testset = '../../Datasets/docking_test_100pool'
     #########################
     #### initialization torch settings
     random_seed = 42
@@ -227,7 +227,8 @@ if __name__ == '__main__':
     test_stream = get_docking_stream(testset + '.pkl', batch_size=1, max_size=None)
 
     ######################
-    experiment = 'BF_IP_FINAL_DATASET_400pool_1000ex_30ep'
+    # experiment = 'BF_IP_FINAL_DATASET_400pool_1000ex_30ep'
+    experiment = 'BF_IP_FINAL_DATASET_100pool_1000ex_30ep'
 
     ######################
     train_epochs = 30

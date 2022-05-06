@@ -297,10 +297,10 @@ class BruteForceInteractionTrainer:
 if __name__ == '__main__':
     #################################################################################
     ##Datasets
-    trainset = '../../Datasets/interaction_train_set400pool'
-    validset = '../../Datasets/interaction_valid_set400pool'
+    trainset = '../../Datasets/interaction_train_100pool'
+    validset = '../../Datasets/interaction_valid_100pool'
     # ### testing set
-    testset = '../../Datasets/interaction_test_set400pool'
+    testset = '../../Datasets/interaction_test_100pool'
     #########################
     #### initialization torch settings
     random_seed = 42
@@ -334,11 +334,14 @@ if __name__ == '__main__':
 
     ######################
     # experiment = 'BF_FI_NEWDATA_CHECK_400pool_1000ex50ep'
-    experiment = 'BF_FI_NEWDATA_CHECK_400pool_2000ex50ep'
+    # experiment = 'BF_FI_NEWDATA_CHECK_400pool_2000ex50ep'
     # experiment = 'BF_FI_NEWDATA_CHECK_400pool_5000ex30ep'
     # experiment = 'BF_FI_NEWDATA_CHECK_400pool_10000ex30ep'
     # experiment = 'BF_FI_NEWDATA_CHECK_400pool_20000ex30ep'
     # experiment = 'BF_FI_NEWDATA_CHECK_400pool_20000ex30ep'
+
+    experiment = 'BF_FI_NEWDATA_CHECK_100pool_2000ex50ep'
+
 
     ##################### Load and freeze/unfreeze params (training, no eval)
     ### path to pretrained docking model
