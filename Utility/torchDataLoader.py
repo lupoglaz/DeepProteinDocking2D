@@ -1,11 +1,7 @@
-import os
-import sys
-# import _pickle as pkl
 import _pickle as pkl
-
 import torch
 from torch.utils.data import Dataset, RandomSampler
-import timeit
+import random
 
 
 class ToyDockingDataset(Dataset):
@@ -30,7 +26,7 @@ class ToyDockingDataset(Dataset):
 		r"""
 		"""
 		receptor, ligand, rotation, translation = self.data[index]
-		return receptor.unsqueeze(0), ligand.unsqueeze(0), rotation.unsqueeze(0), translation.unsqueeze(0)
+		return receptor, ligand, rotation, translation
 
 	def __len__(self):
 		r"""
@@ -47,21 +43,32 @@ class ToyInteractionDataset(Dataset):
 		"""
 		self.path = path
 		with open(self.path, 'rb') as fin:
-			self.data = pkl.load(fin)
+			self.proteins, self.indices, self.labels = pkl.load(fin)
+
+		self.data = []
+		for i in range(len(self.labels)):
+			receptor_index = self.indices[i][0]
+			ligand_index = self.indices[i][1]
+			receptor = self.proteins[receptor_index]
+			ligand = self.proteins[ligand_index]
+			label = self.labels[i]
+			self.data.append([receptor, ligand, label])
 
 		if not max_size:
 			max_size = len(self.data)
+
+		random.shuffle(self.data)
 		self.data = self.data[:max_size]
 		self.dataset_size = len(list(self.data))
 
-		print ("Dataset file: ", self.path)
-		print ("Dataset size: ", self.dataset_size)
+		print("Dataset file: ", self.path)
+		print("Dataset size: ", self.dataset_size)
 
 	def __getitem__(self, index):
 		r"""
 		"""
 		receptor, ligand, interaction = self.data[index]
-		return receptor.unsqueeze(0), ligand.unsqueeze(0), interaction.unsqueeze(0)
+		return receptor, ligand, interaction
 
 	def __len__(self):
 		r"""
@@ -78,41 +85,22 @@ def get_docking_stream(data_path, batch_size=1, shuffle=False, max_size=None, nu
 
 
 def get_interaction_stream(data_path, batch_size=1, shuffle=False, max_size=None, num_workers=0):
-	start = timeit.default_timer()
 	dataset = ToyInteractionDataset(path=data_path, max_size=max_size)
-	end = timeit.default_timer()
-	print('timer 1')
-	print(end - start)
-
-	start = timeit.default_timer()
 	sampler = RandomSampler(dataset)
-	end = timeit.default_timer()
-	print('timer 2')
-	print(end - start)
-
-	start = timeit.default_timer()
 	trainloader = torch.utils.data.DataLoader(dataset, sampler=sampler, batch_size=batch_size, num_workers=num_workers, shuffle=shuffle)
-	end = timeit.default_timer()
-	print('timer 3')
-	print(end - start)
 	return trainloader
 
 
 if __name__=='__main__':
+	import timeit
 
-	datapath = '../Datasets/interaction_train_set400pool.pkl'
+	train_datapath = '../Datasets/interaction_train_100pool.pkl'
+	valid_datapath = '../Datasets/interaction_valid_100pool.pkl'
+	test_datapath = '../Datasets/interaction_test_100pool.pkl'
 
-	get_interaction_stream(datapath, max_size=1000, num_workers=0)
-	#
-
-	# start = timeit.default_timer()
-	# get_interaction_stream(datapath, max_size=1000, num_workers=0)
-	# end = timeit.default_timer()
-	# print('timer 1')
-	# print(end - start)
-	#
-	# start = timeit.default_timer()
-	# get_interaction_stream(datapath, max_size=1000, num_workers=4)
-	# end = timeit.default_timer()
-	# print('timer 2')
-	# print(end - start)
+	start = timeit.default_timer()
+	get_interaction_stream(train_datapath, max_size=1000)
+	get_interaction_stream(valid_datapath, max_size=1000)
+	get_interaction_stream(test_datapath, max_size=1000)
+	end = timeit.default_timer()
+	print('time to load datasets', end-start)
