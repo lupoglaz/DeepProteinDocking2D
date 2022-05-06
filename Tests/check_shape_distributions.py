@@ -99,8 +99,8 @@ class ShapeDistributions:
                     indices.append(j)
 
         if len(found_list) < len(combination_list):
-            print('ERROR: Missing combination of alpha and number of points in protein pool loaded')
-            print('\tIncrease probabilities to increase parameter combination encounter frequencies')
+            print('ERROR: Missing combination of "alpha" and "number of points" in protein pool')
+            print('\tTry increasing probability parameter or dataset size to increase encounter frequencies')
             indices = self.check_missing_examples(combination_list, found_list, protein_shapes, params_list)
 
         num_rows = len(alphas_unique)
@@ -188,14 +188,14 @@ class ShapeDistributions:
 
 if __name__ == "__main__":
 
-    data_path = '../DatasetGeneration/'
+    data_path = '../DatasetGeneration/PoolData/'
 
-    num_proteins = 400
+    num_proteins = 100
     trainvalidset_protein_pool = data_path+'trainvalidset_protein_pool' + str(num_proteins) + '.pkl'
 
     ShapeDistributions(trainvalidset_protein_pool, 'trainset', show=True).plot_shapes_and_params()
 
-    num_proteins = 400
+    num_proteins = 100
     testset_protein_pool = data_path+'testset_protein_pool' + str(num_proteins) + '.pkl'
 
     ShapeDistributions(testset_protein_pool, 'testset', show=True).plot_shapes_and_params()
