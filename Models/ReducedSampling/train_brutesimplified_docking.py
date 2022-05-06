@@ -34,7 +34,6 @@ class SampleBuffer:
             self.buffer[i].append((alpha))
             if len(self.buffer[i]) > self.max_pos:
                 self.buffer[i].pop(0)
-            # print('buffer push\n', self.buffer[i])
 
     def get(self, index, samples_per_example, device='cuda'):
         alphas = []
@@ -42,18 +41,11 @@ class SampleBuffer:
             i = idx.item()
             buffer_idx_len = len(self.buffer[i])
             if buffer_idx_len < samples_per_example:
-                # print('epoch 0 init')
-                # alpha = torch.zeros(samples_per_example, 1)
                 alpha = torch.rand(samples_per_example, 1) * 2 * np.pi - np.pi
                 alphas.append(alpha)
             else:
-                # print('continuous LD picking previous rotation')
                 alpha = self.buffer[i][-1]
                 alphas.append(alpha)
-            # print('buffer get\n', self.buffer[i])
-
-        # print('\nalpha', alpha)
-        # print('dr', dr)
 
         alphas = torch.stack(alphas, dim=0).to(device=device)
 
@@ -305,7 +297,7 @@ if __name__ == '__main__':
     # torch.autograd.set_detect_anomaly(True)
     ######################
     batch_size = 1
-    max_size = 1000
+    max_size = None
     if batch_size > 1:
         raise NotImplementedError()
     train_stream = get_docking_stream(trainset + '.pkl', batch_size, max_size=max_size)
@@ -313,8 +305,9 @@ if __name__ == '__main__':
     test_stream = get_docking_stream(testset + '.pkl', batch_size=1, max_size=max_size)
 
     ######################
-    experiment = 'BS_IP_FINAL_DATASET_400pool_1000ex_30ep'
+    # experiment = 'BS_IP_FINAL_DATASET_400pool_1000ex_30ep'
     # experiment = 'BS_IP_FINAL_DATASET_400pool_1000ex_5ep'
+    experiment = 'BS_IP_FINAL_DATASET_400pool_ALLex_30ep'
 
     ######################
     train_epochs = 30
