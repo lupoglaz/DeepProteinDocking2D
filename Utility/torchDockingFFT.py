@@ -40,8 +40,7 @@ class TorchDockingFFT:
 
     def extract_transform(self, pred_score):
         pred_index = torch.argmax(pred_score)
-        pred_rot = ((pred_index / self.dim ** 2) * np.pi / 180.0) - np.pi
-
+        pred_rot = (torch.div(pred_index, self.dim ** 2) * torch.div(np.pi, 180)) - np.pi
         XYind = torch.remainder(pred_index, self.dim ** 2)
         if self.swap_plot_quadrants:
             pred_X = torch.div(XYind, self.dim, rounding_mode='floor') - self.dim//2
@@ -85,7 +84,6 @@ class TorchDockingFFT:
 
     def dock_global(self, receptor, ligand, weight_bound, weight_crossterm1, weight_crossterm2, weight_bulk):
         initbox_size = receptor.shape[-1]
-        # print(receptor.shape)
         pad_size = initbox_size // 2
 
         f_rec = receptor.unsqueeze(0).repeat(self.num_angles,1,1,1)
@@ -98,7 +96,6 @@ class TorchDockingFFT:
         else:
             f_rec = F.pad(f_rec, pad=([pad_size, pad_size+1, pad_size, pad_size+1]), mode='constant', value=0)
             rot_lig = F.pad(rot_lig, pad=([pad_size, pad_size+1, pad_size, pad_size+1]), mode='constant', value=0)
-        # print('padded shape', f_rec.shape)
 
         if self.debug:
             with torch.no_grad():
@@ -110,11 +107,11 @@ class TorchDockingFFT:
                         plt.imshow(rot_lig[i,0,:,:].detach().cpu())
                         plt.show()
 
-        score = self.CE_dock_translations(f_rec, rot_lig, weight_bound, weight_crossterm1, weight_crossterm2, weight_bulk)
+        score = self.dock_translations(f_rec, rot_lig, weight_bound, weight_crossterm1, weight_crossterm2, weight_bulk)
 
         return score
 
-    def CE_dock_translations(self, receptor, ligand, weight_bound, weight_crossterm1, weight_crossterm2, weight_bulk):
+    def dock_translations(self, receptor, ligand, weight_bound, weight_crossterm1, weight_crossterm2, weight_bulk):
         num_feats_per_shape = 2
         receptor_bulk, receptor_bound = torch.chunk(receptor, chunks=num_feats_per_shape, dim=1)
         ligand_bulk, ligand_bound = torch.chunk(ligand, chunks=num_feats_per_shape, dim=1)
@@ -122,15 +119,11 @@ class TorchDockingFFT:
         receptor_bound = receptor_bound.squeeze()
         ligand_bulk = ligand_bulk.squeeze()
         ligand_bound = ligand_bound.squeeze()
-        # print(receptor_bulk.shape)
 
         # Bulk score
         cplx_rec = torch.fft.rfft2(receptor_bulk, dim=(-2, -1), norm=self.norm)
         cplx_lig = torch.fft.rfft2(ligand_bulk, dim=(-2, -1), norm=self.norm)
         trans_bulk = torch.fft.irfft2(cplx_rec * torch.conj(cplx_lig), dim=(-2, -1), norm=self.norm)
-        # print(cplx_lig.shape, cplx_rec.shape)
-        # print(cconv.shape)
-        # print(trans_bulk.shape)
 
         # Boundary score
         cplx_rec = torch.fft.rfft2(receptor_bound, dim=(-2, -1), norm=self.norm)
@@ -149,13 +142,6 @@ class TorchDockingFFT:
 
         ## cross-term score maximizing
         score = weight_bound * trans_bound + weight_crossterm1 * trans_bulk_bound + weight_crossterm2 * trans_bound_bulk - weight_bulk * trans_bulk
-        # score = weight_bound * trans_bound + weight_crossterm1 * trans_bulk_bound + weight_crossterm2 * trans_bound_bulk + weight_bulk * trans_bulk
-
-        # print(score.shape)
-        ## minimizing score tests to check georgy coefficients
-        # score = -score
-        # score = -(weight_bound * trans_bound) + weight_crossterm1 * trans_bulk_bound + weight_crossterm2 * trans_bound_bulk + weight_bulk * trans_bulk
-        ## all cases regardless of coefficient signs, maximization or minimization; bulk weight needs to be large value like 30.0
 
         if self.swap_plot_quadrants:
             return self.swap_quadrants(score)
@@ -172,6 +158,8 @@ class TorchDockingFFT:
         print('gt indices', gt_rot, gt_txy)
         print('RMSD', rmsd_out.item())
         print()
+        plt.title('docking energy surface per shape')
+        plt.grid(False)
         if self.num_angles == 1:
             plt.imshow(energies.detach().cpu())
             plt.colorbar()
@@ -213,7 +201,6 @@ if __name__ == '__main__':
     testset = '../Datasets/docking_test_100pool'
     max_size = None
     data_stream = get_docking_stream(testset + '.pkl', batch_size=1, max_size=max_size)
-
 
     swap_quadrants = True
     FFT = TorchDockingFFT(swap_plot_quadrants=swap_quadrants, normalization="ortho")
