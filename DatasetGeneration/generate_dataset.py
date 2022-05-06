@@ -9,9 +9,9 @@ from DeepProteinDocking2D.Plotting.plot_FI import FIPlotter
 from DeepProteinDocking2D.Tests.check_shape_distributions import ShapeDistributions
 
 
-def generate_shapes(params, savefile, num_proteins=500):
+def generate_shapes(params, pool_savepath, pool_savefile, num_proteins=500):
     pool, stats = ProteinPool.generate(num_proteins=num_proteins, params=params)
-    pool.save(savefile)
+    pool.save(pool_savepath+pool_savefile)
     return stats
 
 
@@ -58,22 +58,25 @@ def plot_accepted_rejected_shapes(receptor, ligand, rot, trans, lowest_energy, f
                                                    plot_count=plot_count)
 
 
-def generate_datasets(protein_pool, num_proteins, weight_bound, weight_crossterm1, weight_crossterm2, weight_bulk):
-    data = ProteinPool.load(protein_pool)
+def generate_datasets(pool_savepath, protein_pool, num_proteins, weight_bound, weight_crossterm1, weight_crossterm2, weight_bulk):
+    data = ProteinPool.load(pool_savepath+protein_pool)
     protein_pool_prefix = protein_pool[:-4]
 
     protein_shapes = data.proteins
     fft_score_list = [[], []]
     docking_set = []
-    interaction_set = []
+    interactions_list = []
+    labels_list = []
     plot_count = 0
     plot_freq = 100
+
+    plot_accepte_rejected_examples = False
 
     translation_space = protein_shapes[0].shape[-1]
     volume = torch.log(360 * torch.tensor(translation_space ** 2))
 
-    filename = log_savepath+'log_rawdata_FI_'+protein_pool_prefix+'.txt'
-    with open(filename, 'w') as fout:
+    freeE_logfile = log_savepath+'log_rawdata_FI_'+protein_pool_prefix+'.txt'
+    with open(freeE_logfile, 'w') as fout:
         fout.write('F\tF_0\tLabel\n')
 
     for i in tqdm(range(num_proteins)):
@@ -98,16 +101,20 @@ def generate_datasets(protein_pool, num_proteins, weight_bound, weight_crossterm
                 interaction = torch.tensor(1)
             if free_energy > interaction_decision_threshold:
                 interaction = torch.tensor(0)
-            interaction_set.append([receptor, ligand, interaction])
-            with open(filename, 'a') as fout:
+            # interaction_set.append([receptor, ligand, interaction])
+            interactions_list.append([i, j])
+            labels_list.append(interaction)
+            with open(freeE_logfile, 'a') as fout:
                 fout.write('%f\t%s\t%d\n' % (free_energy.item(), 'NA', interaction.item()))
 
             fft_score_list[0].append([i, j])
             fft_score_list[1].append(lowest_energy.item())
 
-            if plotting:
+            if plot_accepte_rejected_examples:
                 plot_accepted_rejected_shapes(receptor, ligand, rot, trans, lowest_energy, fft_score,
                                               protein_pool_prefix, plot_count, plot_freq)
+
+    interaction_set = [protein_shapes, interactions_list, labels_list]
 
     return fft_score_list, docking_set, interaction_set
 
@@ -131,13 +138,16 @@ if __name__ == '__main__':
     testset_pool_stats = None
 
     log_savepath = 'Log/losses/'
+    pool_savepath = 'PoolData/'
+    poolstats_savepath = 'PoolData/stats/'
     data_savepath = '../Datasets/'
+    datastats_savepath = '../Datasets/stats/'
 
     normalization = 'ortho'
     FFT = TorchDockingFFT(swap_plot_quadrants=swap_quadrants, normalization=normalization)
 
-    trainpool_num_proteins = 5
-    testpool_num_proteins = 5
+    trainpool_num_proteins = 400
+    testpool_num_proteins = 400
 
     validation_set_cutoff = 0.8 ## proportion of training set to keep
 
@@ -155,9 +165,9 @@ if __name__ == '__main__':
     ###  generate figure with alpha vs numpoints
     ### training set -> center dists with regular tails. testing set -> shifted mean longer tails (grab binomial counts)
     ###  orthogonalization of features plotting
+    ### check monte carlo acceptance rate
 
     #### TODO: homodimers no detection threshold, if i==j compare energy to i!=j and normalize
-    ### TODO: check monte carlo acceptance rate
 
     ### Generate training/validation set protein pool
     ## dataset parameters (parameter, probability)
@@ -165,14 +175,14 @@ if __name__ == '__main__':
     train_num_points = [(60, 1), (80, 2), (100, 1)]
     train_params = ParamDistribution(alpha=train_alpha, num_points=train_num_points)
 
-    if exists(trainvalidset_protein_pool):
+    if exists(pool_savepath+trainvalidset_protein_pool):
         trainset_exists = True
         print('\n' + trainvalidset_protein_pool, 'already exists!')
         print('This training/validation protein shape pool will be loaded for dataset generation..')
     else:
         print('\n' + trainvalidset_protein_pool, 'does not exist yet...')
         print('Generating pool of', str(trainpool_num_proteins), 'protein shapes for training/validation set...')
-        trainset_pool_stats = generate_shapes(train_params, trainvalidset_protein_pool, trainpool_num_proteins)
+        trainset_pool_stats = generate_shapes(train_params, pool_savepath, trainvalidset_protein_pool, trainpool_num_proteins)
 
     ### Generate testing set protein pool
     ## dataset parameters (parameter, probability)
@@ -180,51 +190,52 @@ if __name__ == '__main__':
     test_num_points = [(40, 1), (60, 3), (80, 3), (100, 1)]
     test_params = ParamDistribution(alpha=test_alpha, num_points=test_num_points)
 
-    if exists(testset_protein_pool):
+    if exists(pool_savepath+testset_protein_pool):
         testset_exists = True
         print('\n' + testset_protein_pool, 'already exists!')
         print('This testing protein shape pool will be loaded for dataset generation..')
     else:
         print('\n' + testset_protein_pool, 'does not exist yet...')
         print('Generating pool of', str(testset_protein_pool), 'protein shapes for testing set...')
-        testset_pool_stats = generate_shapes(test_params, testset_protein_pool, testpool_num_proteins)
+        testset_pool_stats = generate_shapes(test_params, pool_savepath, testset_protein_pool, testpool_num_proteins)
 
     ### Generate training/validation set
     train_fft_score_list, train_docking_set, train_interaction_set = generate_datasets(
-                                                    trainvalidset_protein_pool, trainpool_num_proteins,
+                                                    pool_savepath, trainvalidset_protein_pool, trainpool_num_proteins,
                                                     weight_bound, weight_crossterm1, weight_crossterm2, weight_bulk)
     ### Generate testing set
     test_fft_score_list, test_docking_set, test_interaction_set = generate_datasets(
-                                                    testset_protein_pool, testpool_num_proteins,
+                                                    pool_savepath, testset_protein_pool, testpool_num_proteins,
                                                     weight_bound, weight_crossterm1, weight_crossterm2, weight_bulk)
 
 
     ## Slice validation set out for training set
     valid_docking_cutoff_index = int(len(train_docking_set) * validation_set_cutoff)
     valid_docking_set = train_docking_set[valid_docking_cutoff_index:]
-    valid_interaction_cutoff_index = int(len(train_interaction_set) * validation_set_cutoff)
-    valid_interaction_set = train_interaction_set[valid_interaction_cutoff_index:]
+    valid_interaction_cutoff_index = int(len(train_interaction_set[-1]) * validation_set_cutoff)
+    valid_interaction_set = [train_interaction_set[0],
+                             train_interaction_set[1][valid_interaction_cutoff_index:],
+                             train_interaction_set[2][valid_interaction_cutoff_index:]]
 
-    # print(train_fft_score_list)
-    print('Protein Pool:', trainpool_num_proteins)
+    print('\nProtein Pool:', trainpool_num_proteins)
     print('Docking decision threshold ', docking_decision_threshold)
     print('Interaction decision threshold ', interaction_decision_threshold)
 
-    print('Raw Training set:')
+    print('\nRaw Training set:')
     print('Docking set length', len(train_docking_set))
-    print('Interaction set length', len(train_interaction_set))
+    print('Interaction set length', len(train_interaction_set[-1]))
 
-    print('Raw Validation set:')
+    print('\nRaw Validation set:')
     print('Docking set length', len(valid_docking_set))
-    print('Interaction set length', len(valid_interaction_set))
+    print('Interaction set length', len(valid_interaction_set[-1]))
 
-    print('Raw Testing set:')
+    print('\nRaw Testing set:')
     print('Docking set length', len(test_docking_set))
-    print('Interaction set length', len(test_interaction_set))
+    print('Interaction set length', len(test_interaction_set[-1]))
 
     ## Write protein pool summary statistics to file
     if not trainset_exists:
-        with open(data_savepath + 'protein_trainpool_stats_' + str(trainpool_num_proteins) + 'pool.txt', 'w') as fout:
+        with open(poolstats_savepath + 'protein_trainpool_stats_' + str(trainpool_num_proteins) + 'pool.txt', 'w') as fout:
             fout.write('TRAIN/VALIDATION SET PROTEIN POOL STATS')
             fout.write('\nProtein Pool size='+str(trainpool_num_proteins)+':')
             fout.write('\nTRAIN set params (alpha, number of points):\n'+ str(train_alpha) +'\n'+str(train_num_points))
@@ -232,7 +243,7 @@ if __name__ == '__main__':
                        '\nnumber of points' + str(trainset_pool_stats[1]))
 
     if not testset_exists:
-        with open(data_savepath + 'protein_testpool_stats_' + str(testpool_num_proteins) + 'pool.txt', 'w') as fout:
+        with open(poolstats_savepath + 'protein_testpool_stats_' + str(testpool_num_proteins) + 'pool.txt', 'w') as fout:
             fout.write('TEST SET PROTEIN POOL STATS')
             fout.write('\nProtein Pool size='+str(testpool_num_proteins)+':')
             fout.write('\n\nTEST set params  (alpha, number of points):\n'+ str(test_alpha) +'\n'+str(test_num_points))
@@ -240,7 +251,7 @@ if __name__ == '__main__':
                        '\nnumber of points' + str(testset_pool_stats[1]))
 
     ## Write dataset summary statistics to file
-    with open(data_savepath + 'trainvalid_dataset_stats_' + str(trainpool_num_proteins) + 'pool.txt', 'w') as fout:
+    with open(datastats_savepath + 'trainvalid_dataset_stats_' + str(trainpool_num_proteins) + 'pool.txt', 'w') as fout:
         fout.write('TRAIN DATASET STATS')
         fout.write('\nProtein Pool size='+str(trainpool_num_proteins)+':')
         fout.write('\nScoring Weights: '+weight_string)
@@ -248,12 +259,12 @@ if __name__ == '__main__':
         fout.write('\nInteraction decision threshold ' + str(interaction_decision_threshold))
         fout.write('\n\nRaw Training set:')
         fout.write('\nDocking set length '+str(len(train_docking_set)))
-        fout.write('\nInteraction set length '+str(len(train_interaction_set)))
+        fout.write('\nInteraction set length '+str(len(train_interaction_set[-1])))
         fout.write('\n\nRaw Validation set:')
         fout.write('\nDocking set length '+str(len(valid_docking_set)))
-        fout.write('\nInteraction set length '+str(len(valid_interaction_set)))
+        fout.write('\nInteraction set length '+str(len(valid_interaction_set[-1])))
 
-    with open(data_savepath + 'testset_dataset_stats_' + str(testpool_num_proteins) + 'pool.txt', 'w') as fout:
+    with open(datastats_savepath + 'testset_dataset_stats_' + str(testpool_num_proteins) + 'pool.txt', 'w') as fout:
         fout.write('TEST DATASET STATS')
         fout.write('\nProtein Pool size=' + str(testpool_num_proteins) + ':')
         fout.write('\nScoring Weights: ' + weight_string)
@@ -261,7 +272,7 @@ if __name__ == '__main__':
         fout.write('\nInteraction decision threshold ' + str(interaction_decision_threshold))
         fout.write('\n\nRaw Testing set:')
         fout.write('\nDocking set length '+str(len(test_docking_set)))
-        fout.write('\nInteraction set length '+str(len(test_interaction_set)))
+        fout.write('\nInteraction set length '+str(len(test_interaction_set[-1])))
 
     ## Save training sets
     docking_train_file = data_savepath + 'docking_train_' + str(trainpool_num_proteins) + 'pool'
@@ -295,5 +306,5 @@ if __name__ == '__main__':
         FIPlotter(testset_protein_pool[:-4]).plot_deltaF_distribution(filename=testing_filename, binwidth=1, show=True)
 
         ## Plot protein pool distribution summary
-        ShapeDistributions(trainvalidset_protein_pool, 'trainset', show=True).plot_shapes_and_params()
-        ShapeDistributions(testset_protein_pool, 'testset', show=True).plot_shapes_and_params()
+        ShapeDistributions(pool_savepath+trainvalidset_protein_pool, 'trainset', show=True).plot_shapes_and_params()
+        ShapeDistributions(pool_savepath+testset_protein_pool, 'testset', show=True).plot_shapes_and_params()
