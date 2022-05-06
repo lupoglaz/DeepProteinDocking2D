@@ -30,10 +30,11 @@ class TorchDockingFFT:
         index_txy = gt_txy.type(torch.long)
 
         if self.num_angles == 1:
-            self.onehot_3Dgrid[:, index_txy[0], index_txy[1]] = 1
-        else:
-            self.onehot_3Dgrid[deg_index_rot, index_txy[0], index_txy[1]] = 1
+            deg_index_rot = 0
+
+        self.onehot_3Dgrid[deg_index_rot, index_txy[0], index_txy[1]] = 1
         target_flatindex = torch.argmax(self.onehot_3Dgrid.flatten()).cuda()
+        self.onehot_3Dgrid[deg_index_rot, index_txy[0], index_txy[1]] = 0
 
         return target_flatindex
 

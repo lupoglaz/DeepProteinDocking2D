@@ -281,10 +281,10 @@ class BruteSimplifiedDockingTrainer:
 if __name__ == '__main__':
     #################################################################################
     # Datasets
-    trainset = '../../Datasets/docking_train_set400pool'
-    validset = '../../Datasets/docking_valid_set400pool'
+    trainset = '../../Datasets/docking_train_400pool'
+    validset = '../../Datasets/docking_valid_400pool'
     ### testing set
-    testset = '../../Datasets/docking_test_set400pool'
+    testset = '../../Datasets/docking_test_400pool'
     #########################
     #### initialization torch settings
     random_seed = 42
@@ -305,9 +305,9 @@ if __name__ == '__main__':
     test_stream = get_docking_stream(testset + '.pkl', batch_size=1, max_size=max_size)
 
     ######################
-    # experiment = 'BS_IP_FINAL_DATASET_400pool_1000ex_30ep'
+    experiment = 'BS_IP_FINAL_DATASET_400pool_1000ex_30ep'
     # experiment = 'BS_IP_FINAL_DATASET_400pool_1000ex_5ep'
-    experiment = 'BS_IP_FINAL_DATASET_400pool_ALLex_30ep'
+    # experiment = 'BS_IP_FINAL_DATASET_400pool_ALLex_30ep'
 
     ######################
     train_epochs = 30
@@ -316,40 +316,40 @@ if __name__ == '__main__':
     plotting = False
     show = True
     norm = 'ortho'
+    #####################
+    dockingFFT = TorchDockingFFT(num_angles=1, angle=None, swap_plot_quadrants=False, debug=debug, normalization=norm)
+    model = SamplingModel(dockingFFT, num_angles=1, IP=True, debug=debug).to(device=0)
+    optimizer = optim.Adam(model.parameters(), lr=lr)
     ######################
-    # dockingFFT = TorchDockingFFT(num_angles=1, angle=None, swap_plot_quadrants=False, debug=debug, normalization=norm)
-    # model = SamplingModel(dockingFFT, num_angles=1, IP=True, debug=debug).to(device=0)
-    # optimizer = optim.Adam(model.parameters(), lr=lr)
-    # ######################
-    # ### Train model from beginning
-    # # BruteSimplifiedDockingTrainer(dockingFFT, model, optimizer, experiment, debug=debug).run_trainer(train_epochs, train_stream=train_stream)
-    #
-    # ## Brute force eval and plotting
-    # start = train_epochs-1
-    # stop = train_epochs
-    # eval_angles = 360
-    # eval_model = SamplingModel(dockingFFT, num_angles=eval_angles, IP=True).to(device=0)
-    # for epoch in range(start, stop):
-    #     ### Evaluate model using all 360 angles (or less).
-    #     if stop-1 == epoch:
-    #         plotting = True
-    #         BruteSimplifiedDockingTrainer(dockingFFT, eval_model, optimizer, experiment, plotting=plotting).run_trainer(
-    #         train_epochs=1, train_stream=None, valid_stream=valid_stream, test_stream=test_stream,
-    #         resume_training=True, resume_epoch=epoch)
-    #
-    # ## Plot loss from current experiment
-    # IPPlotter(experiment).plot_loss(ylim=None)
-    # IPPlotter(experiment).plot_rmsd_distribution(plot_epoch=train_epochs, show=show, eval_only=True)
-    #
-    # ### Resume training model at chosen epoch
-    # # BruteSimplifiedDockingTrainer(dockingFFT, model, optimizer, experiment, plotting=True, debug=debug).run_trainer(
-    # #     train_epochs=1, train_stream=train_stream, valid_stream=None, test_stream=None,
-    # #     resume_training=True, resume_epoch=train_epochs)
-    #
-    # ### Resume training for validation sets
-    # # BruteSimplifiedDockingTrainer(dockingFFT, model, optimizer, experiment, plotting=plotting, debug=debug).run_trainer(
-    # #     train_epochs=1, train_stream=None, valid_stream=valid_stream, #test_stream=valid_stream,
-    # #     resume_training=True, resume_epoch=train_epochs)
+    ### Train model from beginning
+    # BruteSimplifiedDockingTrainer(dockingFFT, model, optimizer, experiment, debug=debug).run_trainer(train_epochs, train_stream=train_stream)
+
+    ## Brute force eval and plotting
+    start = train_epochs-1
+    stop = train_epochs
+    eval_angles = 360
+    eval_model = SamplingModel(dockingFFT, num_angles=eval_angles, IP=True).to(device=0)
+    for epoch in range(start, stop):
+        ### Evaluate model using all 360 angles (or less).
+        if stop-1 == epoch:
+            plotting = True
+            BruteSimplifiedDockingTrainer(dockingFFT, eval_model, optimizer, experiment, plotting=plotting).run_trainer(
+            train_epochs=1, train_stream=None, valid_stream=valid_stream, test_stream=test_stream,
+            resume_training=True, resume_epoch=epoch)
+
+    ## Plot loss from current experiment
+    IPPlotter(experiment).plot_loss(ylim=None)
+    IPPlotter(experiment).plot_rmsd_distribution(plot_epoch=train_epochs, show=show, eval_only=True)
+
+    ### Resume training model at chosen epoch
+    # BruteSimplifiedDockingTrainer(dockingFFT, model, optimizer, experiment, plotting=True, debug=debug).run_trainer(
+    #     train_epochs=1, train_stream=train_stream, valid_stream=None, test_stream=None,
+    #     resume_training=True, resume_epoch=train_epochs)
+
+    ### Resume training for validation sets
+    # BruteSimplifiedDockingTrainer(dockingFFT, model, optimizer, experiment, plotting=plotting, debug=debug).run_trainer(
+    #     train_epochs=1, train_stream=None, valid_stream=valid_stream, #test_stream=valid_stream,
+    #     resume_training=True, resume_epoch=train_epochs)
 
 
     ######### Metropolis-Hastings eval on ideal learned energy surface

@@ -116,10 +116,12 @@ class BruteForceDockingTrainer:
             ### Evaluation epoch
             if epoch % self.eval_freq == 0 or epoch == 1:
                 if valid_stream:
+                    self.model.eval()
                     stream_name = 'VALIDset'
                     self.run_epoch(valid_stream, epoch, training=False, stream_name=stream_name)
 
                 if test_stream:
+                    self.model.eval()
                     stream_name = 'TESTset'
                     self.run_epoch(test_stream, epoch, training=False, stream_name=stream_name)
 
@@ -232,7 +234,7 @@ if __name__ == '__main__':
     experiment = 'BF_IP_FINAL_DATASET_400pool_1000ex_30ep'
 
     ######################
-    train_epochs = 30
+    train_epochs = 10
     lr = 10 ** -4
     model = Docking().to(device=0)
     optimizer = optim.Adam(model.parameters(), lr=lr)
@@ -242,7 +244,6 @@ if __name__ == '__main__':
     BruteForceDockingTrainer(model, optimizer, experiment).run_trainer(
         train_epochs=train_epochs, train_stream=train_stream, valid_stream=valid_stream, test_stream=test_stream)
 
-    # #### RUN PROFILER
     # # warm-up ^^^
     # import torch.autograd.profiler as profiler
     #
