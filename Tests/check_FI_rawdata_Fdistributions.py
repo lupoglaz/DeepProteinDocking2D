@@ -3,7 +3,7 @@ from DeepProteinDocking2D.Utility.torchDataLoader import get_interaction_stream
 from tqdm import tqdm
 
 from DeepProteinDocking2D.Utility.torchDockingFFT import TorchDockingFFT
-from DeepProteinDocking2D.Plotting.plot_FI import FIPlotter
+from DeepProteinDocking2D.Utility.plot_FI import FIPlotter
 
 if __name__ == "__main__":
     # trainset = 'toy_concave_data/interaction_data_train'

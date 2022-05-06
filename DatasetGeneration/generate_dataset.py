@@ -5,7 +5,7 @@ from os.path import exists
 from DeepProteinDocking2D.DatasetGeneration.ProteinPool import ProteinPool, ParamDistribution
 from DeepProteinDocking2D.Utility.torchDockingFFT import TorchDockingFFT
 from DeepProteinDocking2D.Utility.utility_functions import UtilityFuncs
-from DeepProteinDocking2D.Plotting.plot_FI import FIPlotter
+from DeepProteinDocking2D.Utility.plot_FI import FIPlotter
 from DeepProteinDocking2D.Tests.check_shape_distributions import ShapeDistributions
 
 

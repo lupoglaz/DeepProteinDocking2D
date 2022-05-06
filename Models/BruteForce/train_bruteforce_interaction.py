@@ -12,7 +12,7 @@ from DeepProteinDocking2D.Utility.torchDataLoader import get_interaction_stream
 from DeepProteinDocking2D.Models.model_interaction import Interaction
 from DeepProteinDocking2D.Utility.validation_metrics import APR
 from DeepProteinDocking2D.Models.model_docking import Docking
-from DeepProteinDocking2D.Plotting.plot_FI import FIPlotter
+from DeepProteinDocking2D.Utility.plot_FI import FIPlotter
 
 
 class BruteForceInteractionTrainer:

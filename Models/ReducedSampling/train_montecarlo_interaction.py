@@ -12,7 +12,7 @@ from DeepProteinDocking2D.Models.BruteForce.train_bruteforce_interaction import 
 
 from DeepProteinDocking2D.Models.ReducedSampling.model_sampling import SamplingModel
 from DeepProteinDocking2D.Utility.validation_metrics import APR
-from DeepProteinDocking2D.Plotting.plot_FI import FIPlotter
+from DeepProteinDocking2D.Utility.plot_FI import FIPlotter
 
 
 class SampleBuffer:
