@@ -53,7 +53,8 @@ class SampleBuffer:
 
 
 class BruteSimplifiedDockingTrainer:
-    def __init__(self, dockingFFT, cur_model, cur_optimizer, cur_experiment, MC_eval=False, MC_eval_num_epochs=10, debug=False, plotting=False):
+    def __init__(self, dockingFFT, cur_model, cur_optimizer, cur_experiment, MC_eval=False, MC_eval_num_epochs=10, debug=False, plotting=False,
+                 sigma_scheduler=None, sample_buffer_length=1000):
 
         self.debug = debug
         self.plotting = plotting
@@ -74,19 +75,17 @@ class BruteSimplifiedDockingTrainer:
         self.optimizer = cur_optimizer
         self.experiment = cur_experiment
 
-        num_examples = max(len(train_stream), len(valid_stream), len(test_stream))
-
         ## sample buffer for MC eval on ideal learned energy surface
         self.MC_eval = MC_eval
         self.MC_eval_num_epochs = MC_eval_num_epochs
         if self.MC_eval:
             self.eval_epochs = self.MC_eval_num_epochs
             self.sig_alpha = sigma_scheduler.get_last_lr()[0]
+            self.evalbuffer = SampleBuffer(num_examples=sample_buffer_length)
             print('sigma alpha', self.sig_alpha)
         else:
             self.eval_epochs = 1
             self.sig_alpha = 1
-        self.evalbuffer = SampleBuffer(num_examples=num_examples)
 
     def run_model(self, data, training=True, pos_idx=0, stream_name='trainset'):
         receptor, ligand, gt_rot, gt_txy = data
@@ -106,7 +105,7 @@ class BruteSimplifiedDockingTrainer:
         if training:
             neg_energy, pred_rot, pred_txy, fft_score = self.model(gt_rot, receptor, ligand, plot_count=pos_idx, stream_name=stream_name, plotting=self.plotting)
         else:
-            ## for evaluation, buffer is necessary for Monte Carlo eval
+            ## for evaluation, sample buffer is necessary for Monte Carlo multi epoch eval
             alpha = self.evalbuffer.get(torch.tensor([pos_idx]), samples_per_example=1)
             energy, pred_rot, pred_txy, fft_score = self.model(alpha, receptor, ligand, sig_alpha=self.sig_alpha, plot_count=pos_idx, stream_name=stream_name, plotting=self.plotting, training=False)
             self.evalbuffer.push(pred_rot, torch.tensor([pos_idx]))
@@ -145,7 +144,7 @@ class BruteSimplifiedDockingTrainer:
 
     def train_model(self, train_epochs, train_stream=None, valid_stream=None, test_stream=None,
                     resume_training=False,
-                    resume_epoch=0):
+                    resume_epoch=0, sigma_optimizer=None, sigma_scheduler=None):
 
         if self.plotting:
             self.eval_freq = 1
@@ -268,14 +267,11 @@ class BruteSimplifiedDockingTrainer:
                 fout.write(self.log_header)
         return start_epoch
 
-    def run_trainer(self, train_epochs, train_stream=None, valid_stream=None, test_stream=None, resume_training=False, resume_epoch=0):
+    def run_trainer(self, train_epochs, train_stream=None, valid_stream=None, test_stream=None, resume_training=False, resume_epoch=0,
+                    sigma_scheduler=None, sigma_optimizer=None):
         self.train_model(train_epochs, train_stream, valid_stream, test_stream,
-                         resume_training=resume_training, resume_epoch=resume_epoch)
-
-    def plot_evaluation_set(self, check_epoch, train_stream=None, valid_stream=None, test_stream=None):
-        eval_epochs = 1
-        self.train_model(eval_epochs, train_stream, valid_stream, test_stream,
-                         resume_training=False, resume_epoch=check_epoch)
+                         resume_training=resume_training, resume_epoch=resume_epoch,
+                         sigma_scheduler=sigma_scheduler, sigma_optimizer=sigma_optimizer)
 
 
 if __name__ == '__main__':
@@ -297,7 +293,7 @@ if __name__ == '__main__':
     # torch.autograd.set_detect_anomaly(True)
     ######################
     batch_size = 1
-    max_size = None
+    max_size = 1000
     if batch_size > 1:
         raise NotImplementedError()
     train_stream = get_docking_stream(trainset + '.pkl', batch_size, max_size=max_size)
@@ -305,12 +301,12 @@ if __name__ == '__main__':
     test_stream = get_docking_stream(testset + '.pkl', batch_size=1, max_size=max_size)
 
     ######################
-    experiment = 'BS_IP_FINAL_DATASET_400pool_1000ex_30ep'
-    # experiment = 'BS_IP_FINAL_DATASET_400pool_1000ex_5ep'
+    # experiment = 'BS_IP_FINAL_DATASET_400pool_1000ex_30ep'
+    experiment = 'BS_IP_FINAL_DATASET_400pool_1000ex_5ep'
     # experiment = 'BS_IP_FINAL_DATASET_400pool_ALLex_30ep'
 
     ######################
-    train_epochs = 30
+    train_epochs = 5
     lr = 10 ** -2
     debug = False
     plotting = False
@@ -332,7 +328,7 @@ if __name__ == '__main__':
     for epoch in range(start, stop):
         ### Evaluate model using all 360 angles (or less).
         if stop-1 == epoch:
-            plotting = True
+            plotting = False
             BruteSimplifiedDockingTrainer(dockingFFT, eval_model, optimizer, experiment, plotting=plotting).run_trainer(
             train_epochs=1, train_stream=None, valid_stream=valid_stream, test_stream=test_stream,
             resume_training=True, resume_epoch=epoch)
@@ -350,33 +346,3 @@ if __name__ == '__main__':
     # BruteSimplifiedDockingTrainer(dockingFFT, model, optimizer, experiment, plotting=plotting, debug=debug).run_trainer(
     #     train_epochs=1, train_stream=None, valid_stream=valid_stream, #test_stream=valid_stream,
     #     resume_training=True, resume_epoch=train_epochs)
-
-
-    ######### Metropolis-Hastings eval on ideal learned energy surface
-    train_epochs = 30
-    sample_steps = 100
-    MC_eval_num_epochs = 10
-    sigma_alpha = 3.0
-    gamma = 0.5
-    experiment = 'BS_pretrain_MC_eval'
-    dockingFFT = TorchDockingFFT(num_angles=1, angle=None, swap_plot_quadrants=False, debug=debug, normalization=norm)
-    model = SamplingModel(dockingFFT, num_angles=1, IP_MC=True, debug=debug).to(device=0)
-    optimizer = optim.Adam(model.parameters(), lr=lr)
-    ### dummy optimizer to schedule sigma of alpha
-    sigma_optimizer = optim.Adam(model.parameters(), lr=sigma_alpha)
-    sigma_scheduler = optim.lr_scheduler.ExponentialLR(sigma_optimizer, gamma=gamma)
-
-
-    # BruteSimplifiedDockingTrainer(dockingFFT, model, optimizer, experiment, debug=debug).run_trainer(train_epochs, train_stream=train_stream)
-
-    eval_model = SamplingModel(dockingFFT, num_angles=1, sample_steps=sample_steps, IP_MC=True).to(device=0)
-    MCevalDockingTrainer = BruteSimplifiedDockingTrainer(dockingFFT, eval_model, optimizer, experiment,
-                                                         MC_eval=True, MC_eval_num_epochs=MC_eval_num_epochs,
-                                                         plotting=False)
-
-    ## Sampling based eval and plotting
-    MCevalDockingTrainer.run_trainer(
-        train_epochs=1, train_stream=None, valid_stream=valid_stream, test_stream=None,
-        resume_training=True, resume_epoch=train_epochs)
-    # Plot loss from current experiment
-    IPPlotter(experiment).plot_rmsd_distribution(plot_epoch=train_epochs, show=show, eval_only=True)

@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import sys
 from os.path import exists
 
+
 class IPPlotter:
     def __init__(self, experiment=None, logfile_savepath='Log/losses/'):
         self.experiment = experiment
@@ -13,47 +14,46 @@ class IPPlotter:
             print('no experiment name given')
             sys.exit()
 
-    def plot_loss(self, ylim=None):
+    def plot_loss(self, ylim=None, show=False):
         plt.close()
         #LOSS WITH ROTATION
         train = pd.read_csv(self.logfile_savepath+'log_loss_TRAINset_'+ self.experiment +'.txt', sep='\t', header=1, names=['Epoch', 'Loss', 'RMSD'])
         valid = pd.read_csv(self.logfile_savepath+'log_loss_VALIDset_'+ self.experiment +'.txt', sep='\t', header=1, names=['Epoch', 'Loss', 'RMSD'])
         test = pd.read_csv(self.logfile_savepath+'log_loss_TESTset_'+ self.experiment +'.txt', sep='\t', header=1, names=['Epoch', 'Loss', 'RMSD'])
 
-        num_epochs = len(train['Epoch'].to_numpy())
 
         fig, ax = plt.subplots(2, figsize=(20,10))
-        train_rmsd = ax[0].plot(train['Epoch'].to_numpy(), train['RMSD'].to_numpy())
-        valid_rmsd = ax[0].plot(valid['Epoch'].to_numpy(), valid['RMSD'].to_numpy())
-        test_rmsd = ax[0].plot(test['Epoch'].to_numpy(), test['RMSD'].to_numpy())
+        ax[0].plot(train['Epoch'].to_numpy(), train['RMSD'].to_numpy())
+        ax[0].plot(valid['Epoch'].to_numpy(), valid['RMSD'].to_numpy())
+        ax[0].plot(test['Epoch'].to_numpy(), test['RMSD'].to_numpy())
         ax[0].legend(('train RMSD', 'valid RMSD', 'test RMSD'))
 
         ax[0].set_title('Loss: ' + self.experiment)
         ax[0].set_ylabel('RMSD')
         ax[0].grid(visible=True)
-        ax[0].set_xticks(np.arange(0, num_epochs+1, num_epochs/10))
 
-        train_loss = ax[1].plot(train['Epoch'].to_numpy(), train['Loss'].to_numpy())
-        valid_loss = ax[1].plot(valid['Epoch'].to_numpy(), valid['Loss'].to_numpy())
-        test_loss = ax[1].plot(test['Epoch'].to_numpy(), test['Loss'].to_numpy())
+        ax[1].plot(train['Epoch'].to_numpy(), train['Loss'].to_numpy())
+        ax[1].plot(valid['Epoch'].to_numpy(), valid['Loss'].to_numpy())
+        ax[1].plot(test['Epoch'].to_numpy(), test['Loss'].to_numpy())
         ax[1].legend(('train loss', 'valid loss', 'test loss'))
-
-        # best_train_rmsd = train['rmsd'].min()
-        # best_valid_rmsd = valid['rmsd'].min()
-        # best_test_rmsd = test['rmsd'].min()
 
         ax[1].set_xlabel('epochs')
         ax[1].set_ylabel('loss')
         ax[1].grid(visible=True)
-        ax[1].set_xticks(np.arange(0, num_epochs+1, num_epochs/10))
+
+        # num_epochs = len(train['Epoch'].to_numpy())
+        # ax[0].set_xticks(np.arange(0, num_epochs+1, num_epochs/10))
+        # ax[1].set_xticks(np.arange(0, num_epochs+1, num_epochs/10))
 
         plt.xlabel('Epochs')
         if ylim:
             ax[0].set_ylim([0,ylim])
             ax[1].set_ylim([0,ylim])
 
-        plt.savefig('Figs/IP_loss_plots/lossplot_'+self.experiment+'.png')
-        plt.show()
+        if not show:
+            plt.savefig('Figs/IP_loss_plots/lossplot_'+self.experiment+'.png')
+        else:
+            plt.show()
 
     def plot_rmsd_distribution(self, plot_epoch=1, show=False, eval_only=True):
         plt.close()
