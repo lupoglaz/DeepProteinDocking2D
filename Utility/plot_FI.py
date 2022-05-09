@@ -18,7 +18,6 @@ class FIPlotter:
         plt.close()
         #LOSS WITH ROTATION
         train = pd.read_csv(self.logfile_savepath+self.logloss_prefix+ self.experiment +'.txt', sep='\t', header=1, names=['Epoch', 'Loss'])
-        num_epochs = len(train['Epoch'].to_numpy())
 
         fig, ax = plt.subplots(figsize=(20,10))
 
@@ -27,7 +26,8 @@ class FIPlotter:
         plt.xlabel('epochs')
         plt.ylabel('loss')
         plt.grid(visible=True)
-        plt.xticks(np.arange(0, num_epochs+1, num_epochs//10))
+        # num_epochs = len(train['Epoch'].to_numpy())
+        # plt.xticks(np.arange(0, num_epochs+1, num_epochs//10))
         plt.xlabel('Epochs')
 
         plt.savefig('Figs/FI_loss_plots/lossplot_'+self.experiment+'.png')
