@@ -72,7 +72,6 @@ class EnergyBasedInteractionTrainer:
         self.debug = debug
         self.plotting = plotting
 
-        # self.train_epochs = 6
         self.check_epoch = 1
         self.eval_freq = 1
         self.save_freq = 1
@@ -101,6 +100,7 @@ class EnergyBasedInteractionTrainer:
         self.sig_alpha = 3.0
         self.wReg = 1e-5
         self.zero_value = torch.zeros(1).squeeze().cuda()
+        self.sigma_scheduler_initial = sigma_scheduler.get_last_lr()[0]
 
     def run_model(self, data, pos_idx=torch.tensor([0]), training=True, stream_name='trainset'):
         receptor, ligand, gt_interact = data
@@ -134,8 +134,7 @@ class EnergyBasedInteractionTrainer:
         #### Loss functions
         BCEloss = torch.nn.BCELoss()
         l1_loss = torch.nn.L1Loss()
-        w = 10 ** -5  # * scheduler.get_last_lr()[0]
-        L_reg = w * l1_loss(deltaF, self.zero_value)
+        L_reg = self.wReg * l1_loss(deltaF, self.zero_value)
         loss = BCEloss(pred_interact, gt_interact) + L_reg
 
         if self.debug:
@@ -201,13 +200,18 @@ class EnergyBasedInteractionTrainer:
             }
 
             if train_stream:
+                print('sig_alpha = ', self.sig_alpha)
+
                 self.run_epoch(train_stream, epoch, training=True)
                 FIPlotter(self.experiment).plot_deltaF_distribution(plot_epoch=epoch, show=False, xlim=None, binwidth=1)
 
-                F_0_scheduler.step()
-                print('last learning rate', F_0_scheduler.get_last_lr())
-                self.sig_alpha = self.sig_alpha * F_0_scheduler.get_last_lr()[0]
-                print('sigma alpha stepped', self.sig_alpha)
+                # F_0_scheduler.step()
+                # print('last learning rate', F_0_scheduler.get_last_lr())
+                # self.sig_alpha = self.sig_alpha * F_0_scheduler.get_last_lr()[0]
+                # print('sigma alpha stepped', self.sig_alpha)
+
+                sigma_scheduler.step()
+                self.sig_alpha = self.sig_alpha * (sigma_scheduler.get_last_lr()[0]/self.sigma_scheduler_initial)
 
             ### evaluate on training and valid set
             ### training set to False downstream in calcAPR() run_model()
@@ -311,10 +315,10 @@ class EnergyBasedInteractionTrainer:
 if __name__ == '__main__':
     #################################################################################
     # Datasets
-    trainset = '../../Datasets/interaction_train_set400pool'
-    validset = '../../Datasets/interaction_valid_set400pool'
+    trainset = '../../Datasets/interaction_train_400pool'
+    validset = '../../Datasets/interaction_valid_400pool'
     ### testing set
-    testset = '../../Datasets/interaction_test_set400pool'
+    testset = '../../Datasets/interaction_test_400pool'
     #########################
     #### initialization torch settings
     random_seed = 42
@@ -326,25 +330,33 @@ if __name__ == '__main__':
     torch.cuda.set_device(0)
     # torch.autograd.set_detect_anomaly(True)
     #########################
-    max_size = 1000
+    ## number_of_pairs provides max_size of interactions: max_size = int(number_of_pairs + (number_of_pairs**2 - number_of_pairs)/2)
+    number_of_pairs = 100
     batch_size = 1
     if batch_size > 1:
         raise NotImplementedError()
-    train_stream = get_interaction_stream(trainset + '.pkl', batch_size=batch_size, max_size=max_size)
-    valid_stream = get_interaction_stream(validset + '.pkl', batch_size=1, max_size=max_size)
-    test_stream = get_interaction_stream(testset + '.pkl', batch_size=1, max_size=max_size)
+    train_stream = get_interaction_stream(trainset + '.pkl', batch_size=batch_size, number_of_pairs=number_of_pairs)
+    valid_stream = get_interaction_stream(validset + '.pkl', batch_size=1, number_of_pairs=number_of_pairs)
+    test_stream = get_interaction_stream(testset + '.pkl', batch_size=1, number_of_pairs=number_of_pairs)
     ######################
     # experiment = 'MC_FI_NEWDATA_CHECK_400pool_5000ex30ep'
     # experiment = 'MC_FI_NEWDATA_CHECK_400pool_10000ex50ep'
     # experiment = 'MC_FI_NEWDATA_CHECK_400pool_1000ex50ep'
     # experiment = 'MC_FI_NEWDATA_CHECK_400pool_1000ex50ep10step'
-    experiment = 'MC_FI_NEWDATA_CHECK_400pool_1000ex50ep100step'
+    # experiment = 'MC_FI_NEWDATA_CHECK_400pool_1000ex50ep100step'
+    # experiment = 'BF_FI_400pool_1000ex_100ep_10steps_filr1e-1_gamma95'
+
+    experiment = 'BF_FI_400pool_1000ex_50ep_50steps_filr1e-1_noFreg'
 
     ######################
     train_epochs = 50
-    lr_interaction = 10 ** 0
+    lr_interaction = 10 ** -1
     lr_docking = 10 ** -4
-    sample_steps = 100
+    sample_steps = 50
+    gamma = 0.95
+    sigma_alpha = 3.0
+
+
     debug = False
     plotting = False
     show = False
@@ -352,7 +364,9 @@ if __name__ == '__main__':
     interaction_model = Interaction().to(device=0)
     interaction_optimizer = optim.Adam(interaction_model.parameters(), lr=lr_interaction)
 
-    F_0_scheduler = optim.lr_scheduler.ExponentialLR(interaction_optimizer, gamma=0.95)
+    # F_0_scheduler = optim.lr_scheduler.ExponentialLR(interaction_optimizer, gamma=gamma)
+
+    sigma_scheduler = optim.lr_scheduler.ExponentialLR(interaction_optimizer, gamma=gamma)
 
     dockingFFT = TorchDockingFFT(num_angles=1, angle=None, swap_plot_quadrants=False, debug=debug)
     docking_model = SamplingModel(dockingFFT, num_angles=1, sample_steps=sample_steps, FI=True, debug=debug).to(device=0)

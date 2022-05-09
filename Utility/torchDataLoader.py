@@ -38,7 +38,7 @@ class ToyDockingDataset(Dataset):
 class ToyInteractionDataset(Dataset):
 	r"""
 	"""
-	def __init__(self, path, max_size=None):
+	def __init__(self, path, number_of_pairs=None):
 		r"""
 		"""
 		self.path = path
@@ -54,8 +54,10 @@ class ToyInteractionDataset(Dataset):
 			label = self.labels[i]
 			self.data.append([receptor, ligand, label])
 
-		if not max_size:
+		if not number_of_pairs:
 			max_size = len(self.data)
+		else:
+			max_size = int(number_of_pairs + (number_of_pairs**2 - number_of_pairs)/2)
 
 		random.shuffle(self.data)
 		self.data = self.data[:max_size]
@@ -84,8 +86,8 @@ def get_docking_stream(data_path, batch_size=1, shuffle=False, max_size=None, nu
 	return trainloader
 
 
-def get_interaction_stream(data_path, batch_size=1, shuffle=False, max_size=None, num_workers=0):
-	dataset = ToyInteractionDataset(path=data_path, max_size=max_size)
+def get_interaction_stream(data_path, batch_size=1, shuffle=False, number_of_pairs=None, num_workers=0):
+	dataset = ToyInteractionDataset(path=data_path, number_of_pairs=number_of_pairs)
 	sampler = RandomSampler(dataset)
 	trainloader = torch.utils.data.DataLoader(dataset, sampler=sampler, batch_size=batch_size, num_workers=num_workers, shuffle=shuffle)
 	return trainloader

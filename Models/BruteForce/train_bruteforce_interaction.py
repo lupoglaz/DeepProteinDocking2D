@@ -150,7 +150,7 @@ class BruteForceInteractionTrainer:
                 self.run_epoch(train_stream, epoch, training=True)
                 FIPlotter(self.experiment).plot_deltaF_distribution(plot_epoch=epoch, show=False, xlim=None, binwidth=1)
 
-                F_0_scheduler.step()
+                # F_0_scheduler.step()
                 print('last F_0 learning rate', F_0_scheduler.get_last_lr())
                 #### saving model while training
                 if epoch % self.save_freq == 0:
@@ -299,10 +299,10 @@ class BruteForceInteractionTrainer:
 if __name__ == '__main__':
     #################################################################################
     ##Datasets
-    trainset = '../../Datasets/interaction_train_100pool'
-    validset = '../../Datasets/interaction_valid_100pool'
+    trainset = '../../Datasets/interaction_train_400pool'
+    validset = '../../Datasets/interaction_valid_400pool'
     # ### testing set
-    testset = '../../Datasets/interaction_test_100pool'
+    testset = '../../Datasets/interaction_test_400pool'
     #########################
     #### initialization torch settings
     random_seed = 42
@@ -315,34 +315,38 @@ if __name__ == '__main__':
     # CUDA_LAUNCH_BLOCKING = 1
     # torch.autograd.set_detect_anomaly(True)
     #########################
-    train_epochs = 50
-    lr_interaction = 10**0
+    train_epochs = 100
+    lr_interaction = 10**-1
     lr_docking = 10**-4
-
+    gamma = 0.95
     interaction_model = Interaction().to(device=0)
     interaction_optimizer = optim.Adam(interaction_model.parameters(), lr=lr_interaction)
-    F_0_scheduler = optim.lr_scheduler.ExponentialLR(interaction_optimizer, gamma=0.95)
+    F_0_scheduler = optim.lr_scheduler.ExponentialLR(interaction_optimizer, gamma=gamma)
 
     docking_model = Docking().to(device=0)
     docking_optimizer = optim.Adam(docking_model.parameters(), lr=lr_docking)
 
-    max_size = 2000
+    ## number_of_pairs provides max_size of interactions: max_size = int(number_of_pairs + (number_of_pairs**2 - number_of_pairs)/2)
+    number_of_pairs = 100
     batch_size = 1
     if batch_size > 1:
         raise NotImplementedError()
-    train_stream = get_interaction_stream(trainset + '.pkl', batch_size=batch_size, max_size=max_size)
-    valid_stream = get_interaction_stream(validset + '.pkl', batch_size=1, max_size=max_size)
-    test_stream = get_interaction_stream(testset + '.pkl', batch_size=1, max_size=max_size)
+    train_stream = get_interaction_stream(trainset + '.pkl', batch_size=batch_size, number_of_pairs=number_of_pairs)
+    valid_stream = get_interaction_stream(validset + '.pkl', batch_size=1, number_of_pairs=number_of_pairs)
+    test_stream = get_interaction_stream(testset + '.pkl', batch_size=1, number_of_pairs=number_of_pairs)
 
     ######################
     # experiment = 'BF_FI_NEWDATA_CHECK_400pool_1000ex50ep'
     # experiment = 'BF_FI_NEWDATA_CHECK_400pool_2000ex50ep'
     # experiment = 'BF_FI_NEWDATA_CHECK_400pool_5000ex30ep'
+
     # experiment = 'BF_FI_NEWDATA_CHECK_400pool_10000ex30ep'
     # experiment = 'BF_FI_NEWDATA_CHECK_400pool_20000ex30ep'
     # experiment = 'BF_FI_NEWDATA_CHECK_400pool_20000ex30ep'
 
-    experiment = 'BF_FI_NEWDATA_CHECK_100pool_2000ex50ep'
+    # experiment = 'BF_FI_400pool_1000ex_100ep_filr1e-1_noFreg'
+
+    experiment = 'BF_FI_400pool_100pairs_100ep_filr1e-1_noFreg'
 
 
     ##################### Load and freeze/unfreeze params (training, no eval)
@@ -361,7 +365,7 @@ if __name__ == '__main__':
 
     ## Resume training model at chosen epoch
     # BruteForceInteractionTrainer(docking_model, docking_optimizer, interaction_model, interaction_optimizer, experiment, training_case, path_pretrain
-    #                              ).run_trainer(resume_training=True, resume_epoch=50, train_epochs=50, train_stream=train_stream, valid_stream=None, test_stream=None)
+    #                              ).run_trainer(resume_training=True, resume_epoch=400, train_epochs=100, train_stream=train_stream, valid_stream=None, test_stream=None)
     #
 
     ### Validate model at chosen epoch
